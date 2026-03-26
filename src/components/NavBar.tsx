@@ -25,6 +25,7 @@ export default function NavBar({ user, profile }: NavBarProps) {
   const tabs = [
     { label: 'Assessment', href: '/dashboard/assess', adminOnly: true },
     { label: 'Portfolio', href: '/dashboard/portfolio', adminOnly: true },
+    { label: 'Demo', href: '/dashboard/demo', adminOnly: false },
     { label: 'Customers', href: '/dashboard/customers', adminOnly: true },
     { label: 'My Reports', href: '/dashboard/reports', adminOnly: false },
   ].filter(t => !t.adminOnly || isAdmin)
