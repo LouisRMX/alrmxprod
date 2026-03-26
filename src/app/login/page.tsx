@@ -1,16 +1,18 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 
-export default function LoginPage() {
+function LoginForm() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
+  const redirectTo = searchParams.get('redirect')
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
@@ -25,18 +27,18 @@ export default function LoginPage() {
       return
     }
 
-    router.push('/dashboard')
+    router.push(redirectTo === 'demo' ? '/dashboard/demo' : '/dashboard')
     router.refresh()
   }
 
   return (
     <div style={{
       minHeight: '100vh',
-      display: 'flex',
+      display: 'flex', flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
       background: 'var(--gray-50)',
-      padding: '24px'
+      padding: '24px', gap: '24px'
     }}>
       <div style={{
         width: '100%',
@@ -65,7 +67,9 @@ export default function LoginPage() {
           Sign in
         </h1>
         <p style={{ fontSize: '13px', color: 'var(--gray-500)', marginBottom: '28px' }}>
-          Enter your credentials to access the platform
+          {redirectTo === 'demo'
+            ? 'Sign in to access the demo'
+            : 'Enter your credentials to access the platform'}
         </p>
 
         <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -133,6 +137,29 @@ export default function LoginPage() {
           Al-RMX Platform · Access by invitation only
         </p>
       </div>
+
+      {/* Demo button below login card */}
+      <button
+        onClick={() => router.push('/login?redirect=demo')}
+        style={{
+          padding: '12px 28px', background: 'var(--white)',
+          color: 'var(--green)', border: '1px solid var(--border)',
+          borderRadius: '10px', fontSize: '13px', fontWeight: '500',
+          cursor: 'pointer', fontFamily: 'var(--font)',
+          boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+          transition: 'all .15s'
+        }}
+      >
+        Try demo →
+      </button>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   )
 }
