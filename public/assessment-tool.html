@@ -5709,9 +5709,8 @@ function renderGuidedPreview(main) {
 // Auto-switch to portfolio/demo mode when loaded with #demo hash
 if(window.location.hash==='#demo'){
   if(!assessments.length){assessments=[...DEMO_ASSESSMENTS];localStorage.setItem('alcem_v4',JSON.stringify(assessments));}
-  // Hide the HTML tool's own topbar and mode-tabs when embedded
+  // Hide only the green topbar when embedded — keep mode-tabs for navigation
   document.querySelector('.topbar').style.display='none';
-  document.querySelector('.mode-tabs').style.display='none';
   switchMode('dashboard',document.querySelectorAll('.mode-tab')[2]);
 }
 
