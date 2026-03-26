@@ -73,6 +73,8 @@ export async function POST(req: NextRequest) {
 }
 
 function buildExecutivePrompt(ctx: Record<string, unknown>) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const scores = ctx.scores as any
   return `You are an expert ready-mix concrete operations consultant. Write a concise executive summary for a plant assessment report.
 
 PLANT: ${ctx.plant}
@@ -81,17 +83,19 @@ DATE: ${ctx.date}
 OVERALL SCORE: ${ctx.overall}/100
 PRIMARY BOTTLENECK: ${ctx.bottleneck}
 EBITDA GAP: $${ctx.ebitdaMonthly}/month
-SCORES: Production ${ctx.scores?.prod}/100, Dispatch ${ctx.scores?.dispatch}/100, Fleet ${ctx.scores?.fleet}/100
+SCORES: Production ${scores?.prod}/100, Dispatch ${scores?.dispatch}/100, Fleet ${scores?.fleet}/100
 TOP ISSUES: ${JSON.stringify(ctx.issues)}
 
 Write 3-4 sentences. Lead with the dollar opportunity. Be direct and specific. No generic statements. GCC context.`
 }
 
 function buildDiagnosisPrompt(ctx: Record<string, unknown>) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const scores = ctx.scores as any
   return `You are an expert ready-mix concrete operations consultant. Write the Operational Diagnosis section.
 
 PLANT: ${ctx.plant} | COUNTRY: ${ctx.country}
-SCORES: Production ${ctx.scores?.prod}/100, Dispatch ${ctx.scores?.dispatch}/100, Fleet ${ctx.scores?.fleet}/100, Quality ${ctx.scores?.quality}/100
+SCORES: Production ${scores?.prod}/100, Dispatch ${scores?.dispatch}/100, Fleet ${scores?.fleet}/100, Quality ${scores?.quality}/100
 OVERALL: ${ctx.overall}/100 | BOTTLENECK: ${ctx.bottleneck}
 KEY METRICS: Utilisation ${ctx.utilPct}%, Turnaround ${ctx.turnaround}min
 ISSUES: ${JSON.stringify(ctx.issues)}
@@ -102,12 +106,14 @@ No recommendations in this section — diagnosis only. Be specific with numbers.
 }
 
 function buildActionsPrompt(ctx: Record<string, unknown>) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const scores = ctx.scores as any
   return `You are an expert ready-mix concrete operations consultant. Write the Improvement Actions section.
 
 PLANT: ${ctx.plant} | BOTTLENECK: ${ctx.bottleneck}
 EBITDA GAP: $${ctx.ebitdaMonthly}/month
 TOP ISSUES: ${JSON.stringify(ctx.issues)}
-SCORES: Production ${ctx.scores?.prod}/100, Dispatch ${ctx.scores?.dispatch}/100, Fleet ${ctx.scores?.fleet}/100
+SCORES: Production ${scores?.prod}/100, Dispatch ${scores?.dispatch}/100, Fleet ${scores?.fleet}/100
 
 Write exactly 3 specific, actionable recommendations:
 1. Address the primary bottleneck — most impact
