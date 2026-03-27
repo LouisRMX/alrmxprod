@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import Link from 'next/link'
 import AddCustomerForm from './AddCustomerForm'
 
 export default async function CustomersPage() {
@@ -67,8 +68,12 @@ export default async function CustomersPage() {
                   <td style={{ padding: '12px 16px', fontSize: '13px', color: 'var(--gray-500)' }}>
                     {(c.plants as unknown as { count: number }[])?.[0]?.count || 0}
                   </td>
-                  <td style={{ padding: '12px 16px', fontSize: '12px', color: 'var(--green)', cursor: 'pointer', fontWeight: '500' }}>
-                    Manage →
+                  <td style={{ padding: '12px 16px' }}>
+                    <Link href={`/dashboard/customers/${c.id}`} style={{
+                      fontSize: '12px', color: 'var(--green)', textDecoration: 'none', fontWeight: '500'
+                    }}>
+                      Manage →
+                    </Link>
                   </td>
                 </tr>
               ))}
