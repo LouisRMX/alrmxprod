@@ -919,6 +919,26 @@ const SECTIONS=[
 ]
 const TOTAL_Q=SECTIONS.reduce((s,sec)=>s+sec.qs.length,0);
 
+// ── PHASE CONFIGURATION ──────────────────────────────────────────────────────
+// On-site questions require physical plant observation; everything else is workshop
+const ONSITE_IDS=new Set([
+  'turnaround','site_wait_time','washout_time',       // Fleet observation
+  'operator_backup','batch_cycle','stops_freq',        // Production observation
+  'order_to_dispatch','plant_idle',                    // Dispatch observation
+  'quality_control','reject_cause','surplus_concrete','breakdowns', // Quality observation
+  'biggest_pain'                                       // Interview
+]);
+// S._phase: 'workshop' | 'onsite' | 'complete' | 'full' (full=show all, e.g. demo)
+function isQVisible(qId){
+  const phase=S._phase||'full';
+  if(phase==='full'||phase==='complete')return true;
+  if(phase==='workshop')return !ONSITE_IDS.has(qId);
+  if(phase==='onsite')return true; // Show all in onsite — workshop answers are already filled
+  return true;
+}
+function getVisibleQs(sec){return sec.qs.filter(q=>isQVisible(q.id));}
+function getVisibleTotal(){return SECTIONS.reduce((s,sec)=>s+getVisibleQs(sec).length,0);}
+
 // ── CORE BLOCKS & GM STATE ────────────────────────────────────────────────────
 const CORE_BLOCKS=[
   {id:'economics',label:'Economics & production volume',ids:['price_m3','cement_cost','op_days','plant_cap','op_hours','actual_prod','working_days_month']},
@@ -2208,16 +2228,30 @@ function renderSec(){
   S.visited[S.sec]=true;
   renderSidebar();
   const sec=SECTIONS[S.sec];
+  const visQs=getVisibleQs(sec);
+  // Skip sections with no visible questions in current phase
+  if(visQs.length===0){
+    const dir=S._lastDir||1;
+    if(dir>0&&S.sec<SECTIONS.length-1){S.sec++;renderSec();return;}
+    if(dir<0&&S.sec>0){S.sec--;renderSec();return;}
+  }
+  const visTotal=getVisibleTotal();
   const answered=Object.keys(S.answers).filter(k=>S.answers[k]!==undefined&&S.answers[k]!=='').length;
+  const visAnswered=visQs.filter(q=>S.answers[q.id]!==undefined&&S.answers[q.id]!=='').length;
+  const allVisAnswered=SECTIONS.reduce((s,sec)=>s+getVisibleQs(sec).filter(q=>S.answers[q.id]!==undefined&&S.answers[q.id]!=='').length,0);
   const isLast=S.sec===SECTIONS.length-1;
+  const phase=S._phase||'full';
+  const phaseLabel=phase==='workshop'?' — Workshop (remote)':phase==='onsite'?' — On-site visit':'';
+  const nextLabel=isLast?(phase==='workshop'?'Complete workshop →':'Generate report →'):'Next section →';
   const main=document.getElementById('diag-main');
   main.scrollTop=0;window.scrollTo(0,0);
   main.innerHTML=`
-    <div class="prog-bar"><div class="prog-track"><div class="prog-fill" id="pf" style="width:${Math.round(answered/TOTAL_Q*100)}%"></div></div><div class="prog-lbl" id="prog-lbl">${answered} / ${TOTAL_Q}</div></div>
-    <div style="margin-bottom:16px"><div style="font-size:18px;font-weight:500;margin-bottom:3px">${sec.label}</div><div style="font-size:13px;color:var(--gray-500)">${sec.qs.length} questions${sec.qs.some(q=>q.field)?' — field notes shown in amber':''}</div></div>
-    ${sec.qs.map((q,i)=>renderQ(q,i)).join('')}
+    ${phaseLabel?`<div style="margin-bottom:12px;padding:6px 12px;background:${phase==='workshop'?'#EBF5FB':'#FEF9E7'};border:1px solid ${phase==='workshop'?'#AED6F1':'#F9E79F'};border-radius:8px;font-size:12px;color:${phase==='workshop'?'#2471A3':'#B7950B'};font-weight:500">${phase==='workshop'?'📋 Phase 1: Workshop — data collection (remote)':'🏭 Phase 2: On-site — plant observation'}</div>`:''}
+    <div class="prog-bar"><div class="prog-track"><div class="prog-fill" id="pf" style="width:${Math.round(allVisAnswered/visTotal*100)}%"></div></div><div class="prog-lbl" id="prog-lbl">${allVisAnswered} / ${visTotal}</div></div>
+    <div style="margin-bottom:16px"><div style="font-size:18px;font-weight:500;margin-bottom:3px">${sec.label}</div><div style="font-size:13px;color:var(--gray-500)">${visQs.length} questions${visQs.some(q=>q.field)?' — field notes shown in amber':''}</div></div>
+    ${visQs.map((q,i)=>renderQ(q,i)).join('')}
     <div id="score-live-wrap"></div>
-    <div class="nav-row"><button class="btn-back" style="display:${S.sec===0?'none':'block'}" onclick="goBack()">← Back</button><button class="btn-next" onclick="goNext()">${isLast?'Generate report →':'Next section →'}</button></div>`;
+    <div class="nav-row"><button class="btn-back" style="display:${S.sec===0?'none':'block'}" onclick="goBack()">← Back</button><button class="btn-next" onclick="goNext()">${nextLabel}</button></div>`;
   updateLiveScores();
 }
 
@@ -2229,6 +2263,8 @@ function renderSidebar(){
     return;
   }
   SECTIONS.forEach((sec,i)=>{
+    const visQs=getVisibleQs(sec);
+    if(visQs.length===0)return; // Hide sections with no visible questions
     const done=secDone(i);const d=document.createElement('div');
     d.className=`si ${i===S.sec?'active':''} ${done&&i!==S.sec?'done':''}`;
     d.innerHTML=`<div class="si-check">${done?'✓':''}</div><span>${sec.label}</span>`;
@@ -2239,7 +2275,7 @@ function renderSidebar(){
 function secDone(i){
   if(!S.visited)S.visited={};
   if(!S.visited[i])return false;
-  return SECTIONS[i].qs.filter(q=>q.req).every(q=>S.answers[q.id]!==undefined&&S.answers[q.id]!=='');
+  return getVisibleQs(SECTIONS[i]).filter(q=>q.req).every(q=>S.answers[q.id]!==undefined&&S.answers[q.id]!=='');
 }
 
 function renderQ(q,i){
@@ -2318,6 +2354,7 @@ window.addEventListener('message',function(e){
   if(e.data?.type==='ALRMX_INIT'){
     const p=e.data.payload;
     S._assessmentId=p.assessmentId;
+    S._phase=p.phase||'full';
     // Hide topbar when embedded in Next.js, keep mode-tabs but hide Portfolio
     document.querySelector('.topbar').style.display='none';
     const modeTabs=document.querySelectorAll('.mode-tab');
@@ -2404,8 +2441,16 @@ function saveOpt(id,val,el){
   if(card)card.classList.add('is-answered');
   updateProgress();calcLive(id);updateLiveScores();autosaveDraft();
 }
-function goBack(){if(S.sec>0){S.sec--;renderSec();}}
-function goNext(){if(S.sec<SECTIONS.length-1){S.sec++;renderSec();}else{showResult();}}
+function goBack(){S._lastDir=-1;if(S.sec>0){S.sec--;renderSec();}}
+function goNext(){
+  S._lastDir=1;
+  if(S.sec<SECTIONS.length-1){S.sec++;renderSec();}
+  else if((S._phase||'full')==='workshop'){
+    // Workshop complete — notify parent to transition phase
+    window.parent.postMessage({type:'ALRMX_WORKSHOP_COMPLETE'},'*');
+  }
+  else{showResult();}
+}
 function updateProgress(){
   const done=Object.keys(S.answers).filter(k=>S.answers[k]!==undefined&&S.answers[k]!=='').length;
   const pf=document.getElementById('pf');const pl=document.getElementById('prog-lbl');

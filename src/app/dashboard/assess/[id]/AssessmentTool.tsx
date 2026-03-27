@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 
 interface Assessment {
   id: string
+  phase: string
   plant: { name: string; country: string; customer?: { name: string } }
   analyst: { full_name: string }
   date: string
@@ -30,6 +31,7 @@ export default function AssessmentTool({
   const router = useRouter()
   const [saving, setSaving] = useState(false)
   const [lastSaved, setLastSaved] = useState<string | null>(null)
+  const [phase, setPhase] = useState(assessment.phase || 'workshop')
 
   // Listen for messages from the iframe (assessment tool)
   useEffect(() => {
@@ -42,6 +44,9 @@ export default function AssessmentTool({
       }
       if (event.data?.type === 'ALRMX_SAVE_REPORT') {
         await saveReport(event.data.payload)
+      }
+      if (event.data?.type === 'ALRMX_WORKSHOP_COMPLETE') {
+        await transitionPhase('onsite')
       }
     }
 
@@ -56,6 +61,7 @@ export default function AssessmentTool({
       type: 'ALRMX_INIT',
       payload: {
         assessmentId: assessment.id,
+        phase,
         plant: assessment.plant?.name,
         country: assessment.plant?.country,
         company: assessment.plant?.customer?.name,
@@ -66,6 +72,35 @@ export default function AssessmentTool({
         report: assessment.report || {},
       }
     }, '*')
+  }
+
+  async function transitionPhase(newPhase: string) {
+    const { error } = await supabase.from('assessments').update({
+      phase: newPhase
+    }).eq('id', assessment.id)
+
+    if (!error) {
+      setPhase(newPhase)
+      // Reload iframe with new phase
+      if (iframeRef.current?.contentWindow) {
+        iframeRef.current.contentWindow.postMessage({
+          type: 'ALRMX_INIT',
+          payload: {
+            assessmentId: assessment.id,
+            phase: newPhase,
+            plant: assessment.plant?.name,
+            country: assessment.plant?.country,
+            company: assessment.plant?.customer?.name,
+            analyst: assessment.analyst?.full_name,
+            date: assessment.date,
+            season: assessment.season,
+            answers: assessment.answers || {},
+            report: assessment.report || {},
+          }
+        }, '*')
+      }
+      router.refresh()
+    }
   }
 
   async function saveAssessment(data: Record<string, unknown>) {
@@ -119,10 +154,12 @@ export default function AssessmentTool({
       }
     }
 
-    // Notify iframe that report is ready
     iframeRef.current?.contentWindow?.postMessage({ type: 'ALRMX_REPORT_READY' }, '*')
     router.refresh()
   }
+
+  const phaseLabel = phase === 'workshop' ? 'Phase 1: Workshop' : phase === 'onsite' ? 'Phase 2: On-site' : phase === 'complete' ? 'Complete' : ''
+  const phaseColor = phase === 'workshop' ? '#2471A3' : phase === 'onsite' ? '#B7950B' : '#27ae60'
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative' }}>
@@ -133,11 +170,19 @@ export default function AssessmentTool({
         justifyContent: 'space-between', fontSize: '11px', color: 'var(--gray-500)',
         fontFamily: 'var(--mono)'
       }}>
-        <span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           {assessment.plant?.name} — {assessment.plant?.country}
+          {phaseLabel && (
+            <span style={{
+              padding: '2px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: '600',
+              background: phaseColor + '15', color: phaseColor, border: `1px solid ${phaseColor}30`
+            }}>
+              {phaseLabel}
+            </span>
+          )}
         </span>
         <span>
-          {saving ? '⏳ Saving…' : lastSaved ? `✓ Saved ${lastSaved}` : 'Auto-saves to database'}
+          {saving ? 'Saving…' : lastSaved ? `Saved ${lastSaved}` : 'Auto-saves to database'}
         </span>
       </div>
 
