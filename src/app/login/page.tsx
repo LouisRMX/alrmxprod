@@ -27,7 +27,7 @@ function LoginForm() {
       return
     }
 
-    router.push(redirectTo === 'demo' ? '/dashboard/demo' : '/dashboard')
+    router.push(redirectTo === 'demo' ? '/demo' : '/dashboard')
     router.refresh()
   }
 
