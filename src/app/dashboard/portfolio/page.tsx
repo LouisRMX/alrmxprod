@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
+import DeleteButton from './DeleteButton'
 
 function scoreColor(s: number | null) {
   if (s === null) return '#c8c8c8'
@@ -146,12 +147,13 @@ export default async function PortfolioPage() {
                   <td style={{ padding: '12px 16px', fontSize: '13px', fontFamily: 'var(--mono)', color: 'var(--gray-700)' }}>
                     {fmt(a.ebitda_monthly)}<span style={{ fontSize: '11px', color: 'var(--gray-400)' }}>/mo</span>
                   </td>
-                  <td style={{ padding: '12px 16px' }}>
+                  <td style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <Link href={`/dashboard/assess/${a.id}`} style={{
                       fontSize: '12px', color: 'var(--green)', textDecoration: 'none', fontWeight: '500'
                     }}>
                       View →
                     </Link>
+                    <DeleteButton assessmentId={a.id} />
                   </td>
                 </tr>
               ))}
