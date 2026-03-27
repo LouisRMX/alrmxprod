@@ -20,27 +20,34 @@ export default async function ReportsPage() {
     .eq('id', user.id)
     .single()
 
-  // Admins go to portfolio
-  if (profile?.role === 'admin') redirect('/dashboard/portfolio')
+  const isAdmin = profile?.role === 'admin'
 
-  // Customers see their own reports
+  // Admins see all assessments with reports; customers see their own
   const { data: assessments } = await supabase
     .from('assessments')
     .select(`
       *,
-      plant:plants(name, country),
+      plant:plants(name, country, customer:customers(name)),
+      analyst:profiles(full_name),
       report:reports(executive)
     `)
     .order('created_at', { ascending: false })
 
+  // Filter to only assessments that have a report (for admins)
+  const withReports = isAdmin
+    ? (assessments || []).filter(a => (a.report as { executive?: string })?.executive)
+    : assessments || []
+
   return (
-    <div style={{ padding: '24px', maxWidth: '800px', margin: '0 auto' }}>
-      <h1 style={{ fontSize: '20px', fontWeight: '600', marginBottom: '4px' }}>My Reports</h1>
+    <div style={{ padding: '24px', maxWidth: '900px', margin: '0 auto' }}>
+      <h1 style={{ fontSize: '20px', fontWeight: '600', marginBottom: '4px' }}>
+        {isAdmin ? 'Reports' : 'My Reports'}
+      </h1>
       <p style={{ fontSize: '13px', color: 'var(--gray-500)', marginBottom: '24px' }}>
-        Assessment reports for your plants
+        {isAdmin ? 'All generated assessment reports' : 'Assessment reports for your plants'}
       </p>
 
-      {!assessments || assessments.length === 0 ? (
+      {withReports.length === 0 ? (
         <div style={{
           background: 'var(--white)', border: '1px solid var(--border)',
           borderRadius: 'var(--radius)', padding: '48px', textAlign: 'center'
@@ -49,28 +56,40 @@ export default async function ReportsPage() {
             No reports yet
           </div>
           <div style={{ fontSize: '13px', color: 'var(--gray-500)' }}>
-            Your consultant will share reports here after each plant visit.
+            {isAdmin
+              ? 'Reports will appear here after generating them from an assessment.'
+              : 'Your consultant will share reports here after each plant visit.'}
           </div>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {assessments.map(a => (
+          {withReports.map(a => (
             <div key={a.id} style={{
               background: 'var(--white)', border: '1px solid var(--border)',
               borderRadius: 'var(--radius)', padding: '20px',
               display: 'flex', alignItems: 'center', justifyContent: 'space-between'
             }}>
-              <div>
-                <div style={{ fontSize: '15px', fontWeight: '500', marginBottom: '4px' }}>
-                  {(a.plant as { name: string })?.name}
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                  <div style={{ fontSize: '15px', fontWeight: '500' }}>
+                    {(a.plant as { name: string })?.name}
+                  </div>
+                  {isAdmin && (a.plant as { customer?: { name: string } })?.customer?.name && (
+                    <span style={{ fontSize: '11px', color: 'var(--gray-400)', background: 'var(--gray-50)', padding: '2px 8px', borderRadius: '4px' }}>
+                      {(a.plant as { customer: { name: string } }).customer.name}
+                    </span>
+                  )}
                 </div>
-                <div style={{ fontSize: '12px', color: 'var(--gray-500)' }}>
-                  {a.date ? new Date(a.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'}
+                <div style={{ fontSize: '12px', color: 'var(--gray-500)', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <span>{a.date ? new Date(a.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'}</span>
+                  {isAdmin && (a.analyst as { full_name: string })?.full_name && (
+                    <span>· {(a.analyst as { full_name: string }).full_name}</span>
+                  )}
                 </div>
                 {(a.report as { executive?: string })?.executive && (
                   <div style={{
                     fontSize: '12px', color: 'var(--gray-600)', marginTop: '8px',
-                    maxWidth: '500px', lineHeight: '1.5',
+                    lineHeight: '1.5',
                     display: '-webkit-box', WebkitLineClamp: 2,
                     WebkitBoxOrient: 'vertical', overflow: 'hidden'
                   }}>
@@ -90,7 +109,7 @@ export default async function ReportsPage() {
                 <Link href={`/dashboard/assess/${a.id}`} style={{
                   padding: '8px 16px', background: 'var(--green)', color: '#fff',
                   borderRadius: '8px', fontSize: '13px', fontWeight: '500',
-                  textDecoration: 'none'
+                  textDecoration: 'none', whiteSpace: 'nowrap'
                 }}>
                   View report →
                 </Link>
