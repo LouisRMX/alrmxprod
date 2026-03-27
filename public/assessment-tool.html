@@ -2239,9 +2239,10 @@ window.addEventListener('message',function(e){
   if(e.data?.type==='ALRMX_INIT'){
     const p=e.data.payload;
     S._assessmentId=p.assessmentId;
-    // Hide topbar and mode-tabs when embedded in Next.js
+    // Hide topbar when embedded in Next.js, keep mode-tabs but hide Portfolio
     document.querySelector('.topbar').style.display='none';
-    document.querySelector('.mode-tabs').style.display='none';
+    const modeTabs=document.querySelectorAll('.mode-tab');
+    if(modeTabs[2])modeTabs[2].style.display='none';
     // Set up form fields
     if(p.plant&&document.getElementById('s-pl'))document.getElementById('s-pl').value=p.plant;
     if(p.country&&document.getElementById('s-ct'))document.getElementById('s-ct').value=p.country;
@@ -2254,6 +2255,7 @@ window.addEventListener('message',function(e){
     if(p.answers&&Object.keys(p.answers).length>0){
       S.answers=p.answers;
     }
+    if(p.report)S.report=p.report;
     document.getElementById('topbar-meta').textContent=(p.plant||'—')+' — '+(p.country||'—');
     document.getElementById('diag-setup').style.display='none';
     document.getElementById('diag-walk').style.display='flex';
