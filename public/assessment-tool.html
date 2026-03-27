@@ -1958,6 +1958,7 @@ async function generateAll(r,issues,m){
         if(ela)ela.innerHTML=mdToHtml(partial);
       });
       S.report[t]=text;S.edited[t]=false;
+      saveReportToParent();
       // Final render — apply markdown formatting
       if(t==='executive'){const el=document.getElementById('ai-stream-executive');if(el)el.innerHTML=mdToHtml(text);}
       const ela=document.getElementById('ai-stream-'+t+'-a');if(ela)ela.innerHTML=mdToHtml(text);
@@ -1967,6 +1968,12 @@ async function generateAll(r,issues,m){
       const analystEl=document.getElementById('ai-body-'+t+'-a');
       if(analystEl)analystEl.innerHTML=`<div class="ai-text" style="color:var(--gray-500)">Could not generate. Use Edit to write manually.</div>`;
     }
+  }
+}
+
+function saveReportToParent(){
+  if(window.parent!==window&&S._assessmentId&&S.report){
+    window.parent.postMessage({type:'ALRMX_SAVE_REPORT',payload:{report:S.report}},'*');
   }
 }
 
@@ -2020,7 +2027,7 @@ function regenTab(tab){
     const el=document.getElementById('ai-regen-stream-'+tab);
     if(el)el.textContent=partial;
   }).then(text=>{
-    S.report[tab]=text;S.edited[tab]=false;
+    S.report[tab]=text;S.edited[tab]=false;saveReportToParent();
     if(tab==='executive'){const el=document.getElementById('ai-body-executive');if(el)el.innerHTML=`<div class="ai-text">${mdToHtml(text)}</div>`;}
     const el=document.getElementById('ai-body-'+tab+'-a');if(el)el.innerHTML=`<div class="ai-text">${mdToHtml(text)}</div>`;
     updateAIBadge(Object.values(S.edited).some(Boolean));

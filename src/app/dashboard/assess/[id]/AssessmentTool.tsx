@@ -40,6 +40,9 @@ export default function AssessmentTool({
       if (event.data?.type === 'ALRMX_GENERATE_REPORT') {
         await generateReport(event.data.payload)
       }
+      if (event.data?.type === 'ALRMX_SAVE_REPORT') {
+        await saveReport(event.data.payload)
+      }
     }
 
     window.addEventListener('message', handleMessage)
@@ -82,6 +85,21 @@ export default function AssessmentTool({
 
     setLastSaved(new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }))
     setSaving(false)
+  }
+
+  async function saveReport(data: { report: Record<string, string> }) {
+    const report = data.report || {}
+    const { error } = await supabase.from('reports').upsert({
+      assessment_id: assessment.id,
+      executive: report.executive || null,
+      diagnosis: report.diagnosis || null,
+      actions: report.actions || null,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'assessment_id' })
+
+    if (error) {
+      console.error('Report save error:', error)
+    }
   }
 
   async function generateReport(context: Record<string, unknown>) {
