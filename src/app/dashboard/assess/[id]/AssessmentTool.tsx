@@ -34,7 +34,9 @@ export default function AssessmentTool({
   // Listen for messages from the iframe (assessment tool)
   useEffect(() => {
     async function handleMessage(event: MessageEvent) {
+      console.log('[AssessmentTool] message received:', event.data?.type, event.data?.payload ? 'has payload' : 'no payload')
       if (event.data?.type === 'ALRMX_SAVE') {
+        console.log('[AssessmentTool] saving:', JSON.stringify(event.data.payload).slice(0, 200))
         await saveAssessment(event.data.payload)
       }
       if (event.data?.type === 'ALRMX_GENERATE_REPORT') {
@@ -67,7 +69,7 @@ export default function AssessmentTool({
 
   async function saveAssessment(data: Record<string, unknown>) {
     setSaving(true)
-    await supabase.from('assessments').update({
+    const { error } = await supabase.from('assessments').update({
       answers: data.answers,
       scores: data.scores,
       overall: data.overall,
@@ -75,6 +77,12 @@ export default function AssessmentTool({
       ebitda_monthly: data.ebitdaMonthly,
       hidden_rev_monthly: data.hiddenRevMonthly,
     }).eq('id', assessment.id)
+
+    if (error) {
+      console.error('[AssessmentTool] save error:', error)
+    } else {
+      console.log('[AssessmentTool] save success for', assessment.id)
+    }
 
     setLastSaved(new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }))
     setSaving(false)
