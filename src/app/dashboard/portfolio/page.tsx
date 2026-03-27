@@ -105,7 +105,7 @@ export default async function PortfolioPage() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--gray-50)' }}>
-                {['Plant', 'Customer', 'Date', 'Analyst', 'Score', 'EBITDA gap', ''].map(h => (
+                {['Plant', 'Customer', 'Date', 'Phase', 'Score', 'EBITDA gap', ''].map(h => (
                   <th key={h} style={{
                     padding: '10px 16px', fontSize: '11px', fontWeight: '500',
                     color: 'var(--gray-500)', textAlign: 'left', textTransform: 'uppercase', letterSpacing: '.4px'
@@ -131,8 +131,24 @@ export default async function PortfolioPage() {
                   <td style={{ padding: '12px 16px', fontSize: '13px', color: 'var(--gray-500)', fontFamily: 'var(--mono)' }}>
                     {a.date ? new Date(a.date).toLocaleDateString('en-GB') : '—'}
                   </td>
-                  <td style={{ padding: '12px 16px', fontSize: '13px', color: 'var(--gray-700)' }}>
-                    {(a.analyst as { full_name: string })?.full_name || '—'}
+                  <td style={{ padding: '12px 16px' }}>
+                    {(() => {
+                      const p = a.phase || 'workshop'
+                      const cfg: Record<string, { label: string; bg: string; color: string }> = {
+                        workshop: { label: 'Workshop', bg: '#EBF5FB', color: '#2471A3' },
+                        onsite: { label: 'On-site', bg: '#FEF9E7', color: '#B7950B' },
+                        complete: { label: 'Complete', bg: '#E8F8F5', color: '#27ae60' },
+                      }
+                      const c = cfg[p] || cfg.workshop
+                      return (
+                        <span style={{
+                          padding: '3px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: '600',
+                          background: c.bg, color: c.color
+                        }}>
+                          {c.label}
+                        </span>
+                      )
+                    })()}
                   </td>
                   <td style={{ padding: '12px 16px' }}>
                     {a.overall !== null ? (
