@@ -1931,12 +1931,13 @@ function setTabContent(tabId,text,editable){
 let _aiCtx={};
 
 async function generateAll(r,issues,m){
-  // Skip if demo text already loaded
+  // Always set context so Regenerate works
+  _aiCtx={r,issues,m};
+  // Skip generation if report text already loaded
   if(S.report['executive']&&S.report['executive'].length>100){
     updateAIBadge(false);
     return;
   }
-  _aiCtx={r,issues,m};
   updateAIBadge(false);
   for(const t of['executive','diagnosis','actions']){
     const ab=document.getElementById('ai-body-'+t+'-a');
@@ -2023,7 +2024,7 @@ function regenTab(tab){
     if(tab==='executive'){const el=document.getElementById('ai-body-executive');if(el)el.innerHTML=`<div class="ai-text">${mdToHtml(text)}</div>`;}
     const el=document.getElementById('ai-body-'+tab+'-a');if(el)el.innerHTML=`<div class="ai-text">${mdToHtml(text)}</div>`;
     updateAIBadge(Object.values(S.edited).some(Boolean));
-  }).catch(()=>{const el=document.getElementById('ai-body-'+tab+'-a');if(el)el.innerHTML='<div class="ai-text" style="color:var(--gray-500)">Regeneration failed. Try again.</div>';});
+  }).catch((err)=>{console.error('Regeneration error:',err);const el=document.getElementById('ai-body-'+tab+'-a');if(el)el.innerHTML='<div class="ai-text" style="color:var(--gray-500)">Regeneration failed: '+(err.message||'Unknown error')+'. Try again.</div>';});
 }
 
 // ── UI ────────────────────────────────────────────────────────────────────────
