@@ -153,7 +153,7 @@ export default async function PortfolioPage() {
                     }}>
                       View →
                     </Link>
-                    <DeleteButton assessmentId={a.id} />
+                    <DeleteButton assessmentId={a.id} plantName={(a.plant as { name: string })?.name || '—'} />
                   </td>
                 </tr>
               ))}
