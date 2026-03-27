@@ -34,9 +34,7 @@ export default function AssessmentTool({
   // Listen for messages from the iframe (assessment tool)
   useEffect(() => {
     async function handleMessage(event: MessageEvent) {
-      console.log('[AssessmentTool] message received:', event.data?.type, event.data?.payload ? 'has payload' : 'no payload')
       if (event.data?.type === 'ALRMX_SAVE') {
-        console.log('[AssessmentTool] saving:', JSON.stringify(event.data.payload).slice(0, 200))
         await saveAssessment(event.data.payload)
       }
       if (event.data?.type === 'ALRMX_GENERATE_REPORT') {
@@ -79,9 +77,7 @@ export default function AssessmentTool({
     }).eq('id', assessment.id)
 
     if (error) {
-      console.error('[AssessmentTool] save error:', error)
-    } else {
-      console.log('[AssessmentTool] save success for', assessment.id)
+      console.error('Assessment save error:', error)
     }
 
     setLastSaved(new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }))
