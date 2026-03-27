@@ -2239,18 +2239,25 @@ window.addEventListener('message',function(e){
   if(e.data?.type==='ALRMX_INIT'){
     const p=e.data.payload;
     S._assessmentId=p.assessmentId;
+    // Hide topbar and mode-tabs when embedded in Next.js
+    document.querySelector('.topbar').style.display='none';
+    document.querySelector('.mode-tabs').style.display='none';
+    // Set up form fields
     if(p.plant&&document.getElementById('s-pl'))document.getElementById('s-pl').value=p.plant;
     if(p.country&&document.getElementById('s-ct'))document.getElementById('s-ct').value=p.country;
     if(p.company&&document.getElementById('s-co'))document.getElementById('s-co').value=p.company;
     if(p.analyst&&document.getElementById('s-an'))document.getElementById('s-an').value=p.analyst;
     if(p.date&&document.getElementById('s-dt'))document.getElementById('s-dt').value=p.date;
+    if(p.season&&document.getElementById('s-season'))document.getElementById('s-season').value=p.season;
+    // Set meta and start assessment directly — skip setup screen
+    S.meta={plant:p.plant,country:p.country,company:p.company,analyst:p.analyst,date:p.date,season:p.season||'peak'};
     if(p.answers&&Object.keys(p.answers).length>0){
       S.answers=p.answers;
-      S.meta={plant:p.plant,country:p.country,company:p.company,analyst:p.analyst,date:p.date,season:p.season};
-      document.getElementById('diag-setup').style.display='none';
-      document.getElementById('diag-walk').style.display='flex';
-      setBack(true);renderSec();
     }
+    document.getElementById('topbar-meta').textContent=(p.plant||'—')+' — '+(p.country||'—');
+    document.getElementById('diag-setup').style.display='none';
+    document.getElementById('diag-walk').style.display='flex';
+    setBack(true);renderSec();
   }
 });
 function resumeDiag(){const d=JSON.parse(localStorage.getItem('alcem_draft')||'null');if(!d)return;S=d.S;document.getElementById('topbar-meta').textContent=(S.meta.plant||'—')+' — '+(S.meta.country||'—');document.getElementById('diag-setup').style.display='none';document.getElementById('diag-walk').style.display='flex';setBack(true);renderSec();}
