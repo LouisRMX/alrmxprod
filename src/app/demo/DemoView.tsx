@@ -1,34 +1,13 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
 export default function DemoView() {
   const iframeRef = useRef<HTMLIFrameElement>(null)
-  const hasSwitched = useRef(false)
   const router = useRouter()
   const supabase = createClient()
-
-  useEffect(() => {
-    function handleLoad() {
-      setTimeout(() => {
-        if (iframeRef.current?.contentWindow && !hasSwitched.current) {
-          hasSwitched.current = true
-          iframeRef.current.contentWindow.postMessage(
-            { type: 'ALRMX_DEMO_MODE' },
-            '*'
-          )
-        }
-      }, 500)
-    }
-
-    const iframe = iframeRef.current
-    if (iframe) {
-      iframe.addEventListener('load', handleLoad)
-      return () => iframe.removeEventListener('load', handleLoad)
-    }
-  }, [])
 
   async function handleSignOut() {
     await supabase.auth.signOut()
