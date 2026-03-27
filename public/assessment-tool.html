@@ -701,6 +701,11 @@ const SECTIONS=[
    howto:'Ask the batch plant operator to open the monthly production report on the batch computer — this is usually a one-click report. Alternatively, ask the accounts person for total invoiced volume last month. If neither is available, ask for batch tickets from last month and count the total — this is the most reliable manual method. Never accept a verbal estimate for this figure.',
    type:'num',unit:'m³ last month',req:true,
    info:{what:'Total concrete produced and dispatched in the past calendar month.',why:'Dividing this by operating hours × operating days gives real average utilization — far more reliable than peak output, which only shows the best hour of the month.',calc:'Step 1: hours/month = op hours × (op days ÷ 12). Step 2: average rate = this figure ÷ hours/month. Step 3: utilization = rate ÷ designed capacity. Step 4: base score = utilization ÷ 0.92 × 100. Step 5: deduct batch cycle penalty (fast=0, normal=−5, slow=−14, very slow=−22) and stops penalty (0/−3/−10/−20). Step 6: multiply by confidence weight (system=100%, reports=90%, estimates=70%, rough=60%). Capacity gap cost = (designed − actual rate) × op hours × op days ÷ 12 × margin.'}},
+  {id:'working_days_month',label:'How many days did the plant actually operate last month?',
+   hint:'Count only the days the plant actually produced concrete — not calendar days. This must match the month reported in "actual production" above.',
+   howto:'Ask the batch plant operator or check the dispatch log. Count the days with at least one delivery. In Ramadan months or holiday periods this number can be significantly lower than the annual average.',
+   type:'num',unit:'working days',req:true,
+   info:{what:'Actual working days in the reported production month.',why:'Converts monthly production volume to an accurate hourly rate. Using annual average (op_days÷12) instead of actual days can mis-state utilization by 20–30% in months with holidays or shutdowns.',calc:'hours this month = op_hours × this value. Hourly rate = actual_prod ÷ hours this month. If not entered, falls back to op_days ÷ 12.'}},
   {id:'operator_backup',label:'If the primary batch plant operator was absent, is there another person on site who can run the plant independently?',
    hint:'Single-operator dependency is one of the most common hidden risks in GCC ready-mix plants.',
    field:'Ask the batch plant operator directly — not the plant manager.',
@@ -893,6 +898,18 @@ const SECTIONS=[
    type:'opts',req:true,
    opts:["High — I would present these to the plant owner without hesitation","Medium — reasonable but I'd verify one or two before presenting","Low — significant uncertainty, treat dollar figures as directional only","Very low — data quality was poor, findings are indicative only"],
    info:{what:'Your own assessment of data reliability for this visit.',why:'The analyst on-site judgement is the most important data quality signal. Overrides mechanical weights when Low or Very Low.',calc:'Self-assessment caps: High = no cap. Medium = max 85%. Low = max 65% + amber warning. Very Low = max 50% + red warning on all dollar figures.'}},
+  {id:'summer_prod_drop',label:'Compared to peak season, how much lower is production during summer months?',
+   hint:'GCC summer (June–September) typically sees 20–35% lower output due to heat, reduced construction activity, and shorter effective hours.',
+   howto:'Ask the plant manager to compare last summer\'s monthly average to a normal peak-season month. If they cannot give a specific number, ask: "Is summer roughly 20% less, 30% less, or more?" Most GCC plants see a measurable drop. If the analyst is visiting in summer, this helps adjust scores to approximate peak-season equivalent.',
+   type:'opts',
+   opts:['Under 10% — minimal seasonal impact','10 to 20% — moderate drop','20 to 35% — significant summer slowdown','Over 35% — severe seasonal reduction','Not sure — no seasonal comparison available'],
+   info:{what:'Estimated production volume drop during summer vs. peak season.',why:'Summer assessments tend to understate plant capability. Adjusting for this gives a fairer score that approximates what the plant can do in peak season.',calc:'If season is summer and this answer is provided: production score is boosted by dividing by the drop factor (e.g., 20-35% drop → score ÷ 0.72). This approximates what the plant would score in peak season. A note is added to the report. If season is peak, this question is informational only.'}},
+  {id:'data_days_match',label:'Do the production, delivery, and turnaround figures all cover the same time period?',
+   hint:'Mixing figures from different months can distort calculations significantly.',
+   howto:'Review the figures you entered: was actual_prod from last month\'s batch report, but deliveries_day from this week\'s dispatcher estimate? If so, the time periods don\'t match. The most reliable assessment uses figures from the same month. If they don\'t match, note which figures come from which period.',
+   type:'opts',req:true,
+   opts:['Yes — all from the same month','Mostly — one or two figures from a different period','No — figures come from different time periods'],
+   info:{what:'Whether all key figures are from the same reporting period.',why:'Mixing a high-demand month\'s production with a low-demand month\'s delivery count distorts utilization and financial calculations.',calc:'Reduces overall data confidence score. "Mostly" = 5% penalty. "No" = 15% penalty on all dollar figures + amber warning in report.'}},
   {id:'biggest_pain',label:'In your own words — what is the single biggest operational challenge here right now?',
    hint:"No right or wrong answer. Plain language. After answering, pause and ask: 'Is there anything else?' — the second answer is usually more revealing.",
    howto:'Ask this question near the end of your visit, after you have built rapport. Use the exact wording: "In your own words, what is the single biggest operational challenge here right now?" Then stop talking. Let them answer fully. After they finish, pause and ask: "Is there anything else?" The second answer is usually more revealing than the first.',
@@ -904,7 +921,7 @@ const TOTAL_Q=SECTIONS.reduce((s,sec)=>s+sec.qs.length,0);
 
 // ── CORE BLOCKS & GM STATE ────────────────────────────────────────────────────
 const CORE_BLOCKS=[
-  {id:'economics',label:'Economics & production volume',ids:['price_m3','cement_cost','op_days','plant_cap','op_hours','actual_prod']},
+  {id:'economics',label:'Economics & production volume',ids:['price_m3','cement_cost','op_days','plant_cap','op_hours','actual_prod','working_days_month']},
   {id:'fleet',label:'Fleet & deliveries',ids:['n_trucks','turnaround','deliveries_day']},
   {id:'quality_dispatch',label:'Quality & dispatch',ids:['reject_pct','quality_control','order_to_dispatch','dispatch_tool']},
   {id:'context',label:'Visit context',ids:['typical_month','prod_data_source','data_confidence_self','biggest_pain']}
@@ -1001,9 +1018,10 @@ function calc(){
   const mixMarginLift=Math.round((mixWeightedContrib-contrib)*100)/100;
 
   const cap=+a.plant_cap||0,opH=+a.op_hours||10,opD=+a.op_days||300;
-  // actual_prod is now total monthly m³ — convert to average hourly rate
+  // actual_prod is total monthly m³ — convert to average hourly rate using actual working days
   const monthlyM3=+a.actual_prod||0;
-  const hoursPerMonth=opH*(opD/12);
+  const workingDaysMonth=+a.working_days_month||Math.round(opD/12); // use actual days if available, else annual average
+  const hoursPerMonth=opH*workingDaysMonth;
   const actualAvgRate=hoursPerMonth>0?monthlyM3/hoursPerMonth:0; // m³/hr average
   const actual=actualAvgRate; // keep variable name for compatibility
   const util=cap>0?actual/cap:0;
@@ -1028,11 +1046,12 @@ function calc(){
   const maxDelDay=effectiveUnits>0&&ta>0?Math.floor(effectiveUnits*(opH*60/ta)):0;
   // Realistic target: best-practice turnaround at 85% utilisation — capped by MIN(operativeTrucks, qualifiedDrivers)
   const realisticMaxDel=effectiveUnits>0?Math.floor(effectiveUnits*(opH*60/TARGET_TA)*FLEET_UTIL_TARGET):0;
-  // Sanity check: if gap > operative trucks×3, inputs are likely inconsistent
+  // Sanity check: if gap > operative trucks×3, flag as low confidence but keep the number
   const rawHidden=Math.max(0,realisticMaxDel-delDay);
   const hiddenSuspect=operativeTrucks>0&&rawHidden>operativeTrucks*3;
-  const hiddenDel=hiddenSuspect?0:rawHidden;
-  const hiddenRevMonthly=hiddenSuspect?0:Math.round(hiddenDel*mixCap*contrib*(opD/12));
+  const hiddenDel=rawHidden;
+  const hiddenConfidence=hiddenSuspect?'low':'high';
+  const hiddenRevMonthly=Math.round(hiddenDel*mixCap*contrib*(opD/12));
   const excessMin=Math.max(0,ta-TARGET_TA);
   // Turnaround leak: based on realistic deliveries at target TA, not theoretical max
   const turnaroundLeakMonthly=ta>0&&effectiveUnits>0?Math.round(excessMin/ta*realisticMaxDel*mixCap*contrib*(opD/12)):0;
@@ -1117,13 +1136,13 @@ function calc(){
     // Stops penalty
     const stopsPenalty={'None \u2014 no unplanned stops':0,'1 to 2 stops':3,'3 to 5 stops':10,'More than 5 stops':20}[a.stops_freq]||0;
     utilScore=Math.max(0,utilScore-stopsPenalty);
-    // Unified confidence weight from prod_data_source
-    const confWeight={'System records \u2014 read from batch computer or dispatch system':1,'Calculated from monthly reports or delivery tickets':0.9,'Estimated by plant manager or dispatcher':0.7,'Rough estimates \u2014 not based on records':0.6}[a.prod_data_source]||1;
+    // Unified confidence weight from prod_data_source — same scale for all scores
+    const confWeight={'System records \u2014 read from batch computer or dispatch system':1,'Calculated from monthly reports or delivery tickets':0.95,'Estimated by plant manager or dispatcher':0.75,'Rough estimates \u2014 not based on records':0.55}[a.prod_data_source]||1;
     utilScore=Math.round(utilScore*confWeight);
   }
 
-  // Turnaround score with same unified confidence weight
-  const confWeight2={'System records \u2014 read from batch computer or dispatch system':1,'Calculated from monthly reports or delivery tickets':1,'Estimated by plant manager or dispatcher':0.75,'Rough estimates \u2014 not based on records':0.5}[a.prod_data_source]||1;
+  // Turnaround score — uses same unified confidence weight as production
+  const confWeight2={'System records \u2014 read from batch computer or dispatch system':1,'Calculated from monthly reports or delivery tickets':0.95,'Estimated by plant manager or dispatcher':0.75,'Rough estimates \u2014 not based on records':0.55}[a.prod_data_source]||1;
   const taScore=ta>0?Math.max(0,Math.min(100,Math.round((100-(excessMin/TARGET_TA)*80)*confWeight2))):null;
 
   // Dispatch score: weighted components
@@ -1131,11 +1150,14 @@ function calc(){
   const cMap={'Always \u2014 formal zone system in place':100,'Usually \u2014 informal grouping most of the time':75,'Sometimes \u2014 depends on the dispatcher':45,'Rarely or never':15};
   const idleMap={'Never \u2014 a truck is always available':100,'Occasionally \u2014 a few times per week':70,'Regularly \u2014 most busy periods':40,'Every day \u2014 always waiting for trucks':10};
   const toolMap={'Dedicated dispatch software with real-time tracking':100,'Spreadsheet combined with WhatsApp':65,'WhatsApp messages only \u2014 no spreadsheet':35,'Phone calls and a whiteboard or paper list':10};
+  // Order notice: short notice limits dispatch optimization — contributes to dispatch score
+  const noticeMap={'Under 4 hours \u2014 same day calls only':20,'4 to 24 hours \u2014 day-of or day-before':55,'1 to 3 days ahead':85,'Formal schedule \u2014 weekly or project-based':100};
   const dWeighted=[
-    {v:dMap[a.order_to_dispatch],w:0.40},
-    {v:cMap[a.route_clustering],w:0.25},
-    {v:idleMap[a.plant_idle],w:0.20},
-    {v:toolMap[a.dispatch_tool],w:0.15}
+    {v:dMap[a.order_to_dispatch],w:0.35},
+    {v:cMap[a.route_clustering],w:0.22},
+    {v:idleMap[a.plant_idle],w:0.18},
+    {v:toolMap[a.dispatch_tool],w:0.13},
+    {v:noticeMap[a.order_notice],w:0.12}
   ].filter(x=>x.v!==undefined);
   const dTotalW=dWeighted.reduce((s,x)=>s+x.w,0);
   const dispScore=dWeighted.length?Math.round(dWeighted.reduce((s,x)=>s+x.v*x.w,0)/dTotalW):null;
@@ -1154,6 +1176,7 @@ function calc(){
   const logisticsScore=logisticsWeighted.length?Math.round(logisticsWeighted.reduce((s,x)=>s+x.v*x.w,0)/logisticsTotalW):null;
 
   // Quality score: reject_pct (50%) + quality_control (25%) + batch_calibration (15%) + surplus_concrete (10%)
+  // Reject ×12: 0%=100, 2%=76, 3%=64, 5%=40, 8.3%=0. In GCC ready-mix: <1% excellent, 1-3% acceptable, 3-5% poor, >5% critical.
   const rejectScore=rejectPct>=0?Math.max(0,Math.min(100,Math.round(100-rejectPct*12))):null;
   const qcMap={'Both logged every batch — enforced strictly':100,'Usually done — most trucks, informal recording':70,'Sometimes — depends on operator or shift':35,'Rarely or never — no systematic quality checks':5};
   const qcScore=a.quality_control?qcMap[a.quality_control]??null:null;
@@ -1168,6 +1191,18 @@ function calc(){
   const qualityTotalW=qualityWeighted.reduce((s,x)=>s+x.w,0);
   const qualityScore=qualityWeighted.length?Math.round(qualityWeighted.reduce((s,x)=>s+x.v*x.w,0)/qualityTotalW):null;
 
+  // Summer adjustment: boost production score to approximate peak-season equivalent
+  let summerAdjusted=false;
+  if(isSummer&&a.summer_prod_drop&&utilScore!==null){
+    const dropMap={'Under 10% — minimal seasonal impact':0.95,'10 to 20% — moderate drop':0.85,'20 to 35% — significant summer slowdown':0.72,'Over 35% — severe seasonal reduction':0.60,'Not sure — no seasonal comparison available':0.80};
+    const summerFactor=dropMap[a.summer_prod_drop]||1;
+    if(summerFactor<1){utilScore=Math.min(100,Math.round(utilScore/summerFactor));summerAdjusted=true;}
+  }
+
+  // Data period mismatch penalty
+  const daysMismatch=a.data_days_match;
+  const daysMismatchPenalty=daysMismatch==='Mostly — one or two figures from a different period'?0.95:daysMismatch==='No — figures come from different time periods'?0.85:1;
+
   const valid=[utilScore,dispScore,logisticsScore,qualityScore].filter(v=>v!==null);
   const overall=valid.length?Math.round(valid.reduce((s,v)=>s+v,0)/valid.length):null;
   let bottleneck=null;
@@ -1178,7 +1213,14 @@ function calc(){
     const worst=validScores.find(([,v])=>v===mn);
     bottleneck=worst?worst[0]:null;
   }
-  return{contrib,contribFuelAdj,waterCost,marginRatio,marginIncomplete,util,unusedCapAnnual,capLeakMonthly,turnaroundLeakMonthly,hiddenDel,hiddenRevMonthly,hiddenSuspect,rejectLeakMonthly,maxDelDay,realisticMaxDel,excessMin,scores:{prod:utilScore,dispatch:dispScore,fleet:logisticsScore,logistics:logisticsScore,quality:qualityScore},overall,bottleneck,ta,trucks,operativeTrucks,availRate,qualifiedDrivers,effectiveUnits,driverConstrained,delDay,mixCap,actual,monthlyM3,cap,opH,opD,rejectPct,price,TARGET_TA,radius,isSummer,mixWeightedContrib,mixMarginLift,hsPremium,hsFraction,siteWait,washoutMin,transitEst,taUnexplained,demurrageOpportunity,truckBreakdowns,breakdownCostMonthly,topCustPct,concentrationRisk,cementOptOpp,partialLoad,partialRatio,partialLeakMonthly,surplusMid,surplusLeakMonthly,fuelPerDel,fuelPerM3,fuelMonthly,fuelMarginImpact,atypicalMonth,calibrationExposure};
+  // Data validation warnings — flag unrealistic input combinations
+  const warnings=[];
+  if(cap>0&&actual>cap*1.1)warnings.push('Production rate exceeds designed plant capacity by >10% — check actual_prod or plant_cap.');
+  if(delDay>0&&mixCap>0&&workingDaysMonth>0&&monthlyM3>0&&delDay*mixCap*workingDaysMonth>monthlyM3*1.3)warnings.push('Delivery count suggests higher volume than reported production — check deliveries_day or actual_prod.');
+  if(ta>0&&radius>0&&ta<radius*3)warnings.push('Turnaround time is shorter than estimated transit time — check turnaround or delivery_radius.');
+  if(workingDaysMonth>0&&opD>0&&workingDaysMonth>opD/12*1.3)warnings.push('Working days this month exceeds annual average by >30% — check working_days_month or op_days.');
+
+  return{contrib,contribFuelAdj,waterCost,marginRatio,marginIncomplete,util,unusedCapAnnual,capLeakMonthly,turnaroundLeakMonthly,hiddenDel,hiddenRevMonthly,hiddenSuspect,hiddenConfidence,rejectLeakMonthly,maxDelDay,realisticMaxDel,excessMin,scores:{prod:utilScore,dispatch:dispScore,fleet:logisticsScore,logistics:logisticsScore,quality:qualityScore},overall,bottleneck,ta,trucks,operativeTrucks,availRate,qualifiedDrivers,effectiveUnits,driverConstrained,delDay,mixCap,actual,monthlyM3,cap,opH,opD,workingDaysMonth,rejectPct,price,TARGET_TA,radius,isSummer,summerAdjusted,mixWeightedContrib,mixMarginLift,hsPremium,hsFraction,siteWait,washoutMin,transitEst,taUnexplained,demurrageOpportunity,truckBreakdowns,breakdownCostMonthly,topCustPct,concentrationRisk,cementOptOpp,partialLoad,partialRatio,partialLeakMonthly,surplusMid,surplusLeakMonthly,fuelPerDel,fuelPerM3,fuelMonthly,fuelMarginImpact,atypicalMonth,calibrationExposure,daysMismatchPenalty,warnings};
 }
 
 // ── DATA CONFIDENCE ───────────────────────────────────────────────────────────
