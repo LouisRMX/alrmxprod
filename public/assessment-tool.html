@@ -1525,6 +1525,10 @@ Rules:
 
 // ── AI GENERATION — STREAMING ─────────────────────────────────────────────────
 async function callAI(prompt){
+  // Embedded mode — proxy through Next.js API
+  if(window.parent!==window&&S._assessmentId){
+    return callAIStream(prompt,()=>{});
+  }
   const resp=await fetch('https://api.anthropic.com/v1/messages',{
     method:'POST',
     headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','x-api-key':ANTHROPIC_API_KEY},
@@ -1546,6 +1550,27 @@ async function callAI(prompt){
 
 // Streaming callAI with per-token DOM update
 async function callAIStream(prompt,onToken){
+  // Embedded mode — proxy through Next.js API (secure, no API key in browser)
+  if(window.parent!==window&&S._assessmentId){
+    const resp=await fetch('/api/ai-stream',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({prompt})
+    });
+    if(!resp.ok){const e=await resp.json().catch(()=>({}));throw new Error(e.error||'API error');}
+    const reader=resp.body.getReader();const dec=new TextDecoder();let full='';
+    while(true){
+      const{done,value}=await reader.read();if(done)break;
+      const chunk=dec.decode(value,{stream:true});
+      for(const line of chunk.split('\n')){
+        if(!line.startsWith('data:'))continue;
+        const raw=line.slice(5).trim();if(raw==='[DONE]')continue;
+        try{const ev=JSON.parse(raw);if(ev.error)throw new Error(ev.error);if(ev.text){full+=ev.text;onToken(full);}}catch(e){if(e.message&&e.message!=='Unexpected end of JSON input')throw e;}
+      }
+    }
+    return full;
+  }
+  // Standalone mode — direct API call (requires API key in HTML)
   const resp=await fetch('https://api.anthropic.com/v1/messages',{
     method:'POST',
     headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','x-api-key':ANTHROPIC_API_KEY},
@@ -1702,16 +1727,18 @@ async function copilotSend(plantId,userMsg){
     const systemPrompt=state.isPortfolio
       ? (state.portfolioContext||buildPortfolioCopilotContext())
       : buildCopilotSystemPrompt(state.r,state.issues,state.m);
-    const resp=await fetch('https://api.anthropic.com/v1/messages',{
+    const isEmbedded=window.parent!==window&&S._assessmentId;
+    const fetchUrl=isEmbedded?'/api/ai-stream':'https://api.anthropic.com/v1/messages';
+    const fetchHeaders=isEmbedded
+      ?{'Content-Type':'application/json'}
+      :{'Content-Type':'application/json','anthropic-version':'2023-06-01','x-api-key':ANTHROPIC_API_KEY};
+    const fetchBody=isEmbedded
+      ?{messages:state.history,system:systemPrompt,max_tokens:900}
+      :{model:'claude-sonnet-4-20250514',max_tokens:900,stream:true,system:systemPrompt,messages:state.history};
+    const resp=await fetch(fetchUrl,{
       method:'POST',
-      headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','x-api-key':ANTHROPIC_API_KEY},
-      body:JSON.stringify({
-        model:'claude-sonnet-4-20250514',
-        max_tokens:900,
-        stream:true,
-        system:systemPrompt,
-        messages:state.history
-      })
+      headers:fetchHeaders,
+      body:JSON.stringify(fetchBody)
     });
     if(!resp.ok)throw new Error('API error');
     const reader=resp.body.getReader();const dec=new TextDecoder();let full='';
@@ -1721,11 +1748,10 @@ async function copilotSend(plantId,userMsg){
       for(const line of chunk.split('\n')){
         if(!line.startsWith('data:'))continue;
         const raw=line.slice(5).trim();if(raw==='[DONE]')continue;
-        try{const ev=JSON.parse(raw);if(ev.type==='content_block_delta'&&ev.delta?.text){
-          full+=ev.delta.text;
-          if(aBubble)aBubble.innerHTML=mdToHtml(full);
-          if(msgs)msgs.scrollTop=msgs.scrollHeight;
-        }}catch(e){}
+        try{const ev=JSON.parse(raw);
+          if(isEmbedded){if(ev.text){full+=ev.text;if(aBubble)aBubble.innerHTML=mdToHtml(full);if(msgs)msgs.scrollTop=msgs.scrollHeight;}}
+          else{if(ev.type==='content_block_delta'&&ev.delta?.text){full+=ev.delta.text;if(aBubble)aBubble.innerHTML=mdToHtml(full);if(msgs)msgs.scrollTop=msgs.scrollHeight;}}
+        }catch(e){}
       }
     }
     if(aDiv)aDiv.classList.remove('copilot-streaming');
@@ -4857,6 +4883,10 @@ window.renderSec=function(){
 };
 
 async function ftCallClaude(prompt){
+  // Embedded mode — use proxy
+  if(window.parent!==window&&S._assessmentId){
+    return callAI(prompt);
+  }
   const resp=await fetch('https://api.anthropic.com/v1/messages',{
     method:'POST',
     headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','x-api-key':ANTHROPIC_API_KEY},
@@ -5019,19 +5049,25 @@ async function ftProcessRecording(qid){
     const base64=reader.result.split(',')[1];
     try{
       // Use Claude's audio understanding via the messages API
-      const resp=await fetch('https://api.anthropic.com/v1/messages',{
-        method:'POST',
-        headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','x-api-key':ANTHROPIC_API_KEY},
-        body:JSON.stringify({
-          model:'claude-sonnet-4-20250514',
-          max_tokens:600,
-          messages:[{role:'user',content:[
-            {type:'text',text:`The following audio is an operator at a ready-mix concrete plant answering a question in ${FT.name}. Transcribe exactly what they said, then translate it to English. Respond in JSON only: {"transcription": "...", "translation": "..."}`},
-            {type:'document',source:{type:'base64',media_type:'audio/webm',data:base64}}
-          ]}]
-        })
-      });
-      const data=await resp.json();
+      const isEmbedded=window.parent!==window&&S._assessmentId;
+      const audioMsg=[{role:'user',content:[
+        {type:'text',text:`The following audio is an operator at a ready-mix concrete plant answering a question in ${FT.name}. Transcribe exactly what they said, then translate it to English. Respond in JSON only: {"transcription": "...", "translation": "..."}`},
+        {type:'document',source:{type:'base64',media_type:'audio/webm',data:base64}}
+      ]}];
+      let data;
+      if(isEmbedded){
+        const r=await fetch('/api/ai-stream',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:audioMsg,max_tokens:600})});
+        let full='';const rdr=r.body.getReader();const dec2=new TextDecoder();
+        while(true){const{done:d2,value:v2}=await rdr.read();if(d2)break;const ch=dec2.decode(v2,{stream:true});for(const ln of ch.split('\n')){if(!ln.startsWith('data:'))continue;const rw=ln.slice(5).trim();if(rw==='[DONE]')continue;try{const ev2=JSON.parse(rw);if(ev2.text)full+=ev2.text;}catch(e2){}}}
+        data={content:[{text:full}]};
+      } else {
+        const resp=await fetch('https://api.anthropic.com/v1/messages',{
+          method:'POST',
+          headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','x-api-key':ANTHROPIC_API_KEY},
+          body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:600,messages:audioMsg})
+        });
+        data=await resp.json();
+      }
       const text=data.content?.[0]?.text||'';
       let parsed;
       try{parsed=JSON.parse(text.replace(/```json|```/g,'').trim());}catch(e){parsed=null;}
