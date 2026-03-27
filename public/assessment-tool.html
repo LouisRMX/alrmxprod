@@ -2258,8 +2258,16 @@ window.addEventListener('message',function(e){
     if(p.report)S.report=p.report;
     document.getElementById('topbar-meta').textContent=(p.plant||'—')+' — '+(p.country||'—');
     document.getElementById('diag-setup').style.display='none';
-    document.getElementById('diag-walk').style.display='flex';
-    setBack(true);renderSec();
+    // If report exists, show report view; otherwise show assessment questions
+    if(p.report&&(p.report.executive||p.report.diagnosis)){
+      document.getElementById('diag-walk').style.display='none';
+      setBack(true);
+      if(Object.keys(S.answers).length>0)showResult();
+      switchMode('report',document.querySelectorAll('.mode-tab')[1]);
+    } else {
+      document.getElementById('diag-walk').style.display='flex';
+      setBack(true);renderSec();
+    }
   }
 });
 function resumeDiag(){const d=JSON.parse(localStorage.getItem('alcem_draft')||'null');if(!d)return;S=d.S;document.getElementById('topbar-meta').textContent=(S.meta.plant||'—')+' — '+(S.meta.country||'—');document.getElementById('diag-setup').style.display='none';document.getElementById('diag-walk').style.display='flex';setBack(true);renderSec();}
