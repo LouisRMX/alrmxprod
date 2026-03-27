@@ -2063,12 +2063,15 @@ function switchMode(mode,btn){
     const result=document.getElementById('diag-result');
     const walk=document.getElementById('diag-walk');
     const setup=document.getElementById('diag-setup');
-    // If mid-assessment (walk visible) — stay there
-    if(walk&&walk.style.display==='flex'){
-      setBack(true);
+    // Embedded mode with answers — always go to questions
+    if(S._assessmentId&&Object.keys(S.answers).length>0){
+      if(setup)setup.style.display='none';
+      if(result)result.style.display='none';
+      if(walk)walk.style.display='flex';
+      setBack(true);renderSec();
     }
-    // If report visible and not demo — stay on report (user clicked Assessment by mistake)
-    else if(result&&result.style.display==='block'&&!S.isDemo){
+    // If mid-assessment (walk visible) — stay there
+    else if(walk&&walk.style.display==='flex'){
       setBack(true);
     }
     // No active assessment
