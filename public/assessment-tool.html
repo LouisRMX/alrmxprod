@@ -448,6 +448,7 @@ body{font-family:var(--font);background:var(--gray-50);color:var(--gray-900);min
 <div class="mode-tabs">
   <button class="mode-tab active" onclick="switchMode('diagnostic',this)">Assessment</button>
   <button class="mode-tab" onclick="switchMode('report',this)">Report</button>
+  <button class="mode-tab" onclick="switchMode('simulator',this)">Simulator</button>
   <button class="mode-tab" onclick="switchMode('dashboard',this)">Portfolio</button>
 </div>
 <div class="view active" id="view-diagnostic">
@@ -528,6 +529,11 @@ body{font-family:var(--font);background:var(--gray-50);color:var(--gray-900);min
       <button onclick="resetDiag()" style="padding:6px 14px;background:var(--green);color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:500;cursor:pointer;font-family:var(--font)">+ New assessment</button>
     </div>
     <div class="result-wrap" id="result-content"></div>
+  </div>
+</div>
+<div class="view" id="view-simulator">
+  <div style="max-width:900px;margin:0 auto;padding:24px">
+    <div id="sim-content"></div>
   </div>
 </div>
 <div class="view" id="view-dashboard">
@@ -2156,6 +2162,7 @@ function switchMode(mode,btn){
     return;
   }
   document.getElementById('view-'+mode).classList.add('active');
+  if(mode==='simulator'){renderSimulator();setBack(false);}
   if(mode==='dashboard'){renderDashboard();setBack(false);}
   if(mode==='diagnostic'){
     const result=document.getElementById('diag-result');
@@ -2360,7 +2367,7 @@ window.addEventListener('message',function(e){
     // Hide topbar when embedded in Next.js, keep mode-tabs but hide Portfolio
     document.querySelector('.topbar').style.display='none';
     const modeTabs=document.querySelectorAll('.mode-tab');
-    if(modeTabs[2])modeTabs[2].style.display='none';
+    if(modeTabs[3])modeTabs[3].style.display='none'; // Hide Portfolio tab (index 3)
     // Set up form fields
     if(p.plant&&document.getElementById('s-pl'))document.getElementById('s-pl').value=p.plant;
     if(p.country&&document.getElementById('s-ct'))document.getElementById('s-ct').value=p.country;
@@ -4077,6 +4084,221 @@ function togglePortfolioAI(){
     const inp=document.getElementById('copilot-inp-portfolio');
     if(inp)setTimeout(()=>inp.focus(),300);
   }
+}
+
+// ── SCENARIO SIMULATOR ───────────────────────────────────────────────────────
+function renderSimulator(){
+  const el=document.getElementById('sim-content');
+  const r=calc();
+  const a=S.answers;
+  if(!r||r.overall===null){
+    el.innerHTML=`<div style="text-align:center;padding:60px 24px">
+      <div style="font-size:15px;font-weight:600;color:var(--gray-700);margin-bottom:8px">No baseline data</div>
+      <div style="font-size:13px;color:var(--gray-500);max-width:320px;margin:0 auto;line-height:1.5">Complete the assessment first to unlock the scenario simulator.</div>
+    </div>`;return;
+  }
+  // Baseline values
+  const bTA=r.ta||80, bTrucks=r.trucks||0, bUtil=Math.round(r.util*100)||0, bPrice=r.price||0;
+  const bContrib=r.contrib||0, bCap=r.cap||0, bOpH=r.opH||10, bOpD=r.opD||300;
+  const bMixCap=r.mixCap||7, bDelDay=r.delDay||0;
+  const bTargetTA=r.TARGET_TA||80;
+  const bActual=r.actual||0;
+  const bAnnualVol=Math.round(bActual*bOpH*bOpD);
+  const bEffUnits=r.effectiveUnits||bTrucks;
+
+  function simCalc(sTA,sTrucks,sUtilPct,sPrice){
+    // Production-limited daily capacity
+    const sActualRate=bCap*(sUtilPct/100)*0.92;
+    const prodDaily=sActualRate*bOpH;
+    // Fleet-limited daily capacity
+    const delsPerTruck=sTA>0?Math.floor(bOpH*60/sTA):0;
+    const totalDels=delsPerTruck*sTrucks;
+    const fleetDaily=totalDels*bMixCap;
+    // Dispatch efficiency factor (simplified — uses baseline dispatch inputs)
+    const dMap={'Under 15 minutes \\u2014 fast response':0.95,'15 to 25 minutes \\u2014 acceptable':0.82,'25 to 40 minutes \\u2014 slow':0.65,'Over 40 minutes \\u2014 critical bottleneck':0.45};
+    const dispEff=dMap[a.order_to_dispatch]||0.80;
+    const effFleetDaily=fleetDaily*dispEff;
+    // Scenario output = min of constraints
+    const scenarioDaily=Math.min(prodDaily,effFleetDaily);
+    const scenarioAnnual=Math.round(scenarioDaily*bOpD);
+    // Determine bottleneck
+    const scenarioBottleneck=prodDaily<=effFleetDaily?'Production':'Fleet / Logistics';
+    // Contribution
+    const sContrib=Math.max(0,sPrice-(+a.cement_cost||0)-(+a.aggregate_cost||0)-(+a.admix_cost||0));
+    const deltaVol=scenarioAnnual-bAnnualVol;
+    const revenueUpside=deltaVol*sPrice;
+    const contribUpside=deltaVol*sContrib;
+    // Rough scores
+    const sProdScore=Math.max(0,Math.min(100,Math.round((sUtilPct/92)*100)));
+    const sExcess=Math.max(0,sTA-bTargetTA);
+    const sFleetScore=sTA>0?Math.max(0,Math.min(100,Math.round(100-(sExcess/bTargetTA)*80))):0;
+    return{scenarioAnnual,deltaVol,revenueUpside,contribUpside,scenarioBottleneck,prodDaily,effFleetDaily,sProdScore,sFleetScore};
+  }
+
+  function fmt(n){return n>=0?'$'+n.toLocaleString():'−$'+Math.abs(n).toLocaleString();}
+  function fmtVol(n){return n.toLocaleString()+' m³';}
+
+  function update(){
+    const sTA=+document.getElementById('sim-ta').value;
+    const sTrucks=+document.getElementById('sim-trucks').value;
+    const sUtil=+document.getElementById('sim-util').value;
+    const sPrice=+document.getElementById('sim-price').value;
+    // Update displayed values
+    document.getElementById('sim-ta-val').textContent=sTA+' min';
+    document.getElementById('sim-trucks-val').textContent=sTrucks;
+    document.getElementById('sim-util-val').textContent=sUtil+'%';
+    document.getElementById('sim-price-val').textContent='$'+sPrice;
+    const s=simCalc(sTA,sTrucks,sUtil,sPrice);
+    // Update results
+    document.getElementById('sim-vol').textContent=fmtVol(s.scenarioAnnual);
+    document.getElementById('sim-delta-vol').textContent=(s.deltaVol>=0?'+':'')+fmtVol(s.deltaVol);
+    document.getElementById('sim-delta-vol').style.color=s.deltaVol>=0?'var(--green-mid)':'var(--red)';
+    document.getElementById('sim-rev').textContent=fmt(s.revenueUpside);
+    document.getElementById('sim-rev').style.color=s.revenueUpside>=0?'var(--green-mid)':'var(--red)';
+    document.getElementById('sim-contrib').textContent=fmt(s.contribUpside);
+    document.getElementById('sim-contrib').style.color=s.contribUpside>=0?'var(--green-mid)':'var(--red)';
+    document.getElementById('sim-bottleneck').textContent=s.scenarioBottleneck;
+    document.getElementById('sim-bottleneck').style.color=s.scenarioBottleneck===r.bottleneck?'var(--gray-700)':'var(--amber)';
+    // Narrative
+    const changes=[];
+    if(sTA!==bTA)changes.push('turnaround from '+bTA+' to '+sTA+' min');
+    if(sTrucks!==bTrucks)changes.push('trucks from '+bTrucks+' to '+sTrucks);
+    if(sUtil!==bUtil)changes.push('utilization from '+bUtil+'% to '+sUtil+'%');
+    if(sPrice!==bPrice)changes.push('price from $'+bPrice+' to $'+sPrice);
+    let narrative='<span style="color:var(--gray-400)">Adjust the sliders above to see the impact.</span>';
+    if(changes.length>0){
+      const dir=s.deltaVol>=0?'increase':'decrease';
+      const absVol=Math.abs(s.deltaVol).toLocaleString();
+      const shiftNote=s.scenarioBottleneck!==r.bottleneck?' Under this scenario, the primary constraint shifts from <strong>'+r.bottleneck+'</strong> to <strong>'+s.scenarioBottleneck+'</strong>.':' <strong>'+s.scenarioBottleneck+'</strong> remains the primary constraint.';
+      narrative='Adjusting '+changes.join(', ')+' would '+dir+' annual output by approximately <strong>'+absVol+' m³</strong>, equivalent to <strong>'+fmt(s.revenueUpside)+'</strong> in revenue.'+shiftNote;
+    }
+    document.getElementById('sim-narrative').innerHTML=narrative;
+    // Comparison table
+    document.getElementById('sim-cmp-ta').textContent=bTA+' → '+sTA+' min';
+    document.getElementById('sim-cmp-trucks').textContent=bTrucks+' → '+sTrucks;
+    document.getElementById('sim-cmp-util').textContent=bUtil+'% → '+sUtil+'%';
+    document.getElementById('sim-cmp-price').textContent='$'+bPrice+' → $'+sPrice;
+    document.getElementById('sim-cmp-vol').textContent=fmtVol(bAnnualVol)+' → '+fmtVol(s.scenarioAnnual);
+    document.getElementById('sim-cmp-bottleneck').textContent=(r.bottleneck||'—')+' → '+s.scenarioBottleneck;
+    // Warnings
+    const warns=[];
+    if(sTA<40)warns.push('Turnaround under 40 minutes is rarely achievable without major infrastructure changes.');
+    if(sTrucks>bTrucks*1.5)warns.push('Adding more than 50% trucks requires significant fleet investment.');
+    if(sUtil>92)warns.push('Utilization above 92% is at theoretical maximum — rarely sustainable.');
+    if(s.deltaVol>0&&s.effFleetDaily<s.prodDaily*0.9)warns.push('Fleet is the limiting factor — adding trucks or reducing turnaround would have more impact than increasing utilization.');
+    document.getElementById('sim-warnings').innerHTML=warns.length?warns.map(w=>'<div style="padding:6px 10px;background:#FEF3C7;border:1px solid #F9E4A0;border-radius:6px;font-size:12px;color:#7A5C00;margin-bottom:6px">⚠ '+w+'</div>').join(''):'';
+  }
+
+  const sliderStyle='width:100%;accent-color:var(--green);cursor:pointer';
+  const taMin=Math.max(30,Math.round(bTargetTA*0.6)),taMax=Math.round(bTA*1.3);
+  const trMin=Math.max(1,bTrucks-5),trMax=bTrucks+15;
+
+  el.innerHTML=`
+    <div style="margin-bottom:24px">
+      <div style="font-size:20px;font-weight:600;color:var(--gray-900);margin-bottom:4px">Scenario Simulator</div>
+      <div style="font-size:13px;color:var(--gray-500)">Test improvement scenarios against your baseline assessment</div>
+    </div>
+
+    <div style="background:var(--green-light);border:1px solid #C8E6D9;border-radius:10px;padding:16px 20px;margin-bottom:24px">
+      <div style="font-size:11px;font-weight:600;color:var(--green);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Baseline</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+        <div><div style="font-size:11px;color:var(--gray-500)">Overall score</div><div style="font-size:20px;font-weight:700;color:var(--gray-900)">${r.overall}<span style="font-size:12px;font-weight:400;color:var(--gray-400)">/100</span></div></div>
+        <div><div style="font-size:11px;color:var(--gray-500)">Annual volume</div><div style="font-size:20px;font-weight:700;color:var(--gray-900)">${fmtVol(bAnnualVol)}</div></div>
+        <div><div style="font-size:11px;color:var(--gray-500)">Bottleneck</div><div style="font-size:16px;font-weight:600;color:var(--red)">${r.bottleneck||'—'}</div></div>
+        <div><div style="font-size:11px;color:var(--gray-500)">Cost of inaction</div><div style="font-size:16px;font-weight:600;color:var(--red)">${fmt(Math.round((r.capLeakMonthly+r.hiddenRevMonthly)/1))}/mo</div></div>
+      </div>
+    </div>
+
+    <div style="background:white;border:1px solid var(--border);border-radius:10px;padding:20px 24px;margin-bottom:20px">
+      <div style="font-size:13px;font-weight:600;color:var(--gray-700);margin-bottom:16px">Scenario inputs</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <label style="font-size:12px;color:var(--gray-600)">Turnaround time</label>
+            <span id="sim-ta-val" style="font-size:12px;font-weight:600;color:var(--green)">${bTA} min</span>
+          </div>
+          <input type="range" id="sim-ta" min="${taMin}" max="${taMax}" value="${bTA}" step="5" oninput="this.closest('#sim-content').querySelector('#sim-ta-val').textContent=this.value+' min';document.getElementById('sim-content').__simUpdate()" style="${sliderStyle}">
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--gray-400)"><span>${taMin} min</span><span>Baseline: ${bTA}</span><span>${taMax} min</span></div>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <label style="font-size:12px;color:var(--gray-600)">Number of trucks</label>
+            <span id="sim-trucks-val" style="font-size:12px;font-weight:600;color:var(--green)">${bTrucks}</span>
+          </div>
+          <input type="range" id="sim-trucks" min="${trMin}" max="${trMax}" value="${bTrucks}" step="1" oninput="document.getElementById('sim-content').__simUpdate()" style="${sliderStyle}">
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--gray-400)"><span>${trMin}</span><span>Baseline: ${bTrucks}</span><span>${trMax}</span></div>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <label style="font-size:12px;color:var(--gray-600)">Plant utilization target</label>
+            <span id="sim-util-val" style="font-size:12px;font-weight:600;color:var(--green)">${bUtil}%</span>
+          </div>
+          <input type="range" id="sim-util" min="10" max="95" value="${bUtil}" step="1" oninput="document.getElementById('sim-content').__simUpdate()" style="${sliderStyle}">
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--gray-400)"><span>10%</span><span>Baseline: ${bUtil}%</span><span>95%</span></div>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <label style="font-size:12px;color:var(--gray-600)">Price per m³</label>
+            <span id="sim-price-val" style="font-size:12px;font-weight:600;color:var(--green)">$${bPrice}</span>
+          </div>
+          <input type="range" id="sim-price" min="${Math.round(bPrice*0.8)}" max="${Math.round(bPrice*1.2)}" value="${bPrice}" step="1" oninput="document.getElementById('sim-content').__simUpdate()" style="${sliderStyle}">
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--gray-400)"><span>$${Math.round(bPrice*0.8)}</span><span>Baseline: $${bPrice}</span><span>$${Math.round(bPrice*1.2)}</span></div>
+        </div>
+      </div>
+      <div style="margin-top:12px;text-align:right">
+        <button onclick="document.getElementById('sim-ta').value=${bTA};document.getElementById('sim-trucks').value=${bTrucks};document.getElementById('sim-util').value=${bUtil};document.getElementById('sim-price').value=${bPrice};document.getElementById('sim-content').__simUpdate()" style="font-size:11px;color:var(--gray-400);background:none;border:1px solid var(--border);border-radius:6px;padding:4px 12px;cursor:pointer;font-family:var(--font)">Reset to baseline</button>
+      </div>
+    </div>
+
+    <div id="sim-warnings" style="margin-bottom:8px"></div>
+
+    <div style="background:white;border:1px solid var(--border);border-radius:10px;padding:20px 24px;margin-bottom:20px">
+      <div style="font-size:13px;font-weight:600;color:var(--gray-700);margin-bottom:16px">Scenario impact</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px">
+        <div style="text-align:center;padding:12px;background:var(--gray-50);border-radius:8px">
+          <div style="font-size:10px;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Annual output</div>
+          <div id="sim-vol" style="font-size:18px;font-weight:700;color:var(--gray-900)">${fmtVol(bAnnualVol)}</div>
+          <div id="sim-delta-vol" style="font-size:12px;font-weight:500;color:var(--gray-400)">+0 m³</div>
+        </div>
+        <div style="text-align:center;padding:12px;background:var(--gray-50);border-radius:8px">
+          <div style="font-size:10px;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Revenue upside</div>
+          <div id="sim-rev" style="font-size:18px;font-weight:700;color:var(--gray-400)">$0</div>
+        </div>
+        <div style="text-align:center;padding:12px;background:var(--gray-50);border-radius:8px">
+          <div style="font-size:10px;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Contribution upside</div>
+          <div id="sim-contrib" style="font-size:18px;font-weight:700;color:var(--gray-400)">$0</div>
+        </div>
+        <div style="text-align:center;padding:12px;background:var(--gray-50);border-radius:8px">
+          <div style="font-size:10px;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Primary constraint</div>
+          <div id="sim-bottleneck" style="font-size:16px;font-weight:600;color:var(--gray-700)">${r.bottleneck||'—'}</div>
+        </div>
+      </div>
+
+      <div style="padding:14px 18px;background:#F8F9FA;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;color:var(--gray-700);line-height:1.65" id="sim-narrative">
+        <span style="color:var(--gray-400)">Adjust the sliders above to see the impact.</span>
+      </div>
+    </div>
+
+    <div style="background:white;border:1px solid var(--border);border-radius:10px;padding:20px 24px">
+      <div style="font-size:13px;font-weight:600;color:var(--gray-700);margin-bottom:12px">Baseline vs. Scenario</div>
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead><tr style="border-bottom:2px solid var(--border)">
+          <th style="text-align:left;padding:8px 12px;color:var(--gray-500);font-weight:500">Metric</th>
+          <th style="text-align:left;padding:8px 12px;color:var(--gray-500);font-weight:500">Change</th>
+        </tr></thead>
+        <tbody>
+          <tr style="border-bottom:1px solid var(--border)"><td style="padding:8px 12px">Turnaround</td><td style="padding:8px 12px;font-weight:500" id="sim-cmp-ta">${bTA} → ${bTA} min</td></tr>
+          <tr style="border-bottom:1px solid var(--border)"><td style="padding:8px 12px">Trucks</td><td style="padding:8px 12px;font-weight:500" id="sim-cmp-trucks">${bTrucks} → ${bTrucks}</td></tr>
+          <tr style="border-bottom:1px solid var(--border)"><td style="padding:8px 12px">Utilization</td><td style="padding:8px 12px;font-weight:500" id="sim-cmp-util">${bUtil}% → ${bUtil}%</td></tr>
+          <tr style="border-bottom:1px solid var(--border)"><td style="padding:8px 12px">Price / m³</td><td style="padding:8px 12px;font-weight:500" id="sim-cmp-price">$${bPrice} → $${bPrice}</td></tr>
+          <tr style="border-bottom:1px solid var(--border)"><td style="padding:8px 12px">Annual volume</td><td style="padding:8px 12px;font-weight:500" id="sim-cmp-vol">${fmtVol(bAnnualVol)} → ${fmtVol(bAnnualVol)}</td></tr>
+          <tr><td style="padding:8px 12px">Bottleneck</td><td style="padding:8px 12px;font-weight:500" id="sim-cmp-bottleneck">${r.bottleneck||'—'} → ${r.bottleneck||'—'}</td></tr>
+        </tbody>
+      </table>
+    </div>
+  `;
+  // Attach update function
+  document.getElementById('sim-content').__simUpdate=update;
 }
 
 function renderDashboard(){
