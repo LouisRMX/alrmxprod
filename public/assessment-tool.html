@@ -4311,11 +4311,14 @@ function renderSimulator(){
     // Fix #6: Clarify when dispatch/quality limits score improvement
     const scoreNoteEl=document.getElementById('sim-score-note');
     if(scoreNoteEl){
-      if(bQualityScore<70){
-        scoreNoteEl.textContent='Quality score ('+bQualityScore+') limits overall improvement';
+      const limiters=[];
+      if(s.sDispScore<70)limiters.push('Dispatch ('+s.sDispScore+')');
+      if(bQualityScore<70)limiters.push('Quality ('+bQualityScore+')');
+      if(limiters.length>0){
+        scoreNoteEl.textContent=limiters.join(' and ')+' limit'+(limiters.length===1?'s':'')+' overall improvement';
         scoreNoteEl.style.color='var(--amber)';
       }else{
-        scoreNoteEl.textContent='Quality score unchanged';
+        scoreNoteEl.textContent='All sub-scores above 70';
         scoreNoteEl.style.color='var(--gray-400)';
       }
     }
@@ -4348,6 +4351,8 @@ function renderSimulator(){
       recEl.textContent='Dispatch coordination is the primary lever — reducing order-to-dispatch time will unlock fleet capacity without adding trucks.';
     }else if(s.scenarioBottleneck==='Fleet / Logistics'){
       recEl.textContent='Prioritize reducing turnaround time before adding trucks — this delivers higher impact with lower investment.';
+    }else if(bQualityScore<50&&s.sProdScore>70&&s.sFleetScore>70){
+      recEl.textContent='Production and fleet capacity are adequate. Quality (score '+bQualityScore+') is now the weakest area — reducing reject rates and improving QC processes will have the highest impact on profitability.';
     }else{
       recEl.textContent='Focus on increasing plant utilization through reduced downtime and better production planning. Fleet capacity is sufficient under current conditions.';
     }
@@ -4444,7 +4449,7 @@ function renderSimulator(){
     </div>
 
     <!-- 3-COLUMN LAYOUT -->
-    <div style="display:grid;grid-template-columns:280px 1fr 320px;gap:16px;min-height:0">
+    <div style="display:grid;grid-template-columns:250px 1fr 1fr;gap:16px;min-height:0">
 
       <!-- LEFT: INPUTS -->
       <div style="background:white;border:1px solid var(--border);border-radius:10px;padding:16px">
@@ -4522,11 +4527,11 @@ function renderSimulator(){
         <!-- DELTA NUMBERS -->
         <div style="display:flex;flex-direction:column;gap:6px">
           <div>
-            <div style="font-size:10px;color:var(--gray-500)">Δ Annual output</div>
+            <div style="font-size:10px;color:var(--gray-500)">Annual output</div>
             <div id="sim-delta-vol" style="font-size:24px;font-weight:700;color:var(--gray-400)">+0 m³</div>
           </div>
           <div>
-            <div style="font-size:10px;color:var(--gray-500)">Δ Revenue</div>
+            <div style="font-size:10px;color:var(--gray-500)">Revenue</div>
             <div id="sim-rev" style="font-size:20px;font-weight:700;color:var(--gray-400)">$0</div>
           </div>
         </div>
