@@ -4132,10 +4132,21 @@ function renderSimulator(){
   const bMixCap=isDemo?7:(r.mixCap||7);
   const bDelDay=isDemo?0:(r.delDay||0);
   const bTargetTA=isDemo?80:(r.TARGET_TA||80);
-  // For demo: estimate actual production from utilPct and cap
-  const bActual=isDemo?(bCap*(bUtil/100)*0.92):(r.actual||0);
-  const bAnnualVol=Math.round(bActual*bOpH*bOpD);
+  // Dispatch efficiency derived from dispatch score (not from empty answers)
+  const bDispatchEff=isDemo?Math.max(0.4,Math.min(0.98,(S.scores?.dispatch||60)/100)):null;
+  // Variable costs = price - contrib (for recalculating contrib when price changes)
+  const bVarCosts=bPrice-bContrib;
+
+  // Fix #1: Baseline must account for fleet constraint (not just production)
+  const bProdDaily=bCap*(bUtil/100)*0.92*bOpH;
+  const bDelsPerTruck=bTA>0?(bOpH*60/bTA):0;
+  const bFleetDaily=bDelsPerTruck*bTrucks*bMixCap;
+  const bDispEffVal=bDispatchEff||0.80;
+  const bEffFleetDaily=bFleetDaily*bDispEffVal;
+  const bBaselineDaily=Math.min(bProdDaily,bEffFleetDaily);
+  const bAnnualVol=Math.round(bBaselineDaily*bOpD);
   const bEffUnits=isDemo?bTrucks:(r.effectiveUnits||bTrucks);
+
   // Override r for demo to have correct values for bottleneck/overall/cost display
   const rOverall=isDemo?S.overall:(r.overall);
   const rBottleneck=isDemo?(S.bottleneck||'—'):(r.bottleneck||'—');
@@ -4149,29 +4160,31 @@ function renderSimulator(){
     // Production-limited daily capacity
     const sActualRate=bCap*(sUtilPct/100)*0.92;
     const prodDaily=sActualRate*bOpH;
-    // Fleet-limited daily capacity
-    const delsPerTruck=sTA>0?Math.floor(bOpH*60/sTA):0;
+    // Fix #5: Use actual decimal instead of Math.floor for deliveries per truck
+    const delsPerTruck=sTA>0?(bOpH*60/sTA):0;
     const totalDels=delsPerTruck*sTrucks;
     const fleetDaily=totalDels*bMixCap;
-    // Dispatch efficiency factor (simplified — uses baseline dispatch inputs)
-    const dMap={'Under 15 minutes \\u2014 fast response':0.95,'15 to 25 minutes \\u2014 acceptable':0.82,'25 to 40 minutes \\u2014 slow':0.65,'Over 40 minutes \\u2014 critical bottleneck':0.45};
-    const dispEff=dMap[a.order_to_dispatch]||0.80;
+    // Fix #3: Dispatch efficiency from dispatch score in demo, from answers otherwise
+    const dispEff=bDispatchEff||(function(){
+      const dMap={'Under 15 minutes \u2014 fast response':0.95,'15 to 25 minutes \u2014 acceptable':0.82,'25 to 40 minutes \u2014 slow':0.65,'Over 40 minutes \u2014 critical bottleneck':0.45};
+      return dMap[a.order_to_dispatch]||0.80;
+    })();
     const effFleetDaily=fleetDaily*dispEff;
     // Scenario output = min of constraints
     const scenarioDaily=Math.min(prodDaily,effFleetDaily);
     const scenarioAnnual=Math.round(scenarioDaily*bOpD);
     // Determine bottleneck
     const scenarioBottleneck=prodDaily<=effFleetDaily?'Production':'Fleet / Logistics';
-    // Contribution — in demo mode use bContrib directly, otherwise calculate from answers
-    const sContrib=bContrib>0&&bContrib<sPrice?bContrib:Math.max(0,sPrice-(+a.cement_cost||0)-(+a.aggregate_cost||0)-(+a.admix_cost||0));
+    // Fix #2: Contribution recalculated when price changes
+    const sContrib=Math.max(0,sPrice-bVarCosts);
     const deltaVol=scenarioAnnual-bAnnualVol;
     const revenueUpside=deltaVol*sPrice;
     const contribUpside=deltaVol*sContrib;
-    // Rough scores
+    // Fix #4: Improved score formulas with better clamping
     const sProdScore=Math.max(0,Math.min(100,Math.round((sUtilPct/92)*100)));
-    const sExcess=Math.max(0,sTA-bTargetTA);
-    const sFleetScore=sTA>0?Math.max(0,Math.min(100,Math.round(100-(sExcess/bTargetTA)*80))):0;
-    return{scenarioAnnual,deltaVol,revenueUpside,contribUpside,scenarioBottleneck,prodDaily,effFleetDaily,sProdScore,sFleetScore};
+    const taRatio=bTargetTA>0?sTA/bTargetTA:1;
+    const sFleetScore=Math.max(0,Math.min(100,Math.round(taRatio<=1?100:100-((taRatio-1)*200))));
+    return{scenarioAnnual,deltaVol,revenueUpside,contribUpside,scenarioBottleneck,prodDaily,effFleetDaily,sProdScore,sFleetScore,sContrib};
   }
 
   function fmt(n){return n>=0?'$'+n.toLocaleString():'−$'+Math.abs(n).toLocaleString();}
@@ -4249,6 +4262,8 @@ function renderSimulator(){
     document.getElementById('sim-rev').style.color=s.revenueUpside>=0?'var(--green-mid)':'var(--red)';
     document.getElementById('sim-contrib').innerHTML=s.contribUpside===0?'$0':fmtShort(contLo)+' – '+fmtShort(contHi);
     document.getElementById('sim-contrib').style.color=s.contribUpside>=0?'var(--green-mid)':'var(--red)';
+    // Fix #6: Update contribution per m³ when price changes
+    document.getElementById('sim-contrib-note').textContent='($'+Math.round(s.sContrib)+'/m³)';
     document.getElementById('sim-bottleneck').textContent=s.scenarioBottleneck;
     document.getElementById('sim-bottleneck').style.color=s.scenarioBottleneck===rBottleneck?'var(--gray-700)':'var(--amber)';
     document.getElementById('sim-confidence').textContent=confidence;
