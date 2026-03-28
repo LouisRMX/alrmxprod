@@ -33,10 +33,21 @@ export default async function ReportsPage() {
     `)
     .order('created_at', { ascending: false })
 
+  // Normalize report from array (Supabase join) to single object
+  const normalized = (assessments || []).map(a => {
+    const reportArr = a.report as unknown[]
+    const report = Array.isArray(reportArr) ? reportArr[0] || null : reportArr
+    const plantArr = a.plant as unknown[]
+    const plant = Array.isArray(plantArr) ? plantArr[0] || null : plantArr
+    const analystArr = a.analyst as unknown[]
+    const analyst = Array.isArray(analystArr) ? analystArr[0] || null : analystArr
+    return { ...a, report, plant, analyst }
+  })
+
   // Filter to only assessments that have a report (for admins)
   const withReports = isAdmin
-    ? (assessments || []).filter(a => (a.report as { executive?: string })?.executive)
-    : assessments || []
+    ? normalized.filter(a => (a.report as { executive?: string })?.executive)
+    : normalized
 
   return (
     <div style={{ padding: '24px', maxWidth: '900px', margin: '0 auto' }}>
