@@ -6390,7 +6390,9 @@ if(window.location.hash==='#demo'){
   if(!assessments.length){assessments=[...DEMO_ASSESSMENTS];localStorage.setItem('alcem_v4',JSON.stringify(assessments));}
   // Hide only the green topbar when embedded — keep mode-tabs for navigation
   document.querySelector('.topbar').style.display='none';
-  switchMode('dashboard',document.querySelectorAll('.mode-tab')[3]);
+  // Start on Assessment tab — auto-launch guided demo
+  switchMode('diagnostic',document.querySelectorAll('.mode-tab')[0]);
+  setTimeout(()=>startGuidedDemo(),100);
 }
 
 </script>
