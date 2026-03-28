@@ -475,7 +475,7 @@ body{font-family:var(--font);background:var(--gray-50);color:var(--gray-900);min
           <div id="err-s-ct" style="display:none;font-size:11px;color:var(--red);margin-top:4px">Required</div>
         </div>
       </div>
-      <button class="start-btn" onclick="startDiag()" style="margin-bottom:10px">Start guided assessment →</button>
+      <button class="start-btn" onclick="(S.demo||S.isDemo)?startGuidedDemo():startDiag()" style="margin-bottom:10px">Start guided assessment →</button>
       <div style="text-align:center;margin-top:4px">
         <button onclick="startDiag();setTimeout(switchToFullMode,50)" style="font-size:11px;color:var(--gray-400);background:none;border:none;cursor:pointer;font-family:var(--font)">Open full question set instead →</button>
       </div>
@@ -3629,7 +3629,7 @@ function startGuidedDemo() {
   S = {
     sec: 0,
     isDemo: true,
-    guidedMode: true,
+    guidedMode: false,
     _phase: 'workshop',
     answers: demoAnswers,
     meta: {company:'Al-Cem Readymix', plant:'Plant 1 — Riyadh North',
@@ -3642,12 +3642,10 @@ function startGuidedDemo() {
   document.getElementById('diag-result').style.display = 'none';
   document.getElementById('diag-walk').style.display = 'flex';
   setBack(true);
-  GM = { phase: 'core', triggers: [], skipped: new Set(), openGroups: new Set() };
-  CORE_BLOCKS.forEach(b => GM.openGroups.add(b.id));
 
-  // Defer to ensure all guided mode functions are defined
+  // Use section-based rendering (not guided mode) — respects _phase filtering
   setTimeout(() => {
-    renderGuidedMode();
+    renderSec();
   }, 0);
 
   // Show demo welcome + mode banner
