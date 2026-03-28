@@ -7,18 +7,18 @@ interface DemoPlant {
   id: string; plant: string; company: string; overall: number
   bottleneck: string; ebitdaMonthly: number
   scores: { prod: number; dispatch: number; fleet: number; logistics: number; quality: number }
-  turnaround: number; utilPct: number; price: number; contrib: number
+  turnaround: number; utilPct: number; price: number; contrib: number; nTrucks: number
 }
 
 const DEMO_PLANTS: DemoPlant[] = [
-  {id:"2024",plant:"Plant 25 — Qassim North",company:"Al-Cem Readymix",overall:79,bottleneck:"Dispatch",ebitdaMonthly:597425,scores:{prod:85,dispatch:72,fleet:80,logistics:80,quality:72},turnaround:102,utilPct:78,price:75,contrib:26},
-  {id:"2005",plant:"Plant 6 — Jeddah North",company:"Al-Cem Readymix",overall:62,bottleneck:"Dispatch",ebitdaMonthly:567981,scores:{prod:62,dispatch:55,fleet:68,logistics:68,quality:60},turnaround:104,utilPct:57,price:70,contrib:24},
-  {id:"2012",plant:"Plant 13 — Medina Central",company:"Al-Cem Readymix",overall:64,bottleneck:"Production",ebitdaMonthly:529500,scores:{prod:55,dispatch:65,fleet:72,logistics:72,quality:62},turnaround:99,utilPct:51,price:70,contrib:24},
-  {id:"2006",plant:"Plant 7 — Jeddah South",company:"Al-Cem Readymix",overall:63,bottleneck:"Production",ebitdaMonthly:528601,scores:{prod:58,dispatch:60,fleet:72,logistics:72,quality:57},turnaround:96,utilPct:53,price:72,contrib:25},
-  {id:"2000",plant:"Plant 1 — Riyadh North",company:"Al-Cem Readymix",overall:50,bottleneck:"Dispatch",ebitdaMonthly:266587,scores:{prod:55,dispatch:30,fleet:65,logistics:65,quality:48},turnaround:97,utilPct:51,price:58,contrib:20},
-  {id:"2001",plant:"Plant 2 — Riyadh South",company:"Al-Cem Readymix",overall:52,bottleneck:"Dispatch",ebitdaMonthly:248635,scores:{prod:48,dispatch:35,fleet:72,logistics:72,quality:50},turnaround:77,utilPct:44,price:64,contrib:21},
-  {id:"2034",plant:"Plant 35 — Medina South",company:"Al-Cem Readymix",overall:89,bottleneck:"Dispatch",ebitdaMonthly:301546,scores:{prod:89,dispatch:87,fleet:91,logistics:91,quality:86},turnaround:80,utilPct:82,price:70,contrib:24},
-  {id:"2033",plant:"Plant 34 — Mecca Ring Road",company:"Al-Cem Readymix",overall:94,bottleneck:"Dispatch",ebitdaMonthly:15572,scores:{prod:95,dispatch:92,fleet:94,logistics:94,quality:90},turnaround:82,utilPct:87,price:63,contrib:22},
+  {id:"2024",plant:"Plant 25 — Qassim North",company:"Al-Cem Readymix",overall:79,bottleneck:"Dispatch",ebitdaMonthly:597425,scores:{prod:85,dispatch:72,fleet:80,logistics:80,quality:72},turnaround:102,utilPct:78,price:75,contrib:26,nTrucks:38},
+  {id:"2005",plant:"Plant 6 — Jeddah North",company:"Al-Cem Readymix",overall:62,bottleneck:"Dispatch",ebitdaMonthly:567981,scores:{prod:62,dispatch:55,fleet:68,logistics:68,quality:60},turnaround:104,utilPct:57,price:70,contrib:24,nTrucks:28},
+  {id:"2012",plant:"Plant 13 — Medina Central",company:"Al-Cem Readymix",overall:64,bottleneck:"Production",ebitdaMonthly:529500,scores:{prod:55,dispatch:65,fleet:72,logistics:72,quality:62},turnaround:99,utilPct:51,price:70,contrib:24,nTrucks:24},
+  {id:"2006",plant:"Plant 7 — Jeddah South",company:"Al-Cem Readymix",overall:63,bottleneck:"Production",ebitdaMonthly:528601,scores:{prod:58,dispatch:60,fleet:72,logistics:72,quality:57},turnaround:96,utilPct:53,price:72,contrib:25,nTrucks:26},
+  {id:"2000",plant:"Plant 1 — Riyadh North",company:"Al-Cem Readymix",overall:50,bottleneck:"Dispatch",ebitdaMonthly:266587,scores:{prod:55,dispatch:30,fleet:65,logistics:65,quality:48},turnaround:97,utilPct:51,price:58,contrib:20,nTrucks:20},
+  {id:"2001",plant:"Plant 2 — Riyadh South",company:"Al-Cem Readymix",overall:52,bottleneck:"Dispatch",ebitdaMonthly:248635,scores:{prod:48,dispatch:35,fleet:72,logistics:72,quality:50},turnaround:77,utilPct:44,price:64,contrib:21,nTrucks:24},
+  {id:"2034",plant:"Plant 35 — Medina South",company:"Al-Cem Readymix",overall:89,bottleneck:"Dispatch",ebitdaMonthly:301546,scores:{prod:89,dispatch:87,fleet:91,logistics:91,quality:86},turnaround:80,utilPct:82,price:70,contrib:24,nTrucks:36},
+  {id:"2033",plant:"Plant 34 — Mecca Ring Road",company:"Al-Cem Readymix",overall:94,bottleneck:"Dispatch",ebitdaMonthly:15572,scores:{prod:95,dispatch:92,fleet:94,logistics:94,quality:90},turnaround:82,utilPct:87,price:63,contrib:22,nTrucks:42},
 ]
 
 /* ── helpers ── */
@@ -58,12 +58,12 @@ function calcRealism(base: DemoPlant, turnaround: number, utilTarget: number): {
 }
 
 /* ── simulate using demo data ── */
-function simulate(plant: DemoPlant, turnaround: number, utilTarget: number, priceM3: number) {
-  // Use benchmark assumptions for demo (120 m³/hr plant, 10hrs, 300 days, 7 m³ mixer, 32 trucks)
+function simulate(plant: DemoPlant, turnaround: number, trucks: number, utilTarget: number, priceM3: number) {
+  // Use benchmark assumptions for demo (120 m³/hr plant, 10hrs, 300 days, 7 m³ mixer)
   const plantCap = 120
   const opHours = 10
   const opDays = 300
-  const nTrucks = 32
+  const nTrucks = trucks
   const mixerCap = 7
   const rejectPct = 0.03
 
@@ -116,6 +116,7 @@ export default function DemoSimulator() {
   const plant = DEMO_PLANTS.find(p => p.id === selectedId) || DEMO_PLANTS[0]
 
   const [turnaround, setTurnaround] = useState(plant.turnaround)
+  const [trucks, setTrucks] = useState(plant.nTrucks)
   const [utilTarget, setUtilTarget] = useState(plant.utilPct)
   const [priceM3, setPriceM3] = useState(plant.price)
 
@@ -123,12 +124,23 @@ export default function DemoSimulator() {
     setSelectedId(id)
     const p = DEMO_PLANTS.find(x => x.id === id) || DEMO_PLANTS[0]
     setTurnaround(p.turnaround)
+    setTrucks(p.nTrucks)
     setUtilTarget(p.utilPct)
     setPriceM3(p.price)
   }
 
-  const result = useMemo(() => simulate(plant, turnaround, utilTarget, priceM3), [plant, turnaround, utilTarget, priceM3])
-  const confidence = useMemo(() => calcConfidence(plant, turnaround, utilTarget), [plant, turnaround, utilTarget])
+  const result = useMemo(() => simulate(plant, turnaround, trucks, utilTarget, priceM3), [plant, turnaround, trucks, utilTarget, priceM3])
+  const confidence = useMemo(() => {
+    const changes = [
+      Math.abs(turnaround - plant.turnaround) / plant.turnaround,
+      Math.abs(trucks - plant.nTrucks) / Math.max(plant.nTrucks, 1),
+      Math.abs(utilTarget - plant.utilPct) / Math.max(plant.utilPct, 1),
+    ]
+    const max = Math.max(...changes)
+    if (max < 0.15) return { level: 'High' as Confidence, margin: 0.10 }
+    if (max < 0.30) return { level: 'Medium' as Confidence, margin: 0.20 }
+    return { level: 'Low' as Confidence, margin: 0.30 }
+  }, [plant, turnaround, trucks, utilTarget])
   const realism = useMemo(() => calcRealism(plant, turnaround, utilTarget), [plant, turnaround, utilTarget])
 
   const confColor = { High: '#27ae60', Medium: '#D68910', Low: '#C0392B' }[confidence.level]
@@ -138,6 +150,7 @@ export default function DemoSimulator() {
 
   // Warnings
   const warnings: string[] = []
+  if (trucks > plant.nTrucks && result.bottleneck === 'Production') warnings.push('Adding trucks provides limited benefit — production capacity is the binding constraint.')
   if (result.bottleneck === 'Production' && result.effectiveFleetDaily > result.prodDaily * 1.5) warnings.push('Fleet capacity significantly exceeds production — some trucks may be underutilized.')
   if (priceM3 !== plant.price) warnings.push('Revenue impact is sensitive to price assumptions — treat as directional estimate.')
 
@@ -146,6 +159,7 @@ export default function DemoSimulator() {
   let insight = ''
   const changes: string[] = []
   if (turnaround !== plant.turnaround) changes.push(`turnaround from ${plant.turnaround} to ${turnaround} min`)
+  if (trucks !== plant.nTrucks) { const diff = trucks - plant.nTrucks; changes.push(`fleet size by ${diff > 0 ? '+' : ''}${diff} trucks (${plant.nTrucks} → ${trucks})`) }
   if (utilTarget !== plant.utilPct) changes.push(`utilization from ${plant.utilPct}% to ${utilTarget}%`)
   if (changes.length === 0) {
     insight = 'Adjust the sliders above to model improvement scenarios.'
@@ -205,7 +219,7 @@ export default function DemoSimulator() {
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '24px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
           {/* Turnaround */}
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
@@ -214,7 +228,19 @@ export default function DemoSimulator() {
             </div>
             <input type="range" min={30} max={180} step={5} value={turnaround} onChange={e => setTurnaround(Number(e.target.value))} style={sliderStyle} />
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'var(--gray-400)', marginTop: '4px' }}>
-              <span>30</span><span style={{ color: 'var(--gray-500)', fontWeight: '500' }}>baseline: {plant.turnaround}</span><span>180</span>
+              <span>30 min</span><span style={{ color: 'var(--gray-500)', fontWeight: '500' }}>baseline: {plant.turnaround}</span><span>180 min</span>
+            </div>
+          </div>
+
+          {/* Trucks */}
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <span style={{ fontSize: '12px', color: 'var(--gray-600)' }}>Number of trucks</span>
+              <span style={{ fontSize: '14px', fontWeight: '700', fontFamily: 'var(--mono)', color: trucks > plant.nTrucks ? '#27ae60' : 'var(--gray-900)' }}>{trucks}</span>
+            </div>
+            <input type="range" min={1} max={Math.max(80, plant.nTrucks * 2)} step={1} value={trucks} onChange={e => setTrucks(Number(e.target.value))} style={sliderStyle} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'var(--gray-400)', marginTop: '4px' }}>
+              <span>1</span><span style={{ color: 'var(--gray-500)', fontWeight: '500' }}>baseline: {plant.nTrucks}</span><span>{Math.max(80, plant.nTrucks * 2)}</span>
             </div>
           </div>
 
@@ -230,10 +256,10 @@ export default function DemoSimulator() {
             </div>
           </div>
 
-          {/* Price */}
+          {/* Price (assumption) */}
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-              <span style={{ fontSize: '12px', color: 'var(--gray-600)' }}>Price/m³ <span style={{ fontSize: '10px', color: 'var(--gray-400)', fontStyle: 'italic' }}>(assumption)</span></span>
+              <span style={{ fontSize: '12px', color: 'var(--gray-600)' }}>Price per m³ <span style={{ fontSize: '10px', color: 'var(--gray-400)', fontStyle: 'italic' }}>(assumption)</span></span>
               <span style={{ fontSize: '14px', fontWeight: '700', fontFamily: 'var(--mono)', color: priceM3 !== plant.price ? '#2471A3' : 'var(--gray-900)' }}>${priceM3}</span>
             </div>
             <input type="range" min={Math.max(10, Math.round(plant.price * 0.5))} max={Math.round(plant.price * 2)} step={1} value={priceM3} onChange={e => setPriceM3(Number(e.target.value))} style={sliderStyle} />
