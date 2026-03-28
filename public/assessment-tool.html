@@ -2129,12 +2129,12 @@ function switchMode(mode,btn){
     const walk=document.getElementById('diag-walk');
     const setup=document.getElementById('diag-setup');
     // If there is a report to show, go to it
-    if(result&&(S.report?.executive||S.report?.diagnosis||Object.keys(S.answers).length>0)){
+    if(result&&(S.report?.executive||S.report?.diagnosis||Object.keys(S.answers).length>0||(S.demo&&S.overall))){
       if(setup)setup.style.display='none';
       if(walk)walk.style.display='none';
       if(result)result.style.display='block';
       setBack(true);
-      if(Object.keys(S.answers).length>0&&!S.report?.executive){showResult();}
+      if((Object.keys(S.answers).length>0||(S.demo&&S.overall))&&!S.report?.executive){showResult();}
     } else {
       // No report yet — show a clear empty state, not the setup form
       if(setup)setup.style.display='none';
@@ -4173,6 +4173,13 @@ function renderSimulator(){
 
   function fmt(n){return n>=0?'$'+n.toLocaleString():'−$'+Math.abs(n).toLocaleString();}
   function fmtVol(n){return n.toLocaleString()+' m³';}
+  function fmtShort(n){
+    const abs=Math.abs(n);
+    const sign=n<0?'−':'';
+    if(abs>=1000000)return sign+'$'+Math.round(abs/100000)/10+'M';
+    if(abs>=1000)return sign+'$'+Math.round(abs/1000)+'K';
+    return sign+'$'+abs;
+  }
 
   // Theoretical max capacity (best-case: 92% util, target turnaround, all trucks)
   const theoDaily=bCap*0.92*bOpH;
@@ -4221,9 +4228,9 @@ function renderSimulator(){
     document.getElementById('sim-bar-gap').textContent='Unrealised: '+gapPct+'%';
     document.getElementById('sim-bar-gap').style.color=gapPct<10?'var(--green)':gapPct<30?'var(--amber)':'var(--red)';
 
-    document.getElementById('sim-rev').innerHTML=s.revenueUpside===0?'$0':fmt(revLo)+' – '+fmt(revHi);
+    document.getElementById('sim-rev').innerHTML=s.revenueUpside===0?'$0':fmtShort(revLo)+' – '+fmtShort(revHi);
     document.getElementById('sim-rev').style.color=s.revenueUpside>=0?'var(--green-mid)':'var(--red)';
-    document.getElementById('sim-contrib').innerHTML=s.contribUpside===0?'$0':fmt(contLo)+' – '+fmt(contHi);
+    document.getElementById('sim-contrib').innerHTML=s.contribUpside===0?'$0':fmtShort(contLo)+' – '+fmtShort(contHi);
     document.getElementById('sim-contrib').style.color=s.contribUpside>=0?'var(--green-mid)':'var(--red)';
     document.getElementById('sim-bottleneck').textContent=s.scenarioBottleneck;
     document.getElementById('sim-bottleneck').style.color=s.scenarioBottleneck===rBottleneck?'var(--gray-700)':'var(--amber)';
@@ -4320,7 +4327,7 @@ function renderSimulator(){
               <span id="sim-ta-val" style="font-size:12px;font-weight:600;color:var(--gray-900)">${bTA} min</span>
             </div>
             <input type="range" id="sim-ta" min="${taMin}" max="${taMax}" value="${bTA}" step="5" oninput="document.getElementById('sim-content').__simUpdate()" style="${sliderStyle}">
-            <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--gray-400)"><span>${taMin}</span><span>Baseline: ${bTA}</span><span>${taMax}</span></div>
+            <div style="text-align:center;font-size:9px;color:var(--gray-400)">Baseline: ${bTA}</div>
           </div>
           <div>
             <div style="display:flex;justify-content:space-between;margin-bottom:4px">
@@ -4328,7 +4335,7 @@ function renderSimulator(){
               <span id="sim-trucks-val" style="font-size:12px;font-weight:600;color:var(--gray-900)">${bTrucks}</span>
             </div>
             <input type="range" id="sim-trucks" min="${trMin}" max="${trMax}" value="${bTrucks}" step="1" oninput="document.getElementById('sim-content').__simUpdate()" style="${sliderStyle}">
-            <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--gray-400)"><span>${trMin}</span><span>Baseline: ${bTrucks}</span><span>${trMax}</span></div>
+            <div style="text-align:center;font-size:9px;color:var(--gray-400)">Baseline: ${bTrucks}</div>
           </div>
           <div>
             <div style="display:flex;justify-content:space-between;margin-bottom:4px">
@@ -4336,7 +4343,7 @@ function renderSimulator(){
               <span id="sim-util-val" style="font-size:12px;font-weight:600;color:var(--gray-900)">${bUtil}%</span>
             </div>
             <input type="range" id="sim-util" min="10" max="95" value="${bUtil}" step="1" oninput="document.getElementById('sim-content').__simUpdate()" style="${sliderStyle}">
-            <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--gray-400)"><span>10%</span><span>Baseline: ${bUtil}%</span><span>95%</span></div>
+            <div style="text-align:center;font-size:9px;color:var(--gray-400)">Baseline: ${bUtil}%</div>
           </div>
           <div>
             <div style="display:flex;justify-content:space-between;margin-bottom:4px">
@@ -4344,7 +4351,7 @@ function renderSimulator(){
               <span id="sim-price-val" style="font-size:12px;font-weight:600;color:var(--gray-900)">$${bPrice}</span>
             </div>
             <input type="range" id="sim-price" min="${priceMin}" max="${priceMax}" value="${bPrice}" step="1" oninput="document.getElementById('sim-content').__simUpdate()" style="${sliderStyle}">
-            <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--gray-400)"><span>$${priceMin}</span><span>Baseline: $${bPrice}</span><span>$${priceMax}</span></div>
+            <div style="text-align:center;font-size:9px;color:var(--gray-400)">Baseline: $${bPrice}</div>
           </div>
         </div>
         <div style="margin-top:12px;text-align:center">
@@ -4376,7 +4383,7 @@ function renderSimulator(){
         </div>
 
         <!-- DELTA NUMBERS -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div style="display:flex;flex-direction:column;gap:6px">
           <div>
             <div style="font-size:10px;color:var(--gray-500)">Δ Annual output</div>
             <div id="sim-delta-vol" style="font-size:24px;font-weight:700;color:var(--gray-400)">+0 m³</div>
@@ -6220,7 +6227,7 @@ if(window.location.hash==='#demo'){
   if(!assessments.length){assessments=[...DEMO_ASSESSMENTS];localStorage.setItem('alcem_v4',JSON.stringify(assessments));}
   // Hide only the green topbar when embedded — keep mode-tabs for navigation
   document.querySelector('.topbar').style.display='none';
-  switchMode('dashboard',document.querySelectorAll('.mode-tab')[2]);
+  switchMode('dashboard',document.querySelectorAll('.mode-tab')[3]);
 }
 
 </script>
