@@ -4264,6 +4264,16 @@ function renderSimulator(){
     document.getElementById('sim-contrib').style.color=s.contribUpside>=0?'var(--green-mid)':'var(--red)';
     // Fix #6: Update contribution per m³ when price changes
     document.getElementById('sim-contrib-note').textContent='($'+Math.round(s.sContrib)+'/m³)';
+    // Price-effect isolation: show what price change alone would give at baseline volume
+    const priceEffEl=document.getElementById('sim-price-effect');
+    if(sPrice!==bPrice){
+      const priceOnlyRevenue=(sPrice-bPrice)*bAnnualVol;
+      const priceOnlyContrib=(s.sContrib-bContrib)*bAnnualVol;
+      priceEffEl.style.display='block';
+      priceEffEl.innerHTML='Price change alone at current volume: <strong style="color:'+(priceOnlyContrib>=0?'var(--green-mid)':'var(--red)')+'">'+fmtShort(Math.round(priceOnlyContrib))+'/yr</strong> contribution';
+    }else{
+      priceEffEl.style.display='none';
+    }
     document.getElementById('sim-bottleneck').textContent=s.scenarioBottleneck;
     document.getElementById('sim-bottleneck').style.color=s.scenarioBottleneck===rBottleneck?'var(--gray-700)':'var(--amber)';
     document.getElementById('sim-confidence').textContent=confidence;
@@ -4438,6 +4448,7 @@ function renderSimulator(){
             <span id="sim-contrib-note" style="font-size:10px;color:var(--gray-400)">($${bContrib}/m³)</span>
           </div>
         </div>
+        <div id="sim-price-effect" style="display:none;font-size:11px;color:var(--gray-500);padding:6px 8px;background:var(--gray-50);border-radius:6px;line-height:1.4"></div>
 
         <!-- LIMITING FACTOR -->
         <div style="border-top:1px solid var(--border);padding-top:8px">
