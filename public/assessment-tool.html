@@ -4135,6 +4135,10 @@ function renderSimulator(){
   const bTargetTA=isDemo?(S.targetTA||Math.max(70,Math.round(bTA*0.82))):(r.TARGET_TA||80);
   // Dispatch efficiency derived from dispatch score (not from empty answers)
   const bDispatchEff=isDemo?Math.max(0.4,Math.min(0.98,(S.scores?.dispatch||60)/100)):null;
+  // Baseline order-to-dispatch time estimate from dispatch efficiency
+  // Eff 0.95 ≈ 10min, 0.82 ≈ 20min, 0.65 ≈ 35min, 0.45 ≈ 50min
+  const bDispEffVal_=bDispatchEff||0.80;
+  const bOTD=isDemo?Math.round(10+(1-bDispEffVal_)*80):(parseInt(a.order_to_dispatch)||20);
   // Variable costs = price - contrib (for recalculating contrib when price changes)
   const bVarCosts=bPrice-bContrib;
 
@@ -4147,6 +4151,10 @@ function renderSimulator(){
   const bBaselineDaily=Math.min(bProdDaily,bEffFleetDaily);
   const bAnnualVol=Math.round(bBaselineDaily*bOpD);
   const bEffUnits=isDemo?bTrucks:(r.effectiveUnits||bTrucks);
+  // Fix: Recalculate hiddenDel from constraint model for consistency
+  const bActualDelsPerDay=bTA>0?Math.round(bBaselineDaily/bMixCap):0;
+  const bTheoreticalDelsPerDay=bTA>0?Math.round((bOpH*60/bTargetTA)*bTrucks):0;
+  const bHiddenDel=Math.max(0,bTheoreticalDelsPerDay-bActualDelsPerDay);
 
   // Override r for demo to have correct values for bottleneck/overall/cost display
   const rOverall=isDemo?S.overall:(r.overall);
@@ -4157,19 +4165,16 @@ function renderSimulator(){
   const bDispatchScore=isDemo?(S.scores?.dispatch||60):(r.scores?.dispatch||60);
   const bQualityScore=isDemo?(S.scores?.quality||60):(r.scores?.quality||60);
 
-  function simCalc(sTA,sTrucks,sUtilPct,sPrice){
+  function simCalc(sTA,sTrucks,sUtilPct,sPrice,sOTD){
     // Production-limited daily capacity
     const sActualRate=bCap*(sUtilPct/100)*0.92;
     const prodDaily=sActualRate*bOpH;
-    // Fix #5: Use actual decimal instead of Math.floor for deliveries per truck
     const delsPerTruck=sTA>0?(bOpH*60/sTA):0;
     const totalDels=delsPerTruck*sTrucks;
     const fleetDaily=totalDels*bMixCap;
-    // Fix #3: Dispatch efficiency from dispatch score in demo, from answers otherwise
-    const dispEff=bDispatchEff||(function(){
-      const dMap={'Under 15 minutes \u2014 fast response':0.95,'15 to 25 minutes \u2014 acceptable':0.82,'25 to 40 minutes \u2014 slow':0.65,'Over 40 minutes \u2014 critical bottleneck':0.45};
-      return dMap[a.order_to_dispatch]||0.80;
-    })();
+    // Dispatch efficiency from order-to-dispatch time
+    // OTD 5-10min → 0.95, 15-25min → 0.82, 25-40min → 0.65, 40+min → 0.45
+    const dispEff=Math.max(0.40,Math.min(0.98,1-(sOTD/100)));
     const effFleetDaily=fleetDaily*dispEff;
     // Scenario output = min of constraints
     const scenarioDaily=Math.min(prodDaily,effFleetDaily);
@@ -4186,7 +4191,9 @@ function renderSimulator(){
     // Fix: Softer fleet score — 20min excess = ~75, 40min = ~50 (not 200× penalty)
     const taRatio=bTargetTA>0?sTA/bTargetTA:1;
     const sFleetScore=Math.max(0,Math.min(100,Math.round(taRatio<=1?100:100-((taRatio-1)*120))));
-    return{scenarioAnnual,deltaVol,revenueUpside,contribUpside,scenarioBottleneck,prodDaily,effFleetDaily,sProdScore,sFleetScore,sContrib};
+    // Dispatch score from OTD: 10min=95, 20min=80, 35min=55, 50min=30
+    const sDispScore=Math.max(0,Math.min(100,Math.round(100-sOTD*1.4)));
+    return{scenarioAnnual,deltaVol,revenueUpside,contribUpside,scenarioBottleneck,prodDaily,effFleetDaily,sProdScore,sFleetScore,sDispScore,sContrib,dispEff};
   }
 
   function fmt(n){return n>=0?'$'+n.toLocaleString():'−$'+Math.abs(n).toLocaleString();}
@@ -4208,17 +4215,20 @@ function renderSimulator(){
     const sTrucks=+document.getElementById('sim-trucks').value;
     const sUtil=+document.getElementById('sim-util').value;
     const sPrice=+document.getElementById('sim-price').value;
+    const sOTD=+document.getElementById('sim-otd').value;
     document.getElementById('sim-ta-val').textContent=sTA+' min';
     document.getElementById('sim-trucks-val').textContent=sTrucks;
     document.getElementById('sim-util-val').textContent=sUtil+'%';
     document.getElementById('sim-price-val').textContent='$'+sPrice;
-    const s=simCalc(sTA,sTrucks,sUtil,sPrice);
+    document.getElementById('sim-otd-val').textContent=sOTD+' min';
+    const s=simCalc(sTA,sTrucks,sUtil,sPrice,sOTD);
 
     // Confidence & realism based on change magnitude
     const taPctChange=bTA>0?Math.abs(sTA-bTA)/bTA*100:0;
     const trPctChange=bTrucks>0?Math.abs(sTrucks-bTrucks)/bTrucks*100:0;
     const utilPctChange=Math.abs(sUtil-bUtil);
-    const maxChange=Math.max(taPctChange,trPctChange,utilPctChange);
+    const otdPctChange=bOTD>0?Math.abs(sOTD-bOTD)/bOTD*100:0;
+    const maxChange=Math.max(taPctChange,trPctChange,utilPctChange,otdPctChange);
     const confidence=maxChange<15?'High':maxChange<30?'Medium':'Low';
     const confColor=confidence==='High'?'var(--green)':confidence==='Medium'?'var(--amber)':'var(--red)';
     const margin=confidence==='High'?0.10:confidence==='Medium'?0.20:0.30;
@@ -4287,26 +4297,25 @@ function renderSimulator(){
     const prodDailyFmt=Math.round(s.prodDaily).toLocaleString();
     const fleetDailyFmt=Math.round(s.effFleetDaily).toLocaleString();
     const limiting=s.prodDaily<=s.effFleetDaily?'Production':'Fleet';
+    const dispEffPct=Math.round(s.dispEff*100);
     document.getElementById('sim-constraint-detail').innerHTML=
       'Production: '+prodDailyFmt+' m³/day'+(limiting==='Production'?' ← limiting':'')+
-      '<br>Fleet: '+fleetDailyFmt+' m³/day'+(limiting==='Fleet'?' ← limiting':'');
+      '<br>Fleet: '+fleetDailyFmt+' m³/day'+(limiting==='Fleet'?' ← limiting':'')+
+      '<br>Dispatch efficiency: '+dispEffPct+'%';
 
     // Estimated overall score (prod + fleet change, dispatch + quality stay)
-    const estScore=Math.max(0,Math.min(100,Math.round((s.sProdScore+s.sFleetScore+bDispatchScore+bQualityScore)/4)));
+    const estScore=Math.max(0,Math.min(100,Math.round((s.sProdScore+s.sFleetScore+s.sDispScore+bQualityScore)/4)));
     const scoreEl=document.getElementById('sim-est-score');
     scoreEl.textContent='~'+estScore;
     scoreEl.style.color=estScore>rOverall?'var(--green-mid)':estScore<rOverall?'var(--red)':'var(--gray-900)';
     // Fix #6: Clarify when dispatch/quality limits score improvement
     const scoreNoteEl=document.getElementById('sim-score-note');
     if(scoreNoteEl){
-      if(bDispatchScore<70&&s.scenarioBottleneck!=='Fleet / Logistics'){
-        scoreNoteEl.textContent='Dispatch score ('+bDispatchScore+') limits overall improvement';
-        scoreNoteEl.style.color='var(--amber)';
-      }else if(bQualityScore<70){
+      if(bQualityScore<70){
         scoreNoteEl.textContent='Quality score ('+bQualityScore+') limits overall improvement';
         scoreNoteEl.style.color='var(--amber)';
       }else{
-        scoreNoteEl.textContent='Dispatch & quality scores unchanged';
+        scoreNoteEl.textContent='Quality score unchanged';
         scoreNoteEl.style.color='var(--gray-400)';
       }
     }
@@ -4316,6 +4325,7 @@ function renderSimulator(){
     if(sTA!==bTA)changes.push('turnaround from '+bTA+' to '+sTA+' min');
     if(sTrucks!==bTrucks)changes.push('trucks from '+bTrucks+' to '+sTrucks);
     if(sUtil!==bUtil)changes.push('utilization from '+bUtil+'% to '+sUtil+'%');
+    if(sOTD!==bOTD)changes.push('order-to-dispatch from '+bOTD+' to '+sOTD+' min');
     let narrative='<span style="color:var(--gray-400)">Adjust the sliders to see the impact.</span>';
     if(changes.length>0){
       const dir=s.deltaVol>=0?'increase':'decrease';
@@ -4334,8 +4344,10 @@ function renderSimulator(){
     // Recommendation
     const recEl=document.getElementById('sim-recommendation');
     if(changes.length===0){recEl.innerHTML='<span style="color:var(--gray-400)">Move the sliders to get a recommendation.</span>';}
-    else if(s.scenarioBottleneck==='Fleet / Logistics'){
-      recEl.textContent='Prioritize reducing turnaround time or improving dispatch coordination before adding trucks — this delivers higher impact with lower investment.';
+    else if(s.scenarioBottleneck==='Fleet / Logistics'&&s.dispEff<0.75){
+      recEl.textContent='Dispatch coordination is the primary lever — reducing order-to-dispatch time will unlock fleet capacity without adding trucks.';
+    }else if(s.scenarioBottleneck==='Fleet / Logistics'){
+      recEl.textContent='Prioritize reducing turnaround time before adding trucks — this delivers higher impact with lower investment.';
     }else{
       recEl.textContent='Focus on increasing plant utilization through reduced downtime and better production planning. Fleet capacity is sufficient under current conditions.';
     }
@@ -4343,6 +4355,7 @@ function renderSimulator(){
     // Warnings (max 2)
     const warns=[];
     if(sTA<40)warns.push('Turnaround under 40 min is rarely achievable without major infrastructure changes.');
+    if(sOTD<8)warns.push('Order-to-dispatch under 8 min requires automated dispatch systems.');
     if(sTrucks>bTrucks*1.5)warns.push('Adding more than 50% trucks requires significant fleet investment.');
     if(sUtil>92)warns.push('Utilization above 92% is rarely sustainable long-term.');
     if(sTrucks>bTrucks&&s.scenarioBottleneck==='Production')warns.push('Adding trucks provides limited benefit under current production constraints.');
@@ -4352,27 +4365,51 @@ function renderSimulator(){
     const topWarns=warns.slice(0,2);
     document.getElementById('sim-warnings').innerHTML=topWarns.length?topWarns.map(w=>'<div style="padding:5px 10px;background:#FEF3C7;border:1px solid #F9E4A0;border-radius:6px;font-size:11px;color:#7A5C00;margin-bottom:4px">⚠ '+w+'</div>').join(''):'';
 
-    // Fix #8: Break-even analysis
-    const beEl=document.getElementById('sim-breakeven');
-    if(beEl){
-      if(s.deltaVol>0&&s.sContrib>0){
-        // What price would break even at this volume?
-        const bePrice=Math.round(bVarCosts+1);
-        // What utilization would recover cost of added trucks?
-        const addedTrucks=sTrucks-bTrucks;
-        if(addedTrucks>0){
-          const truckCostMonthly=addedTrucks*8000; // ~$8K/month per truck (lease+driver+fuel)
-          const volNeeded=Math.round(truckCostMonthly*12/s.sContrib);
-          beEl.style.display='block';
-          beEl.innerHTML='<strong>Break-even:</strong> '+addedTrucks+' added truck'+(addedTrucks>1?'s':'')+' cost ~'+fmtShort(truckCostMonthly*12)+'/yr. Need +'+volNeeded.toLocaleString()+' m³/yr to recover.';
-        }else if(sPrice!==bPrice&&s.sContrib!==bContrib){
-          beEl.style.display='block';
-          beEl.innerHTML='<strong>Break-even price:</strong> $'+bePrice+'/m³ (variable cost floor)';
-        }else{
-          beEl.style.display='none';
-        }
+    // ROI framing: investment estimate + payback
+    const roiEl=document.getElementById('sim-breakeven');
+    if(roiEl){
+      const roiParts=[];
+      const addedTrucks=sTrucks-bTrucks;
+      let totalInvestmentYr=0;
+
+      // Truck investment
+      if(addedTrucks>0){
+        const truckCostYr=addedTrucks*96000; // ~$8K/month per truck
+        totalInvestmentYr+=truckCostYr;
+        roiParts.push(addedTrucks+' truck'+(addedTrucks>1?'s':'')+': ~'+fmtShort(truckCostYr)+'/yr');
+      }
+
+      // Dispatch improvement investment (process/system changes)
+      if(sOTD<bOTD){
+        const dispInvest=sOTD<15?50000:sOTD<bOTD*0.7?25000:10000;
+        totalInvestmentYr+=dispInvest;
+        roiParts.push('Dispatch improvement: ~'+fmtShort(dispInvest));
+      }
+
+      // Turnaround improvement (process changes, yard layout)
+      if(sTA<bTA){
+        const taImprPct=(bTA-sTA)/bTA;
+        const taInvest=taImprPct>0.2?40000:taImprPct>0.1?20000:10000;
+        totalInvestmentYr+=taInvest;
+        roiParts.push('Turnaround improvement: ~'+fmtShort(taInvest));
+      }
+
+      if(s.deltaVol>0&&roiParts.length>0&&s.sContrib>0){
+        const annualContrib=s.deltaVol*s.sContrib;
+        const paybackMonths=totalInvestmentYr>0?Math.round(totalInvestmentYr/annualContrib*12):0;
+        const roi=totalInvestmentYr>0?Math.round((annualContrib-totalInvestmentYr)/totalInvestmentYr*100):0;
+        roiEl.style.display='block';
+        roiEl.innerHTML='<strong>Investment estimate:</strong> '+roiParts.join(' + ')+
+          '<br><strong>Annual return:</strong> ~'+fmtShort(Math.round(annualContrib))+
+          ' | <strong>Payback:</strong> ~'+paybackMonths+' month'+(paybackMonths!==1?'s':'')+
+          ' | <strong>ROI:</strong> '+(roi>0?'+':'')+roi+'%';
+      }else if(s.deltaVol<=0){
+        roiEl.style.display='none';
+      }else if(sPrice!==bPrice&&roiParts.length===0){
+        roiEl.style.display='block';
+        roiEl.innerHTML='<strong>Break-even price:</strong> $'+Math.round(bVarCosts+1)+'/m³ (variable cost floor)';
       }else{
-        beEl.style.display='none';
+        roiEl.style.display='none';
       }
     }
 
@@ -4381,6 +4418,7 @@ function renderSimulator(){
     document.getElementById('sim-cmp-ta').innerHTML='Turnaround: <span style="'+cmpColor(bTA,sTA,true)+'">'+bTA+' → '+sTA+'</span>';
     document.getElementById('sim-cmp-trucks').innerHTML='Trucks: <span style="'+cmpColor(bTrucks,sTrucks,false)+'">'+bTrucks+' → '+sTrucks+'</span>';
     document.getElementById('sim-cmp-util').innerHTML='Utilization: <span style="'+cmpColor(bUtil,sUtil,false)+'">'+bUtil+'% → '+sUtil+'%</span>';
+    document.getElementById('sim-cmp-otd').innerHTML='Dispatch: <span style="'+cmpColor(bOTD,sOTD,true)+'">'+bOTD+' → '+sOTD+' min</span>';
     document.getElementById('sim-cmp-price').innerHTML='Price: <span>$'+bPrice+' → $'+sPrice+'</span>';
     const bnShift=s.scenarioBottleneck!==rBottleneck;
     document.getElementById('sim-cmp-bottleneck').innerHTML='Bottleneck: <span style="'+(bnShift?'color:var(--amber);font-weight:600':'')+'">'+rBottleneck+' → '+s.scenarioBottleneck+'</span>';
@@ -4438,6 +4476,14 @@ function renderSimulator(){
           </div>
           <div>
             <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+              <label style="font-size:12px;color:var(--gray-600)">Order-to-dispatch</label>
+              <span id="sim-otd-val" style="font-size:12px;font-weight:600;color:var(--gray-900)">${bOTD} min</span>
+            </div>
+            <input type="range" id="sim-otd" min="5" max="${Math.max(bOTD,50)}" value="${bOTD}" step="1" oninput="document.getElementById('sim-content').__simUpdate()" style="${sliderStyle}">
+            <div style="text-align:center;font-size:9px;color:var(--gray-400)">Baseline: ${bOTD} min</div>
+          </div>
+          <div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px">
               <label style="font-size:12px;color:var(--gray-600)">Price per m³ <span style="font-size:9px;color:var(--gray-400)">*assumption</span></label>
               <span id="sim-price-val" style="font-size:12px;font-weight:600;color:var(--gray-900)">$${bPrice}</span>
             </div>
@@ -4446,7 +4492,7 @@ function renderSimulator(){
           </div>
         </div>
         <div style="margin-top:12px;text-align:center">
-          <button onclick="document.getElementById('sim-ta').value='${bTA}';document.getElementById('sim-trucks').value='${bTrucks}';document.getElementById('sim-util').value='${bUtil}';document.getElementById('sim-price').value='${bPrice}';document.getElementById('sim-content').__simUpdate()" style="font-size:11px;color:var(--gray-400);background:none;border:1px solid var(--border);border-radius:6px;padding:4px 12px;cursor:pointer;font-family:var(--font)">Reset ⟳</button>
+          <button onclick="document.getElementById('sim-ta').value='${bTA}';document.getElementById('sim-trucks').value='${bTrucks}';document.getElementById('sim-util').value='${bUtil}';document.getElementById('sim-otd').value='${bOTD}';document.getElementById('sim-price').value='${bPrice}';document.getElementById('sim-content').__simUpdate()" style="font-size:11px;color:var(--gray-400);background:none;border:1px solid var(--border);border-radius:6px;padding:4px 12px;cursor:pointer;font-family:var(--font)">Reset ⟳</button>
         </div>
       </div>
 
@@ -4544,6 +4590,7 @@ function renderSimulator(){
       <span id="sim-cmp-ta">Turnaround: ${bTA} → ${bTA}</span>
       <span id="sim-cmp-trucks">Trucks: ${bTrucks} → ${bTrucks}</span>
       <span id="sim-cmp-util">Utilization: ${bUtil}% → ${bUtil}%</span>
+      <span id="sim-cmp-otd">Dispatch: ${bOTD} → ${bOTD} min</span>
       <span id="sim-cmp-price">Price: $${bPrice} → $${bPrice}</span>
       <span id="sim-cmp-bottleneck">Bottleneck: ${rBottleneck} → ${rBottleneck}</span>
     </div>
