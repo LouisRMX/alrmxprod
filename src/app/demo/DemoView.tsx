@@ -1,15 +1,13 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import DemoSimulator from './DemoSimulator'
 
 export default function DemoView() {
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const router = useRouter()
   const supabase = createClient()
-  const [activeTab, setActiveTab] = useState<'assessment' | 'simulator'>('assessment')
 
   async function handleSignOut() {
     await supabase.auth.signOut()
@@ -19,7 +17,7 @@ export default function DemoView() {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      {/* Minimal top bar */}
+      {/* Minimal top bar — just logo + sign out */}
       <div style={{
         background: 'var(--green)', padding: '0 24px',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -61,44 +59,16 @@ export default function DemoView() {
         </div>
       </div>
 
-      {/* Tab bar */}
-      <div style={{
-        background: 'var(--white)', borderBottom: '1px solid var(--border)',
-        display: 'flex', padding: '0 24px'
-      }}>
-        {[
-          { key: 'assessment' as const, label: 'Assessment' },
-          { key: 'simulator' as const, label: 'Simulator' },
-        ].map(tab => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            style={{
-              padding: '13px 20px', fontSize: '13px',
-              color: activeTab === tab.key ? 'var(--green)' : 'var(--gray-500)',
-              border: 'none', background: 'none', cursor: 'pointer',
-              borderBottom: activeTab === tab.key ? '2px solid var(--green)' : '2px solid transparent',
-              marginBottom: '-1px', fontWeight: activeTab === tab.key ? '500' : '400',
-              fontFamily: 'var(--font)', whiteSpace: 'nowrap', transition: 'all .15s'
-            }}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Content */}
-      {activeTab === 'assessment' ? (
-        <iframe
-          ref={iframeRef}
-          src="/assessment-tool.html#demo"
-          style={{ width: '100%', flex: 1, border: 'none' }}
-        />
-      ) : (
-        <div style={{ flex: 1, overflow: 'auto', background: 'var(--gray-50)' }}>
-          <DemoSimulator />
-        </div>
-      )}
+      {/* Full-screen iframe — HTML handles all tabs (Assessment, Report, Simulator, Portfolio) */}
+      <iframe
+        ref={iframeRef}
+        src="/assessment-tool.html#demo"
+        style={{
+          width: '100%',
+          flex: 1,
+          border: 'none',
+        }}
+      />
     </div>
   )
 }
