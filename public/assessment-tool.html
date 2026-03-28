@@ -4141,6 +4141,9 @@ function renderSimulator(){
   const rBottleneck=isDemo?(S.bottleneck||'—'):(r.bottleneck||'—');
   const rCapLeak=isDemo?(S.ebitdaMonthly||0):(r.capLeakMonthly||0);
   const rHiddenRev=isDemo?(S.hiddenRevMonthly||0):(r.hiddenRevMonthly||0);
+  // Baseline sub-scores for estimated score calculation
+  const bDispatchScore=isDemo?(S.scores?.dispatch||60):(r.scores?.dispatch||60);
+  const bQualityScore=isDemo?(S.scores?.quality||60):(r.scores?.quality||60);
 
   function simCalc(sTA,sTrucks,sUtilPct,sPrice){
     // Production-limited daily capacity
@@ -4159,8 +4162,8 @@ function renderSimulator(){
     const scenarioAnnual=Math.round(scenarioDaily*bOpD);
     // Determine bottleneck
     const scenarioBottleneck=prodDaily<=effFleetDaily?'Production':'Fleet / Logistics';
-    // Contribution
-    const sContrib=Math.max(0,sPrice-(+a.cement_cost||0)-(+a.aggregate_cost||0)-(+a.admix_cost||0));
+    // Contribution — in demo mode use bContrib directly, otherwise calculate from answers
+    const sContrib=bContrib>0&&bContrib<sPrice?bContrib:Math.max(0,sPrice-(+a.cement_cost||0)-(+a.aggregate_cost||0)-(+a.admix_cost||0));
     const deltaVol=scenarioAnnual-bAnnualVol;
     const revenueUpside=deltaVol*sPrice;
     const contribUpside=deltaVol*sContrib;
@@ -4217,13 +4220,27 @@ function renderSimulator(){
     document.getElementById('sim-delta-vol').textContent=(s.deltaVol>=0?'+':'')+fmtVol(s.deltaVol);
     document.getElementById('sim-delta-vol').style.color=deltaColor;
 
-    // Update potential bar
+    // Update potential bar — shows improvement (green) or degradation (red shrink)
     const baselinePct=Math.min(100,Math.round(bAnnualVol/theoAnnual*100));
-    const scenarioPct=Math.min(100,Math.round(s.scenarioAnnual/theoAnnual*100));
-    const gainPct=Math.max(0,scenarioPct-baselinePct);
+    const scenarioPct=Math.min(100,Math.max(0,Math.round(s.scenarioAnnual/theoAnnual*100)));
     const gapPct=Math.max(0,100-scenarioPct);
-    document.getElementById('sim-bar-scenario').style.left=baselinePct+'%';
-    document.getElementById('sim-bar-scenario').style.width=gainPct+'%';
+    const barBaseline=document.getElementById('sim-bar-baseline');
+    const barScenario=document.getElementById('sim-bar-scenario');
+    if(scenarioPct>=baselinePct){
+      // Improvement: baseline stays, green-mid shows gain
+      barBaseline.style.width=baselinePct+'%';
+      barScenario.style.left=baselinePct+'%';
+      barScenario.style.width=(scenarioPct-baselinePct)+'%';
+      barScenario.style.background='var(--green-mid)';
+      barScenario.style.opacity='0.5';
+    }else{
+      // Degradation: baseline shrinks to scenario level, lost portion shown in red
+      barBaseline.style.width=scenarioPct+'%';
+      barScenario.style.left=scenarioPct+'%';
+      barScenario.style.width=(baselinePct-scenarioPct)+'%';
+      barScenario.style.background='var(--red)';
+      barScenario.style.opacity='0.4';
+    }
     document.getElementById('sim-bar-label').textContent=fmtVol(s.scenarioAnnual);
     document.getElementById('sim-bar-gap').textContent='Unrealised: '+gapPct+'%';
     document.getElementById('sim-bar-gap').style.color=gapPct<10?'var(--green)':gapPct<30?'var(--amber)':'var(--red)';
@@ -4246,6 +4263,12 @@ function renderSimulator(){
     document.getElementById('sim-constraint-detail').innerHTML=
       'Production: '+prodDailyFmt+' m³/day'+(limiting==='Production'?' ← limiting':'')+
       '<br>Fleet: '+fleetDailyFmt+' m³/day'+(limiting==='Fleet'?' ← limiting':'');
+
+    // Estimated overall score (prod + fleet change, dispatch + quality stay)
+    const estScore=Math.max(0,Math.min(100,Math.round((s.sProdScore+s.sFleetScore+bDispatchScore+bQualityScore)/4)));
+    const scoreEl=document.getElementById('sim-est-score');
+    scoreEl.textContent='~'+estScore;
+    scoreEl.style.color=estScore>rOverall?'var(--green-mid)':estScore<rOverall?'var(--red)':'var(--gray-900)';
 
     // Narrative / Insight
     const changes=[];
@@ -4406,6 +4429,16 @@ function renderSimulator(){
           <div style="font-size:10px;color:var(--gray-500);margin-bottom:3px">Limiting factor</div>
           <div id="sim-bottleneck" style="font-size:15px;font-weight:700;color:var(--amber)">${rBottleneck}</div>
           <div id="sim-constraint-detail" style="font-size:10px;color:var(--gray-500);margin-top:3px;line-height:1.4"></div>
+        </div>
+        <div style="border-top:1px solid var(--border);padding-top:8px">
+          <div style="font-size:10px;color:var(--gray-500);margin-bottom:3px">Estimated score</div>
+          <div style="display:flex;align-items:baseline;gap:6px">
+            <span style="font-size:14px;color:var(--gray-400)">${rOverall}</span>
+            <span style="font-size:12px;color:var(--gray-400)">→</span>
+            <span id="sim-est-score" style="font-size:18px;font-weight:700;color:var(--gray-900)">${rOverall}</span>
+            <span style="font-size:11px;color:var(--gray-400)">/100</span>
+          </div>
+          <div style="font-size:9px;color:var(--gray-400);margin-top:2px">Dispatch & quality scores unchanged</div>
         </div>
         <div style="border-top:1px solid var(--border);padding-top:6px;display:flex;gap:16px">
           <div><span style="font-size:10px;color:var(--gray-400)">Confidence:</span> <span id="sim-confidence" style="font-size:11px;font-weight:600;color:var(--green)">High</span></div>
