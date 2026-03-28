@@ -2455,16 +2455,25 @@ function goNext(){
   S._lastDir=1;
   if(S.sec<SECTIONS.length-1){S.sec++;renderSec();}
   else if((S._phase||'full')==='workshop'){
-    // Workshop complete — notify parent to transition phase
-    window.parent.postMessage({type:'ALRMX_WORKSHOP_COMPLETE'},'*');
+    if(S.isDemo){
+      // Demo mode — show completion message, then unlock onsite
+      S._phase='onsite';
+      S.sec=0;
+      renderSec();
+    }else{
+      // Embedded mode — notify parent to transition phase
+      window.parent.postMessage({type:'ALRMX_WORKSHOP_COMPLETE'},'*');
+    }
   }
   else{showResult();}
 }
 function updateProgress(){
-  const done=Object.keys(S.answers).filter(k=>S.answers[k]!==undefined&&S.answers[k]!=='').length;
+  const visibleIds=new Set();SECTIONS.forEach(sec=>getVisibleQs(sec).forEach(q=>visibleIds.add(q.id)));
+  const done=Object.keys(S.answers).filter(k=>visibleIds.has(k)&&S.answers[k]!==undefined&&S.answers[k]!=='').length;
+  const total=visibleIds.size;
   const pf=document.getElementById('pf');const pl=document.getElementById('prog-lbl');
-  if(pf)pf.style.width=Math.round(done/TOTAL_Q*100)+'%';
-  if(pl)pl.textContent=done+' / '+TOTAL_Q;
+  if(pf)pf.style.width=Math.round(done/total*100)+'%';
+  if(pl)pl.textContent=done+' / '+total;
 }
 
 // ── RESULT ────────────────────────────────────────────────────────────────────
@@ -3621,6 +3630,7 @@ function startGuidedDemo() {
     sec: 0,
     isDemo: true,
     guidedMode: true,
+    _phase: 'workshop',
     answers: demoAnswers,
     meta: {company:'Al-Cem Readymix', plant:'Plant 1 — Riyadh North',
            country:'Saudi Arabia', analyst:'Louis Hellmann',
