@@ -21,10 +21,12 @@ interface Assessment {
 
 export default function AssessmentTool({
   assessment,
-  userId
+  userId,
+  isAdmin = false
 }: {
   assessment: Assessment
   userId: string
+  isAdmin?: boolean
 }) {
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const supabase = createClient()
@@ -46,7 +48,16 @@ export default function AssessmentTool({
         await saveReport(event.data.payload)
       }
       if (event.data?.type === 'ALRMX_WORKSHOP_COMPLETE') {
-        await transitionPhase('onsite')
+        if (isAdmin) {
+          await transitionPhase('onsite')
+        } else {
+          // Customer completed pre-assessment — mark as ready for review
+          await supabase.from('assessments').update({
+            phase: 'workshop_complete'
+          }).eq('id', assessment.id)
+          setPhase('workshop_complete')
+          router.refresh()
+        }
       }
     }
 
@@ -158,8 +169,8 @@ export default function AssessmentTool({
     router.refresh()
   }
 
-  const phaseLabel = phase === 'workshop' ? 'Phase 1: Workshop' : phase === 'onsite' ? 'Phase 2: On-site' : phase === 'complete' ? 'Complete' : ''
-  const phaseColor = phase === 'workshop' ? '#2471A3' : phase === 'onsite' ? '#B7950B' : '#27ae60'
+  const phaseLabel = phase === 'workshop' ? 'Phase 1: Pre-assessment' : phase === 'workshop_complete' ? 'Pre-assessment complete — awaiting on-site visit' : phase === 'onsite' ? 'Phase 2: On-site diagnostic' : phase === 'complete' ? 'Complete' : ''
+  const phaseColor = phase === 'workshop' ? '#2471A3' : phase === 'workshop_complete' ? '#27ae60' : phase === 'onsite' ? '#B7950B' : '#27ae60'
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative' }}>
@@ -186,19 +197,83 @@ export default function AssessmentTool({
         </span>
       </div>
 
-      {/* The assessment tool in an iframe */}
-      <iframe
-        ref={iframeRef}
-        src="/assessment-tool.html"
-        onLoad={handleIframeLoad}
-        style={{
-          flex: 1,
-          border: 'none',
-          width: '100%',
-          height: 'calc(100vh - 120px)',
-        }}
-        title="Assessment Tool"
-      />
+      {/* Admin: Start on-site diagnostic button when pre-assessment is complete */}
+      {isAdmin && phase === 'workshop_complete' && (
+        <div style={{
+          padding: '12px 16px', background: '#EBF5FB', borderBottom: '1px solid #AED6F1',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+        }}>
+          <span style={{ fontSize: '13px', color: '#2471A3' }}>
+            ✅ Pre-assessment completed by customer. Ready for on-site diagnostic.
+          </span>
+          <button
+            onClick={() => transitionPhase('onsite')}
+            style={{
+              padding: '8px 20px', background: '#0F6E56', color: 'white', border: 'none',
+              borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer',
+              fontFamily: 'var(--font)'
+            }}
+          >
+            Start on-site diagnostic →
+          </button>
+        </div>
+      )}
+
+      {/* Customer: Thank you message when pre-assessment is complete */}
+      {!isAdmin && phase === 'workshop_complete' && (
+        <div style={{
+          padding: '60px 16px', textAlign: 'center', flex: 1,
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'
+        }}>
+          <div style={{ fontSize: '48px', marginBottom: '20px' }}>✅</div>
+          <h2 style={{ fontSize: '24px', fontWeight: '600', marginBottom: '12px', color: '#111827' }}>
+            Pre-assessment complete
+          </h2>
+          <p style={{ fontSize: '15px', color: '#4b5563', maxWidth: '520px', lineHeight: '1.7', marginBottom: '24px' }}>
+            Thank you for submitting your plant data.
+          </p>
+          <div style={{
+            maxWidth: '520px', textAlign: 'left', background: '#F9FAFB', border: '1px solid #E5E7EB',
+            borderRadius: '12px', padding: '24px 28px', lineHeight: '1.7', fontSize: '14px', color: '#374151'
+          }}>
+            <p style={{ marginBottom: '16px' }}>
+              Your responses are now being reviewed by our team. Based on the information provided, we will
+              prepare a <strong>preliminary diagnostic summary</strong> including:
+            </p>
+            <ul style={{ margin: '0 0 16px 20px', padding: 0 }}>
+              <li style={{ marginBottom: '6px' }}>Operational performance scores across four key areas</li>
+              <li style={{ marginBottom: '6px' }}>An estimate of hidden capacity and unrealised revenue</li>
+              <li style={{ marginBottom: '6px' }}>Identification of your plant&apos;s primary operational constraint</li>
+            </ul>
+            <p style={{ marginBottom: '16px' }}>
+              This summary will be presented to you in a <strong>dedicated review session</strong> before
+              the on-site visit, giving you an early view of where the biggest improvement opportunities lie.
+            </p>
+            <p style={{
+              marginBottom: 0, paddingTop: '12px', borderTop: '1px solid #E5E7EB',
+              fontSize: '13px', color: '#6B7280', fontWeight: '500'
+            }}>
+              <strong style={{ color: '#374151' }}>Next steps:</strong> We will be in touch to schedule the diagnostic review.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* The assessment tool in an iframe — hide when customer completed workshop */}
+      {!((!isAdmin) && phase === 'workshop_complete') && (
+        <iframe
+          ref={iframeRef}
+          src="/assessment-tool.html"
+          onLoad={handleIframeLoad}
+          style={{
+            flex: 1,
+            border: 'none',
+            width: '100%',
+            height: 'calc(100vh - 120px)',
+          }}
+          title="Assessment Tool"
+        />
+      )}
     </div>
   )
 }
