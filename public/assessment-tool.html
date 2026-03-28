@@ -4131,7 +4131,8 @@ function renderSimulator(){
   const bOpD=isDemo?300:(r.opD||300);
   const bMixCap=isDemo?7:(r.mixCap||7);
   const bDelDay=isDemo?0:(r.delDay||0);
-  const bTargetTA=isDemo?80:(r.TARGET_TA||80);
+  // Fix: Estimate target turnaround from fleet score (higher score = closer to target)
+  const bTargetTA=isDemo?(S.targetTA||Math.max(70,Math.round(bTA*0.82))):(r.TARGET_TA||80);
   // Dispatch efficiency derived from dispatch score (not from empty answers)
   const bDispatchEff=isDemo?Math.max(0.4,Math.min(0.98,(S.scores?.dispatch||60)/100)):null;
   // Variable costs = price - contrib (for recalculating contrib when price changes)
@@ -4182,8 +4183,9 @@ function renderSimulator(){
     const contribUpside=deltaVol*sContrib;
     // Fix #4: Improved score formulas with better clamping
     const sProdScore=Math.max(0,Math.min(100,Math.round((sUtilPct/92)*100)));
+    // Fix: Softer fleet score — 20min excess = ~75, 40min = ~50 (not 200× penalty)
     const taRatio=bTargetTA>0?sTA/bTargetTA:1;
-    const sFleetScore=Math.max(0,Math.min(100,Math.round(taRatio<=1?100:100-((taRatio-1)*200))));
+    const sFleetScore=Math.max(0,Math.min(100,Math.round(taRatio<=1?100:100-((taRatio-1)*120))));
     return{scenarioAnnual,deltaVol,revenueUpside,contribUpside,scenarioBottleneck,prodDaily,effFleetDaily,sProdScore,sFleetScore,sContrib};
   }
 
@@ -4213,7 +4215,7 @@ function renderSimulator(){
     const s=simCalc(sTA,sTrucks,sUtil,sPrice);
 
     // Confidence & realism based on change magnitude
-    const taPctChange=Math.abs(sTA-bTA)/bTA*100;
+    const taPctChange=bTA>0?Math.abs(sTA-bTA)/bTA*100:0;
     const trPctChange=bTrucks>0?Math.abs(sTrucks-bTrucks)/bTrucks*100:0;
     const utilPctChange=Math.abs(sUtil-bUtil);
     const maxChange=Math.max(taPctChange,trPctChange,utilPctChange);
@@ -4294,6 +4296,20 @@ function renderSimulator(){
     const scoreEl=document.getElementById('sim-est-score');
     scoreEl.textContent='~'+estScore;
     scoreEl.style.color=estScore>rOverall?'var(--green-mid)':estScore<rOverall?'var(--red)':'var(--gray-900)';
+    // Fix #6: Clarify when dispatch/quality limits score improvement
+    const scoreNoteEl=document.getElementById('sim-score-note');
+    if(scoreNoteEl){
+      if(bDispatchScore<70&&s.scenarioBottleneck!=='Fleet / Logistics'){
+        scoreNoteEl.textContent='Dispatch score ('+bDispatchScore+') limits overall improvement';
+        scoreNoteEl.style.color='var(--amber)';
+      }else if(bQualityScore<70){
+        scoreNoteEl.textContent='Quality score ('+bQualityScore+') limits overall improvement';
+        scoreNoteEl.style.color='var(--amber)';
+      }else{
+        scoreNoteEl.textContent='Dispatch & quality scores unchanged';
+        scoreNoteEl.style.color='var(--gray-400)';
+      }
+    }
 
     // Narrative / Insight
     const changes=[];
@@ -4330,9 +4346,35 @@ function renderSimulator(){
     if(sTrucks>bTrucks*1.5)warns.push('Adding more than 50% trucks requires significant fleet investment.');
     if(sUtil>92)warns.push('Utilization above 92% is rarely sustainable long-term.');
     if(sTrucks>bTrucks&&s.scenarioBottleneck==='Production')warns.push('Adding trucks provides limited benefit under current production constraints.');
-    if(sPrice!==bPrice)warns.push('Revenue impact is sensitive to price assumptions.');
+    // Fix #7: Warn when price is below variable costs
+    if(sPrice>0&&sPrice<bVarCosts)warns.push('Price is below variable costs ($'+Math.round(bVarCosts)+'/m³) — this scenario loses money per m³.');
+    else if(sPrice!==bPrice)warns.push('Revenue impact is sensitive to price assumptions.');
     const topWarns=warns.slice(0,2);
     document.getElementById('sim-warnings').innerHTML=topWarns.length?topWarns.map(w=>'<div style="padding:5px 10px;background:#FEF3C7;border:1px solid #F9E4A0;border-radius:6px;font-size:11px;color:#7A5C00;margin-bottom:4px">⚠ '+w+'</div>').join(''):'';
+
+    // Fix #8: Break-even analysis
+    const beEl=document.getElementById('sim-breakeven');
+    if(beEl){
+      if(s.deltaVol>0&&s.sContrib>0){
+        // What price would break even at this volume?
+        const bePrice=Math.round(bVarCosts+1);
+        // What utilization would recover cost of added trucks?
+        const addedTrucks=sTrucks-bTrucks;
+        if(addedTrucks>0){
+          const truckCostMonthly=addedTrucks*8000; // ~$8K/month per truck (lease+driver+fuel)
+          const volNeeded=Math.round(truckCostMonthly*12/s.sContrib);
+          beEl.style.display='block';
+          beEl.innerHTML='<strong>Break-even:</strong> '+addedTrucks+' added truck'+(addedTrucks>1?'s':'')+' cost ~'+fmtShort(truckCostMonthly*12)+'/yr. Need +'+volNeeded.toLocaleString()+' m³/yr to recover.';
+        }else if(sPrice!==bPrice&&s.sContrib!==bContrib){
+          beEl.style.display='block';
+          beEl.innerHTML='<strong>Break-even price:</strong> $'+bePrice+'/m³ (variable cost floor)';
+        }else{
+          beEl.style.display='none';
+        }
+      }else{
+        beEl.style.display='none';
+      }
+    }
 
     // Mini comparison
     const cmpColor=(old,nw,lower)=>{const better=lower?nw<old:nw>old;const worse=lower?nw>old:nw<old;return better?'color:var(--green-mid)':worse?'color:var(--red)':'';};
@@ -4345,9 +4387,10 @@ function renderSimulator(){
   }
 
   const sliderStyle='width:100%;accent-color:var(--green);cursor:pointer';
-  const taMin=Math.max(30,Math.round(bTargetTA*0.6)),taMax=Math.max(taMin+10,Math.round(bTA*1.3));
-  const trMin=Math.max(1,bTrucks-5),trMax=Math.max(trMin+10,bTrucks+15);
-  const priceMin=Math.max(1,Math.round(bPrice*0.8)),priceMax=Math.max(priceMin+10,Math.round(bPrice*1.2));
+  // Fix: Always guarantee baseline is within slider range
+  const taMin=Math.min(bTA,Math.max(30,Math.round(bTargetTA*0.6))),taMax=Math.max(bTA,Math.round(bTA*1.3));
+  const trMin=Math.min(bTrucks,Math.max(1,bTrucks-5)),trMax=Math.max(bTrucks,bTrucks+15);
+  const priceMin=Math.min(bPrice,Math.max(1,Math.round(bPrice*0.8))),priceMax=Math.max(bPrice,Math.round(bPrice*1.2),priceMin+10);
 
   const costOfInaction=Math.round(rCapLeak+rHiddenRev);
   el.innerHTML=`
@@ -4464,7 +4507,7 @@ function renderSimulator(){
             <span id="sim-est-score" style="font-size:18px;font-weight:700;color:var(--gray-900)">${rOverall}</span>
             <span style="font-size:11px;color:var(--gray-400)">/100</span>
           </div>
-          <div style="font-size:9px;color:var(--gray-400);margin-top:2px">Dispatch & quality scores unchanged</div>
+          <div id="sim-score-note" style="font-size:9px;color:var(--gray-400);margin-top:2px">Dispatch & quality scores unchanged</div>
         </div>
         <div style="border-top:1px solid var(--border);padding-top:6px;display:flex;gap:16px">
           <div><span style="font-size:10px;color:var(--gray-400)">Confidence:</span> <span id="sim-confidence" style="font-size:11px;font-weight:600;color:var(--green)">High</span></div>
@@ -4490,6 +4533,7 @@ function renderSimulator(){
             <span style="color:var(--gray-400)">Move the sliders to get a recommendation.</span>
           </div>
         </div>
+        <div id="sim-breakeven" style="display:none;font-size:11px;color:var(--gray-600);padding:6px 8px;background:var(--green-light);border-radius:6px;line-height:1.4"></div>
         <div id="sim-warnings" style="margin-top:auto"></div>
       </div>
     </div>
