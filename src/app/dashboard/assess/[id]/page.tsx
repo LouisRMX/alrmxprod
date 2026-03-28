@@ -28,6 +28,18 @@ export default async function AssessmentPage({
 
   if (!assessment) notFound()
 
+  // Normalize report from array (Supabase join) to single object
+  const reportArr = assessment.report as unknown[]
+  assessment.report = Array.isArray(reportArr) ? reportArr[0] || null : reportArr
+
+  // Normalize plant from array to single object
+  const plantArr = assessment.plant as unknown[]
+  assessment.plant = Array.isArray(plantArr) ? plantArr[0] || null : plantArr
+
+  // Normalize analyst from array to single object
+  const analystArr = assessment.analyst as unknown[]
+  assessment.analyst = Array.isArray(analystArr) ? analystArr[0] || null : analystArr
+
   // Get user role
   const { data: profile } = await supabase
     .from('profiles')
