@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
-import { checkRateLimit } from '@/lib/rate-limit'
+import { checkRateLimit, checkSpendCap, trackSpend } from '@/lib/rate-limit'
 import { NextRequest, NextResponse } from 'next/server'
 
 const anthropic = new Anthropic({
@@ -20,6 +20,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       { error: 'Rate limit exceeded. Please wait before making more requests.' },
       { status: 429, headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } }
+    )
+  }
+
+  // Daily spend cap per organization (user.id as org for now)
+  const spend = checkSpendCap(user.id)
+  if (!spend.allowed) {
+    return NextResponse.json(
+      { error: `Daily AI budget reached ($${spend.dailyCap}/day). Resets in 24 hours.` },
+      { status: 429 }
     )
   }
 
@@ -48,6 +57,7 @@ export async function POST(req: NextRequest) {
           }
         }
 
+        trackSpend(user.id)
         controller.enqueue(encoder.encode('data: [DONE]\n\n'))
         controller.close()
       } catch (err) {
