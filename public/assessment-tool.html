@@ -2208,7 +2208,7 @@ function startDiag(){
   const stored=JSON.parse(localStorage.getItem('alcem_v4')||'[]');
   const baseline=stored.find(a=>a.plant===pl&&a.isBaseline&&a.answers);
 
-  const prevId=S._assessmentId;S={sec:0,answers:{},meta:{company:document.getElementById('s-co').value.trim(),plant:pl,country:ct,analyst:document.getElementById('s-an').value.trim(),date:document.getElementById('s-dt').value,season},report:{},edited:{},visited:{},baseline:baseline||null};if(prevId)S._assessmentId=prevId;
+  const prevId=S._assessmentId;const prevPhase=S._phase;const wasDemo=S.demo||S.isDemo;S={sec:0,answers:{},meta:{company:document.getElementById('s-co').value.trim(),plant:pl,country:ct,analyst:document.getElementById('s-an').value.trim(),date:document.getElementById('s-dt').value,season},report:{},edited:{},visited:{},baseline:baseline||null,_phase:prevPhase||(wasDemo?'workshop':'full')};if(prevId)S._assessmentId=prevId;if(wasDemo)S.isDemo=true;
 
   localStorage.removeItem('alcem_draft');
   document.getElementById('topbar-meta').textContent=pl+' — '+ct;
