@@ -28,5 +28,19 @@ export default async function AssessmentPage({
 
   if (!assessment) notFound()
 
-  return <AssessmentTool assessment={assessment} userId={user.id} />
+  // Get user role
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  const isAdmin = profile?.role === 'admin'
+
+  // Customer users can only access workshop phase — block access to onsite
+  if (!isAdmin && assessment.phase !== 'workshop') {
+    redirect('/dashboard/portfolio')
+  }
+
+  return <AssessmentTool assessment={assessment} userId={user.id} isAdmin={isAdmin} />
 }

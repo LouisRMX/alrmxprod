@@ -920,19 +920,21 @@ const SECTIONS=[
 const TOTAL_Q=SECTIONS.reduce((s,sec)=>s+sec.qs.length,0);
 
 // ── PHASE CONFIGURATION ──────────────────────────────────────────────────────
-// On-site questions require physical plant observation; everything else is workshop
-const ONSITE_IDS=new Set([
-  'turnaround','site_wait_time','washout_time',       // Fleet observation
-  'operator_backup','batch_cycle','stops_freq',        // Production observation
-  'order_to_dispatch','plant_idle',                    // Dispatch observation
-  'quality_control','reject_cause','surplus_concrete','breakdowns', // Quality observation
-  'biggest_pain'                                       // Interview
+// Pre-assessment: 15 questions the customer answers remotely before plant visit
+const PRE_ASSESSMENT_IDS=new Set([
+  'price_m3','cement_cost',                            // Economics (2)
+  'plant_cap','actual_prod','op_hours','op_days',      // Production (4)
+  'n_trucks','mixer_capacity','deliveries_day','turnaround', // Fleet (4)
+  'reject_pct',                                        // Quality (1)
+  'dispatch_tool','order_to_dispatch',                 // Dispatch (2)
+  'prod_data_source',                                  // Data quality (1)
+  'biggest_pain'                                       // Customer perspective (1)
 ]);
 // S._phase: 'workshop' | 'onsite' | 'complete' | 'full' (full=show all, e.g. demo)
 function isQVisible(qId){
   const phase=S._phase||'full';
   if(phase==='full'||phase==='complete')return true;
-  if(phase==='workshop')return !ONSITE_IDS.has(qId);
+  if(phase==='workshop')return PRE_ASSESSMENT_IDS.has(qId);
   if(phase==='onsite')return true; // Show all in onsite — workshop answers are already filled
   return true;
 }
@@ -2241,12 +2243,12 @@ function renderSec(){
   const allVisAnswered=SECTIONS.reduce((s,sec)=>s+getVisibleQs(sec).filter(q=>S.answers[q.id]!==undefined&&S.answers[q.id]!=='').length,0);
   const isLast=S.sec===SECTIONS.length-1;
   const phase=S._phase||'full';
-  const phaseLabel=phase==='workshop'?' — Workshop (remote)':phase==='onsite'?' — On-site visit':'';
-  const nextLabel=isLast?(phase==='workshop'?'Complete workshop →':'Generate report →'):'Next section →';
+  const phaseLabel=phase==='workshop'?' — Pre-assessment (remote)':phase==='onsite'?' — On-site diagnostic':'';
+  const nextLabel=isLast?(phase==='workshop'?'Complete pre-assessment →':'Generate report →'):'Next section →';
   const main=document.getElementById('diag-main');
   main.scrollTop=0;window.scrollTo(0,0);
   main.innerHTML=`
-    ${phaseLabel?`<div style="margin-bottom:12px;padding:6px 12px;background:${phase==='workshop'?'#EBF5FB':'#FEF9E7'};border:1px solid ${phase==='workshop'?'#AED6F1':'#F9E79F'};border-radius:8px;font-size:12px;color:${phase==='workshop'?'#2471A3':'#B7950B'};font-weight:500">${phase==='workshop'?'📋 Phase 1: Workshop — data collection (remote)':'🏭 Phase 2: On-site — plant observation'}</div>`:''}
+    ${phaseLabel?`<div style="margin-bottom:12px;padding:6px 12px;background:${phase==='workshop'?'#EBF5FB':'#FEF9E7'};border:1px solid ${phase==='workshop'?'#AED6F1':'#F9E79F'};border-radius:8px;font-size:12px;color:${phase==='workshop'?'#2471A3':'#B7950B'};font-weight:500">${phase==='workshop'?'📋 Phase 1: Pre-assessment — data collection (remote)':'🏭 Phase 2: On-site diagnostic — plant observation & validation'}</div>`:''}
     <div class="prog-bar"><div class="prog-track"><div class="prog-fill" id="pf" style="width:${Math.round(allVisAnswered/visTotal*100)}%"></div></div><div class="prog-lbl" id="prog-lbl">${allVisAnswered} / ${visTotal}</div></div>
     <div style="margin-bottom:16px"><div style="font-size:18px;font-weight:500;margin-bottom:3px">${sec.label}</div><div style="font-size:13px;color:var(--gray-500)">${visQs.length} questions${visQs.some(q=>q.field)?' — field notes shown in amber':''}</div></div>
     ${visQs.map((q,i)=>renderQ(q,i)).join('')}

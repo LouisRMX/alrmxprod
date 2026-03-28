@@ -21,10 +21,12 @@ interface Assessment {
 
 export default function AssessmentTool({
   assessment,
-  userId
+  userId,
+  isAdmin = false
 }: {
   assessment: Assessment
   userId: string
+  isAdmin?: boolean
 }) {
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const supabase = createClient()
@@ -46,7 +48,16 @@ export default function AssessmentTool({
         await saveReport(event.data.payload)
       }
       if (event.data?.type === 'ALRMX_WORKSHOP_COMPLETE') {
-        await transitionPhase('onsite')
+        if (isAdmin) {
+          await transitionPhase('onsite')
+        } else {
+          // Customer completed pre-assessment — mark as ready for review
+          await supabase.from('assessments').update({
+            phase: 'workshop_complete'
+          }).eq('id', assessment.id)
+          setPhase('workshop_complete')
+          router.refresh()
+        }
       }
     }
 
@@ -158,8 +169,8 @@ export default function AssessmentTool({
     router.refresh()
   }
 
-  const phaseLabel = phase === 'workshop' ? 'Phase 1: Workshop' : phase === 'onsite' ? 'Phase 2: On-site' : phase === 'complete' ? 'Complete' : ''
-  const phaseColor = phase === 'workshop' ? '#2471A3' : phase === 'onsite' ? '#B7950B' : '#27ae60'
+  const phaseLabel = phase === 'workshop' ? 'Phase 1: Pre-assessment' : phase === 'workshop_complete' ? 'Pre-assessment complete — awaiting on-site visit' : phase === 'onsite' ? 'Phase 2: On-site diagnostic' : phase === 'complete' ? 'Complete' : ''
+  const phaseColor = phase === 'workshop' ? '#2471A3' : phase === 'workshop_complete' ? '#27ae60' : phase === 'onsite' ? '#B7950B' : '#27ae60'
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative' }}>
@@ -186,19 +197,58 @@ export default function AssessmentTool({
         </span>
       </div>
 
-      {/* The assessment tool in an iframe */}
-      <iframe
-        ref={iframeRef}
-        src="/assessment-tool.html"
-        onLoad={handleIframeLoad}
-        style={{
-          flex: 1,
-          border: 'none',
-          width: '100%',
-          height: 'calc(100vh - 120px)',
-        }}
-        title="Assessment Tool"
-      />
+      {/* Admin: Start on-site diagnostic button when pre-assessment is complete */}
+      {isAdmin && phase === 'workshop_complete' && (
+        <div style={{
+          padding: '12px 16px', background: '#EBF5FB', borderBottom: '1px solid #AED6F1',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+        }}>
+          <span style={{ fontSize: '13px', color: '#2471A3' }}>
+            ✅ Pre-assessment completed by customer. Ready for on-site diagnostic.
+          </span>
+          <button
+            onClick={() => transitionPhase('onsite')}
+            style={{
+              padding: '8px 20px', background: '#0F6E56', color: 'white', border: 'none',
+              borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer',
+              fontFamily: 'var(--font)'
+            }}
+          >
+            Start on-site diagnostic →
+          </button>
+        </div>
+      )}
+
+      {/* Customer: Thank you message when pre-assessment is complete */}
+      {!isAdmin && phase === 'workshop_complete' && (
+        <div style={{
+          padding: '40px 16px', textAlign: 'center', flex: 1,
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'
+        }}>
+          <div style={{ fontSize: '48px', marginBottom: '16px' }}>✅</div>
+          <h2 style={{ fontSize: '22px', fontWeight: '600', marginBottom: '8px' }}>Pre-assessment complete</h2>
+          <p style={{ fontSize: '14px', color: '#6b7280', maxWidth: '400px', lineHeight: '1.6' }}>
+            Thank you for completing the data collection. Your consultant will review your answers
+            and schedule the on-site plant visit.
+          </p>
+        </div>
+      )}
+
+      {/* The assessment tool in an iframe — hide when customer completed workshop */}
+      {!((!isAdmin) && phase === 'workshop_complete') && (
+        <iframe
+          ref={iframeRef}
+          src="/assessment-tool.html"
+          onLoad={handleIframeLoad}
+          style={{
+            flex: 1,
+            border: 'none',
+            width: '100%',
+            height: 'calc(100vh - 120px)',
+          }}
+          title="Assessment Tool"
+        />
+      )}
     </div>
   )
 }
