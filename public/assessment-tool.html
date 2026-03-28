@@ -4089,26 +4089,35 @@ function togglePortfolioAI(){
 // ── SCENARIO SIMULATOR ───────────────────────────────────────────────────────
 function renderSimulator(){
   const el=document.getElementById('sim-content');
+
+  // If no assessment loaded but we have demo assessments, show plant picker
+  const demoAssessments=assessments.filter(a=>a.demo&&a.overall!=null);
+  if((!S.overall&&!S.demo)&&demoAssessments.length>0){
+    // Auto-load first demo assessment into S
+    const first=demoAssessments[0];
+    Object.assign(S,first);
+    S.answers=S.answers||{};
+  }
+
   const r=calc();
-  const a=S.answers;
+  const a=S.answers||{};
   const isDemo=!!S.demo;
 
-  // For demo assessments, use pre-computed properties directly
-  if(isDemo){
-    const hasData=S.overall!=null;
-    if(!hasData){
-      el.innerHTML=`<div style="text-align:center;padding:60px 24px">
-        <div style="font-size:15px;font-weight:600;color:var(--gray-700);margin-bottom:8px">No baseline data</div>
-        <div style="font-size:13px;color:var(--gray-500);max-width:320px;margin:0 auto;line-height:1.5">Complete the assessment first to unlock the scenario simulator.</div>
-      </div>`;return;
-    }
-  } else {
-    if(!r||r.overall===null){
-      el.innerHTML=`<div style="text-align:center;padding:60px 24px">
-        <div style="font-size:15px;font-weight:600;color:var(--gray-700);margin-bottom:8px">No baseline data</div>
-        <div style="font-size:13px;color:var(--gray-500);max-width:320px;margin:0 auto;line-height:1.5">Complete the assessment first to unlock the scenario simulator.</div>
-      </div>`;return;
-    }
+  // Show plant selector for demo mode
+  const plantPickerHtml=demoAssessments.length>1?`
+    <div style="margin-bottom:12px">
+      <label style="font-size:12px;color:var(--gray-500);margin-right:8px">Select plant:</label>
+      <select id="sim-plant-picker" onchange="(function(sel){const idx=+sel.value;const da=assessments.filter(a=>a.demo&&a.overall!=null);Object.assign(S,da[idx]);S.answers=S.answers||{};renderSimulator();})(this)" style="font-size:13px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-family:var(--font)">
+        ${demoAssessments.map((da,i)=>`<option value="${i}" ${da.plant===S.plant?'selected':''}>${da.plant}</option>`).join('')}
+      </select>
+    </div>
+  `:'';
+
+  if(!isDemo&&(!r||r.overall===null)){
+    el.innerHTML=`<div style="text-align:center;padding:60px 24px">
+      <div style="font-size:15px;font-weight:600;color:var(--gray-700);margin-bottom:8px">No baseline data</div>
+      <div style="font-size:13px;color:var(--gray-500);max-width:320px;margin:0 auto;line-height:1.5">Complete the assessment first to unlock the scenario simulator.</div>
+    </div>`;return;
   }
 
   // Baseline values — demo uses S properties, real uses calc() results
@@ -4287,6 +4296,7 @@ function renderSimulator(){
 
   const costOfInaction=Math.round(rCapLeak+rHiddenRev);
   el.innerHTML=`
+    ${plantPickerHtml}
     <!-- BASELINE BAR (sticky) -->
     <div style="background:var(--green-light);border:1px solid #C8E6D9;border-radius:10px;padding:12px 20px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
       <div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap">
