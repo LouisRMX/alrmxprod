@@ -25,5 +25,14 @@ export default async function SimulatorPage() {
     .not('overall', 'is', null)
     .order('created_at', { ascending: false })
 
-  return <SimulatorClient assessments={assessments || []} />
+  // Normalize Supabase joined data shape
+  const normalized = (assessments || []).map((a: Record<string, unknown>) => {
+    const plant = Array.isArray(a.plant) ? a.plant[0] : a.plant
+    if (plant && Array.isArray(plant.customer)) {
+      plant.customer = plant.customer[0] || undefined
+    }
+    return { ...a, plant }
+  })
+
+  return <SimulatorClient assessments={normalized as never[]} />
 }
