@@ -222,15 +222,40 @@ export default function AssessmentTool({
       {/* Customer: Thank you message when pre-assessment is complete */}
       {!isAdmin && phase === 'workshop_complete' && (
         <div style={{
-          padding: '40px 16px', textAlign: 'center', flex: 1,
+          padding: '60px 16px', textAlign: 'center', flex: 1,
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'
         }}>
-          <div style={{ fontSize: '48px', marginBottom: '16px' }}>✅</div>
-          <h2 style={{ fontSize: '22px', fontWeight: '600', marginBottom: '8px' }}>Pre-assessment complete</h2>
-          <p style={{ fontSize: '14px', color: '#6b7280', maxWidth: '400px', lineHeight: '1.6' }}>
-            Thank you for completing the data collection. Your consultant will review your answers
-            and schedule the on-site plant visit.
+          <div style={{ fontSize: '48px', marginBottom: '20px' }}>✅</div>
+          <h2 style={{ fontSize: '24px', fontWeight: '600', marginBottom: '12px', color: '#111827' }}>
+            Pre-assessment complete
+          </h2>
+          <p style={{ fontSize: '15px', color: '#4b5563', maxWidth: '520px', lineHeight: '1.7', marginBottom: '24px' }}>
+            Thank you for submitting your plant data.
           </p>
+          <div style={{
+            maxWidth: '520px', textAlign: 'left', background: '#F9FAFB', border: '1px solid #E5E7EB',
+            borderRadius: '12px', padding: '24px 28px', lineHeight: '1.7', fontSize: '14px', color: '#374151'
+          }}>
+            <p style={{ marginBottom: '16px' }}>
+              Your responses are now being reviewed by our team. Based on the information provided, we will
+              prepare a <strong>preliminary diagnostic summary</strong> including:
+            </p>
+            <ul style={{ margin: '0 0 16px 20px', padding: 0 }}>
+              <li style={{ marginBottom: '6px' }}>Operational performance scores across four key areas</li>
+              <li style={{ marginBottom: '6px' }}>An estimate of hidden capacity and unrealised revenue</li>
+              <li style={{ marginBottom: '6px' }}>Identification of your plant&apos;s primary operational constraint</li>
+            </ul>
+            <p style={{ marginBottom: '16px' }}>
+              This summary will be presented to you in a <strong>dedicated review session</strong> before
+              the on-site visit, giving you an early view of where the biggest improvement opportunities lie.
+            </p>
+            <p style={{
+              marginBottom: 0, paddingTop: '12px', borderTop: '1px solid #E5E7EB',
+              fontSize: '13px', color: '#6B7280', fontWeight: '500'
+            }}>
+              <strong style={{ color: '#374151' }}>Next steps:</strong> We will be in touch to schedule the diagnostic review.
+            </p>
+          </div>
         </div>
       )}
 
