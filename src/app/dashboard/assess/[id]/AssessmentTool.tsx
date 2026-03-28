@@ -135,6 +135,24 @@ export default function AssessmentTool({
 
   async function saveReport(data: { report: Record<string, string> }) {
     const report = data.report || {}
+
+    // Save previous version before overwriting
+    const { data: existing } = await supabase
+      .from('reports')
+      .select('id, executive, diagnosis, actions')
+      .eq('assessment_id', assessment.id)
+      .single()
+
+    if (existing && (existing.executive || existing.diagnosis || existing.actions)) {
+      await supabase.from('report_versions').insert({
+        report_id: existing.id,
+        executive: existing.executive,
+        diagnosis: existing.diagnosis,
+        actions: existing.actions,
+      })
+    }
+
+    // Save new report
     const { error } = await supabase.from('reports').upsert({
       assessment_id: assessment.id,
       executive: report.executive || null,
