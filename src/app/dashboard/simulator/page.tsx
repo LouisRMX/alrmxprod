@@ -16,14 +16,24 @@ export default async function SimulatorPage() {
   if (profile?.role !== 'admin') redirect('/dashboard/reports')
 
   // Get all completed assessments with scores
-  const { data: assessments } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data } = await supabase
     .from('assessments')
     .select(`
       id, overall, bottleneck, ebitda_monthly, answers, scores,
       plant:plants(name, country, customer:customers(name))
     `)
     .not('overall', 'is', null)
-    .order('created_at', { ascending: false })
+    .order('created_at', { ascending: false }) as { data: any[] | null }
 
-  return <SimulatorClient assessments={assessments || []} />
+  // Normalize Supabase joined data shape (joins return arrays)
+  const assessments = (data || []).map((a: any) => {
+    const plant = Array.isArray(a.plant) ? a.plant[0] : a.plant
+    if (plant && Array.isArray(plant.customer)) {
+      plant.customer = plant.customer[0] || undefined
+    }
+    return { ...a, plant }
+  })
+
+  return <SimulatorClient assessments={assessments} />
 }
