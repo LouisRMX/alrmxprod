@@ -4091,20 +4091,47 @@ function renderSimulator(){
   const el=document.getElementById('sim-content');
   const r=calc();
   const a=S.answers;
-  if(!r||r.overall===null){
-    el.innerHTML=`<div style="text-align:center;padding:60px 24px">
-      <div style="font-size:15px;font-weight:600;color:var(--gray-700);margin-bottom:8px">No baseline data</div>
-      <div style="font-size:13px;color:var(--gray-500);max-width:320px;margin:0 auto;line-height:1.5">Complete the assessment first to unlock the scenario simulator.</div>
-    </div>`;return;
+  const isDemo=!!S.demo;
+
+  // For demo assessments, use pre-computed properties directly
+  if(isDemo){
+    const hasData=S.overall!=null;
+    if(!hasData){
+      el.innerHTML=`<div style="text-align:center;padding:60px 24px">
+        <div style="font-size:15px;font-weight:600;color:var(--gray-700);margin-bottom:8px">No baseline data</div>
+        <div style="font-size:13px;color:var(--gray-500);max-width:320px;margin:0 auto;line-height:1.5">Complete the assessment first to unlock the scenario simulator.</div>
+      </div>`;return;
+    }
+  } else {
+    if(!r||r.overall===null){
+      el.innerHTML=`<div style="text-align:center;padding:60px 24px">
+        <div style="font-size:15px;font-weight:600;color:var(--gray-700);margin-bottom:8px">No baseline data</div>
+        <div style="font-size:13px;color:var(--gray-500);max-width:320px;margin:0 auto;line-height:1.5">Complete the assessment first to unlock the scenario simulator.</div>
+      </div>`;return;
+    }
   }
-  // Baseline values
-  const bTA=r.ta||80, bTrucks=r.trucks||0, bUtil=Math.round(r.util*100)||0, bPrice=r.price||0;
-  const bContrib=r.contrib||0, bCap=r.cap||0, bOpH=r.opH||10, bOpD=r.opD||300;
-  const bMixCap=r.mixCap||7, bDelDay=r.delDay||0;
-  const bTargetTA=r.TARGET_TA||80;
-  const bActual=r.actual||0;
+
+  // Baseline values — demo uses S properties, real uses calc() results
+  const bTA=isDemo?(S.turnaround||80):(r.ta||80);
+  const bTrucks=isDemo?(S.nTrucks||32):(r.trucks||0);
+  const bUtil=isDemo?(S.utilPct||60):(Math.round(r.util*100)||0);
+  const bPrice=isDemo?(S.price||50):(r.price||0);
+  const bContrib=isDemo?(S.contrib||20):(r.contrib||0);
+  const bCap=isDemo?150:(r.cap||0);
+  const bOpH=isDemo?10:(r.opH||10);
+  const bOpD=isDemo?300:(r.opD||300);
+  const bMixCap=isDemo?7:(r.mixCap||7);
+  const bDelDay=isDemo?0:(r.delDay||0);
+  const bTargetTA=isDemo?80:(r.TARGET_TA||80);
+  // For demo: estimate actual production from utilPct and cap
+  const bActual=isDemo?(bCap*(bUtil/100)*0.92):(r.actual||0);
   const bAnnualVol=Math.round(bActual*bOpH*bOpD);
-  const bEffUnits=r.effectiveUnits||bTrucks;
+  const bEffUnits=isDemo?bTrucks:(r.effectiveUnits||bTrucks);
+  // Override r for demo to have correct values for bottleneck/overall/cost display
+  const rOverall=isDemo?S.overall:(r.overall);
+  const rBottleneck=isDemo?(S.bottleneck||'—'):(r.bottleneck||'—');
+  const rCapLeak=isDemo?(S.ebitdaMonthly||0):(r.capLeakMonthly||0);
+  const rHiddenRev=isDemo?(S.hiddenRevMonthly||0):(r.hiddenRevMonthly||0);
 
   function simCalc(sTA,sTrucks,sUtilPct,sPrice){
     // Production-limited daily capacity
@@ -4190,7 +4217,7 @@ function renderSimulator(){
     document.getElementById('sim-contrib').innerHTML=s.contribUpside===0?'$0':fmt(contLo)+' – '+fmt(contHi);
     document.getElementById('sim-contrib').style.color=s.contribUpside>=0?'var(--green-mid)':'var(--red)';
     document.getElementById('sim-bottleneck').textContent=s.scenarioBottleneck;
-    document.getElementById('sim-bottleneck').style.color=s.scenarioBottleneck===r.bottleneck?'var(--gray-700)':'var(--amber)';
+    document.getElementById('sim-bottleneck').style.color=s.scenarioBottleneck===rBottleneck?'var(--gray-700)':'var(--amber)';
     document.getElementById('sim-confidence').textContent=confidence;
     document.getElementById('sim-confidence').style.color=confColor;
     document.getElementById('sim-realism').textContent=realism;
@@ -4213,7 +4240,7 @@ function renderSimulator(){
     if(changes.length>0){
       const dir=s.deltaVol>=0?'increase':'decrease';
       const absVol=Math.abs(s.deltaVol).toLocaleString();
-      const shiftNote=s.scenarioBottleneck!==r.bottleneck?'The primary constraint shifts from <strong>'+r.bottleneck+'</strong> to <strong>'+s.scenarioBottleneck+'</strong>.':'<strong>'+s.scenarioBottleneck+'</strong> remains the primary constraint.';
+      const shiftNote=s.scenarioBottleneck!==rBottleneck?'The primary constraint shifts from <strong>'+rBottleneck+'</strong> to <strong>'+s.scenarioBottleneck+'</strong>.':'<strong>'+s.scenarioBottleneck+'</strong> remains the primary constraint.';
       narrative='Adjusting '+changes.join(', ')+' would '+dir+' annual output by ~<strong>'+absVol+' m³</strong>. '+shiftNote;
     }
     document.getElementById('sim-narrative').innerHTML=narrative;
@@ -4249,8 +4276,8 @@ function renderSimulator(){
     document.getElementById('sim-cmp-trucks').innerHTML='Trucks: <span style="'+cmpColor(bTrucks,sTrucks,false)+'">'+bTrucks+' → '+sTrucks+'</span>';
     document.getElementById('sim-cmp-util').innerHTML='Utilization: <span style="'+cmpColor(bUtil,sUtil,false)+'">'+bUtil+'% → '+sUtil+'%</span>';
     document.getElementById('sim-cmp-price').innerHTML='Price: <span>$'+bPrice+' → $'+sPrice+'</span>';
-    const bnShift=s.scenarioBottleneck!==r.bottleneck;
-    document.getElementById('sim-cmp-bottleneck').innerHTML='Bottleneck: <span style="'+(bnShift?'color:var(--amber);font-weight:600':'')+'">'+(r.bottleneck||'—')+' → '+s.scenarioBottleneck+'</span>';
+    const bnShift=s.scenarioBottleneck!==rBottleneck;
+    document.getElementById('sim-cmp-bottleneck').innerHTML='Bottleneck: <span style="'+(bnShift?'color:var(--amber);font-weight:600':'')+'">'+rBottleneck+' → '+s.scenarioBottleneck+'</span>';
   }
 
   const sliderStyle='width:100%;accent-color:var(--green);cursor:pointer';
@@ -4258,14 +4285,14 @@ function renderSimulator(){
   const trMin=Math.max(1,bTrucks-5),trMax=Math.max(trMin+10,bTrucks+15);
   const priceMin=Math.max(1,Math.round(bPrice*0.8)),priceMax=Math.max(priceMin+10,Math.round(bPrice*1.2));
 
-  const costOfInaction=Math.round((r.capLeakMonthly||0)+(r.hiddenRevMonthly||0));
+  const costOfInaction=Math.round(rCapLeak+rHiddenRev);
   el.innerHTML=`
     <!-- BASELINE BAR (sticky) -->
     <div style="background:var(--green-light);border:1px solid #C8E6D9;border-radius:10px;padding:12px 20px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
       <div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap">
-        <div><span style="font-size:11px;color:var(--gray-500)">Score</span> <span style="font-size:16px;font-weight:700;color:var(--gray-900)">${r.overall}/100</span></div>
+        <div><span style="font-size:11px;color:var(--gray-500)">Score</span> <span style="font-size:16px;font-weight:700;color:var(--gray-900)">${rOverall}/100</span></div>
         <div><span style="font-size:11px;color:var(--gray-500)">Annual</span> <span style="font-size:16px;font-weight:700;color:var(--gray-900)">${fmtVol(bAnnualVol)}</span></div>
-        <div><span style="font-size:11px;color:var(--gray-500)">Bottleneck:</span> <span style="font-size:16px;font-weight:600;color:var(--red)">${r.bottleneck||'—'}</span></div>
+        <div><span style="font-size:11px;color:var(--gray-500)">Bottleneck:</span> <span style="font-size:16px;font-weight:600;color:var(--red)">${rBottleneck}</span></div>
         <div><span style="font-size:11px;color:var(--gray-500)">Cost:</span> <span style="font-size:16px;font-weight:600;color:var(--red)">${fmt(costOfInaction)}/mo</span></div>
       </div>
     </div>
@@ -4360,7 +4387,7 @@ function renderSimulator(){
         <!-- LIMITING FACTOR -->
         <div style="border-top:1px solid var(--border);padding-top:8px">
           <div style="font-size:10px;color:var(--gray-500);margin-bottom:3px">Limiting factor</div>
-          <div id="sim-bottleneck" style="font-size:15px;font-weight:700;color:var(--amber)">${r.bottleneck||'—'}</div>
+          <div id="sim-bottleneck" style="font-size:15px;font-weight:700;color:var(--amber)">${rBottleneck}</div>
           <div id="sim-constraint-detail" style="font-size:10px;color:var(--gray-500);margin-top:3px;line-height:1.4"></div>
         </div>
         <div style="border-top:1px solid var(--border);padding-top:6px;display:flex;gap:16px">
@@ -4398,7 +4425,7 @@ function renderSimulator(){
       <span id="sim-cmp-trucks">Trucks: ${bTrucks} → ${bTrucks}</span>
       <span id="sim-cmp-util">Utilization: ${bUtil}% → ${bUtil}%</span>
       <span id="sim-cmp-price">Price: $${bPrice} → $${bPrice}</span>
-      <span id="sim-cmp-bottleneck">Bottleneck: ${r.bottleneck||'—'} → ${r.bottleneck||'—'}</span>
+      <span id="sim-cmp-bottleneck">Bottleneck: ${rBottleneck} → ${rBottleneck}</span>
     </div>
   `;
   // Attach update function
