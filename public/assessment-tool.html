@@ -4138,23 +4138,20 @@ function renderSimulator(){
   function fmt(n){return n>=0?'$'+n.toLocaleString():'−$'+Math.abs(n).toLocaleString();}
   function fmtVol(n){return n.toLocaleString()+' m³';}
 
+  // Theoretical max capacity (best-case: 92% util, target turnaround, all trucks)
+  const theoDaily=bCap*0.92*bOpH;
+  const theoAnnual=Math.round(theoDaily*bOpD);
+
   function update(){
     const sTA=+document.getElementById('sim-ta').value;
     const sTrucks=+document.getElementById('sim-trucks').value;
     const sUtil=+document.getElementById('sim-util').value;
     const sPrice=+document.getElementById('sim-price').value;
-    // Update displayed values
     document.getElementById('sim-ta-val').textContent=sTA+' min';
     document.getElementById('sim-trucks-val').textContent=sTrucks;
     document.getElementById('sim-util-val').textContent=sUtil+'%';
     document.getElementById('sim-price-val').textContent='$'+sPrice;
     const s=simCalc(sTA,sTrucks,sUtil,sPrice);
-    // Update results
-    // Update displayed slider values
-    document.getElementById('sim-ta-val').textContent=sTA+' min';
-    document.getElementById('sim-trucks-val').textContent=sTrucks;
-    document.getElementById('sim-util-val').textContent=sUtil+'%';
-    document.getElementById('sim-price-val').textContent='$'+sPrice;
 
     // Confidence & realism based on change magnitude
     const taPctChange=Math.abs(sTA-bTA)/bTA*100;
@@ -4176,6 +4173,18 @@ function renderSimulator(){
 
     document.getElementById('sim-delta-vol').textContent=(s.deltaVol>=0?'+':'')+fmtVol(s.deltaVol);
     document.getElementById('sim-delta-vol').style.color=deltaColor;
+
+    // Update potential bar
+    const baselinePct=Math.min(100,Math.round(bAnnualVol/theoAnnual*100));
+    const scenarioPct=Math.min(100,Math.round(s.scenarioAnnual/theoAnnual*100));
+    const gainPct=Math.max(0,scenarioPct-baselinePct);
+    const gapPct=Math.max(0,100-scenarioPct);
+    document.getElementById('sim-bar-scenario').style.left=baselinePct+'%';
+    document.getElementById('sim-bar-scenario').style.width=gainPct+'%';
+    document.getElementById('sim-bar-label').textContent=fmtVol(s.scenarioAnnual);
+    document.getElementById('sim-bar-gap').textContent='Unrealised: '+gapPct+'%';
+    document.getElementById('sim-bar-gap').style.color=gapPct<10?'var(--green)':gapPct<30?'var(--amber)':'var(--red)';
+
     document.getElementById('sim-rev').innerHTML=s.revenueUpside===0?'$0':fmt(revLo)+' – '+fmt(revHi);
     document.getElementById('sim-rev').style.color=s.revenueUpside>=0?'var(--green-mid)':'var(--red)';
     document.getElementById('sim-contrib').innerHTML=s.contribUpside===0?'$0':fmt(contLo)+' – '+fmt(contHi);
@@ -4245,8 +4254,9 @@ function renderSimulator(){
   }
 
   const sliderStyle='width:100%;accent-color:var(--green);cursor:pointer';
-  const taMin=Math.max(30,Math.round(bTargetTA*0.6)),taMax=Math.round(bTA*1.3);
-  const trMin=Math.max(1,bTrucks-5),trMax=bTrucks+15;
+  const taMin=Math.max(30,Math.round(bTargetTA*0.6)),taMax=Math.max(taMin+10,Math.round(bTA*1.3));
+  const trMin=Math.max(1,bTrucks-5),trMax=Math.max(trMin+10,bTrucks+15);
+  const priceMin=Math.max(1,Math.round(bPrice*0.8)),priceMax=Math.max(priceMin+10,Math.round(bPrice*1.2));
 
   const costOfInaction=Math.round((r.capLeakMonthly||0)+(r.hiddenRevMonthly||0));
   el.innerHTML=`
@@ -4296,39 +4306,64 @@ function renderSimulator(){
               <label style="font-size:12px;color:var(--gray-600)">Price per m³ <span style="font-size:9px;color:var(--gray-400)">*assumption</span></label>
               <span id="sim-price-val" style="font-size:12px;font-weight:600;color:var(--gray-900)">$${bPrice}</span>
             </div>
-            <input type="range" id="sim-price" min="${Math.round(bPrice*0.8)}" max="${Math.round(bPrice*1.2)}" value="${bPrice}" step="1" oninput="document.getElementById('sim-content').__simUpdate()" style="${sliderStyle}">
-            <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--gray-400)"><span>$${Math.round(bPrice*0.8)}</span><span>Baseline: $${bPrice}</span><span>$${Math.round(bPrice*1.2)}</span></div>
+            <input type="range" id="sim-price" min="${priceMin}" max="${priceMax}" value="${bPrice}" step="1" oninput="document.getElementById('sim-content').__simUpdate()" style="${sliderStyle}">
+            <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--gray-400)"><span>$${priceMin}</span><span>Baseline: $${bPrice}</span><span>$${priceMax}</span></div>
           </div>
         </div>
         <div style="margin-top:12px;text-align:center">
-          <button onclick="document.getElementById('sim-ta').value=${bTA};document.getElementById('sim-trucks').value=${bTrucks};document.getElementById('sim-util').value=${bUtil};document.getElementById('sim-price').value=${bPrice};document.getElementById('sim-content').__simUpdate()" style="font-size:11px;color:var(--gray-400);background:none;border:1px solid var(--border);border-radius:6px;padding:4px 12px;cursor:pointer;font-family:var(--font)">Reset ⟳</button>
+          <button onclick="document.getElementById('sim-ta').value='${bTA}';document.getElementById('sim-trucks').value='${bTrucks}';document.getElementById('sim-util').value='${bUtil}';document.getElementById('sim-price').value='${bPrice}';document.getElementById('sim-content').__simUpdate()" style="font-size:11px;color:var(--gray-400);background:none;border:1px solid var(--border);border-radius:6px;padding:4px 12px;cursor:pointer;font-family:var(--font)">Reset ⟳</button>
         </div>
       </div>
 
       <!-- CENTER: IMPACT -->
-      <div style="background:white;border:1px solid var(--border);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:12px">
+      <div style="background:white;border:1px solid var(--border);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:10px">
         <div style="font-size:11px;font-weight:600;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.5px">Impact</div>
+
+        <!-- POTENTIAL BAR -->
         <div>
-          <div style="font-size:11px;color:var(--gray-500);margin-bottom:2px">Δ Annual output</div>
-          <div style="display:flex;align-items:baseline;gap:8px">
-            <span id="sim-delta-vol" style="font-size:28px;font-weight:700;color:var(--gray-400)">+0 m³</span>
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--gray-400);margin-bottom:4px">
+            <span>Capacity utilised</span>
+            <span>Theoretical max: ${theoAnnual.toLocaleString()} m³/yr</span>
+          </div>
+          <div style="position:relative;height:28px;background:#FEE2E2;border-radius:6px;overflow:hidden">
+            <div id="sim-bar-baseline" style="position:absolute;left:0;top:0;height:100%;background:var(--green);border-radius:6px 0 0 6px;width:${Math.min(100,Math.round(bAnnualVol/theoAnnual*100))}%;transition:width 0.2s"></div>
+            <div id="sim-bar-scenario" style="position:absolute;left:${Math.min(100,Math.round(bAnnualVol/theoAnnual*100))}%;top:0;height:100%;background:var(--green-mid);opacity:0.5;border-radius:0;width:0%;transition:all 0.2s"></div>
+            <div style="position:absolute;inset:0;display:flex;align-items:center;padding:0 8px;font-size:11px;font-weight:600;color:white">
+              <span id="sim-bar-label">${fmtVol(bAnnualVol)}</span>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:9px;margin-top:3px">
+            <span style="color:var(--green)">Current: ${Math.round(bAnnualVol/theoAnnual*100)}%</span>
+            <span id="sim-bar-gap" style="color:var(--red)">Unrealised: ${Math.round((1-bAnnualVol/theoAnnual)*100)}%</span>
+          </div>
+        </div>
+
+        <!-- DELTA NUMBERS -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div>
+            <div style="font-size:10px;color:var(--gray-500)">Δ Annual output</div>
+            <div id="sim-delta-vol" style="font-size:24px;font-weight:700;color:var(--gray-400)">+0 m³</div>
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--gray-500)">Δ Revenue</div>
+            <div id="sim-rev" style="font-size:20px;font-weight:700;color:var(--gray-400)">$0</div>
           </div>
         </div>
         <div>
-          <div style="font-size:11px;color:var(--gray-500);margin-bottom:2px">Δ Revenue</div>
-          <div id="sim-rev" style="font-size:22px;font-weight:700;color:var(--gray-400)">$0</div>
+          <div style="font-size:10px;color:var(--gray-500)">Contribution</div>
+          <div style="display:flex;align-items:baseline;gap:8px">
+            <span id="sim-contrib" style="font-size:16px;font-weight:600;color:var(--gray-400)">$0</span>
+            <span id="sim-contrib-note" style="font-size:10px;color:var(--gray-400)">($${bContrib}/m³)</span>
+          </div>
         </div>
-        <div>
-          <div style="font-size:11px;color:var(--gray-500);margin-bottom:2px">Contribution</div>
-          <div id="sim-contrib" style="font-size:18px;font-weight:600;color:var(--gray-400)">$0</div>
-          <div id="sim-contrib-note" style="font-size:10px;color:var(--gray-400);margin-top:2px">Assumed: $${bContrib}/m³</div>
+
+        <!-- LIMITING FACTOR -->
+        <div style="border-top:1px solid var(--border);padding-top:8px">
+          <div style="font-size:10px;color:var(--gray-500);margin-bottom:3px">Limiting factor</div>
+          <div id="sim-bottleneck" style="font-size:15px;font-weight:700;color:var(--amber)">${r.bottleneck||'—'}</div>
+          <div id="sim-constraint-detail" style="font-size:10px;color:var(--gray-500);margin-top:3px;line-height:1.4"></div>
         </div>
-        <div style="border-top:1px solid var(--border);padding-top:10px">
-          <div style="font-size:11px;color:var(--gray-500);margin-bottom:4px">Limiting factor</div>
-          <div id="sim-bottleneck" style="font-size:16px;font-weight:700;color:var(--amber)">${r.bottleneck||'—'}</div>
-          <div id="sim-constraint-detail" style="font-size:11px;color:var(--gray-500);margin-top:4px;line-height:1.4"></div>
-        </div>
-        <div style="border-top:1px solid var(--border);padding-top:8px;display:flex;gap:16px">
+        <div style="border-top:1px solid var(--border);padding-top:6px;display:flex;gap:16px">
           <div><span style="font-size:10px;color:var(--gray-400)">Confidence:</span> <span id="sim-confidence" style="font-size:11px;font-weight:600;color:var(--green)">High</span></div>
           <div><span style="font-size:10px;color:var(--gray-400)">Realism:</span> <span id="sim-realism" style="font-size:11px;font-weight:600;color:var(--green)">Realistic</span></div>
         </div>
