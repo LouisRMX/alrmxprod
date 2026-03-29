@@ -2,11 +2,13 @@ import { createClient } from '@supabase/supabase-js'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 
-// Admin client with service role key — can create users
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-)
+// Admin client with service role key — created lazily to avoid build-time crash
+function getAdminClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  )
+}
 
 export async function POST(req: NextRequest) {
   // Verify requester is system_admin
@@ -55,7 +57,7 @@ export async function POST(req: NextRequest) {
 
   // Invite user via Supabase admin API
   // This sends an email with a password-creation link
-  const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+  const { data: inviteData, error: inviteError } = await getAdminClient().auth.admin.inviteUserByEmail(email, {
     data: {
       full_name: fullName,
       role,
@@ -66,7 +68,7 @@ export async function POST(req: NextRequest) {
   if (inviteError) {
     // User may already exist — try to find them
     if (inviteError.message?.includes('already been registered')) {
-      const { data: { users } } = await supabaseAdmin.auth.admin.listUsers()
+      const { data: { users } } = await getAdminClient().auth.admin.listUsers()
       const existingUser = users?.find(u => u.email === email)
 
       if (existingUser) {
