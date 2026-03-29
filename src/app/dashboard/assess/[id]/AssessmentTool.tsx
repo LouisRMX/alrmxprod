@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import AssessmentShell from '@/components/assessment/AssessmentShell'
@@ -34,8 +34,11 @@ export default function AssessmentTool({
   const supabase = createClient()
   const router = useRouter()
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState(false)
   const [lastSaved, setLastSaved] = useState<string | null>(null)
   const [phase, setPhase] = useState(assessment.phase || 'workshop')
+  const savingRef = useRef(false)
+  const pendingSaveRef = useRef<Parameters<typeof handleSave>[0] | null>(null)
 
   const assessmentPhase: Phase = phase === 'workshop' ? 'workshop'
     : phase === 'onsite' ? 'onsite'
@@ -61,7 +64,16 @@ export default function AssessmentTool({
     ebitdaMonthly: number
     hiddenRevMonthly: number
   }) => {
+    // Queue if already saving — latest data will be saved when current save completes
+    if (savingRef.current) {
+      pendingSaveRef.current = data
+      return
+    }
+
+    savingRef.current = true
     setSaving(true)
+    setSaveError(false)
+
     const { error } = await supabase.from('assessments').update({
       answers: data.answers,
       scores: data.scores,
@@ -73,10 +85,22 @@ export default function AssessmentTool({
 
     if (error) {
       console.error('Assessment save error:', error)
+      setSaveError(true)
+      // Retry after 3s
+      setTimeout(() => { setSaveError(false); handleSave(data) }, 3000)
+    } else {
+      setLastSaved(new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }))
     }
 
-    setLastSaved(new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }))
+    savingRef.current = false
     setSaving(false)
+
+    // Process queued save with latest data
+    if (pendingSaveRef.current) {
+      const pending = pendingSaveRef.current
+      pendingSaveRef.current = null
+      handleSave(pending)
+    }
   }, [assessment.id, supabase])
 
   const phaseLabel = phase === 'workshop' ? 'Phase 1: Pre-assessment'
@@ -108,7 +132,9 @@ export default function AssessmentTool({
           )}
         </span>
         <span>
-          {saving ? 'Saving…' : lastSaved ? `Saved ${lastSaved}` : 'Auto-saves to database'}
+          {saveError ? (
+            <span style={{ color: 'var(--red)' }}>Save failed — retrying…</span>
+          ) : saving ? 'Saving…' : lastSaved ? `Saved ${lastSaved}` : 'Auto-saves to database'}
         </span>
       </div>
 

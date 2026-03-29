@@ -13,6 +13,7 @@ function LoginForm() {
   const searchParams = useSearchParams()
   const supabase = createClient()
   const redirectTo = searchParams.get('redirect')
+  const authError = searchParams.get('error')
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
@@ -109,13 +110,13 @@ function LoginForm() {
             />
           </div>
 
-          {error && (
+          {(error || authError) && (
             <div style={{
               background: '#FDEDEC', border: '1px solid #F5B7B1',
               borderRadius: '8px', padding: '10px 12px',
               fontSize: '13px', color: 'var(--red)'
             }}>
-              {error}
+              {error || 'Authentication failed — please try again.'}
             </div>
           )}
 
