@@ -19,9 +19,7 @@ export default async function DashboardLayout({
     .eq('id', user.id)
     .single()
 
-  if (profileError) {
-    console.error('Profile fetch error:', profileError, 'user.id:', user.id)
-  }
+  console.log('Profile debug:', { userId: user.id, profile, error: profileError })
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
