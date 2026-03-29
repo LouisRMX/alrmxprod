@@ -1,16 +1,36 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
+import { checkRateLimit, checkSpendCap, trackSpend } from '@/lib/rate-limit'
 import { NextRequest, NextResponse } from 'next/server'
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
 })
 
+// 10 report generations per user per minute
+const RATE_LIMIT = { maxRequests: 10, windowSeconds: 60 }
+
 export async function POST(req: NextRequest) {
   // Verify user is authenticated
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const rl = checkRateLimit(user.id, RATE_LIMIT)
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: 'Rate limit exceeded. Please wait before making more requests.' },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } }
+    )
+  }
+
+  const spend = checkSpendCap(user.id)
+  if (!spend.allowed) {
+    return NextResponse.json(
+      { error: `Daily AI budget reached ($${spend.dailyCap}/day). Resets in 24 hours.` },
+      { status: 429 }
+    )
+  }
 
   const { assessmentId, type, context } = await req.json()
   if (!assessmentId || !type || !context) {
@@ -51,6 +71,8 @@ export async function POST(req: NextRequest) {
             controller.enqueue(encoder.encode(chunk.delta.text))
           }
         }
+
+        trackSpend(user.id)
 
         // Save to database when complete
         const fullText = await response.finalText()
