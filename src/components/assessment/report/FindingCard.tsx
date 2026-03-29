@@ -10,9 +10,11 @@ function fmt(n: number): string {
 interface FindingCardProps {
   issue: Issue
   index: number
+  /** True if this is a bottleneck finding whose loss overlaps with a larger bottleneck finding */
+  isOverlap?: boolean
 }
 
-export default function FindingCard({ issue, index }: FindingCardProps) {
+export default function FindingCard({ issue, index, isOverlap = false }: FindingCardProps) {
   const [expanded, setExpanded] = useState(false)
   const isRed = issue.sev === 'red'
 
@@ -42,11 +44,18 @@ export default function FindingCard({ issue, index }: FindingCardProps) {
             </div>
           </div>
           {issue.loss > 0 && (
-            <div style={{
-              fontSize: '14px', fontWeight: 600, fontFamily: 'var(--mono)',
-              color: isRed ? 'var(--red)' : '#B7950B', whiteSpace: 'nowrap',
-            }}>
-              {fmt(issue.loss)}/mo
+            <div style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+              <div style={{
+                fontSize: '14px', fontWeight: 600, fontFamily: 'var(--mono)',
+                color: isOverlap ? 'var(--gray-400)' : (isRed ? 'var(--red)' : '#B7950B'),
+              }}>
+                {isOverlap ? '~' : ''}{fmt(issue.loss)}/mo
+              </div>
+              {isOverlap && (
+                <div style={{ fontSize: '9px', color: 'var(--gray-400)', marginTop: '1px' }}>
+                  Overlap — included in bottleneck
+                </div>
+              )}
             </div>
           )}
           <span style={{ fontSize: '12px', color: 'var(--gray-300)', transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }}>
