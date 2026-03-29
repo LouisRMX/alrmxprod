@@ -57,13 +57,21 @@ export async function POST(req: NextRequest) {
 
   // Invite user via Supabase admin API
   // This sends an email with a password-creation link
-  const { data: inviteData, error: inviteError } = await getAdminClient().auth.admin.inviteUserByEmail(email, {
+  const adminClient = getAdminClient()
+  const { data: inviteData, error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(email, {
     data: {
       full_name: fullName,
       role,
     },
     redirectTo: `${req.nextUrl.origin}/auth/callback`,
   })
+
+  // Set role in app_metadata (secure, JWT-accessible, user cannot modify)
+  if (inviteData?.user) {
+    await adminClient.auth.admin.updateUserById(inviteData.user.id, {
+      app_metadata: { role },
+    })
+  }
 
   if (inviteError) {
     // User may already exist — try to find them

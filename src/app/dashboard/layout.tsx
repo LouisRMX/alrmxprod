@@ -21,7 +21,7 @@ export default async function DashboardLayout({
     .eq('id', user.id)
     .single()
 
-  console.log('Profile debug:', { userId: user.id, profile, error: profileError })
+  // If profile fetch fails (e.g. RLS), profile is null — UI will show fallback
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>

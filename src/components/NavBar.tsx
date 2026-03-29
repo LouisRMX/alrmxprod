@@ -51,7 +51,7 @@ export default function NavBar({ user, profile }: NavBarProps) {
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', fontFamily: 'var(--mono)' }}>
-            {profile?.full_name || user.email} · {profile?.role || 'user'}
+            {profile?.full_name || user.email} · {profile?.role === 'system_admin' ? 'admin' : profile?.role || 'user'}
           </span>
           <button
             onClick={handleSignOut}
