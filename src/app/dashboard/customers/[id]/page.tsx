@@ -10,7 +10,7 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
 
   const { data: profile } = await supabase
     .from('profiles').select('role').eq('id', user.id).single()
-  if (profile?.role !== 'admin') redirect('/dashboard')
+  if (profile?.role !== 'system_admin') redirect('/dashboard')
 
   const { data: customer } = await supabase
     .from('customers').select('*').eq('id', id).single()

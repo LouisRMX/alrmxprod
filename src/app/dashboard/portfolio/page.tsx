@@ -28,7 +28,7 @@ export default async function PortfolioPage() {
     .eq('id', user.id)
     .single()
 
-  if (profile?.role !== 'admin') redirect('/dashboard/reports')
+  if (profile?.role !== 'system_admin') redirect('/dashboard/reports')
 
   // Get all assessments with plant and customer info
   const { data: assessments } = await supabase

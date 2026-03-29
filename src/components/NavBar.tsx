@@ -14,7 +14,7 @@ export default function NavBar({ user, profile }: NavBarProps) {
   const router = useRouter()
   const pathname = usePathname()
   const supabase = createClient()
-  const isAdmin = profile?.role === 'admin'
+  const isAdmin = profile?.role === 'system_admin'
 
   async function handleSignOut() {
     await supabase.auth.signOut()

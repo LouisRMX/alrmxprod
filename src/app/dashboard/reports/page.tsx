@@ -20,7 +20,7 @@ export default async function ReportsPage() {
     .eq('id', user.id)
     .single()
 
-  const isAdmin = profile?.role === 'admin'
+  const isAdmin = profile?.role === 'system_admin'
 
   // Admins see all assessments with reports; customers see their own
   const { data: assessments } = await supabase

@@ -47,11 +47,11 @@ export default async function AssessmentPage({
     .eq('id', user.id)
     .single()
 
-  const isAdmin = profile?.role === 'admin'
+  const isAdmin = profile?.role === 'system_admin'
 
-  // Customer users can only access workshop phase — block access to onsite
-  if (!isAdmin && assessment.phase !== 'workshop') {
-    redirect('/dashboard/portfolio')
+  // Customer users can only access workshop phase — block access to onsite/complete
+  if (!isAdmin && !['workshop', 'workshop_complete'].includes(assessment.phase)) {
+    redirect('/dashboard/reports')
   }
 
   return <AssessmentTool assessment={assessment} userId={user.id} isAdmin={isAdmin} />

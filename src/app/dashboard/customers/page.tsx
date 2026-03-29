@@ -14,7 +14,7 @@ export default async function CustomersPage() {
     .eq('id', user.id)
     .single()
 
-  if (profile?.role !== 'admin') redirect('/dashboard')
+  if (profile?.role !== 'system_admin') redirect('/dashboard')
 
   const { data: customers } = await supabase
     .from('customers')

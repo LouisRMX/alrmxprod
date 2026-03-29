@@ -1,4 +1,13 @@
-export type UserRole = 'admin' | 'customer'
+export type UserRole = 'system_admin' | 'customer_admin' | 'customer_user'
+
+export interface CustomerMember {
+  id: string
+  customer_id: string
+  user_id: string
+  role: 'customer_admin' | 'customer_user'
+  created_at: string
+  profile?: Profile
+}
 
 export interface Profile {
   id: string

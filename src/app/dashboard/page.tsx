@@ -12,7 +12,7 @@ export default async function DashboardPage() {
     .eq('id', user.id)
     .single()
 
-  if (profile?.role === 'admin') {
+  if (profile?.role === 'system_admin') {
     redirect('/dashboard/portfolio')
   } else {
     redirect('/dashboard/reports')
