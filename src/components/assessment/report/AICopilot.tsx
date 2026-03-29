@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
+import { createClient } from '@/lib/supabase/client'
 
 interface AICopilotProps {
   report: { executive?: string; diagnosis?: string; actions?: string } | null
@@ -17,6 +18,7 @@ const SECTION_LABELS: Record<ReportSection, string> = {
 }
 
 export default function AICopilot({ report, assessmentId, context }: AICopilotProps) {
+  const supabase = createClient()
   const [activeTab, setActiveTab] = useState<ReportSection>('executive')
   const [texts, setTexts] = useState<Record<string, string>>({
     executive: report?.executive || '',
@@ -25,9 +27,26 @@ export default function AICopilot({ report, assessmentId, context }: AICopilotPr
   })
   const [generating, setGenerating] = useState<ReportSection | null>(null)
   const [editing, setEditing] = useState<ReportSection | null>(null)
+  const [saving, setSaving] = useState(false)
+  // Keep previous text as fallback if regeneration fails
+  const previousText = useRef<string>('')
+
+  const saveSection = useCallback(async (section: ReportSection, text: string) => {
+    setSaving(true)
+    const { error } = await supabase.from('reports').upsert({
+      assessment_id: assessmentId,
+      [section]: text,
+      edited: true,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'assessment_id' })
+    if (error) console.error('Report save error:', error)
+    setSaving(false)
+  }, [assessmentId, supabase])
 
   const generate = useCallback(async (section: ReportSection) => {
     setGenerating(section)
+    // Save previous text so we can restore on failure
+    previousText.current = texts[section] || ''
     setTexts(prev => ({ ...prev, [section]: '' }))
 
     try {
@@ -53,10 +72,14 @@ export default function AICopilot({ report, assessmentId, context }: AICopilotPr
       }
     } catch (e) {
       console.error('Report generation error:', e)
+      // Restore previous text on failure
+      if (!texts[section]) {
+        setTexts(prev => ({ ...prev, [section]: previousText.current }))
+      }
     }
 
     setGenerating(null)
-  }, [assessmentId, context])
+  }, [assessmentId, context, texts])
 
   const generateAll = useCallback(async () => {
     for (const section of ['executive', 'diagnosis', 'actions'] as ReportSection[]) {
@@ -153,14 +176,18 @@ export default function AICopilot({ report, assessmentId, context }: AICopilotPr
           {editing === activeTab && (
             <button
               type="button"
-              onClick={() => setEditing(null)}
+              onClick={async () => {
+                await saveSection(activeTab, texts[activeTab] || '')
+                setEditing(null)
+              }}
+              disabled={saving}
               style={{
                 padding: '6px 14px', border: '1px solid var(--green-mid)', borderRadius: '6px',
                 fontSize: '11px', color: 'var(--green)', background: 'var(--green-light)',
-                cursor: 'pointer', fontFamily: 'var(--font)', fontWeight: 500,
+                cursor: saving ? 'not-allowed' : 'pointer', fontFamily: 'var(--font)', fontWeight: 500,
               }}
             >
-              Done editing
+              {saving ? 'Saving…' : 'Save & done'}
             </button>
           )}
           <button
