@@ -1,8 +1,11 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import AssessmentShell from '@/components/assessment/AssessmentShell'
+import type { Phase } from '@/lib/questions'
+import type { Answers, CalcScores } from '@/lib/calculations'
 
 interface Assessment {
   id: string
@@ -28,62 +31,16 @@ export default function AssessmentTool({
   userId: string
   isAdmin?: boolean
 }) {
-  const iframeRef = useRef<HTMLIFrameElement>(null)
   const supabase = createClient()
   const router = useRouter()
   const [saving, setSaving] = useState(false)
   const [lastSaved, setLastSaved] = useState<string | null>(null)
   const [phase, setPhase] = useState(assessment.phase || 'workshop')
 
-  // Listen for messages from the iframe (assessment tool)
-  useEffect(() => {
-    async function handleMessage(event: MessageEvent) {
-      if (event.data?.type === 'ALRMX_SAVE') {
-        await saveAssessment(event.data.payload)
-      }
-      if (event.data?.type === 'ALRMX_GENERATE_REPORT') {
-        await generateReport(event.data.payload)
-      }
-      if (event.data?.type === 'ALRMX_SAVE_REPORT') {
-        await saveReport(event.data.payload)
-      }
-      if (event.data?.type === 'ALRMX_WORKSHOP_COMPLETE') {
-        if (isAdmin) {
-          await transitionPhase('onsite')
-        } else {
-          // Customer completed pre-assessment — mark as ready for review
-          await supabase.from('assessments').update({
-            phase: 'workshop_complete'
-          }).eq('id', assessment.id)
-          setPhase('workshop_complete')
-          router.refresh()
-        }
-      }
-    }
-
-    window.addEventListener('message', handleMessage)
-    return () => window.removeEventListener('message', handleMessage)
-  }, [])
-
-  // Pass initial data to iframe once loaded
-  function handleIframeLoad() {
-    if (!iframeRef.current?.contentWindow) return
-    iframeRef.current.contentWindow.postMessage({
-      type: 'ALRMX_INIT',
-      payload: {
-        assessmentId: assessment.id,
-        phase,
-        plant: assessment.plant?.name,
-        country: assessment.plant?.country,
-        company: assessment.plant?.customer?.name,
-        analyst: assessment.analyst?.full_name,
-        date: assessment.date,
-        season: assessment.season,
-        answers: assessment.answers || {},
-        report: assessment.report || {},
-      }
-    }, '*')
-  }
+  const assessmentPhase: Phase = phase === 'workshop' ? 'workshop'
+    : phase === 'onsite' ? 'onsite'
+    : phase === 'complete' ? 'complete'
+    : 'full'
 
   async function transitionPhase(newPhase: string) {
     const { error } = await supabase.from('assessments').update({
@@ -92,29 +49,18 @@ export default function AssessmentTool({
 
     if (!error) {
       setPhase(newPhase)
-      // Reload iframe with new phase
-      if (iframeRef.current?.contentWindow) {
-        iframeRef.current.contentWindow.postMessage({
-          type: 'ALRMX_INIT',
-          payload: {
-            assessmentId: assessment.id,
-            phase: newPhase,
-            plant: assessment.plant?.name,
-            country: assessment.plant?.country,
-            company: assessment.plant?.customer?.name,
-            analyst: assessment.analyst?.full_name,
-            date: assessment.date,
-            season: assessment.season,
-            answers: assessment.answers || {},
-            report: assessment.report || {},
-          }
-        }, '*')
-      }
       router.refresh()
     }
   }
 
-  async function saveAssessment(data: Record<string, unknown>) {
+  const handleSave = useCallback(async (data: {
+    answers: Answers
+    scores: CalcScores
+    overall: number | null
+    bottleneck: string | null
+    ebitdaMonthly: number
+    hiddenRevMonthly: number
+  }) => {
     setSaving(true)
     const { error } = await supabase.from('assessments').update({
       answers: data.answers,
@@ -131,46 +77,15 @@ export default function AssessmentTool({
 
     setLastSaved(new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }))
     setSaving(false)
-  }
+  }, [assessment.id, supabase])
 
-  async function saveReport(data: { report: Record<string, string> }) {
-    const report = data.report || {}
-    const { error } = await supabase.from('reports').upsert({
-      assessment_id: assessment.id,
-      executive: report.executive || null,
-      diagnosis: report.diagnosis || null,
-      actions: report.actions || null,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'assessment_id' })
-
-    if (error) {
-      console.error('Report save error:', error)
-    }
-  }
-
-  async function generateReport(context: Record<string, unknown>) {
-    for (const type of ['executive', 'diagnosis', 'actions']) {
-      try {
-        await fetch('/api/generate-report', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            assessmentId: assessment.id,
-            type,
-            context: { ...context, assessmentId: assessment.id }
-          })
-        })
-      } catch (e) {
-        console.error('Report generation error:', e)
-      }
-    }
-
-    iframeRef.current?.contentWindow?.postMessage({ type: 'ALRMX_REPORT_READY' }, '*')
-    router.refresh()
-  }
-
-  const phaseLabel = phase === 'workshop' ? 'Phase 1: Pre-assessment' : phase === 'workshop_complete' ? 'Pre-assessment complete — awaiting on-site visit' : phase === 'onsite' ? 'Phase 2: On-site diagnostic' : phase === 'complete' ? 'Complete' : ''
-  const phaseColor = phase === 'workshop' ? '#2471A3' : phase === 'workshop_complete' ? '#27ae60' : phase === 'onsite' ? '#B7950B' : '#27ae60'
+  const phaseLabel = phase === 'workshop' ? 'Phase 1: Pre-assessment'
+    : phase === 'workshop_complete' ? 'Pre-assessment complete — awaiting on-site visit'
+    : phase === 'onsite' ? 'Phase 2: On-site diagnostic'
+    : phase === 'complete' ? 'Complete' : ''
+  const phaseColor = phase === 'workshop' ? '#2471A3'
+    : phase === 'workshop_complete' ? '#27ae60'
+    : phase === 'onsite' ? '#B7950B' : '#27ae60'
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative' }}>
@@ -204,7 +119,7 @@ export default function AssessmentTool({
           display: 'flex', alignItems: 'center', justifyContent: 'space-between'
         }}>
           <span style={{ fontSize: '13px', color: '#2471A3' }}>
-            ✅ Pre-assessment completed by customer. Ready for on-site diagnostic.
+            Pre-assessment completed by customer. Ready for on-site diagnostic.
           </span>
           <button
             onClick={() => transitionPhase('onsite')}
@@ -214,7 +129,7 @@ export default function AssessmentTool({
               fontFamily: 'var(--font)'
             }}
           >
-            Start on-site diagnostic →
+            Start on-site diagnostic
           </button>
         </div>
       )}
@@ -259,19 +174,18 @@ export default function AssessmentTool({
         </div>
       )}
 
-      {/* The assessment tool in an iframe — hide when customer completed workshop */}
+      {/* Native React assessment tool — replaces iframe */}
       {!((!isAdmin) && phase === 'workshop_complete') && (
-        <iframe
-          ref={iframeRef}
-          src="/assessment-tool.html"
-          onLoad={handleIframeLoad}
-          style={{
-            flex: 1,
-            border: 'none',
-            width: '100%',
-            height: 'calc(100vh - 120px)',
-          }}
-          title="Assessment Tool"
+        <AssessmentShell
+          initialAnswers={(assessment.answers || {}) as Answers}
+          phase={assessmentPhase}
+          season={assessment.season}
+          country={assessment.plant?.country}
+          plant={assessment.plant?.name}
+          date={assessment.date}
+          assessmentId={assessment.id}
+          report={assessment.report}
+          onSave={handleSave}
         />
       )}
     </div>
