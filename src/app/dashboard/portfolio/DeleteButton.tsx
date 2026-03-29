@@ -8,6 +8,7 @@ export default function DeleteButton({ assessmentId, plantName }: { assessmentId
   const [confirming, setConfirming] = useState(false)
   const [typed, setTyped] = useState('')
   const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
   const supabase = createClient()
   const router = useRouter()
 
@@ -23,6 +24,7 @@ export default function DeleteButton({ assessmentId, plantName }: { assessmentId
 
     if (error) {
       console.error('Delete error:', error)
+      setDeleteError('Failed to delete — please try again.')
       setDeleting(false)
       return
     }
@@ -53,7 +55,7 @@ export default function DeleteButton({ assessmentId, plantName }: { assessmentId
             This will permanently delete this assessment, its report, and all action items. This cannot be undone.
           </p>
           <p style={{ fontSize: '13px', color: 'var(--gray-600)', marginBottom: '12px' }}>
-            Type <strong style={{ color: '#C0392B' }}>{plantName}</strong> to confirm:
+            Type <strong style={{ color: 'var(--red)' }}>{plantName}</strong> to confirm:
           </p>
           <input
             type="text"
@@ -67,6 +69,15 @@ export default function DeleteButton({ assessmentId, plantName }: { assessmentId
               outline: 'none', marginBottom: '16px', color: 'var(--gray-900)'
             }}
           />
+          {deleteError && (
+            <div style={{
+              background: 'var(--error-bg)', border: '1px solid var(--error-border)',
+              borderRadius: '8px', padding: '8px 12px', marginBottom: '12px',
+              fontSize: '12px', color: 'var(--red)'
+            }}>
+              {deleteError}
+            </div>
+          )}
           <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
             <button
               onClick={() => { setConfirming(false); setTyped('') }}
@@ -84,7 +95,7 @@ export default function DeleteButton({ assessmentId, plantName }: { assessmentId
               disabled={!canDelete || deleting}
               style={{
                 fontSize: '13px', color: '#fff',
-                background: canDelete ? '#C0392B' : '#e0a8a4',
+                background: canDelete ? 'var(--red)' : '#e0a8a4',
                 border: 'none', borderRadius: '8px', padding: '8px 16px',
                 cursor: canDelete && !deleting ? 'pointer' : 'not-allowed',
                 fontFamily: 'var(--font)', fontWeight: '500',
@@ -107,7 +118,7 @@ export default function DeleteButton({ assessmentId, plantName }: { assessmentId
         border: 'none', cursor: 'pointer', fontFamily: 'var(--font)',
         padding: '4px 6px', borderRadius: '4px', transition: 'color .15s'
       }}
-      onMouseEnter={e => (e.currentTarget.style.color = '#C0392B')}
+      onMouseEnter={e => (e.currentTarget.style.color = 'var(--red)')}
       onMouseLeave={e => (e.currentTarget.style.color = 'var(--gray-400)')}
     >
       Delete

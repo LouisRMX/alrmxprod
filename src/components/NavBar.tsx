@@ -70,7 +70,7 @@ export default function NavBar({ user, profile }: NavBarProps) {
       {/* Tab bar */}
       <div style={{
         background: 'var(--white)', borderBottom: '1px solid var(--border)',
-        display: 'flex', padding: '0 24px'
+        display: 'flex', padding: '0 24px', overflowX: 'auto'
       }}>
         {tabs.map(tab => {
           const active = pathname.startsWith(tab.href)

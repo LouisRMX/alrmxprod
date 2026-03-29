@@ -107,9 +107,13 @@ export default function AssessmentTool({
     : phase === 'workshop_complete' ? 'Pre-assessment complete — awaiting on-site visit'
     : phase === 'onsite' ? 'Phase 2: On-site diagnostic'
     : phase === 'complete' ? 'Complete' : ''
-  const phaseColor = phase === 'workshop' ? '#2471A3'
-    : phase === 'workshop_complete' ? '#27ae60'
-    : phase === 'onsite' ? '#B7950B' : '#27ae60'
+  const phaseStyle = phase === 'workshop'
+    ? { color: 'var(--phase-workshop)', bg: 'var(--phase-workshop-bg)', border: 'var(--info-border)' }
+    : phase === 'workshop_complete'
+    ? { color: 'var(--phase-complete)', bg: 'var(--phase-complete-bg)', border: 'var(--tooltip-border)' }
+    : phase === 'onsite'
+    ? { color: 'var(--phase-onsite)', bg: 'var(--phase-onsite-bg)', border: 'var(--warning-border)' }
+    : { color: 'var(--phase-complete)', bg: 'var(--phase-complete-bg)', border: 'var(--tooltip-border)' }
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative' }}>
@@ -125,7 +129,7 @@ export default function AssessmentTool({
           {phaseLabel && (
             <span style={{
               padding: '2px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: '600',
-              background: phaseColor + '15', color: phaseColor, border: `1px solid ${phaseColor}30`
+              background: phaseStyle.bg, color: phaseStyle.color, border: `1px solid ${phaseStyle.border}`
             }}>
               {phaseLabel}
             </span>
@@ -141,16 +145,16 @@ export default function AssessmentTool({
       {/* Admin: Start on-site diagnostic button when pre-assessment is complete */}
       {isAdmin && phase === 'workshop_complete' && (
         <div style={{
-          padding: '12px 16px', background: '#EBF5FB', borderBottom: '1px solid #AED6F1',
+          padding: '12px 16px', background: 'var(--info-bg)', borderBottom: '1px solid var(--info-border)',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between'
         }}>
-          <span style={{ fontSize: '13px', color: '#2471A3' }}>
+          <span style={{ fontSize: '13px', color: 'var(--phase-workshop)' }}>
             Pre-assessment completed by customer. Ready for on-site diagnostic.
           </span>
           <button
             onClick={() => transitionPhase('onsite')}
             style={{
-              padding: '8px 20px', background: '#0F6E56', color: 'white', border: 'none',
+              padding: '8px 20px', background: 'var(--green)', color: 'white', border: 'none',
               borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer',
               fontFamily: 'var(--font)'
             }}

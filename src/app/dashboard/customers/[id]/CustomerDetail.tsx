@@ -40,14 +40,17 @@ export default function CustomerDetail({ customer, plants }: { customer: Custome
   const [contactName, setContactName] = useState(customer.contact_name || '')
   const [contactEmail, setContactEmail] = useState(customer.contact_email || '')
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
 
   // Delete state
   const [showDelete, setShowDelete] = useState(false)
   const [deleteTyped, setDeleteTyped] = useState('')
   const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
 
   async function handleSave() {
     setSaving(true)
+    setSaveError('')
     const { error } = await supabase.from('customers').update({
       name, country,
       contact_name: contactName || null,
@@ -56,6 +59,7 @@ export default function CustomerDetail({ customer, plants }: { customer: Custome
 
     if (error) {
       console.error('Update error:', error)
+      setSaveError('Failed to save — please try again.')
       setSaving(false)
       return
     }
@@ -68,9 +72,11 @@ export default function CustomerDetail({ customer, plants }: { customer: Custome
   async function handleDelete() {
     if (deleteTyped.toLowerCase() !== customer.name.toLowerCase()) return
     setDeleting(true)
+    setDeleteError('')
     const { error } = await supabase.from('customers').delete().eq('id', customer.id)
     if (error) {
       console.error('Delete error:', error)
+      setDeleteError('Failed to delete — please try again.')
       setDeleting(false)
       return
     }
@@ -156,6 +162,11 @@ export default function CustomerDetail({ customer, plants }: { customer: Custome
               <input style={inp} type="email" value={contactEmail} onChange={e => setContactEmail(e.target.value)} />
             </div>
           </div>
+          {saveError && (
+            <div style={{ background: 'var(--error-bg)', border: '1px solid var(--error-border)', borderRadius: '8px', padding: '8px 12px', marginBottom: '8px', fontSize: '12px', color: 'var(--red)' }}>
+              {saveError}
+            </div>
+          )}
           <div style={{ display: 'flex', gap: '8px' }}>
             <button onClick={handleSave} disabled={saving || !name} style={{
               padding: '9px 20px', background: 'var(--green)', color: '#fff',
@@ -252,18 +263,23 @@ export default function CustomerDetail({ customer, plants }: { customer: Custome
               This will permanently delete <strong>{customer.name}</strong> and all associated plants, assessments, reports, and action items.
             </p>
             {assessmentCount > 0 && (
-              <p style={{ fontSize: '13px', color: '#C0392B', marginBottom: '12px', lineHeight: '1.5' }}>
+              <p style={{ fontSize: '13px', color: 'var(--red)', marginBottom: '12px', lineHeight: '1.5' }}>
                 Warning: {assessmentCount} assessment{assessmentCount !== 1 ? 's' : ''} will be deleted.
               </p>
             )}
             <p style={{ fontSize: '13px', color: 'var(--gray-600)', marginBottom: '12px' }}>
-              Type <strong style={{ color: '#C0392B' }}>{customer.name}</strong> to confirm:
+              Type <strong style={{ color: 'var(--red)' }}>{customer.name}</strong> to confirm:
             </p>
             <input
               type="text" value={deleteTyped} onChange={e => setDeleteTyped(e.target.value)}
               placeholder={customer.name} autoFocus
               style={{ ...inp, marginBottom: '16px' }}
             />
+            {deleteError && (
+              <div style={{ background: 'var(--error-bg)', border: '1px solid var(--error-border)', borderRadius: '8px', padding: '8px 12px', marginBottom: '12px', fontSize: '12px', color: 'var(--red)' }}>
+                {deleteError}
+              </div>
+            )}
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
               <button onClick={() => { setShowDelete(false); setDeleteTyped('') }} disabled={deleting} style={{
                 fontSize: '13px', color: 'var(--gray-600)', background: 'none',
@@ -277,7 +293,7 @@ export default function CustomerDetail({ customer, plants }: { customer: Custome
                 disabled={deleteTyped.toLowerCase() !== customer.name.toLowerCase() || deleting}
                 style={{
                   fontSize: '13px', color: '#fff',
-                  background: deleteTyped.toLowerCase() === customer.name.toLowerCase() ? '#C0392B' : '#e0a8a4',
+                  background: deleteTyped.toLowerCase() === customer.name.toLowerCase() ? 'var(--red)' : '#e0a8a4',
                   border: 'none', borderRadius: '8px', padding: '8px 16px',
                   cursor: deleteTyped.toLowerCase() === customer.name.toLowerCase() && !deleting ? 'pointer' : 'not-allowed',
                   fontFamily: 'var(--font)', fontWeight: '500', transition: 'background .15s'

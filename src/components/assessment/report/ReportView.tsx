@@ -42,7 +42,7 @@ function ReportInfoTip({ title, text }: { title: string; text: string }) {
       </button>
       {open && (
         <div style={{
-          background: '#F8FFFE', border: '1px solid #9FE1CB', borderRadius: '8px',
+          background: 'var(--tooltip-bg)', border: '1px solid var(--tooltip-border)', borderRadius: '8px',
           padding: '10px 12px', marginTop: '6px', fontSize: '11px', color: 'var(--gray-700)',
           lineHeight: 1.6, position: 'absolute', left: 0, top: '100%', zIndex: 100,
           width: '300px', boxShadow: '0 4px 16px rgba(0,0,0,.1)',
@@ -104,8 +104,8 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
       {/* Headline numbers */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '20px' }}>
         <div style={{
-          background: totalLoss > 0 ? '#FDE8E6' : 'var(--gray-100)',
-          border: `1px solid ${totalLoss > 0 ? '#F5B7B1' : 'var(--border)'}`,
+          background: totalLoss > 0 ? 'var(--error-bg)' : 'var(--gray-100)',
+          border: `1px solid ${totalLoss > 0 ? 'var(--error-border)' : 'var(--border)'}`,
           borderRadius: 'var(--radius)', padding: '14px 16px',
         }}>
           <div style={{ fontSize: '10px', color: 'var(--gray-500)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '.3px' }}>
@@ -121,7 +121,7 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
         </div>
         <div style={{
           background: calcResult.hiddenRevMonthly > 0 ? 'var(--green-light)' : 'var(--gray-100)',
-          border: `1px solid ${calcResult.hiddenRevMonthly > 0 ? '#9FE1CB' : 'var(--border)'}`,
+          border: `1px solid ${calcResult.hiddenRevMonthly > 0 ? 'var(--tooltip-border)' : 'var(--border)'}`,
           borderRadius: 'var(--radius)', padding: '14px 16px',
         }}>
           <div style={{ fontSize: '10px', color: 'var(--gray-500)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '.3px' }}>

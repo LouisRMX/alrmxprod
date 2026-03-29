@@ -4,10 +4,10 @@ import Link from 'next/link'
 import DeleteButton from './DeleteButton'
 
 function scoreColor(s: number | null) {
-  if (s === null) return '#c8c8c8'
-  if (s >= 80) return '#27ae60'
-  if (s >= 60) return '#D68910'
-  return '#C0392B'
+  if (s === null) return 'var(--gray-300)'
+  if (s >= 80) return 'var(--phase-complete)'
+  if (s >= 60) return 'var(--warning)'
+  return 'var(--red)'
 }
 
 function fmt(n: number | null) {
@@ -68,7 +68,7 @@ export default async function PortfolioPage() {
       </div>
 
       {/* KPI row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '24px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginBottom: '24px' }}>
         {[
           { label: 'Total assessments', value: total.toString() },
           { label: 'Average score', value: avgScore ? `${avgScore}/100` : '—' },
@@ -102,7 +102,8 @@ export default async function PortfolioPage() {
             </Link>
           </div>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '700px' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--gray-50)' }}>
                 {['Plant', 'Customer', 'Date', 'Phase', 'Score', 'EBITDA gap', ''].map(h => (
@@ -135,9 +136,9 @@ export default async function PortfolioPage() {
                     {(() => {
                       const p = a.phase || 'workshop'
                       const cfg: Record<string, { label: string; bg: string; color: string }> = {
-                        workshop: { label: 'Workshop', bg: '#EBF5FB', color: '#2471A3' },
-                        onsite: { label: 'On-site', bg: '#FEF9E7', color: '#B7950B' },
-                        complete: { label: 'Complete', bg: '#E8F8F5', color: '#27ae60' },
+                        workshop: { label: 'Workshop', bg: 'var(--phase-workshop-bg)', color: 'var(--phase-workshop)' },
+                        onsite: { label: 'On-site', bg: 'var(--phase-onsite-bg)', color: 'var(--phase-onsite)' },
+                        complete: { label: 'Complete', bg: 'var(--phase-complete-bg)', color: 'var(--phase-complete)' },
                       }
                       const c = cfg[p] || cfg.workshop
                       return (
@@ -175,6 +176,7 @@ export default async function PortfolioPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </div>

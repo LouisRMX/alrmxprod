@@ -112,7 +112,7 @@ function LoginForm() {
 
           {(error || authError) && (
             <div style={{
-              background: '#FDEDEC', border: '1px solid #F5B7B1',
+              background: 'var(--error-bg)', border: '1px solid var(--error-border)',
               borderRadius: '8px', padding: '10px 12px',
               fontSize: '13px', color: 'var(--red)'
             }}>

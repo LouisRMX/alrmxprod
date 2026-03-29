@@ -28,6 +28,7 @@ export default function AICopilot({ report, assessmentId, context }: AICopilotPr
   const [generating, setGenerating] = useState<ReportSection | null>(null)
   const [editing, setEditing] = useState<ReportSection | null>(null)
   const [saving, setSaving] = useState(false)
+  const [genError, setGenError] = useState<string | null>(null)
   // Keep previous text as fallback if regeneration fails
   const previousText = useRef<string>('')
 
@@ -39,12 +40,17 @@ export default function AICopilot({ report, assessmentId, context }: AICopilotPr
       edited: true,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'assessment_id' })
-    if (error) console.error('Report save error:', error)
+    if (error) {
+      console.error('Report save error:', error)
+      setGenError('Failed to save — please try again.')
+      setTimeout(() => setGenError(null), 4000)
+    }
     setSaving(false)
   }, [assessmentId, supabase])
 
   const generate = useCallback(async (section: ReportSection) => {
     setGenerating(section)
+    setGenError(null)
     // Save previous text so we can restore on failure
     previousText.current = texts[section] || ''
     setTexts(prev => ({ ...prev, [section]: '' }))
@@ -72,6 +78,7 @@ export default function AICopilot({ report, assessmentId, context }: AICopilotPr
       }
     } catch (e) {
       console.error('Report generation error:', e)
+      setGenError('Generation failed — click Generate to retry.')
       // Restore previous text on failure
       if (!texts[section]) {
         setTexts(prev => ({ ...prev, [section]: previousText.current }))
@@ -155,6 +162,17 @@ export default function AICopilot({ report, assessmentId, context }: AICopilotPr
         ) : (
           <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--gray-500)', fontSize: '13px' }}>
             No content yet. Click &quot;Generate&quot; to create this section with AI.
+          </div>
+        )}
+
+        {/* Error feedback */}
+        {genError && (
+          <div style={{
+            background: 'var(--error-bg)', border: '1px solid var(--error-border)',
+            borderRadius: '6px', padding: '8px 12px', marginTop: '8px',
+            fontSize: '12px', color: 'var(--red)',
+          }}>
+            {genError}
           </div>
         )}
 

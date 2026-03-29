@@ -22,7 +22,7 @@ export default function FindingCard({ issue, index, isOverlap = false }: Finding
     <div style={{
       background: 'var(--white)', border: '1px solid var(--border)',
       borderRadius: 'var(--radius)', marginBottom: '8px', overflow: 'hidden',
-      borderLeft: `3px solid ${isRed ? 'var(--red)' : '#D68910'}`,
+      borderLeft: `3px solid ${isRed ? 'var(--red)' : 'var(--warning)'}`,
     }}>
       <div
         style={{ padding: '12px 16px', cursor: 'pointer' }}
@@ -47,7 +47,7 @@ export default function FindingCard({ issue, index, isOverlap = false }: Finding
             <div style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
               <div style={{
                 fontSize: '14px', fontWeight: 600, fontFamily: 'var(--mono)',
-                color: isOverlap ? 'var(--gray-400)' : (isRed ? 'var(--red)' : '#B7950B'),
+                color: isOverlap ? 'var(--gray-400)' : (isRed ? 'var(--red)' : 'var(--warning-dark)'),
               }}>
                 {isOverlap ? '~' : ''}{fmt(issue.loss)}/mo
               </div>
