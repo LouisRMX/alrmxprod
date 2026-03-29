@@ -13,11 +13,12 @@ interface SectionViewProps {
   onAnswer: (id: string, value: string) => void
   onNext: () => void
   onBack: () => void
+  onViewResults: () => void
   calcResult: CalcResult
   baseline?: Answers
 }
 
-export default function SectionView({ sectionIndex, answers, phase, onAnswer, onNext, onBack, calcResult, baseline }: SectionViewProps) {
+export default function SectionView({ sectionIndex, answers, phase, onAnswer, onNext, onBack, onViewResults, calcResult, baseline }: SectionViewProps) {
   const section = SECTIONS[sectionIndex]
   if (!section) return null
 
@@ -65,14 +66,14 @@ export default function SectionView({ sectionIndex, answers, phase, onAnswer, on
         )}
         <button
           type="button"
-          onClick={onNext}
+          onClick={isLast ? onViewResults : onNext}
           style={{
             flex: 1, padding: '11px', background: 'var(--green)', color: '#fff',
             border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 500,
             cursor: 'pointer', fontFamily: 'var(--font)',
           }}
         >
-          {isLast ? 'View results →' : 'Next section →'}
+          {isLast ? 'View results' : 'Next section'}
         </button>
       </div>
     </div>
