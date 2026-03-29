@@ -20,6 +20,7 @@ interface Assessment {
   bottleneck: string | null
   ebitda_monthly: number | null
   report: { executive?: string; diagnosis?: string; actions?: string } | null
+  report_released?: boolean
 }
 
 export default function AssessmentTool({
@@ -35,6 +36,8 @@ export default function AssessmentTool({
   const router = useRouter()
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState(false)
+  const [reportReleased, setReportReleased] = useState(assessment.report_released ?? false)
+  const [releasing, setReleasing] = useState(false)
   const [lastSaved, setLastSaved] = useState<string | null>(null)
   const [phase, setPhase] = useState(assessment.phase || 'workshop')
   const savingRef = useRef(false)
@@ -54,6 +57,19 @@ export default function AssessmentTool({
       setPhase(newPhase)
       router.refresh()
     }
+  }
+
+  async function toggleReportRelease() {
+    setReleasing(true)
+    const resp = await fetch('/api/admin/release-report', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ assessmentId: assessment.id, released: !reportReleased }),
+    })
+    if (resp.ok) {
+      setReportReleased(!reportReleased)
+    }
+    setReleasing(false)
   }
 
   const handleSave = useCallback(async (data: {
@@ -135,7 +151,22 @@ export default function AssessmentTool({
             </span>
           )}
         </span>
-        <span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {isAdmin && (
+            <button
+              onClick={toggleReportRelease}
+              disabled={releasing}
+              style={{
+                padding: '2px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: '600',
+                border: '1px solid', cursor: 'pointer', fontFamily: 'var(--mono)',
+                background: reportReleased ? 'var(--phase-complete-bg)' : 'var(--error-bg)',
+                color: reportReleased ? 'var(--phase-complete)' : 'var(--red)',
+                borderColor: reportReleased ? 'var(--tooltip-border)' : 'var(--error-border)',
+              }}
+            >
+              {releasing ? '…' : reportReleased ? 'Report released' : 'Report draft — not visible to customer'}
+            </button>
+          )}
           {saveError ? (
             <span style={{ color: 'var(--red)' }}>Save failed — retrying…</span>
           ) : saving ? 'Saving…' : lastSaved ? `Saved ${lastSaved}` : 'Auto-saves to database'}

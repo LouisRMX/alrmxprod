@@ -21,6 +21,14 @@ interface Customer {
   contact_email: string | null
 }
 
+interface Member {
+  id: string
+  user_id: string
+  role: string
+  created_at: string
+  profile?: { full_name: string | null; email: string }
+}
+
 const countries = ['Saudi Arabia', 'UAE', 'Kuwait', 'Qatar', 'Bahrain', 'Oman']
 
 const inp: React.CSSProperties = {
@@ -29,7 +37,7 @@ const inp: React.CSSProperties = {
   outline: 'none', background: 'var(--white)', color: 'var(--gray-900)'
 }
 
-export default function CustomerDetail({ customer, plants }: { customer: Customer; plants: Plant[] }) {
+export default function CustomerDetail({ customer, plants, members: initialMembers }: { customer: Customer; plants: Plant[]; members: Member[] }) {
   const supabase = createClient()
   const router = useRouter()
 
@@ -47,6 +55,16 @@ export default function CustomerDetail({ customer, plants }: { customer: Custome
   const [deleteTyped, setDeleteTyped] = useState('')
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState('')
+
+  // Team/invite state
+  const [members, setMembers] = useState<Member[]>(initialMembers)
+  const [showInvite, setShowInvite] = useState(false)
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteName, setInviteName] = useState('')
+  const [inviteRole, setInviteRole] = useState<'customer_admin' | 'customer_user'>('customer_user')
+  const [inviting, setInviting] = useState(false)
+  const [inviteError, setInviteError] = useState('')
+  const [inviteSuccess, setInviteSuccess] = useState('')
 
   async function handleSave() {
     setSaving(true)
@@ -82,6 +100,66 @@ export default function CustomerDetail({ customer, plants }: { customer: Custome
     }
     router.push('/dashboard/customers')
     router.refresh()
+  }
+
+  async function handleInvite() {
+    if (!inviteEmail || !inviteName) return
+    setInviting(true)
+    setInviteError('')
+    setInviteSuccess('')
+
+    try {
+      const resp = await fetch('/api/admin/invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: inviteEmail,
+          fullName: inviteName,
+          customerId: customer.id,
+          role: inviteRole,
+        }),
+      })
+
+      const data = await resp.json()
+
+      if (!resp.ok) {
+        setInviteError(data.error || 'Invite failed')
+        setInviting(false)
+        return
+      }
+
+      setInviteSuccess(data.alreadyExisted
+        ? `${inviteEmail} added to team (existing user)`
+        : `Invite sent to ${inviteEmail}`)
+      setInviteEmail('')
+      setInviteName('')
+      setInviteRole('customer_user')
+      setShowInvite(false)
+      router.refresh()
+
+      // Refresh members list
+      const { data: updatedMembers } = await supabase
+        .from('customer_members')
+        .select('id, user_id, role, created_at, profile:profiles(full_name, email)')
+        .eq('customer_id', customer.id)
+      if (updatedMembers) {
+        setMembers(updatedMembers.map(m => ({
+          ...m,
+          profile: Array.isArray(m.profile) ? m.profile[0] : m.profile,
+        })) as Member[])
+      }
+
+      setTimeout(() => setInviteSuccess(''), 5000)
+    } catch {
+      setInviteError('Network error — please try again')
+    }
+    setInviting(false)
+  }
+
+  async function handleRemoveMember(memberId: string) {
+    const { error } = await supabase.from('customer_members').delete().eq('id', memberId)
+    if (error) return
+    setMembers(prev => prev.filter(m => m.id !== memberId))
   }
 
   const plantCount = plants.length
@@ -240,6 +318,161 @@ export default function CustomerDetail({ customer, plants }: { customer: Custome
           </table>
         )}
       </div>
+
+      {/* Team section */}
+      <div style={{
+        background: 'var(--white)', border: '1px solid var(--border)',
+        borderRadius: 'var(--radius)', overflow: 'hidden', marginTop: '16px'
+      }}>
+        <div style={{
+          padding: '16px 20px', borderBottom: '1px solid var(--border)',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+        }}>
+          <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--gray-900)' }}>Team</div>
+          <button onClick={() => setShowInvite(true)} style={{
+            padding: '6px 14px', background: 'var(--green)', color: '#fff',
+            border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: '500',
+            cursor: 'pointer', fontFamily: 'var(--font)'
+          }}>
+            Invite user
+          </button>
+        </div>
+
+        {inviteSuccess && (
+          <div style={{ padding: '10px 20px', background: 'var(--green-light)', fontSize: '12px', color: 'var(--green)', fontWeight: 500, borderBottom: '1px solid var(--border)' }}>
+            {inviteSuccess}
+          </div>
+        )}
+
+        {members.length === 0 ? (
+          <div style={{ padding: '32px', textAlign: 'center', color: 'var(--gray-500)', fontSize: '13px' }}>
+            No team members yet. Invite users to give them access.
+          </div>
+        ) : (
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--gray-50)' }}>
+                {['Name', 'Email', 'Role', ''].map(h => (
+                  <th key={h} style={{
+                    padding: '10px 16px', fontSize: '11px', fontWeight: '500',
+                    color: 'var(--gray-500)', textAlign: 'left',
+                    textTransform: 'uppercase', letterSpacing: '.4px'
+                  }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {members.map((m, i) => (
+                <tr key={m.id} style={{ borderBottom: i < members.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                  <td style={{ padding: '12px 16px', fontSize: '13px', fontWeight: '500', color: 'var(--gray-900)' }}>
+                    {m.profile?.full_name || '—'}
+                  </td>
+                  <td style={{ padding: '12px 16px', fontSize: '13px', color: 'var(--gray-500)' }}>
+                    {m.profile?.email || '—'}
+                  </td>
+                  <td style={{ padding: '12px 16px', fontSize: '12px' }}>
+                    <span style={{
+                      padding: '2px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 600,
+                      background: m.role === 'customer_admin' ? 'var(--phase-workshop-bg)' : 'var(--gray-100)',
+                      color: m.role === 'customer_admin' ? 'var(--phase-workshop)' : 'var(--gray-500)',
+                    }}>
+                      {m.role === 'customer_admin' ? 'Admin' : 'User'}
+                    </span>
+                  </td>
+                  <td style={{ padding: '12px 16px' }}>
+                    <button onClick={() => handleRemoveMember(m.id)} style={{
+                      fontSize: '11px', color: 'var(--gray-400)', background: 'none',
+                      border: 'none', cursor: 'pointer', fontFamily: 'var(--font)',
+                    }}>
+                      Remove
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* Invite modal */}
+      {showInvite && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.4)', display: 'flex',
+          alignItems: 'center', justifyContent: 'center', zIndex: 1000
+        }}
+          onClick={() => { if (!inviting) { setShowInvite(false); setInviteError('') } }}
+        >
+          <div style={{
+            background: '#fff', borderRadius: '12px', padding: '28px',
+            width: '100%', maxWidth: '400px', boxShadow: '0 8px 32px rgba(0,0,0,0.15)'
+          }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--gray-900)', marginBottom: '16px' }}>
+              Invite user to {customer.name}
+            </div>
+
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ fontSize: '11px', fontWeight: '500', color: 'var(--gray-700)', display: 'block', marginBottom: '5px' }}>Full name</label>
+              <input type="text" value={inviteName} onChange={e => setInviteName(e.target.value)} placeholder="John Smith" style={inp} />
+            </div>
+
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ fontSize: '11px', fontWeight: '500', color: 'var(--gray-700)', display: 'block', marginBottom: '5px' }}>Email</label>
+              <input type="email" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} placeholder="john@company.com" style={inp} />
+            </div>
+
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ fontSize: '11px', fontWeight: '500', color: 'var(--gray-700)', display: 'block', marginBottom: '5px' }}>Role</label>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {(['customer_user', 'customer_admin'] as const).map(r => (
+                  <button key={r} type="button" onClick={() => setInviteRole(r)} style={{
+                    flex: 1, padding: '8px', borderRadius: '8px', fontSize: '12px', fontWeight: 500,
+                    border: inviteRole === r ? '2px solid var(--green)' : '1px solid var(--border)',
+                    background: inviteRole === r ? 'var(--green-light)' : 'var(--white)',
+                    color: inviteRole === r ? 'var(--green)' : 'var(--gray-500)',
+                    cursor: 'pointer', fontFamily: 'var(--font)',
+                  }}>
+                    {r === 'customer_admin' ? 'Admin' : 'User'}
+                    <div style={{ fontSize: '10px', fontWeight: 400, marginTop: '2px', color: 'var(--gray-500)' }}>
+                      {r === 'customer_admin' ? 'Sees all plants & reports' : 'Sees assigned assessment only'}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {inviteError && (
+              <div style={{
+                background: 'var(--error-bg)', border: '1px solid var(--error-border)',
+                borderRadius: '8px', padding: '8px 12px', marginBottom: '12px',
+                fontSize: '12px', color: 'var(--red)'
+              }}>
+                {inviteError}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <button onClick={() => { setShowInvite(false); setInviteError('') }} disabled={inviting} style={{
+                fontSize: '13px', color: 'var(--gray-600)', background: 'none',
+                border: '1px solid var(--border)', borderRadius: '8px',
+                padding: '8px 16px', cursor: 'pointer', fontFamily: 'var(--font)'
+              }}>
+                Cancel
+              </button>
+              <button onClick={handleInvite} disabled={!inviteEmail || !inviteName || inviting} style={{
+                fontSize: '13px', color: '#fff', background: 'var(--green)',
+                border: 'none', borderRadius: '8px', padding: '8px 16px',
+                cursor: inviteEmail && inviteName && !inviting ? 'pointer' : 'not-allowed',
+                fontFamily: 'var(--font)', fontWeight: '500',
+              }}>
+                {inviting ? 'Sending…' : 'Send invite'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Delete modal */}
       {showDelete && (
