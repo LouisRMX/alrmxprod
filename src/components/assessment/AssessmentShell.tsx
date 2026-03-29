@@ -126,6 +126,7 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
               onAnswer={handleAnswer}
               onNext={handleNextSection}
               onBack={handleBackSection}
+              onViewResults={() => setMode('report')}
               calcResult={calcResult}
               baseline={baseline}
             />
