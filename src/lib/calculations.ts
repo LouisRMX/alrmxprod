@@ -1,9 +1,6 @@
 /**
  * alRMX Assessment Calculation Engine
- * Extracted from assessment-tool.html for testing and reuse.
- *
- * This module mirrors the calc() and simCalc() functions in the HTML file.
- * Any changes here should be reflected in the HTML and vice versa.
+ * Single source of truth for all assessment scoring and financial calculations.
  */
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -21,38 +18,88 @@ export interface CalcScores {
 }
 
 export interface CalcResult {
+  // Economics
   contrib: number
   contribFuelAdj: number
   marginRatio: number
   marginIncomplete: boolean
+  mixWeightedContrib: number
+  mixMarginLift: number
+  hsPremium: number
+  hsFraction: number
+  waterCost: number
+
+  // Production
   util: number
   unusedCapAnnual: number
   capLeakMonthly: number
-  turnaroundLeakMonthly: number
-  hiddenDel: number
-  hiddenRevMonthly: number
-  hiddenConfidence: 'high' | 'low'
-  rejectLeakMonthly: number
-  maxDelDay: number
-  realisticMaxDel: number
-  excessMin: number
-  scores: CalcScores
-  overall: number | null
-  bottleneck: string | null
-  ta: number
-  trucks: number
-  effectiveUnits: number
-  delDay: number
-  mixCap: number
   actual: number
   monthlyM3: number
   cap: number
   opH: number
   opD: number
   workingDaysMonth: number
-  rejectPct: number
-  price: number
+
+  // Fleet
+  ta: number
+  trucks: number
+  operativeTrucks: number
+  availRate: number
+  qualifiedDrivers: number
+  effectiveUnits: number
+  driverConstrained: boolean
+  delDay: number
+  mixCap: number
+  radius: number
   TARGET_TA: number
+  maxDelDay: number
+  realisticMaxDel: number
+  excessMin: number
+  hiddenDel: number
+  hiddenRevMonthly: number
+  hiddenSuspect: boolean
+  hiddenConfidence: 'high' | 'low'
+  turnaroundLeakMonthly: number
+
+  // Turnaround breakdown
+  siteWait: number
+  washoutMin: number
+  transitEst: number
+  taUnexplained: number
+
+  // Reject & quality
+  rejectPct: number
+  rejectLeakMonthly: number
+
+  // Financial leaks
+  partialLoad: number
+  partialRatio: number
+  partialLeakMonthly: number
+  surplusMid: number
+  surplusLeakMonthly: number
+  demurrageOpportunity: number
+  truckBreakdowns: number
+  breakdownCostMonthly: number
+  topCustPct: number
+  concentrationRisk: number
+  cementOptOpp: number
+  calibrationExposure: number
+  fuelPerDel: number
+  fuelPerM3: number
+  fuelMonthly: number
+  fuelMarginImpact: number
+
+  // Flags
+  atypicalMonth: boolean
+  isSummer: boolean
+  summerAdjusted: boolean
+  daysMismatchPenalty: number
+
+  // Scores
+  scores: CalcScores
+  overall: number | null
+  bottleneck: string | null
+  price: number
   warnings: string[]
 }
 
@@ -214,9 +261,23 @@ export function calc(answers: Answers, meta?: { season?: string }): CalcResult {
   const cement = +(a.cement_cost ?? 0) || 0
   const agg = +(a.aggregate_cost ?? 0) || 0
   const admix = +(a.admix_cost ?? 0) || 0
-  const marginIncomplete = price > 0 && cement > 0 && !agg && !admix
+  const marginIncomplete = price > 0 && cement > 0 &&
+    (+(a.aggregate_cost ?? 0) === 0 || a.aggregate_cost === undefined || a.aggregate_cost === '') &&
+    (+(a.admix_cost ?? 0) === 0 || a.admix_cost === undefined || a.admix_cost === '')
   const contrib = Math.max(0, price - cement - agg - admix)
   const marginRatio = price > 0 ? contrib / price : 0.35
+
+  // Mix-weighted margin
+  const HS_FRACTION_MAP: Record<string, number> = {
+    'Mostly high strength — over 70% is C35 and above': 0.75,
+    'Balanced mix — roughly equal split across strength classes': 0.45,
+    'Mostly standard strength — over 70% is C20 to C30': 0.15,
+    'Not sure — no visibility on production mix by strength class': 0,
+  }
+  const hsPremium = +(a.high_strength_price ?? 0) || 0
+  const hsFraction = HS_FRACTION_MAP[a.mix_split as string] || 0
+  const mixWeightedContrib = hsPremium > 0 && hsFraction > 0 ? contrib + hsPremium * hsFraction : contrib
+  const mixMarginLift = Math.round((mixWeightedContrib - contrib) * 100) / 100
 
   // Production
   const cap = +(a.plant_cap ?? 0) || 0
@@ -243,6 +304,7 @@ export function calc(answers: Answers, meta?: { season?: string }): CalcResult {
   const operativeTrucks = truckAvail > 0 ? truckAvail : trucks
   const qualifiedDrivers = +(a.qualified_drivers ?? 0) || 0
   const effectiveUnits = qualifiedDrivers > 0 ? Math.min(operativeTrucks, qualifiedDrivers) : operativeTrucks
+  const driverConstrained = qualifiedDrivers > 0 && qualifiedDrivers < operativeTrucks * 0.85
 
   const maxDelDay = effectiveUnits > 0 && ta > 0 ? Math.floor(effectiveUnits * (opH * 60 / ta)) : 0
   const realisticMaxDel = effectiveUnits > 0 ? Math.floor(effectiveUnits * (opH * 60 / TARGET_TA) * FLEET_UTIL_TARGET) : 0
@@ -256,17 +318,87 @@ export function calc(answers: Answers, meta?: { season?: string }): CalcResult {
     ? Math.round(excessMin / ta * realisticMaxDel * mixCap * contrib * (opD / 12))
     : 0
 
-  // Reject leak
+  // Fuel
+  const fuelPerDel = +(a.fuel_per_delivery ?? 0) || 0
+  const fuelPerM3 = fuelPerDel > 0 && mixCap > 0 ? fuelPerDel / mixCap : 0
+  const fuelMonthly = fuelPerDel > 0 && delDay > 0 ? Math.round(fuelPerDel * delDay * (opD / 12)) : 0
+  const fuelMarginImpact = fuelPerM3 > 0 && contrib > 0 ? fuelPerM3 / contrib : 0
+
+  // Typical month flag
+  const atypicalMonth = !!(a.typical_month &&
+    a.typical_month !== 'Yes — normal month, representative of typical operations' &&
+    a.typical_month !== 'Partially — one or two unusual weeks but broadly typical')
+
+  // Water cost + fuel-adjusted contribution
+  const waterCost = +(a.water_cost ?? 0) || 0
+  const contribFuelAdj = Math.max(0, contrib - (fuelPerM3 > 0 ? fuelPerM3 : 0) - waterCost)
+
+  // Batch calibration cost exposure
+  const calibrationExposure = (
+    (a.batch_calibration === 'More than 2 years ago' || a.batch_calibration === 'Never calibrated — original factory settings only') &&
+    (+(a.cement_cost ?? 0) || 0) > 0 && monthlyM3 > 0
+  ) ? Math.round(+(a.cement_cost ?? 0) * 0.05 * monthlyM3) : 0
+
+  // Partial load analysis
+  const partialLoad = +(a.partial_load_size ?? 0) || 0
+  const partialRatio = partialLoad > 0 && mixCap > 0 ? partialLoad / mixCap : 1
+  const partialLeakMonthly = (partialLoad > 0 && partialLoad < mixCap * 0.80 && delDay > 0 && contrib > 0)
+    ? Math.round((mixCap - partialLoad) * delDay * contrib * (opD / 12)) : 0
+
+  // Surplus concrete waste
+  const SURPLUS_MID_MAP: Record<string, number> = {
+    'Under 0.2 m³ — minimal waste': 0.1,
+    '0.2 to 0.5 m³ — moderate': 0.35,
+    '0.5 to 1.0 m³ — significant': 0.75,
+    'Over 1.0 m³ — serious problem': 1.2,
+  }
+  const surplusMid = SURPLUS_MID_MAP[a.surplus_concrete as string] || 0
+  const surplusLeakMonthly = surplusMid > 0 && delDay > 0 && price > 0
+    ? Math.round(surplusMid * delDay * price * (opD / 12)) : 0
+
+  // Turnaround breakdown
+  const siteWait = +(a.site_wait_time ?? 0) || 0
+  const WASHOUT_MID_MAP: Record<string, number> = {
+    'Under 10 minutes — fast': 7,
+    '10 to 20 minutes — standard': 15,
+    '20 to 30 minutes — slow': 25,
+    'Over 30 minutes — significant bottleneck': 35,
+  }
+  const washoutMin = WASHOUT_MID_MAP[a.washout_time as string] || 0
+  const transitEst = radius > 0 ? Math.round(radius * 2 * 1.5) : 0
+  const taExplained = siteWait + washoutMin + transitEst
+  const taUnexplained = ta > 0 && taExplained > 0 ? Math.max(0, ta - taExplained) : 0
+
+  // Reject leak — adjusted by return_liability
   const rejectPct = +(a.reject_pct ?? 0) || 0
   const liab = LIABILITY_MAP[a.return_liability as string] || { factor: 1, base: 'price' }
   const rejectBase = liab.base === 'materials' ? cement + agg + admix : price
   const rejectLeakMonthly = Math.round(rejectPct / 100 * delDay * mixCap * rejectBase * liab.factor * (opD / 12))
 
-  // Fuel
-  const fuelPerDel = +(a.fuel_per_delivery ?? 0) || 0
-  const fuelPerM3 = fuelPerDel > 0 && mixCap > 0 ? fuelPerDel / mixCap : 0
-  const waterCost = +(a.water_cost ?? 0) || 0
-  const contribFuelAdj = Math.max(0, contrib - fuelPerM3 - waterCost)
+  // Demurrage opportunity
+  const demurrageOpportunity = (siteWait > 45 && (
+    a.demurrage_policy === 'Clause exists but rarely enforced' ||
+    a.demurrage_policy === 'No demurrage charge in contracts' ||
+    a.demurrage_policy === 'Not sure'
+  )) ? Math.round(Math.max(0, siteWait - 40) / ta * realisticMaxDel * mixCap * contrib * (opD / 12)) : 0
+
+  // Truck breakdown cost estimate
+  const truckBreakdowns = +(a.truck_breakdowns ?? 0) || 0
+  const breakdownCostMonthly = truckBreakdowns > 0 && operativeTrucks > 0
+    ? Math.round(truckBreakdowns * (opH * 0.5) * (delDay / operativeTrucks) * mixCap * contrib) : 0
+
+  // Customer concentration risk
+  const topCustPct = +(a.top_customer_pct ?? 0) || 0
+  const concentrationRisk = topCustPct > 0 ? Math.round(topCustPct / 100 * delDay * mixCap * price * (opD / 12)) : 0
+
+  // Cement optimisation opportunity
+  const cementOptOpp = (
+    (a.mix_design_review === 'More than 3 years ago' || a.mix_design_review === 'Never formally reviewed — original designs still in use') &&
+    (a.admix_strategy === 'Workability only — admixtures used to improve flow and placement' || a.admix_strategy === 'Admixtures not used') &&
+    (+(a.cement_cost ?? 0) || 0) > 0 && monthlyM3 > 0
+  ) ? Math.round(+(a.cement_cost ?? 0) * 0.08 * monthlyM3) : 0
+
+  const isSummer = meta?.season === 'summer'
 
   // ── Scores ─────────────────────────────────────────────────────────────────
 
@@ -283,15 +415,14 @@ export function calc(answers: Answers, meta?: { season?: string }): CalcResult {
   }
 
   // Summer adjustment
-  const isSummer = meta?.season === 'summer'
   let summerAdjusted = false
   if (isSummer && a.summer_prod_drop && utilScore !== null) {
     const dropMap: Record<string, number> = {
-      'Under 10% \u2014 minimal seasonal impact': 0.95,
-      '10 to 20% \u2014 moderate drop': 0.85,
-      '20 to 35% \u2014 significant summer slowdown': 0.72,
-      'Over 35% \u2014 severe seasonal reduction': 0.60,
-      'Not sure \u2014 no seasonal comparison available': 0.80,
+      'Under 10% — minimal seasonal impact': 0.95,
+      '10 to 20% — moderate drop': 0.85,
+      '20 to 35% — significant summer slowdown': 0.72,
+      'Over 35% — severe seasonal reduction': 0.60,
+      'Not sure — no seasonal comparison available': 0.80,
     }
     const summerFactor = dropMap[a.summer_prod_drop as string] ?? 1
     if (summerFactor < 1) {
@@ -338,6 +469,11 @@ export function calc(answers: Answers, meta?: { season?: string }): CalcResult {
     { v: surplusScore, w: 0.10 },
   ])
 
+  // Data period mismatch penalty
+  const daysMismatch = a.data_days_match as string
+  const daysMismatchPenalty = daysMismatch === 'Mostly — one or two figures from a different period' ? 0.95
+    : daysMismatch === 'No — figures come from different time periods' ? 0.85 : 1
+
   // Overall + bottleneck
   const valid = [utilScore, dispScore, logisticsScore, qualityScore].filter((v) => v !== null) as number[]
   const overall = valid.length ? Math.round(valid.reduce((s, v) => s + v, 0) / valid.length) : null
@@ -352,20 +488,172 @@ export function calc(answers: Answers, meta?: { season?: string }): CalcResult {
 
   // Warnings
   const warnings: string[] = []
-  if (cap > 0 && actual > cap * 1.1) warnings.push('Production rate exceeds designed plant capacity by >10%.')
+  if (cap > 0 && actual > cap * 1.1) warnings.push('Production rate exceeds designed plant capacity by >10% — check actual_prod or plant_cap.')
   if (delDay > 0 && mixCap > 0 && workingDaysMonth > 0 && monthlyM3 > 0 && delDay * mixCap * workingDaysMonth > monthlyM3 * 1.3) {
-    warnings.push('Delivery count suggests higher volume than reported production.')
+    warnings.push('Delivery count suggests higher volume than reported production — check deliveries_day or actual_prod.')
   }
-  if (ta > 0 && radius > 0 && ta < radius * 3) warnings.push('Turnaround time is shorter than estimated transit time.')
+  if (ta > 0 && radius > 0 && ta < radius * 3) warnings.push('Turnaround time is shorter than estimated transit time — check turnaround or delivery_radius.')
+  if (workingDaysMonth > 0 && opD > 0 && workingDaysMonth > opD / 12 * 1.3) warnings.push('Working days this month exceeds annual average by >30% — check working_days_month or op_days.')
 
   return {
-    contrib, contribFuelAdj, marginRatio, marginIncomplete, util, unusedCapAnnual, capLeakMonthly,
-    turnaroundLeakMonthly, hiddenDel, hiddenRevMonthly, hiddenConfidence, rejectLeakMonthly,
-    maxDelDay, realisticMaxDel, excessMin,
+    // Economics
+    contrib, contribFuelAdj, marginRatio, marginIncomplete,
+    mixWeightedContrib, mixMarginLift, hsPremium, hsFraction, waterCost,
+    // Production
+    util, unusedCapAnnual, capLeakMonthly, actual, monthlyM3, cap, opH, opD, workingDaysMonth,
+    // Fleet
+    ta, trucks, operativeTrucks, availRate, qualifiedDrivers, effectiveUnits, driverConstrained,
+    delDay, mixCap, radius, TARGET_TA, maxDelDay, realisticMaxDel, excessMin,
+    hiddenDel, hiddenRevMonthly, hiddenSuspect, hiddenConfidence, turnaroundLeakMonthly,
+    // Turnaround breakdown
+    siteWait, washoutMin, transitEst, taUnexplained,
+    // Reject & quality
+    rejectPct, rejectLeakMonthly,
+    // Financial leaks
+    partialLoad, partialRatio, partialLeakMonthly,
+    surplusMid, surplusLeakMonthly,
+    demurrageOpportunity, truckBreakdowns, breakdownCostMonthly,
+    topCustPct, concentrationRisk, cementOptOpp, calibrationExposure,
+    fuelPerDel, fuelPerM3, fuelMonthly, fuelMarginImpact,
+    // Flags
+    atypicalMonth, isSummer, summerAdjusted, daysMismatchPenalty,
+    // Scores
     scores: { prod: utilScore, dispatch: dispScore, fleet: logisticsScore, logistics: logisticsScore, quality: qualityScore },
-    overall, bottleneck, ta, trucks, effectiveUnits, delDay, mixCap, actual, monthlyM3, cap, opH, opD,
-    workingDaysMonth, rejectPct, price, TARGET_TA, warnings,
+    overall, bottleneck, price, warnings,
   }
+}
+
+// ── Data Confidence ──────────────────────────────────────────────────────────
+
+export interface DataConfidence {
+  pct: number
+  level: 'high' | 'medium' | 'low' | 'very-low'
+  label: string
+  sourceW: number | null
+  freshW: number | null
+  obsW: number | null
+  crossW: number | null
+  selfCap: number | null
+}
+
+const SOURCE_WEIGHT: Record<string, number> = {
+  'System records — read from batch computer or dispatch system': 1.0,
+  'Calculated from monthly reports or delivery tickets': 0.90,
+  'Estimated by plant manager or dispatcher': 0.70,
+  'Rough estimates — not based on records': 0.60,
+}
+const FRESHNESS_WEIGHT: Record<string, number> = {
+  "Today's operation — figures from this visit": 1.0,
+  'This week — within the last 7 days': 0.95,
+  'This month — within the last 30 days': 0.85,
+  'Older or unsure': 0.70,
+}
+const OBS_WEIGHT: Record<string, number> = {
+  'Seen on screen — batch computer, dispatch system, or printout': 1.0,
+  'Seen on paper — delivery tickets, reports, or invoices': 0.95,
+  'Told verbally — by plant manager or dispatcher': 0.75,
+  'Mix of observed and verbal': 0.85,
+}
+const CROSS_WEIGHT: Record<string, number> = {
+  'Yes — two or more independent sources confirmed the same figure': 1.0,
+  'Partially — one or two figures cross-checked': 0.90,
+  'No — single source for all figures': 0.80,
+  'Not possible — no second source available': 0.80,
+}
+const SELF_CAP: Record<string, number> = {
+  'High — I would present these to the plant owner without hesitation': 1.0,
+  "Medium — reasonable but I'd verify one or two before presenting": 0.85,
+  'Low — significant uncertainty, treat dollar figures as directional only': 0.65,
+  'Very low — data quality was poor, findings are indicative only': 0.50,
+}
+
+export function calcDataConfidence(answers: Answers): DataConfidence | null {
+  const a = answers
+  const sourceW = SOURCE_WEIGHT[a.prod_data_source as string] ?? null
+  const freshW = FRESHNESS_WEIGHT[a.data_freshness as string] ?? null
+  const obsW = OBS_WEIGHT[a.data_observed as string] ?? null
+  const crossW = CROSS_WEIGHT[a.data_crosscheck as string] ?? null
+  const selfCap = SELF_CAP[a.data_confidence_self as string] ?? null
+
+  const weights = [sourceW, freshW, obsW, crossW].filter((v): v is number => v !== null)
+  if (!weights.length) return null
+  let raw = weights.reduce((s, v) => s + v, 0) / weights.length
+  if (selfCap !== null) raw = Math.min(raw, selfCap)
+  const pct = Math.round(raw * 100)
+  const level: DataConfidence['level'] = pct >= 90 ? 'high' : pct >= 75 ? 'medium' : pct >= 60 ? 'low' : 'very-low'
+  const label = pct >= 90 ? 'High confidence' : pct >= 75 ? 'Medium confidence' : pct >= 60 ? 'Low confidence' : 'Very low confidence'
+  return { pct, level, label, sourceW, freshW, obsW, crossW, selfCap }
+}
+
+export interface KpiConfidence {
+  dispatch: { pct: number; label: string } | null
+  prod: { pct: number; label: string } | null
+  fleet: { pct: number; label: string } | null
+}
+
+export function calcKpiConfidence(answers: Answers): KpiConfidence {
+  const dc = calcDataConfidence(answers)
+  if (!dc) return { dispatch: null, prod: null, fleet: null }
+
+  const s = dc.sourceW || 0.75
+  const f = dc.freshW || 0.85
+  const o = dc.obsW || 0.80
+  const c = dc.crossW || 0.80
+  const cap = dc.selfCap || 1.0
+
+  const dispPct = Math.round(Math.min((o * 0.45) + (c * 0.25) + (s * 0.15) + (f * 0.15), cap) * 100)
+  const prodPct = Math.round(Math.min((s * 0.40) + (f * 0.30) + (o * 0.20) + (c * 0.10), cap) * 100)
+  const fleetPct = Math.round(Math.min((o * 0.35) + (s * 0.30) + (c * 0.20) + (f * 0.15), cap) * 100)
+
+  const band = (p: number) => p >= 85 ? 'Reliable' : p >= 70 ? 'Acceptable' : 'Low — treat score as indicative'
+  return {
+    dispatch: { pct: dispPct, label: band(dispPct) },
+    prod: { pct: prodPct, label: band(prodPct) },
+    fleet: { pct: fleetPct, label: band(fleetPct) },
+  }
+}
+
+export interface ConsistencyFlag {
+  sev: 'red' | 'amber'
+  msg: string
+}
+
+export function calcConsistency(result: CalcResult, answers: Answers): ConsistencyFlag[] {
+  const r = result
+  const a = answers
+  const flags: ConsistencyFlag[] = []
+
+  if (r.ta > 0 && r.trucks > 0 && r.opH > 0 && r.delDay > 0) {
+    const theoMax = Math.floor(r.trucks * (r.opH * 60 / r.ta))
+    if (r.delDay > theoMax)
+      flags.push({ sev: 'red', msg: `Deliveries/day (${r.delDay}) exceeds the theoretical maximum (${theoMax}) for ${r.trucks} trucks at ${r.ta} min turnaround. One of these figures is likely wrong.` })
+  }
+
+  if (r.util > 0.88 && (a.batch_cycle === 'Slow — 7 to 10 min' || a.batch_cycle === 'Very slow — over 10 min'))
+    flags.push({ sev: 'amber', msg: `Utilisation ${Math.round(r.util * 100)}% is high but batch cycle is reported as slow. High-utilisation plants need fast batch cycles — verify both figures.` })
+
+  if (r.util > 0.85 && a.stops_freq === 'More than 5 stops')
+    flags.push({ sev: 'amber', msg: `Utilisation ${Math.round(r.util * 100)}% is high but more than 5 unplanned stops are reported per day. Frequent stops typically suppress utilisation below 75%.` })
+
+  if (r.contrib > 50 && (!a.aggregate_cost || +(a.aggregate_cost) === 0))
+    flags.push({ sev: 'amber', msg: `Contribution margin $${Math.round(r.contrib)}/m³ is very high. Aggregate and admixture costs may not be included — actual margin is likely $12–20/m³ lower.` })
+
+  if (r.radius > 0 && r.radius < 10 && r.ta > 90)
+    flags.push({ sev: 'amber', msg: `Delivery radius is ${r.radius} km but turnaround is ${r.ta} min — the target for this radius is ${r.TARGET_TA} min. This suggests significant non-travel delays: site waiting or plant queuing.` })
+
+  if (r.hiddenSuspect)
+    flags.push({ sev: 'red', msg: 'Hidden delivery gap is unusually large relative to fleet size. Verify that turnaround time, operating hours, and daily deliveries are from the same time period.' })
+
+  if (r.rejectPct > 5 && a.quality_control === 'Both logged every batch — enforced strictly')
+    flags.push({ sev: 'amber', msg: `Reject rate ${r.rejectPct}% is high but quality control is reported as consistently applied. Above 3% with full QC usually indicates a mix design or water-cement ratio problem — not a process gap.` })
+
+  if (r.monthlyM3 > 0 && r.cap > 0 && r.opH > 0) {
+    const thMax = r.cap * r.opH * (r.opD / 12)
+    if (r.monthlyM3 > thMax * 1.05)
+      flags.push({ sev: 'red', msg: `Monthly production (${r.monthlyM3.toLocaleString()} m³) exceeds the theoretical maximum (${Math.round(thMax).toLocaleString()} m³) based on capacity × hours × days. Verify these figures are consistent.` })
+  }
+
+  return flags
 }
 
 // ── Scenario Simulator ───────────────────────────────────────────────────────
