@@ -12,6 +12,12 @@ export async function GET(request: Request) {
     if (error) {
       return NextResponse.redirect(`${origin}/login?error=auth_failed`)
     }
+
+    // Check if this is a new invited user who needs to set password
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user && !user.user_metadata?.password_set) {
+      return NextResponse.redirect(`${origin}/auth/set-password`)
+    }
   }
 
   return NextResponse.redirect(`${origin}${next}`)
