@@ -56,6 +56,17 @@ export default function CustomerDetail({ customer, plants, members: initialMembe
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState('')
 
+  // Plant delete state
+  const [plantList, setPlantList] = useState(plants)
+  const [deletingPlantId, setDeletingPlantId] = useState<string | null>(null)
+
+  async function deletePlant(plantId: string) {
+    setDeletingPlantId(plantId)
+    await supabase.from('plants').delete().eq('id', plantId)
+    setPlantList(prev => prev.filter(p => p.id !== plantId))
+    setDeletingPlantId(null)
+  }
+
   // Team/invite state
   const [members, setMembers] = useState<Member[]>(initialMembers)
   const [showInvite, setShowInvite] = useState(false)
@@ -276,7 +287,7 @@ export default function CustomerDetail({ customer, plants, members: initialMembe
           <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--gray-900)' }}>Plants</div>
         </div>
 
-        {plants.length === 0 ? (
+        {plantList.length === 0 ? (
           <div style={{ padding: '32px', textAlign: 'center', color: 'var(--gray-500)', fontSize: '13px' }}>
             No plants yet. Plants are created when starting a new assessment.
           </div>
@@ -294,8 +305,8 @@ export default function CustomerDetail({ customer, plants, members: initialMembe
               </tr>
             </thead>
             <tbody>
-              {plants.map((p, i) => (
-                <tr key={p.id} style={{ borderBottom: i < plants.length - 1 ? '1px solid var(--border)' : 'none' }}>
+              {plantList.map((p, i) => (
+                <tr key={p.id} style={{ borderBottom: i < plantList.length - 1 ? '1px solid var(--border)' : 'none' }}>
                   <td style={{ padding: '12px 16px', fontSize: '13px', fontWeight: '500', color: 'var(--gray-900)' }}>
                     {p.name}
                   </td>
@@ -305,12 +316,24 @@ export default function CustomerDetail({ customer, plants, members: initialMembe
                   <td style={{ padding: '12px 16px', fontSize: '13px', color: 'var(--gray-500)' }}>
                     {p.assessments?.[0]?.count || 0}
                   </td>
-                  <td style={{ padding: '12px 16px' }}>
+                  <td style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <Link href={`/dashboard/assess/new?customer=${customer.id}&plant=${p.id}`} style={{
                       fontSize: '12px', color: 'var(--green)', textDecoration: 'none', fontWeight: '500'
                     }}>
                       New assessment →
                     </Link>
+                    <button
+                      onClick={() => deletePlant(p.id)}
+                      disabled={deletingPlantId === p.id}
+                      style={{
+                        fontSize: '11px', color: 'var(--gray-400)', background: 'none',
+                        border: 'none', cursor: 'pointer', padding: '0', fontFamily: 'var(--font)',
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.color = 'var(--red)'}
+                      onMouseLeave={e => e.currentTarget.style.color = 'var(--gray-400)'}
+                    >
+                      {deletingPlantId === p.id ? 'Deleting…' : 'Delete'}
+                    </button>
                   </td>
                 </tr>
               ))}

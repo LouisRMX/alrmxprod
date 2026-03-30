@@ -38,6 +38,8 @@ export default function AssessmentTool({
   const [saveError, setSaveError] = useState(false)
   const [reportReleased, setReportReleased] = useState(assessment.report_released ?? false)
   const [releasing, setReleasing] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [lastSaved, setLastSaved] = useState<string | null>(null)
   const [phase, setPhase] = useState(assessment.phase || 'workshop')
   const savingRef = useRef(false)
@@ -75,6 +77,12 @@ export default function AssessmentTool({
 
       router.refresh()
     }
+  }
+
+  async function deleteAssessment() {
+    setDeleting(true)
+    await supabase.from('assessments').delete().eq('id', assessment.id)
+    router.push('/dashboard/customers')
   }
 
   async function toggleReportRelease() {
@@ -171,19 +179,33 @@ export default function AssessmentTool({
         </span>
         <span style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           {isAdmin && (
-            <button
-              onClick={toggleReportRelease}
-              disabled={releasing}
-              style={{
-                padding: '2px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: '600',
-                border: '1px solid', cursor: 'pointer', fontFamily: 'var(--mono)',
-                background: reportReleased ? 'var(--phase-complete-bg)' : 'var(--error-bg)',
-                color: reportReleased ? 'var(--phase-complete)' : 'var(--red)',
-                borderColor: reportReleased ? 'var(--tooltip-border)' : 'var(--error-border)',
-              }}
-            >
-              {releasing ? '…' : reportReleased ? 'Report released' : 'Report draft — not visible to customer'}
-            </button>
+            <>
+              <button
+                onClick={toggleReportRelease}
+                disabled={releasing}
+                style={{
+                  padding: '2px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: '600',
+                  border: '1px solid', cursor: 'pointer', fontFamily: 'var(--mono)',
+                  background: reportReleased ? 'var(--phase-complete-bg)' : 'var(--error-bg)',
+                  color: reportReleased ? 'var(--phase-complete)' : 'var(--red)',
+                  borderColor: reportReleased ? 'var(--tooltip-border)' : 'var(--error-border)',
+                }}
+              >
+                {releasing ? '…' : reportReleased ? 'Report released' : 'Report draft — not visible to customer'}
+              </button>
+              <button
+                onClick={() => setShowDeleteModal(true)}
+                style={{
+                  padding: '2px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: '600',
+                  border: '1px solid var(--border)', cursor: 'pointer', fontFamily: 'var(--mono)',
+                  background: 'var(--white)', color: 'var(--gray-400)',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.color = 'var(--red)'; e.currentTarget.style.borderColor = 'var(--error-border)' }}
+                onMouseLeave={e => { e.currentTarget.style.color = 'var(--gray-400)'; e.currentTarget.style.borderColor = 'var(--border)' }}
+              >
+                Delete
+              </button>
+            </>
           )}
           {saveError ? (
             <span style={{ color: 'var(--red)', display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -280,6 +302,51 @@ export default function AssessmentTool({
           isAdmin={isAdmin}
           onSave={handleSave}
         />
+      )}
+
+      {/* Delete confirmation modal */}
+      {showDeleteModal && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <div style={{
+            background: 'var(--white)', borderRadius: '12px', padding: '28px 32px',
+            maxWidth: '420px', width: '90%', boxShadow: '0 20px 60px rgba(0,0,0,.2)',
+          }}>
+            <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--gray-900)', marginBottom: '10px' }}>
+              Delete assessment?
+            </div>
+            <div style={{ fontSize: '13px', color: 'var(--gray-500)', lineHeight: 1.6, marginBottom: '24px' }}>
+              This will permanently delete the assessment for <strong>{assessment.plant?.name}</strong> including all answers, scores and the generated report. This cannot be undone.
+            </div>
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                disabled={deleting}
+                style={{
+                  padding: '8px 18px', background: 'var(--white)', color: 'var(--gray-700)',
+                  border: '1px solid var(--border)', borderRadius: '8px', fontSize: '13px',
+                  cursor: 'pointer', fontFamily: 'var(--font)',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={deleteAssessment}
+                disabled={deleting}
+                style={{
+                  padding: '8px 18px', background: 'var(--red)', color: '#fff',
+                  border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 600,
+                  cursor: deleting ? 'not-allowed' : 'pointer', fontFamily: 'var(--font)',
+                  opacity: deleting ? 0.7 : 1,
+                }}
+              >
+                {deleting ? 'Deleting…' : 'Delete permanently'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
