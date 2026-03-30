@@ -335,12 +335,12 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
           textAlign: 'center',
         }}>
           <div style={{ fontSize: '13px', color: 'var(--red)', fontWeight: 600, lineHeight: 1.5 }}>
-            This plant is leaving an estimated{' '}
+            This plant has a potential{' '}
             <span style={{ fontFamily: 'var(--mono)', fontSize: '15px' }}>{fmt(dailyLoss)}</span>
-            {' '}on the table every working day.
+            {' '}per working day to recover.
           </div>
           <div style={{ fontSize: '11px', color: 'var(--gray-500)', marginTop: '4px' }}>
-            {fmt(totalLoss)}/month · {fmt(totalLoss * 12)}/year
+            {fmt(totalLoss)}/month · {fmt(totalLoss * 12)}/year — contingent on order book
           </div>
         </div>
       )}
@@ -377,10 +377,10 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
           borderRadius: 'var(--radius)', padding: '14px 16px',
         }}>
           <div style={{ fontSize: '10px', color: 'var(--gray-500)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '.3px' }}>
-            Cost of inaction
+            Potential cost of inaction
             <ReportInfoTip
               title="How this is calculated"
-              text="Primary bottleneck loss (largest overlapping constraint) plus independent losses (rejects, waste, breakdowns). Overlapping issues describe the same constraint from different angles — only the largest is counted to avoid double-counting."
+              text="Estimated monthly revenue gap if current operational inefficiencies continue. Assumes sufficient customer demand exists to absorb recovered capacity — figures are potential, not guaranteed. Primary bottleneck loss (largest overlapping constraint) plus independent losses (rejects, waste). Only the largest overlapping issue is counted to avoid double-counting."
             />
           </div>
           <div style={{ fontSize: '22px', fontWeight: 600, fontFamily: 'var(--mono)', color: totalLoss > 0 ? 'var(--red)' : 'var(--gray-500)', marginTop: '2px' }}>
@@ -393,10 +393,10 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
           borderRadius: 'var(--radius)', padding: '14px 16px',
         }}>
           <div style={{ fontSize: '10px', color: 'var(--gray-500)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '.3px' }}>
-            Hidden revenue
+            Potential hidden revenue
             <ReportInfoTip
               title="How this is calculated"
-              text="Additional monthly revenue if your fleet delivered at realistic maximum capacity. This is a component of the bottleneck — not additional to Cost of Inaction."
+              text="Additional monthly revenue attainable if your fleet delivered at realistic maximum capacity — contingent on having sufficient orders to fill that capacity. This is a component of the bottleneck loss, not additional to it."
             />
           </div>
           <div style={{ fontSize: '22px', fontWeight: 600, fontFamily: 'var(--mono)', color: calcResult.hiddenRevMonthly > 0 ? 'var(--green)' : 'var(--gray-500)', marginTop: '2px' }}>

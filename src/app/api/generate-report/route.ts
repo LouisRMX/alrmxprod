@@ -105,6 +105,8 @@ function buildExecutivePrompt(ctx: Record<string, unknown>) {
 
   return `IMPORTANT: Write in plain text only. Do not use markdown. No asterisks, no bold (**text**), no italic (*text*), no headings with #, no bullet dashes (- item). Use plain sentences and blank lines between sections.
 
+IMPORTANT: All financial figures (monthly losses, revenue opportunities, annual equivalents) are POTENTIAL figures — they are contingent on the plant having sufficient customer demand to absorb recovered capacity. Always frame dollar amounts as potential or recoverable, not as guaranteed losses. Example: "a potential $X/month" or "up to $X/month could be recovered" — never "the plant is losing $X".
+
 You are writing the Executive Summary section of a Plant Intelligence Report for a ready-mix concrete plant. This report will be reviewed by an operations consultant before being sent to the plant owner — a family business owner who manages daily operations personally and makes decisions based on trust and clear financial consequence.
 
 PLANT DATA:
@@ -161,6 +163,8 @@ function buildDiagnosisPrompt(ctx: Record<string, unknown>) {
   }))
 
   return `IMPORTANT: Write in plain text only. Do not use markdown. No asterisks, no bold (**text**), no italic (*text*), no headings with #, no bullet dashes (- item). Use plain sentences and blank lines between sections.
+
+IMPORTANT: All financial figures are POTENTIAL — contingent on sufficient customer demand to fill recovered capacity. Frame them as "potential", "recoverable", or "up to X" — never as confirmed losses.
 
 You are writing the Operational Diagnosis section of a Plant Intelligence Report for ${ctx.plant} in ${ctx.country}.
 
@@ -227,6 +231,8 @@ function buildActionsPrompt(ctx: Record<string, unknown>) {
     .join('; ')
 
   return `IMPORTANT: Write in plain text only. Do not use markdown. No asterisks, no bold (**text**), no italic (*text*), no headings with #, no bullet dashes (- item). Use plain sentences and blank lines between sections.
+
+IMPORTANT: All financial figures are POTENTIAL — contingent on sufficient customer demand to fill recovered capacity. Frame them as "potential", "recoverable", or "up to X" — never as confirmed losses.
 
 You are writing the final section of a Plant Intelligence Report for ${ctx.plant} in ${ctx.country}. This report is being prepared by an operations consultant who will review it, then present it to the plant owner in a dedicated session before any on-site visit.
 

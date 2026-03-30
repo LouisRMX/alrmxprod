@@ -174,10 +174,10 @@ export default function ExportPDF({ calcResult, answers, meta, report }: ExportP
         {totalLoss > 0 && (
           <div style={{ background: '#FDE8E6', border: '1px solid #F5B7B1', borderRadius: '8px', padding: '14px 18px', marginBottom: '20px', textAlign: 'center' }}>
             <div style={{ fontSize: '13px', fontWeight: 600, color: '#C0392B', lineHeight: 1.5 }}>
-              This plant is leaving an estimated <span style={{ fontFamily: "'DM Mono', monospace" }}>${Math.round(totalLoss / 22).toLocaleString()}</span> on the table every working day.
+              This plant has a potential <span style={{ fontFamily: "'DM Mono', monospace" }}>${Math.round(totalLoss / 22).toLocaleString()}</span> per working day to recover.
             </div>
             <div style={{ fontSize: '11px', color: '#6b6b6b', marginTop: '3px' }}>
-              ${totalLoss.toLocaleString()}/month · ${(totalLoss * 12).toLocaleString()}/year
+              ${totalLoss.toLocaleString()}/month · ${(totalLoss * 12).toLocaleString()}/year — contingent on order book
             </div>
           </div>
         )}
@@ -185,13 +185,14 @@ export default function ExportPDF({ calcResult, answers, meta, report }: ExportP
         {/* Headline numbers */}
         <div style={{ display: 'flex', gap: '10px', marginBottom: '24px' }}>
           <div style={{ flex: 1, background: totalLoss > 0 ? '#FDE8E6' : '#f4f4f4', borderRadius: '8px', padding: '14px 16px', border: `1px solid ${totalLoss > 0 ? '#F5B7B1' : '#e0e0e0'}` }}>
-            <div style={{ fontSize: '10px', color: '#6b6b6b', fontWeight: 500, textTransform: 'uppercase' }}>Cost of inaction</div>
+            <div style={{ fontSize: '10px', color: '#6b6b6b', fontWeight: 500, textTransform: 'uppercase' }}>Potential cost of inaction</div>
             <div style={{ fontSize: '22px', fontWeight: 600, fontFamily: "'DM Mono', monospace", color: totalLoss > 0 ? '#C0392B' : '#6b6b6b', marginTop: '2px' }}>
               {totalLoss > 0 ? fmt(totalLoss) + '/mo' : '—'}
             </div>
+            <div style={{ fontSize: '9px', color: '#9b9b9b', marginTop: '3px' }}>assumes sufficient demand</div>
           </div>
           <div style={{ flex: 1, background: calcResult.hiddenRevMonthly > 0 ? '#E1F5EE' : '#f4f4f4', borderRadius: '8px', padding: '14px 16px', border: `1px solid ${calcResult.hiddenRevMonthly > 0 ? '#9FE1CB' : '#e0e0e0'}` }}>
-            <div style={{ fontSize: '10px', color: '#6b6b6b', fontWeight: 500, textTransform: 'uppercase' }}>Hidden revenue</div>
+            <div style={{ fontSize: '10px', color: '#6b6b6b', fontWeight: 500, textTransform: 'uppercase' }}>Potential hidden revenue</div>
             <div style={{ fontSize: '22px', fontWeight: 600, fontFamily: "'DM Mono', monospace", color: calcResult.hiddenRevMonthly > 0 ? '#0F6E56' : '#6b6b6b', marginTop: '2px' }}>
               {calcResult.hiddenRevMonthly > 0 ? fmt(calcResult.hiddenRevMonthly) + '/mo' : '—'}
             </div>
