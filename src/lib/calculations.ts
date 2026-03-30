@@ -353,8 +353,10 @@ export function calc(answers: Answers, meta?: { season?: string }): CalcResult {
     'Over 1.0 m³ — serious problem': 1.2,
   }
   const surplusMid = SURPLUS_MID_MAP[a.surplus_concrete as string] || 0
-  const surplusLeakMonthly = surplusMid > 0 && delDay > 0 && price > 0
-    ? Math.round(surplusMid * delDay * price * (opD / 12)) : 0
+  // Surplus loss = wasted raw material cost (not selling price — concrete was never sold)
+  const materialCost = Math.max(0, price - contrib)
+  const surplusLeakMonthly = surplusMid > 0 && delDay > 0 && materialCost > 0
+    ? Math.round(surplusMid * delDay * materialCost * (opD / 12)) : 0
 
   // Turnaround breakdown
   const siteWait = +(a.site_wait_time ?? 0) || 0
@@ -380,7 +382,7 @@ export function calc(answers: Answers, meta?: { season?: string }): CalcResult {
     a.demurrage_policy === 'Clause exists but rarely enforced' ||
     a.demurrage_policy === 'No demurrage charge in contracts' ||
     a.demurrage_policy === 'Not sure'
-  )) ? Math.round(Math.max(0, siteWait - 40) / ta * realisticMaxDel * mixCap * contrib * (opD / 12)) : 0
+  )) && ta > 0 ? Math.round(Math.max(0, siteWait - 40) / ta * realisticMaxDel * mixCap * contrib * (opD / 12)) : 0
 
   // Truck breakdown cost estimate
   const truckBreakdowns = +(a.truck_breakdowns ?? 0) || 0
@@ -458,8 +460,8 @@ export function calc(answers: Answers, meta?: { season?: string }): CalcResult {
     { v: washoutScore, w: 0.10 },
   ]) : null
 
-  // Quality score — rejectScore only when reject_rate is explicitly answered (0 is a valid answer, but blank is not)
-  const rejectAnswered = a.reject_rate != null && String(a.reject_rate).trim() !== ''
+  // Quality score — rejectScore only when reject_pct is explicitly answered (0 is a valid answer, but blank is not)
+  const rejectAnswered = a.reject_pct != null && String(a.reject_pct).trim() !== ''
   const rejectScore = rejectAnswered ? Math.max(0, Math.min(100, Math.round(100 - rejectPct * 12))) : null
   const qcScore = QC_MAP[a.quality_control as string] ?? null
   const calibScore = CALIB_MAP[a.batch_calibration as string] ?? null
