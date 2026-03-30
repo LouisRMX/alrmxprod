@@ -3,6 +3,7 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { SECTIONS, type Phase } from '@/lib/questions'
 import { calc, type Answers, type CalcResult } from '@/lib/calculations'
+import { buildIssues } from '@/lib/issues'
 import ModeTabs, { type AssessmentMode } from './ModeTabs'
 import Sidebar from './Sidebar'
 import SectionView from './SectionView'
@@ -47,16 +48,20 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
   const triggerSave = useCallback((updatedAnswers: Answers, result: CalcResult) => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
     saveTimerRef.current = setTimeout(() => {
+      // Compute totalLoss with correct bottleneck logic (max of overlapping, not sum)
+      const iss = buildIssues(result, updatedAnswers, { country: country || '' })
+      const bnLoss = Math.max(0, ...iss.filter(i => i.category === 'bottleneck' && i.loss > 0).map(i => i.loss))
+      const indLoss = iss.filter(i => i.category === 'independent').reduce((s, i) => s + i.loss, 0)
       onSave({
         answers: updatedAnswers,
         scores: result.scores,
         overall: result.overall,
         bottleneck: result.bottleneck,
-        ebitdaMonthly: result.capLeakMonthly + result.turnaroundLeakMonthly + result.rejectLeakMonthly,
+        ebitdaMonthly: bnLoss + indLoss,
         hiddenRevMonthly: result.hiddenRevMonthly,
       })
     }, 1000)
-  }, [onSave])
+  }, [onSave, country])
 
   // Cleanup timer on unmount
   useEffect(() => {
