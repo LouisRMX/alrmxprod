@@ -450,15 +450,17 @@ export function calc(answers: Answers, meta?: { season?: string }): CalcResult {
     ? Math.max(0, Math.min(100, Math.round(Math.min(qualifiedDrivers / operativeTrucks, 1) / 0.95 * 100)))
     : null
   const washoutScore = WASHOUT_MAP[a.washout_time as string] ?? null
-  const logisticsScore = weightedAvg([
+  // Logistics requires turnaround to be answered (50% weight — most critical input)
+  const logisticsScore = taScore !== null ? weightedAvg([
     { v: taScore, w: 0.50 },
     { v: availScore, w: 0.25 },
     { v: driverScore, w: 0.15 },
     { v: washoutScore, w: 0.10 },
-  ])
+  ]) : null
 
-  // Quality score
-  const rejectScore = rejectPct >= 0 ? Math.max(0, Math.min(100, Math.round(100 - rejectPct * 12))) : null
+  // Quality score — rejectScore only when reject_rate is explicitly answered (0 is a valid answer, but blank is not)
+  const rejectAnswered = a.reject_rate != null && String(a.reject_rate).trim() !== ''
+  const rejectScore = rejectAnswered ? Math.max(0, Math.min(100, Math.round(100 - rejectPct * 12))) : null
   const qcScore = QC_MAP[a.quality_control as string] ?? null
   const calibScore = CALIB_MAP[a.batch_calibration as string] ?? null
   const surplusScore = SURPLUS_SCORE_MAP[a.surplus_concrete as string] ?? null
