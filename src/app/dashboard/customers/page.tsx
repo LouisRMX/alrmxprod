@@ -18,12 +18,10 @@ export default async function CustomersPage() {
 
   if (profile?.role !== 'system_admin') redirect('/dashboard')
 
-  const { data: customers, error: custError } = await supabase
+  const { data: customers } = await supabase
     .from('customers')
     .select('*, plants(count)')
     .order('created_at', { ascending: false })
-
-  console.log('Customers debug:', { count: customers?.length, error: custError })
 
   return (
     <div style={{ padding: '24px', maxWidth: '900px', margin: '0 auto' }}>
