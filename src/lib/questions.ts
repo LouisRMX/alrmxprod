@@ -1081,7 +1081,7 @@ export const CORE_BLOCKS: CoreBlock[] = [
 // ── Validation Rules ─────────────────────────────────────────────────────────
 
 export const NUM_RULES: Record<string, NumRule> = {
-  price_m3:           [20,  200,  'Selling price outside typical GCC range ($20–$200/m³). Double-check.'],
+  price_m3:           [45,  150,  'Selling price outside typical GCC range ($45–$150/m³). Double-check.'],
   cement_cost:        [10,  120,  'Cement cost per m³ seems unusual. Typical: $10–$120/m³.'],
   aggregate_cost:     [0,   60,   'Aggregate cost seems high. Typical GCC: $0–$60/m³.'],
   admix_cost:         [0,   25,   'Admixture cost seems high. Typical: $0–$25/m³.'],
