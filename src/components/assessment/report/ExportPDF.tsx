@@ -170,6 +170,18 @@ export default function ExportPDF({ calcResult, answers, meta, report }: ExportP
           ))}
         </div>
 
+        {/* Opening hook */}
+        {totalLoss > 0 && (
+          <div style={{ background: '#FDE8E6', border: '1px solid #F5B7B1', borderRadius: '8px', padding: '14px 18px', marginBottom: '20px', textAlign: 'center' }}>
+            <div style={{ fontSize: '13px', fontWeight: 600, color: '#C0392B', lineHeight: 1.5 }}>
+              This plant is leaving an estimated <span style={{ fontFamily: "'DM Mono', monospace" }}>${Math.round(totalLoss / 22).toLocaleString()}</span> on the table every working day.
+            </div>
+            <div style={{ fontSize: '11px', color: '#6b6b6b', marginTop: '3px' }}>
+              ${totalLoss.toLocaleString()}/month · ${(totalLoss * 12).toLocaleString()}/year
+            </div>
+          </div>
+        )}
+
         {/* Headline numbers */}
         <div style={{ display: 'flex', gap: '10px', marginBottom: '24px' }}>
           <div style={{ flex: 1, background: totalLoss > 0 ? '#FDE8E6' : '#f4f4f4', borderRadius: '8px', padding: '14px 16px', border: `1px solid ${totalLoss > 0 ? '#F5B7B1' : '#e0e0e0'}` }}>
