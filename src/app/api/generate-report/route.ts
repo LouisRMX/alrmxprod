@@ -112,7 +112,7 @@ You are writing the Executive Summary section of a Plant Intelligence Report for
 PLANT DATA:
 Plant: ${ctx.plant}, ${ctx.country}
 Assessment date: ${ctx.date}
-Cost of inaction: $${ctx.ebitdaMonthly}/month (= $${ctx.dailyLoss} every working day)
+Cost of inaction: $${ctx.totalLossMonthly}/month (= $${ctx.dailyLoss} every working day)
 Hidden revenue opportunity: $${ctx.hiddenRevMonthly}/month
 Primary constraint: ${ctx.bottleneck}
 Utilisation: ${ctx.utilPct}% (best-practice target: 85%)
@@ -130,7 +130,7 @@ State the daily financial exposure as a plain fact. Formula: $${ctx.dailyLoss} p
 Describe the plant's overall situation in plain language. No scores. No dollar figures yet. Write as a senior operations consultant summarising what he found to the owner, directly. Lead with the single most important observation. Be specific to this plant's numbers. No reassurance, no padding.
 
 3. WHAT THIS IS COSTING — start with this exact heading on its own line: "What This Is Costing"
-Then write: "Cost of inaction: $${ctx.ebitdaMonthly}/month"
+Then write: "Cost of inaction: $${ctx.totalLossMonthly}/month"
 List each contributing gap on a new line with its individual cost (use the breakdown above).
 Then one sentence: the annual equivalent and what that represents in plain business terms.
 Blank line, then: "Hidden revenue: $${ctx.hiddenRevMonthly}/month"
@@ -238,7 +238,7 @@ You are writing the final section of a Plant Intelligence Report for ${ctx.plant
 
 CONTEXT:
 Primary constraint: ${ctx.bottleneck}
-Monthly cost of inaction: $${ctx.ebitdaMonthly}
+Monthly cost of inaction: $${ctx.totalLossMonthly}
 Overall score: ${ctx.overall}/100
 Top findings: ${topFindings}
 

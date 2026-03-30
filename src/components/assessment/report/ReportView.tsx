@@ -413,7 +413,7 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
   const hasAnySections = !!(texts.executive || texts.diagnosis || texts.actions)
 
   // Build context for AI generation
-  const ebitdaMonthly = calcResult.capLeakMonthly + calcResult.turnaroundLeakMonthly + calcResult.rejectLeakMonthly
+  // totalLoss already applies bottleneck logic (max of overlapping, not sum) — use this, not raw sum
   const aiContext = useMemo(() => ({
     plant: meta?.plant || '',
     country: meta?.country || '',
@@ -421,7 +421,7 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
     scores: calcResult.scores,
     overall: calcResult.overall,
     bottleneck: financialBottleneck,
-    ebitdaMonthly,
+    totalLossMonthly: totalLoss,
     dailyLoss,
     hiddenRevMonthly: calcResult.hiddenRevMonthly,
     utilPct: Math.round(calcResult.util * 100),
