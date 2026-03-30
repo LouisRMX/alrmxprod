@@ -728,6 +728,40 @@ function CaseStudyStat({ label, value, sub, highlight = false }: { label: string
 
 export default function TrackingTab(props: TrackingProps) {
   const { assessmentId, isAdmin } = props
+
+  // Demo guard — show a static preview instead of hitting Supabase
+  if (assessmentId === 'demo') {
+    return (
+      <div style={{ flex: 1, padding: '40px 24px', maxWidth: '720px', margin: '0 auto', width: '100%' }}>
+        <div style={{ background: 'var(--white)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '32px', textAlign: 'center', marginBottom: '24px' }}>
+          <div style={{ fontSize: '36px', marginBottom: '16px' }}>📈</div>
+          <div style={{ fontSize: '16px', fontWeight: 600, color: 'var(--gray-900)', marginBottom: '8px' }}>90-Day Tracking</div>
+          <div style={{ fontSize: '13px', color: 'var(--gray-500)', maxWidth: '420px', margin: '0 auto', lineHeight: '1.6' }}>
+            After your engagement is complete, this tab becomes your live performance dashboard.
+            You set baseline targets, the plant logs metrics weekly, and you track the financial recovery in real time.
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+          {[
+            { icon: '🎯', label: 'Turnaround', baseline: `${props.baselineTurnaround ?? 54} min`, target: `${props.targetTA} min target`, color: 'var(--phase-onsite)' },
+            { icon: '✅', label: 'Rejection rate', baseline: `${props.baselineRejectPct ?? 3.8}%`, target: '< 2% target', color: 'var(--warning)' },
+            { icon: '💰', label: 'Monthly recovery potential', baseline: '', target: props.baselineMonthlyLoss > 0 ? `Up to $${Math.round(props.baselineMonthlyLoss / 1000)}k/mo` : 'Enter economics for estimate', color: 'var(--phase-complete)' },
+          ].map(item => (
+            <div key={item.label} style={{ background: 'var(--white)', border: '1px solid var(--border)', borderRadius: '8px', padding: '18px 20px' }}>
+              <div style={{ fontSize: '22px', marginBottom: '8px' }}>{item.icon}</div>
+              <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: '4px' }}>{item.label}</div>
+              {item.baseline && <div style={{ fontSize: '14px', fontWeight: 600, fontFamily: 'var(--mono)', color: 'var(--gray-900)' }}>{item.baseline}</div>}
+              <div style={{ fontSize: '12px', color: item.color, fontWeight: 500 }}>{item.target}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ marginTop: '20px', padding: '14px 18px', background: 'var(--gray-50)', borderRadius: '8px', fontSize: '12px', color: 'var(--gray-500)', textAlign: 'center' }}>
+          Tracking is activated per engagement. The plant logs metrics weekly via their own login — no spreadsheets.
+        </div>
+      </div>
+    )
+  }
+
   const supabase = createClient()
   const [config, setConfig] = useState<TrackingConfig | null | undefined>(undefined) // undefined = loading
   const [entries, setEntries] = useState<TrackingEntry[]>([])
