@@ -168,8 +168,20 @@ export default function AssessmentTool({
             </button>
           )}
           {saveError ? (
-            <span style={{ color: 'var(--red)' }}>Save failed — retrying…</span>
-          ) : saving ? 'Saving…' : lastSaved ? `Saved ${lastSaved}` : 'Auto-saves to database'}
+            <span style={{ color: 'var(--red)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span style={{ fontSize: '13px' }}>⚠</span> Save failed — retrying…
+            </span>
+          ) : saving ? (
+            <span style={{ color: 'var(--phase-onsite)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span style={{ fontSize: '13px', animation: 'pulse 1s infinite' }}>●</span> Saving…
+            </span>
+          ) : lastSaved ? (
+            <span style={{ color: 'var(--green)', display: 'flex', alignItems: 'center', gap: '4px', transition: 'opacity .3s' }}>
+              <span style={{ fontSize: '13px' }}>✓</span> Saved {lastSaved}
+            </span>
+          ) : (
+            <span style={{ color: 'var(--gray-300)' }}>Auto-saves to database</span>
+          )}
         </span>
       </div>
 

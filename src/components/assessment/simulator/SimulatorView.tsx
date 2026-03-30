@@ -61,12 +61,23 @@ export default function SimulatorView({ calcResult }: SimulatorViewProps) {
   if (!result || baseline.cap === 0) {
     return (
       <div style={{ flex: 1, padding: '40px', textAlign: 'center', color: 'var(--gray-500)', fontSize: '14px' }}>
-        Enter assessment data first to use the simulator.
+        <div style={{ fontSize: '15px', fontWeight: 500, color: 'var(--gray-700)', marginBottom: '8px' }}>
+          Simulator requires assessment data
+        </div>
+        <div>Complete the Assessment tab first — the simulator uses your plant capacity, fleet, and pricing data to model scenarios.</div>
       </div>
     )
   }
 
   const deltaPositive = result.deltaVol > 0
+
+  // Realism warnings
+  const simWarnings: string[] = []
+  if (sTurnaround < r.TARGET_TA * 0.7) simWarnings.push(`Turnaround ${sTurnaround} min is ${Math.round((1 - sTurnaround / (r.TARGET_TA || 80)) * 100)}% below regional target — unlikely without major route changes.`)
+  if (sUtil > 95) simWarnings.push('Utilisation above 95% is unrealistic — even best-practice plants peak at 92%.')
+  if (sTrucks > (r.trucks || 10) * 1.5) simWarnings.push(`Fleet expanded ${Math.round((sTrucks / (r.trucks || 10) - 1) * 100)}% — requires significant capital investment.`)
+  if (sPrice > (r.price || 65) * 1.3) simWarnings.push(`Price ${Math.round((sPrice / (r.price || 65) - 1) * 100)}% above current — verify market will accept this.`)
+  if (sOTD < 8) simWarnings.push('Order-to-dispatch under 8 min requires dedicated dispatch software and pre-staged batching.')
 
   return (
     <div style={{ flex: 1, overflowY: 'auto', padding: '20px', paddingBottom: '60px' }}>
@@ -97,10 +108,22 @@ export default function SimulatorView({ calcResult }: SimulatorViewProps) {
 
         {/* Right: Results */}
         <div>
+          {simWarnings.length > 0 && (
+            <div style={{
+              background: 'var(--warning-bg)', border: '1px solid var(--warning-border)',
+              borderRadius: '8px', padding: '10px 14px', marginBottom: '12px',
+            }}>
+              {simWarnings.map((w, i) => (
+                <div key={i} style={{ fontSize: '11px', color: 'var(--warning-dark)', lineHeight: 1.5, marginBottom: i < simWarnings.length - 1 ? '4px' : 0 }}>
+                  ⚠ {w}
+                </div>
+              ))}
+            </div>
+          )}
           {/* Volume delta */}
           <div style={{
             background: deltaPositive ? 'var(--green-light)' : result.deltaVol < 0 ? '#FDE8E6' : 'var(--gray-100)',
-            border: `1px solid ${deltaPositive ? '#9FE1CB' : result.deltaVol < 0 ? '#F5B7B1' : 'var(--border)'}`,
+            border: `1px solid ${deltaPositive ? 'var(--tooltip-border)' : result.deltaVol < 0 ? 'var(--error-border)' : 'var(--border)'}`,
             borderRadius: 'var(--radius)', padding: '16px', marginBottom: '12px', textAlign: 'center',
           }}>
             <div style={{ fontSize: '10px', color: 'var(--gray-500)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '.3px' }}>
@@ -152,7 +175,7 @@ export default function SimulatorView({ calcResult }: SimulatorViewProps) {
               <span style={{
                 fontSize: '12px', fontWeight: 500,
                 padding: '2px 8px', borderRadius: '4px',
-                background: result.scenarioBottleneck === 'Production' ? '#E8F8F5' : '#FDE8E6',
+                background: result.scenarioBottleneck === 'Production' ? '#E8F8F5' : 'var(--error-bg)',
                 color: result.scenarioBottleneck === 'Production' ? 'var(--green)' : 'var(--red)',
               }}>
                 {result.scenarioBottleneck}
@@ -190,7 +213,7 @@ export default function SimulatorView({ calcResult }: SimulatorViewProps) {
                 <div style={{ flex: 1, height: '6px', background: 'var(--gray-100)', borderRadius: '3px', overflow: 'hidden' }}>
                   <div style={{
                     width: `${s.value}%`, height: '6px', borderRadius: '3px',
-                    background: s.value >= 80 ? 'var(--green-mid)' : s.value >= 60 ? '#D68910' : 'var(--red)',
+                    background: s.value >= 80 ? 'var(--green-mid)' : s.value >= 60 ? 'var(--warning)' : 'var(--red)',
                   }} />
                 </div>
                 <span style={{ fontSize: '11px', fontFamily: 'var(--mono)', fontWeight: 500, width: '30px', textAlign: 'right' }}>

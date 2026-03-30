@@ -101,6 +101,23 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
         bottleneck={calcResult.bottleneck}
       />
 
+      {/* Data warnings */}
+      {calcResult.warnings && calcResult.warnings.length > 0 && (
+        <div style={{
+          background: 'var(--warning-bg)', border: '1px solid var(--warning-border)',
+          borderRadius: 'var(--radius)', padding: '12px 16px', marginBottom: '12px',
+        }}>
+          <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--warning-dark)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '.3px' }}>
+            Data consistency warnings
+          </div>
+          {calcResult.warnings.map((w, i) => (
+            <div key={i} style={{ fontSize: '12px', color: 'var(--warning-dark)', lineHeight: 1.5, marginBottom: i < calcResult.warnings.length - 1 ? '4px' : 0 }}>
+              ⚠ {w}
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Headline numbers */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '20px' }}>
         <div style={{
@@ -165,7 +182,7 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
           ))
         ) : (
           <div style={{ padding: '24px', textAlign: 'center', color: 'var(--gray-500)', fontSize: '13px' }}>
-            No findings yet — enter assessment data to see results.
+            No findings yet — complete the assessment questions to generate operational insights.
           </div>
         )}
       </div>
