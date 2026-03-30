@@ -95,15 +95,8 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
 
   return (
     <div style={{ flex: 1, overflowY: 'auto', padding: '20px', paddingBottom: '60px' }}>
-      {/* Score overview + Export */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
-        <div style={{ flex: 1 }}>
-          <ScoreChips
-            scores={calcResult.scores}
-            overall={calcResult.overall}
-            bottleneck={calcResult.bottleneck}
-          />
-        </div>
+      {/* Export button */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '8px' }}>
         <ExportPDF
           calcResult={calcResult}
           answers={answers}
@@ -111,6 +104,13 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
           report={report}
         />
       </div>
+
+      {/* Score overview */}
+      <ScoreChips
+        scores={calcResult.scores}
+        overall={calcResult.overall}
+        bottleneck={calcResult.bottleneck}
+      />
 
       {/* Data warnings */}
       {calcResult.warnings && calcResult.warnings.length > 0 && (
