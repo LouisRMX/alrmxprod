@@ -30,7 +30,7 @@ export default async function PortfolioPage() {
 
   if (profile?.role !== 'system_admin') redirect('/dashboard/reports')
 
-  // Get all assessments with plant and customer info
+  // Get all assessments with plant, customer info, and tracking status
   const { data: assessments } = await supabase
     .from('assessments')
     .select(`
@@ -39,7 +39,8 @@ export default async function PortfolioPage() {
         name, country,
         customer:customers(name)
       ),
-      analyst:profiles(full_name)
+      analyst:profiles(full_name),
+      tracking_config:tracking_configs(id, started_at)
     `)
     .order('created_at', { ascending: false })
 
@@ -106,7 +107,7 @@ export default async function PortfolioPage() {
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '700px' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--gray-50)' }}>
-                {['Plant', 'Customer', 'Date', 'Phase', 'Score', 'EBITDA gap', ''].map(h => (
+                {['Plant', 'Customer', 'Date', 'Phase', 'Score', 'EBITDA gap', 'Tracking', ''].map(h => (
                   <th key={h} style={{
                     padding: '10px 16px', fontSize: '11px', fontWeight: '500',
                     color: 'var(--gray-500)', textAlign: 'left', textTransform: 'uppercase', letterSpacing: '.4px'
@@ -163,6 +164,24 @@ export default async function PortfolioPage() {
                   </td>
                   <td style={{ padding: '12px 16px', fontSize: '13px', fontFamily: 'var(--mono)', color: 'var(--gray-700)' }}>
                     {fmt(a.ebitda_monthly)}<span style={{ fontSize: '11px', color: 'var(--gray-400)' }}>/mo</span>
+                  </td>
+                  <td style={{ padding: '12px 16px' }}>
+                    {(() => {
+                      const tc = Array.isArray(a.tracking_config) ? a.tracking_config[0] : a.tracking_config
+                      if (!tc) return <span style={{ color: 'var(--gray-300)', fontSize: '13px' }}>—</span>
+                      const days = Math.floor((Date.now() - new Date(tc.started_at).getTime()) / 86_400_000)
+                      const week = Math.min(13, Math.max(1, Math.ceil((days + 1) / 7)))
+                      const done = week >= 13
+                      return (
+                        <span style={{
+                          padding: '3px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: '600',
+                          background: done ? 'var(--phase-complete-bg)' : 'var(--phase-onsite-bg)',
+                          color: done ? 'var(--phase-complete)' : 'var(--phase-onsite)',
+                        }}>
+                          {done ? '✓ Done' : `Wk ${week}/13`}
+                        </span>
+                      )
+                    })()}
                   </td>
                   <td style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <Link href={`/dashboard/assess/${a.id}`} style={{

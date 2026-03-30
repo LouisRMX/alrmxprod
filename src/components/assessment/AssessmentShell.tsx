@@ -11,6 +11,7 @@ import ScoreLivePanel from './ScoreLivePanel'
 import GuidedMode from './guided/GuidedMode'
 import ReportView from './report/ReportView'
 import SimulatorView from './simulator/SimulatorView'
+import TrackingTab from './tracking/TrackingTab'
 
 interface AssessmentShellProps {
   initialAnswers: Answers
@@ -156,6 +157,45 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
       {mode === 'simulator' && (
         <SimulatorView calcResult={calcResult} />
       )}
+
+      {mode === 'track' && (() => {
+        // Compute dispatch baseline from dropdown answer
+        const DISPATCH_MAP: Record<string, number> = {
+          'Under 15 minutes — fast response': 12,
+          '15 to 25 minutes — acceptable': 20,
+          '25 to 40 minutes — slow': 32,
+          'Over 40 minutes — critical bottleneck': 45,
+        }
+        const baselineDispatchMin = DISPATCH_MAP[answers.order_to_dispatch as string] ?? null
+
+        // Financial coefficients: $/month per 1-unit improvement
+        const coeffTurnaround = calcResult.excessMin > 0
+          ? Math.round(calcResult.turnaroundLeakMonthly / calcResult.excessMin)
+          : 0
+        const coeffReject = calcResult.rejectPct > 0
+          ? Math.round(calcResult.rejectLeakMonthly / calcResult.rejectPct)
+          : 0
+
+        // Baseline monthly loss from issues engine
+        const iss = buildIssues(calcResult, answers, { country: country || '' })
+        const bnLoss = Math.max(0, ...iss.filter(i => i.category === 'bottleneck' && i.loss > 0).map(i => i.loss))
+        const indLoss = iss.filter(i => i.category === 'independent').reduce((s, i) => s + i.loss, 0)
+        const baselineMonthlyLoss = bnLoss + indLoss
+
+        return (
+          <TrackingTab
+            assessmentId={assessmentId}
+            isAdmin={isAdmin ?? false}
+            baselineTurnaround={answers.turnaround ? Number(answers.turnaround) : null}
+            baselineRejectPct={answers.reject_pct ? Number(answers.reject_pct) : null}
+            baselineDispatchMin={baselineDispatchMin}
+            coeffTurnaround={coeffTurnaround}
+            coeffReject={coeffReject}
+            baselineMonthlyLoss={baselineMonthlyLoss}
+            targetTA={calcResult.TARGET_TA}
+          />
+        )
+      })()}
     </div>
   )
 }
