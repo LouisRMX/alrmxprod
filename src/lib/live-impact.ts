@@ -85,8 +85,6 @@ export function getLiveImpact(questionId: string, r: CalcResult, a: Answers): st
         lines.push(`Note: selling price ${r.price < 45 ? 'below' : 'above'} typical GCC range — double-check the figure.`)
       } else if (r.contrib < 12) {
         lines.push('Warning: margin below $12/m³ — verify all material costs are entered correctly.')
-      } else if (r.contrib > 55) {
-        lines.push('Note: margin above $55/m³ — confirm this excludes fixed overhead costs.')
       } else {
         lines.push('Margin looks realistic for ready-mix in this region.')
       }
