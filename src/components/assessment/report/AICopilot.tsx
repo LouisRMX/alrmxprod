@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { stripMarkdown } from '@/lib/stripMarkdown'
 
 interface AICopilotProps {
   report: { executive?: string; diagnosis?: string; actions?: string } | null
@@ -14,7 +15,7 @@ type ReportSection = 'executive' | 'diagnosis' | 'actions'
 const SECTION_LABELS: Record<ReportSection, string> = {
   executive: 'Executive Summary',
   diagnosis: 'Operational Diagnosis',
-  actions: 'Improvement Actions',
+  actions: 'Next Step',
 }
 
 export default function AICopilot({ report, assessmentId, context }: AICopilotProps) {
@@ -36,7 +37,7 @@ export default function AICopilot({ report, assessmentId, context }: AICopilotPr
     setSaving(true)
     const { error } = await supabase.from('reports').upsert({
       assessment_id: assessmentId,
-      [section]: text,
+      [section]: stripMarkdown(text),
       edited: true,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'assessment_id' })
@@ -74,7 +75,8 @@ export default function AICopilot({ report, assessmentId, context }: AICopilotPr
         const { done, value } = await reader.read()
         if (done) break
         accumulated += decoder.decode(value, { stream: true })
-        setTexts(prev => ({ ...prev, [section]: accumulated }))
+        // Strip markdown during streaming so user sees clean text as it arrives
+        setTexts(prev => ({ ...prev, [section]: stripMarkdown(accumulated) }))
       }
     } catch (e) {
       console.error('Report generation error:', e)

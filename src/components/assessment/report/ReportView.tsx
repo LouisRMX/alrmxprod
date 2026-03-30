@@ -64,9 +64,11 @@ interface ReportViewProps {
   meta?: { country?: string; plant?: string; date?: string }
   report: { executive?: string; diagnosis?: string; actions?: string } | null
   assessmentId: string
+  reportReleased?: boolean
+  isAdmin?: boolean
 }
 
-export default function ReportView({ calcResult, answers, meta, report, assessmentId }: ReportViewProps) {
+export default function ReportView({ calcResult, answers, meta, report, assessmentId, reportReleased, isAdmin }: ReportViewProps) {
   const issues = buildIssues(calcResult, answers, meta)
 
   // Waterfall: only count the largest bottleneck finding, not the sum of overlapping ones
@@ -79,6 +81,7 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
   const primaryBottleneckLoss = bottleneckLoss
 
   // Build context for AI generation
+  const ebitdaMonthly = calcResult.capLeakMonthly + calcResult.turnaroundLeakMonthly + calcResult.rejectLeakMonthly
   const aiContext = {
     plant: meta?.plant || '',
     country: meta?.country || '',
@@ -86,10 +89,24 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
     scores: calcResult.scores,
     overall: calcResult.overall,
     bottleneck: calcResult.bottleneck,
-    ebitdaMonthly: calcResult.capLeakMonthly + calcResult.turnaroundLeakMonthly + calcResult.rejectLeakMonthly,
+    ebitdaMonthly,
+    dailyLoss: Math.round(ebitdaMonthly / 22),
+    hiddenRevMonthly: calcResult.hiddenRevMonthly,
     utilPct: Math.round(calcResult.util * 100),
     turnaround: calcResult.ta,
-    issues: issues.slice(0, 8).map(i => ({ t: i.t, loss: i.loss, sev: i.sev })),
+    targetTA: calcResult.TARGET_TA,
+    trucks: calcResult.trucks,
+    cap: calcResult.cap,
+    // Full issue data so prompts can cite real numbers from the assessment
+    issues: issues.slice(0, 8).map(i => ({
+      t: i.t,
+      action: i.action,
+      rec: i.rec,
+      loss: i.loss,
+      sev: i.sev,
+      category: i.category,
+      formula: i.formula,
+    })),
     answers,
   }
 
@@ -104,6 +121,20 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
           report={report}
         />
       </div>
+
+      {/* Draft banner — visible to admins only when report not yet released */}
+      {isAdmin && !reportReleased && (
+        <div style={{
+          background: 'var(--warning-bg)', border: '1px solid var(--warning-border)',
+          borderRadius: 'var(--radius)', padding: '10px 16px', marginBottom: '12px',
+          display: 'flex', alignItems: 'center', gap: '8px',
+        }}>
+          <span style={{ fontSize: '13px' }}>🔒</span>
+          <span style={{ fontSize: '12px', color: 'var(--warning-dark)', fontWeight: 500 }}>
+            Report is in draft — not visible to the customer. Release it from the assessment header when ready.
+          </span>
+        </div>
+      )}
 
       {/* Score overview */}
       <ScoreChips

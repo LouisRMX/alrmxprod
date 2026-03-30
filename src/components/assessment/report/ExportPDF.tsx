@@ -212,7 +212,7 @@ export default function ExportPDF({ calcResult, answers, meta, report }: ExportP
         {report?.actions && (
           <div style={{ marginBottom: '20px' }}>
             <div style={{ fontSize: '14px', fontWeight: 600, color: '#0F6E56', marginBottom: '8px', borderBottom: '1px solid #E1F5EE', paddingBottom: '4px' }}>
-              Improvement Actions
+              Next Step
             </div>
             <div style={{ fontSize: '12px', lineHeight: 1.7, color: '#3d3d3d', whiteSpace: 'pre-wrap' }}>
               {report.actions}

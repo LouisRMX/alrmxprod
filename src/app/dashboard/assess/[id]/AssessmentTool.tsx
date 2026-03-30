@@ -55,6 +55,24 @@ export default function AssessmentTool({
 
     if (!error) {
       setPhase(newPhase)
+
+      // Notify admin when customer submits pre-assessment
+      if (newPhase === 'workshop_complete') {
+        try {
+          await fetch('/api/webhook/assessment-complete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              assessmentId: assessment.id,
+              plantName: assessment.plant?.name || 'Unknown plant',
+              country: assessment.plant?.country || '',
+            }),
+          })
+        } catch {
+          // Non-fatal — don't block the UI
+        }
+      }
+
       router.refresh()
     }
   }
@@ -258,6 +276,8 @@ export default function AssessmentTool({
           date={assessment.date}
           assessmentId={assessment.id}
           report={assessment.report}
+          reportReleased={reportReleased}
+          isAdmin={isAdmin}
           onSave={handleSave}
         />
       )}

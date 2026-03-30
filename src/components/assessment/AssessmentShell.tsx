@@ -20,6 +20,8 @@ interface AssessmentShellProps {
   date?: string
   assessmentId: string
   report?: { executive?: string; diagnosis?: string; actions?: string } | null
+  reportReleased?: boolean
+  isAdmin?: boolean
   onSave: (data: {
     answers: Answers
     scores: CalcResult['scores']
@@ -31,7 +33,7 @@ interface AssessmentShellProps {
   baseline?: Answers
 }
 
-export default function AssessmentShell({ initialAnswers, phase, season, country, plant, date, assessmentId, report, onSave, baseline }: AssessmentShellProps) {
+export default function AssessmentShell({ initialAnswers, phase, season, country, plant, date, assessmentId, report, reportReleased, isAdmin, onSave, baseline }: AssessmentShellProps) {
   const [answers, setAnswers] = useState<Answers>(initialAnswers)
   const [currentSection, setCurrentSection] = useState(0)
   const [mode, setMode] = useState<AssessmentMode>('questions')
@@ -141,6 +143,8 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
           meta={{ country, plant, date }}
           report={report ?? null}
           assessmentId={assessmentId}
+          reportReleased={reportReleased}
+          isAdmin={isAdmin}
         />
       )}
 
