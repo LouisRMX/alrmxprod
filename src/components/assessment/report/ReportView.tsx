@@ -6,6 +6,7 @@ import { buildIssues } from '@/lib/issues'
 import ScoreChips from './ScoreChips'
 import FindingCard from './FindingCard'
 import AICopilot from './AICopilot'
+import ExportPDF from './ExportPDF'
 
 function fmt(n: number): string {
   return '$' + n.toLocaleString()
@@ -94,12 +95,22 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
 
   return (
     <div style={{ flex: 1, overflowY: 'auto', padding: '20px', paddingBottom: '60px' }}>
-      {/* Score overview */}
-      <ScoreChips
-        scores={calcResult.scores}
-        overall={calcResult.overall}
-        bottleneck={calcResult.bottleneck}
-      />
+      {/* Score overview + Export */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
+        <div style={{ flex: 1 }}>
+          <ScoreChips
+            scores={calcResult.scores}
+            overall={calcResult.overall}
+            bottleneck={calcResult.bottleneck}
+          />
+        </div>
+        <ExportPDF
+          calcResult={calcResult}
+          answers={answers}
+          meta={meta}
+          report={report}
+        />
+      </div>
 
       {/* Data warnings */}
       {calcResult.warnings && calcResult.warnings.length > 0 && (
