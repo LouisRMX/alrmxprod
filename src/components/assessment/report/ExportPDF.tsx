@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback } from 'react'
 import type { CalcResult, Answers } from '@/lib/calculations'
-import { buildIssues, type Issue } from '@/lib/issues'
+import { buildIssues, getFinancialBottleneck, type Issue } from '@/lib/issues'
 
 function fmt(n: number): string {
   return '$' + n.toLocaleString()
@@ -34,6 +34,7 @@ export default function ExportPDF({ calcResult, answers, meta, report }: ExportP
   const printRef = useRef<HTMLDivElement>(null)
 
   const issues = buildIssues(calcResult, answers, meta)
+  const financialBottleneck = getFinancialBottleneck(issues)
   const bottleneckIssues = issues.filter(i => i.category === 'bottleneck' && i.loss > 0)
   const bottleneckLoss = bottleneckIssues.length > 0 ? Math.max(...bottleneckIssues.map(i => i.loss)) : 0
   const independentLoss = issues.filter(i => i.category === 'independent').reduce((s, i) => s + i.loss, 0)
@@ -161,9 +162,9 @@ export default function ExportPDF({ calcResult, answers, meta, report }: ExportP
               <div style={{ fontSize: '28px', fontWeight: 700, fontFamily: "'DM Mono', monospace", color: scoreColor(s.value), marginTop: '2px' }}>
                 {s.value !== null ? s.value : '—'}
               </div>
-              {s.label === 'Overall' && calcResult.bottleneck && (
+              {s.label === 'Overall' && financialBottleneck && (
                 <div style={{ fontSize: '9px', color: '#C0392B', fontWeight: 600, marginTop: '2px' }}>
-                  Bottleneck: {calcResult.bottleneck}
+                  Bottleneck: {financialBottleneck}
                 </div>
               )}
             </div>

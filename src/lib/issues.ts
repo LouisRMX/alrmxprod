@@ -16,6 +16,24 @@ export interface Issue {
   /** 'bottleneck' = overlapping constraint (only largest counts in Cost of Inaction).
    *  'independent' = separate loss that stacks additively. */
   category: 'bottleneck' | 'independent'
+  /** Operational dimension this issue belongs to — used for financial bottleneck calculation. */
+  dimension?: 'Production' | 'Dispatch' | 'Logistics' | 'Quality' | 'Other'
+}
+
+/**
+ * Returns the dimension with the highest total financial loss across all issues.
+ * Used for display purposes (KPI pyramid tag, AI prompts) — does not affect
+ * the internal bottleneck/independent category logic.
+ */
+export function getFinancialBottleneck(issues: Issue[]): string | null {
+  const byDim: Record<string, number> = {}
+  for (const issue of issues) {
+    if (issue.dimension && issue.loss > 0)
+      byDim[issue.dimension] = (byDim[issue.dimension] || 0) + issue.loss
+  }
+  const entries = Object.entries(byDim).filter(([, v]) => v > 0)
+  if (!entries.length) return null
+  return entries.sort((a, b) => b[1] - a[1])[0][0]
 }
 
 function fmt(n: number): string {
@@ -33,7 +51,7 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
 
   if (r.ta > r.TARGET_TA && (bn === 'Logistics' || bn === 'Fleet')) {
     issues.push({
-      sev: 'red', pin: true, category: 'bottleneck',
+      sev: 'red', pin: true, category: 'bottleneck', dimension: 'Logistics',
       t: `Truck turnaround ${r.ta} min — ${Math.round((r.ta - r.TARGET_TA) / r.TARGET_TA * 100)}% above ${r.TARGET_TA}-min target`,
       action: 'Require site readiness confirmation before trucks depart',
       rec: `Trucks should only depart when the site confirms the pump crew is ready. Closing this gap recovers ${fmt(r.turnaroundLeakMonthly)}/month.`,
@@ -60,7 +78,7 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
       : `Review dispatch process across all four factors.${taSuffix}`
 
     issues.push({
-      sev: 'red', pin: bn === 'Dispatch', category: 'bottleneck',
+      sev: 'red', pin: bn === 'Dispatch', category: 'bottleneck', dimension: 'Dispatch',
       t: `Dispatch score ${r.scores.dispatch}/100 — primary bottleneck`,
       action: 'Measure order-to-dispatch time daily — target under 15 min',
       rec: dispRec,
@@ -70,7 +88,7 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
 
     if (r.ta > r.TARGET_TA && bn !== 'Fleet') {
       issues.push({
-        sev: 'amber', pin: false, category: 'bottleneck',
+        sev: 'amber', pin: false, category: 'bottleneck', dimension: 'Logistics',
         t: `Truck turnaround ${r.ta} min — ${Math.round((r.ta - r.TARGET_TA) / r.TARGET_TA * 100)}% above ${r.TARGET_TA}-min target (included in dispatch estimate)`,
         action: 'Require site readiness confirmation before trucks depart',
         rec: 'Trucks should only depart when the site confirms readiness. Fastest lever inside the dispatch bottleneck.',
@@ -79,7 +97,7 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
     }
   } else if (r.ta > r.TARGET_TA) {
     issues.push({
-      sev: 'red', pin: bn === 'Logistics' || bn === 'Fleet', category: 'bottleneck',
+      sev: 'red', pin: bn === 'Logistics' || bn === 'Fleet', category: 'bottleneck', dimension: 'Logistics',
       t: `Truck turnaround ${r.ta} min — ${Math.round((r.ta - r.TARGET_TA) / r.TARGET_TA * 100)}% above ${r.TARGET_TA}-min target`,
       action: 'Require site readiness confirmation before trucks depart',
       rec: `Trucks should only depart when the site confirms the pump crew is ready. Closing this gap recovers ${fmt(r.turnaroundLeakMonthly)}/month.`,
@@ -92,7 +110,7 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
 
   if (r.util < 0.82 && r.actual > 0) {
     issues.push({
-      sev: 'red', pin: bn === 'Production', category: 'bottleneck',
+      sev: 'red', pin: bn === 'Production', category: 'bottleneck', dimension: 'Production',
       t: `Plant running at ${Math.round(r.util * 100)}% — ${Math.round((0.92 - r.util) * 100)} points below 92% target`,
       action: 'Map peak demand window and pre-stage batching 30 min before',
       rec: 'Check batch cycle time and aggregate feed rate. Pre-staging batching before peak hours is the fastest lever.',
@@ -105,7 +123,7 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
 
   if (r.hiddenDel > 0) {
     issues.push({
-      sev: 'amber', pin: false, category: 'bottleneck',
+      sev: 'amber', pin: false, category: 'bottleneck', dimension: 'Production',
       t: `${r.hiddenDel} deliveries/day unrealised — fleet target ${r.realisticMaxDel}, actual ${r.delDay}`,
       action: 'Fix dispatch and turnaround first — no new trucks needed',
       rec: `No new trucks needed. Gap closes when turnaround hits ${r.TARGET_TA} min target and dispatch is at 85% fleet utilisation.`,
@@ -118,7 +136,7 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
 
   if (r.rejectPct > 1.5) {
     issues.push({
-      sev: 'amber', pin: false, category: 'independent',
+      sev: 'amber', pin: false, category: 'independent', dimension: 'Quality',
       t: `${r.rejectPct}% of loads rejected — every rejection is a 100% write-off`,
       action: 'Run slump test on every load before dispatch',
       rec: 'Calibrate water-cement ratio sensors monthly. One rejected load costs the full selling price, not just margin.',
@@ -130,16 +148,16 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
   // ── Mix visibility ─────────────────────────────────────────────────────
 
   if (a.mix_split === 'Not sure — no visibility on production mix by strength class') {
-    issues.push({ sev: 'amber', pin: false, category: 'independent', t: 'No visibility on production mix by strength class', action: 'Map monthly volume by strength class: C20, C25, C30, C35+', rec: 'The split between standard and high-strength concrete determines real margin.', loss: 0 })
+    issues.push({ sev: 'amber', pin: false, category: 'independent', dimension: 'Quality', t: 'No visibility on production mix by strength class', action: 'Map monthly volume by strength class: C20, C25, C30, C35+', rec: 'The split between standard and high-strength concrete determines real margin.', loss: 0 })
   }
 
   if (a.mix_split === 'Mostly standard strength — over 70% is C20 to C30' && r.contrib > 0 && r.contrib < 20) {
-    issues.push({ sev: 'amber', pin: false, category: 'independent', t: 'Over 70% standard-grade production — margin improvement available', action: 'Get one price quote for C35+ from your top 3 customers', rec: 'C35+ mixes command 15–30% price premium with moderate cement cost increase.', loss: 0 })
+    issues.push({ sev: 'amber', pin: false, category: 'independent', dimension: 'Quality', t: 'Over 70% standard-grade production — margin improvement available', action: 'Get one price quote for C35+ from your top 3 customers', rec: 'C35+ mixes command 15–30% price premium with moderate cement cost increase.', loss: 0 })
   }
 
   if (r.mixMarginLift > 0.5) {
     issues.push({
-      sev: 'amber', pin: false, category: 'independent',
+      sev: 'amber', pin: false, category: 'independent', dimension: 'Quality',
       t: `Mix opportunity — C35+ premium adds ${fmt(Math.round(r.mixMarginLift * r.monthlyM3))}/mo at current volume`,
       action: 'Verify C35+ demand with top customers before shifting production mix',
       rec: `Current blended margin: $${Math.round(r.mixWeightedContrib)}/m³. Shifting to ${Math.round(r.hsFraction * 100)}% C35+ at $${a.high_strength_price}/m³ premium.`,
@@ -150,16 +168,16 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
   // ── Supply chain ───────────────────────────────────────────────────────
 
   if (a.silo_days === 'Under 2 days — high supply risk') {
-    issues.push({ sev: 'red', pin: false, category: 'independent', t: 'Cement stock under 2 days — one missed delivery stops the plant', action: 'Call your cement supplier today — negotiate a standing delivery schedule', rec: 'A single missed delivery at this stock level halts production entirely. Target: 5-day minimum buffer.', loss: 0 })
+    issues.push({ sev: 'red', pin: false, category: 'independent', dimension: 'Other', t: 'Cement stock under 2 days — one missed delivery stops the plant', action: 'Call your cement supplier today — negotiate a standing delivery schedule', rec: 'A single missed delivery at this stock level halts production entirely. Target: 5-day minimum buffer.', loss: 0 })
   }
   if (a.silo_days === '2 to 5 days — tight, supply-sensitive') {
-    issues.push({ sev: 'amber', pin: false, category: 'independent', t: 'Cement stock 2–5 days — vulnerable to supply disruption', action: 'Increase reorder point — extend to 7+ days before Ramadan and public holidays', rec: 'Irregular delivery schedules create real stoppage risk at this buffer level.', loss: 0 })
+    issues.push({ sev: 'amber', pin: false, category: 'independent', dimension: 'Other', t: 'Cement stock 2–5 days — vulnerable to supply disruption', action: 'Increase reorder point — extend to 7+ days before Ramadan and public holidays', rec: 'Irregular delivery schedules create real stoppage risk at this buffer level.', loss: 0 })
   }
 
   if (a.ramadan_schedule === 'No — same schedule year-round' && GCC_COUNTRIES.includes(country)) {
     const ramadanLoss = r.delDay > 0 && r.contrib > 0 ? Math.round(r.delDay * r.mixCap * r.contrib * (30 / 365) * 0.20) : 0
     issues.push({
-      sev: 'amber', pin: false, category: 'independent',
+      sev: 'amber', pin: false, category: 'independent', dimension: 'Other',
       t: 'No Ramadan schedule — missing the early-morning peak window',
       action: 'Shift first dispatch to 05:30, complete major pours before 11:00',
       rec: 'Plants without a Ramadan schedule typically lose 15–25% of Ramadan revenue.',
@@ -173,7 +191,7 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
   if (r.availRate < 0.85 && r.operativeTrucks > 0 && r.trucks > 0) {
     const offRoad = r.trucks - r.operativeTrucks
     issues.push({
-      sev: r.availRate < 0.70 ? 'red' : 'amber', pin: false, category: 'bottleneck',
+      sev: r.availRate < 0.70 ? 'red' : 'amber', pin: false, category: 'bottleneck', dimension: 'Logistics',
       t: `Fleet availability ${Math.round(r.availRate * 100)}% — ${offRoad} truck${offRoad > 1 ? 's' : ''} regularly off-road`,
       action: 'Set daily availability target of 90%+ — track off-road trucks on a whiteboard',
       rec: `Effective fleet is ${r.operativeTrucks} trucks, not ${r.trucks}. Improving availability to 90% adds ${Math.floor(r.trucks * 0.9) - r.operativeTrucks} trucks back to daily capacity.`,
@@ -187,7 +205,7 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
     const wMin = a.washout_time === 'Over 30 minutes — significant bottleneck' ? 35 : 25
     const wLoss = r.operativeTrucks > 0 && r.contrib > 0 ? Math.round((wMin - 15) / 60 * r.operativeTrucks * r.delDay / r.operativeTrucks * r.mixCap * r.contrib * (r.opD / 12)) : 0
     issues.push({
-      sev: 'amber', pin: false, category: 'independent',
+      sev: 'amber', pin: false, category: 'independent', dimension: 'Logistics',
       t: `Washout takes ${(a.washout_time as string).split(' —')[0].toLowerCase()} — recoverable idle time`,
       action: 'Install dedicated washout bay with high-pressure water supply',
       rec: `Reducing washout to 10–15 min frees ${wMin - 15} min per truck per cycle.`,
@@ -199,7 +217,7 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
 
   if (r.siteWait > 45) {
     issues.push({
-      sev: 'amber', pin: false, category: 'independent',
+      sev: 'amber', pin: false, category: 'independent', dimension: 'Other',
       t: `Site wait time ${r.siteWait} min — trucks held ${r.siteWait - 40} min above 40-min target`,
       action: 'Require site readiness confirmation before dispatching — implement a pre-pour checklist',
       rec: 'Trucks should only depart when the site confirms pump crew and foreman are ready.',
@@ -209,7 +227,7 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
   }
   if (r.demurrageOpportunity > 0 && a.demurrage_policy === 'Clause exists but rarely enforced') {
     issues.push({
-      sev: 'amber', pin: false, category: 'independent',
+      sev: 'amber', pin: false, category: 'independent', dimension: 'Other',
       t: `Demurrage clause exists but not enforced — ${fmt(r.demurrageOpportunity)}/month unrecovered`,
       action: 'Start invoicing demurrage on all site delays over 40 minutes',
       rec: 'The clause is in your contracts. Enforcing it consistently recovers revenue and changes contractor behaviour.',
@@ -218,7 +236,7 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
   }
   if (r.demurrageOpportunity > 0 && (a.demurrage_policy === 'No demurrage charge in contracts' || a.demurrage_policy === 'Not sure')) {
     issues.push({
-      sev: 'amber', pin: false, category: 'independent',
+      sev: 'amber', pin: false, category: 'independent', dimension: 'Other',
       t: 'No demurrage policy — site delays absorbed entirely by plant',
       action: 'Add a demurrage clause to all new and renewed contracts',
       rec: `Estimated monthly exposure: ${fmt(r.demurrageOpportunity)}. $2/min beyond the agreed window is common in GCC.`,
@@ -230,7 +248,7 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
 
   if (r.truckBreakdowns > 2 || a.maint_programme === 'Reactive only — trucks are repaired when they break down' || a.maint_programme === 'No maintenance programme') {
     issues.push({
-      sev: r.truckBreakdowns > 4 ? 'red' : 'amber', pin: false, category: 'independent',
+      sev: r.truckBreakdowns > 4 ? 'red' : 'amber', pin: false, category: 'independent', dimension: 'Logistics',
       t: r.truckBreakdowns > 0 ? `${r.truckBreakdowns} truck breakdown${r.truckBreakdowns > 1 ? 's' : ''} last month — reactive maintenance costing ${fmt(r.breakdownCostMonthly)}/month` : 'Reactive-only maintenance — breakdown risk unquantified',
       action: 'Implement monthly truck service schedule — tyres, drum, hydraulics, engine',
       rec: "Reactive maintenance costs 3–5× more over a fleet's lifetime. A basic monthly service schedule reduces unplanned downtime by 50–70%.",
@@ -242,7 +260,7 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
 
   if (r.rejectPct > 1.5 && (a.return_liability === 'Plant always absorbs the cost' || a.return_liability === 'No clear policy')) {
     issues.push({
-      sev: 'amber', pin: false, category: 'independent',
+      sev: 'amber', pin: false, category: 'independent', dimension: 'Quality',
       t: 'Plant absorbs all reject costs — no contractor liability for returns',
       action: 'Add material cost recovery clause to all delivery contracts',
       rec: `At ${r.rejectPct}% reject rate, the plant bears 100% of material costs on every returned load.`,
@@ -255,7 +273,7 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
   if (a.operator_backup === 'No — only one person can run the batch plant' || a.operator_backup === 'Not sure') {
     const dailyRev = r.delDay > 0 && r.price > 0 ? Math.round(r.delDay * r.mixCap * r.price) : 0
     issues.push({
-      sev: 'red', pin: false, category: 'independent',
+      sev: 'red', pin: false, category: 'independent', dimension: 'Production',
       t: 'Single-operator dependency — plant cannot run if batch operator is absent',
       action: 'Train a backup operator within 30 days — target: fully independent within 60',
       rec: `Daily revenue at risk if operator is absent: ${fmt(dailyRev)}.`,
@@ -267,7 +285,7 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
 
   if (r.topCustPct > 50) {
     issues.push({
-      sev: 'red', pin: false, category: 'independent',
+      sev: 'red', pin: false, category: 'independent', dimension: 'Other',
       t: `${r.topCustPct}% of volume from single customer — critical revenue concentration`,
       action: 'Begin active outreach to 3 new contractors this month',
       rec: `Monthly revenue at risk if this customer is lost: ${fmt(r.concentrationRisk)}.`,
@@ -275,7 +293,7 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
     })
   } else if (r.topCustPct > 30) {
     issues.push({
-      sev: 'amber', pin: false, category: 'independent',
+      sev: 'amber', pin: false, category: 'independent', dimension: 'Other',
       t: `${r.topCustPct}% of volume from single customer — concentration risk`,
       action: 'Identify and pursue 2–3 alternative contractors',
       rec: `Monthly revenue from top customer: ${fmt(r.concentrationRisk)}. Worth actively diversifying.`,
@@ -287,7 +305,7 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
 
   if (r.cementOptOpp > 0) {
     issues.push({
-      sev: 'amber', pin: false, category: 'independent',
+      sev: 'amber', pin: false, category: 'independent', dimension: 'Other',
       t: `Mix designs not reviewed in ${a.mix_design_review === 'Never formally reviewed — original designs still in use' ? 'years (never formally reviewed)' : (a.mix_design_review as string).toLowerCase()} — likely excess cement cost`,
       action: 'Commission a mix design review from a qualified concrete technologist',
       rec: `Plants using admixtures only for workability typically carry 8–15% excess cement. Estimated savings: ${fmt(r.cementOptOpp)}/month.`,
@@ -300,7 +318,7 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
 
   if (r.partialLeakMonthly > 0) {
     issues.push({
-      sev: 'amber', pin: false, category: 'independent',
+      sev: 'amber', pin: false, category: 'independent', dimension: 'Dispatch',
       t: `Average load ${r.partialLoad} m³ on ${r.mixCap} m³ trucks — ${Math.round((1 - r.partialRatio) * 100)}% capacity unused per trip`,
       action: `Consolidate small orders — minimum batch size policy or surcharge below ${Math.round(r.mixCap * 0.8)} m³`,
       rec: `Introducing a minimum order size or small-load surcharge recovers ${fmt(r.partialLeakMonthly)}/month.`,
@@ -313,7 +331,7 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
 
   if (r.surplusLeakMonthly > 0 && r.surplusMid >= 0.35) {
     issues.push({
-      sev: r.surplusMid >= 0.75 ? 'red' : 'amber', pin: false, category: 'independent',
+      sev: r.surplusMid >= 0.75 ? 'red' : 'amber', pin: false, category: 'independent', dimension: 'Quality',
       t: `${r.surplusMid} m³ surplus concrete wasted per trip — ${fmt(r.surplusLeakMonthly)}/month in raw material cost`,
       action: 'Calibrate batch volumes to order size — train operators to batch to 102% of order, not 110%',
       rec: 'Tighter batch calibration reduces this to under 0.2 m³ at most well-run plants.',
@@ -325,20 +343,20 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
   // ── Reject cause contextual flags ──────────────────────────────────────
 
   if (r.rejectPct > 1.5 && a.reject_cause === 'Rejection not tracked — unknown') {
-    issues.push({ sev: 'amber', pin: false, category: 'independent', t: 'Rejections not tracked — cause unknown, improvement impossible', action: 'Start logging every rejection with cause code from tomorrow', rec: 'A simple cause code on each return ticket costs nothing and reveals the fix within 30 days.', loss: 0 })
+    issues.push({ sev: 'amber', pin: false, category: 'independent', dimension: 'Quality', t: 'Rejections not tracked — cause unknown, improvement impossible', action: 'Start logging every rejection with cause code from tomorrow', rec: 'A simple cause code on each return ticket costs nothing and reveals the fix within 30 days.', loss: 0 })
   }
   if (r.rejectPct > 1.5 && a.reject_cause === 'Heat and stiffening during transit') {
-    issues.push({ sev: 'amber', pin: false, category: 'independent', t: 'Heat stiffening causing rejections — retarder dosage needs review', action: 'Increase retarder dosage on loads with transit time over 45 min', rec: 'Retarder adjustment to mix design for long-haul loads is the standard fix.', loss: 0 })
+    issues.push({ sev: 'amber', pin: false, category: 'independent', dimension: 'Quality', t: 'Heat stiffening causing rejections — retarder dosage needs review', action: 'Increase retarder dosage on loads with transit time over 45 min', rec: 'Retarder adjustment to mix design for long-haul loads is the standard fix.', loss: 0 })
   }
   if (r.rejectPct > 1.5 && a.reject_cause === 'Site not ready — pump or crew unavailable') {
-    issues.push({ sev: 'amber', pin: false, category: 'independent', t: 'Site unreadiness causing rejections — a dispatch and demurrage problem', action: 'Implement pre-departure site readiness call', rec: 'The fix is in dispatch protocol and contract enforcement.', loss: 0 })
+    issues.push({ sev: 'amber', pin: false, category: 'independent', dimension: 'Quality', t: 'Site unreadiness causing rejections — a dispatch and demurrage problem', action: 'Implement pre-departure site readiness call', rec: 'The fix is in dispatch protocol and contract enforcement.', loss: 0 })
   }
 
   // ── Fuel cost ──────────────────────────────────────────────────────────
 
   if (r.fuelPerDel > 0 && r.fuelMarginImpact > 0.15) {
     issues.push({
-      sev: 'amber', pin: false, category: 'independent',
+      sev: 'amber', pin: false, category: 'independent', dimension: 'Other',
       t: `Fuel cost $${r.fuelPerDel}/delivery — ${Math.round(r.fuelMarginImpact * 100)}% of contribution margin`,
       action: 'Review delivery radius and route efficiency — fuel is eroding margin',
       rec: `Monthly fleet fuel cost: ${fmt(r.fuelMonthly)}. Review whether fuel costs are factored into pricing.`,
@@ -351,7 +369,7 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
 
   if (r.atypicalMonth) {
     issues.push({
-      sev: 'amber', pin: false, category: 'independent',
+      sev: 'amber', pin: false, category: 'independent', dimension: 'Other',
       t: 'Figures based on atypical month — all dollar estimates are directional only',
       action: 'Verify key figures against a normal month before presenting to plant owner',
       rec: `Last month was reported as: "${a.typical_month}". Cross-check against a representative month.`,
@@ -363,7 +381,7 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
 
   if (a.order_notice === 'Under 4 hours — same day calls only' && r.scores.dispatch !== null && r.scores.dispatch < 70) {
     issues.push({
-      sev: 'amber', pin: false, category: 'independent',
+      sev: 'amber', pin: false, category: 'independent', dimension: 'Dispatch',
       t: 'Same-day orders only — route optimisation not feasible at current planning horizon',
       action: 'Focus on rapid response protocols, not route planning',
       rec: 'With under 4 hours notice, formal zone scheduling is not achievable. Focus on reducing order-to-dispatch time.',
@@ -374,10 +392,10 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
   // ── Aggregate days ─────────────────────────────────────────────────────
 
   if (a.aggregate_days === 'Under 2 days — high supply risk') {
-    issues.push({ sev: 'red', pin: false, category: 'independent', t: 'Aggregate stock under 2 days — one missed delivery stops the plant', action: 'Call your aggregate supplier today — negotiate a standing delivery schedule', rec: 'Target: 5-day minimum buffer for sand and all aggregate types.', loss: 0 })
+    issues.push({ sev: 'red', pin: false, category: 'independent', dimension: 'Other', t: 'Aggregate stock under 2 days — one missed delivery stops the plant', action: 'Call your aggregate supplier today — negotiate a standing delivery schedule', rec: 'Target: 5-day minimum buffer for sand and all aggregate types.', loss: 0 })
   }
   if (a.aggregate_days === '2 to 5 days — tight, supply-sensitive') {
-    issues.push({ sev: 'amber', pin: false, category: 'independent', t: 'Aggregate stock 2–5 days — vulnerable to supply disruption', action: 'Increase reorder point — extend to 7+ days before Ramadan and public holidays', rec: 'Aggregate supply disruptions are as common as cement disruptions in GCC markets.', loss: 0 })
+    issues.push({ sev: 'amber', pin: false, category: 'independent', dimension: 'Other', t: 'Aggregate stock 2–5 days — vulnerable to supply disruption', action: 'Increase reorder point — extend to 7+ days before Ramadan and public holidays', rec: 'Aggregate supply disruptions are as common as cement disruptions in GCC markets.', loss: 0 })
   }
 
   // ── Driver constraint ──────────────────────────────────────────────────
@@ -386,7 +404,7 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
     const driversShort = r.operativeTrucks - r.qualifiedDrivers
     const driverCapLoss = Math.round(driversShort * (r.opH * 60 / r.TARGET_TA) * 0.85 * r.mixCap * r.contrib * (r.opD / 12))
     issues.push({
-      sev: 'amber', pin: false, category: 'bottleneck',
+      sev: 'amber', pin: false, category: 'bottleneck', dimension: 'Logistics',
       t: `Only ${r.qualifiedDrivers} qualified drivers for ${r.operativeTrucks} operative trucks — drivers are the bottleneck`,
       action: 'Prioritise licence renewal and stagger home leave schedules',
       rec: `${driversShort} truck${driversShort > 1 ? 's are' : ' is'} sitting idle due to driver shortage. Monthly capacity impact: ${fmt(driverCapLoss)}.`,
@@ -398,7 +416,7 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
 
   if (r.waterCost > 1) {
     issues.push({
-      sev: 'amber', pin: false, category: 'independent',
+      sev: 'amber', pin: false, category: 'independent', dimension: 'Other',
       t: `Water cost $${r.waterCost.toFixed(2)}/m³ — significant margin item`,
       action: 'Include water cost in your per-m³ pricing calculation',
       rec: `Monthly water cost: ${fmt(Math.round(r.waterCost * r.monthlyM3))}.`,
@@ -410,7 +428,7 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
 
   if (r.calibrationExposure > 0) {
     issues.push({
-      sev: 'amber', pin: false, category: 'independent',
+      sev: 'amber', pin: false, category: 'independent', dimension: 'Quality',
       t: `Batch plant not calibrated in ${a.batch_calibration === 'Never calibrated — original factory settings only' ? 'years (never)' : (a.batch_calibration as string).toLowerCase()} — dosing accuracy at risk`,
       action: 'Commission professional calibration from equipment manufacturer',
       rec: `Estimated monthly exposure from 5% cement drift: ${fmt(r.calibrationExposure)}. Calibration costs $500–2,000.`,
@@ -423,7 +441,7 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
 
   if (a.summer_cooling === 'No — no active cooling measures' && GCC_COUNTRIES.includes(country)) {
     issues.push({
-      sev: 'amber', pin: false, category: 'independent',
+      sev: 'amber', pin: false, category: 'independent', dimension: 'Quality',
       t: 'No active concrete cooling — elevated reject risk during summer months',
       action: 'Install chilled water system before June — or use ice addition as interim measure',
       rec: 'In GCC summer conditions above 42°C, concrete without active cooling regularly exceeds 32°C at discharge.',

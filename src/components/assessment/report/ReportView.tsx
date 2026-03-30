@@ -1,11 +1,10 @@
 'use client'
 
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo, type ReactNode } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { CalcResult, Answers } from '@/lib/calculations'
-import { buildIssues } from '@/lib/issues'
+import { buildIssues, getFinancialBottleneck } from '@/lib/issues'
 import { stripMarkdown } from '@/lib/stripMarkdown'
-import ScoreChips from './ScoreChips'
 import FindingCard from './FindingCard'
 import ExportPDF from './ExportPDF'
 
@@ -156,6 +155,228 @@ function Divider() {
   return <div style={{ borderTop: '1px solid var(--gray-100)', margin: '24px 0' }} />
 }
 
+// ── KPI Pyramid helpers ────────────────────────────────────────────────────
+
+interface KpiBoxProps {
+  label: string
+  value: string
+  target: string
+  isBottleneck: boolean
+  isWarn: boolean
+  size?: 'normal' | 'small'
+  bar: ReactNode
+  gap: string
+  gapColor: string
+}
+
+function KpiBox({ label, value, target, isBottleneck, isWarn, size = 'normal', bar, gap, gapColor }: KpiBoxProps) {
+  const bg = isBottleneck ? 'var(--error-bg)' : isWarn ? 'var(--warning-bg)' : 'var(--gray-100)'
+  const border = isBottleneck ? 'var(--error-border)' : isWarn ? 'var(--warning-border)' : 'var(--border)'
+  return (
+    <div style={{ position: 'relative', background: bg, border: `1px solid ${border}`, borderRadius: 'var(--radius)', padding: size === 'small' ? '10px 12px' : '12px 14px' }}>
+      {isBottleneck && (
+        <div style={{ position: 'absolute', top: '6px', right: '8px', fontSize: '8px', fontWeight: 700, color: '#fff', background: 'var(--red)', borderRadius: '3px', padding: '2px 5px', letterSpacing: '.3px' }}>
+          ▼ Bottleneck
+        </div>
+      )}
+      <div style={{ fontSize: '9px', color: 'var(--gray-500)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.4px' }}>{label}</div>
+      <div style={{ fontSize: size === 'small' ? '17px' : '22px', fontWeight: 700, fontFamily: 'var(--mono)', color: gapColor, marginTop: '2px' }}>{value}</div>
+      {target && <div style={{ fontSize: '9px', color: 'var(--gray-400)', marginTop: '1px' }}>{target}</div>}
+      {bar && <div style={{ marginTop: '7px' }}>{bar}</div>}
+      {gap && <div style={{ fontSize: '9px', fontWeight: 600, color: gapColor, marginTop: '3px' }}>{gap}</div>}
+    </div>
+  )
+}
+
+// Bar: higher is better (utilisation, deliveries/truck)
+function KpiBarHigher({ current, target, max, isBottleneck, isWarn }: { current: number; target: number; max: number; isBottleneck: boolean; isWarn: boolean }) {
+  const fillPct = max > 0 ? Math.min((current / max) * 100, 100) : 0
+  const targetPct = max > 0 ? Math.min((target / max) * 100, 100) : 85
+  const color = isBottleneck ? '#ef4444' : isWarn ? '#f59e0b' : 'var(--green)'
+  return (
+    <div style={{ position: 'relative', height: '5px', background: 'var(--gray-200)', borderRadius: '3px' }}>
+      <div style={{ position: 'absolute', height: '5px', width: `${fillPct}%`, background: color, borderRadius: '3px', opacity: 0.75 }} />
+      <div style={{ position: 'absolute', top: '-2px', left: `${targetPct}%`, width: '2px', height: '9px', background: 'var(--gray-500)', transform: 'translateX(-50%)' }} />
+    </div>
+  )
+}
+
+// Bar: lower is better with two-tone overlay (good portion green, excess amber/red)
+function KpiBarLowerOverlay({ current, target, isBottleneck }: { current: number; target: number; isBottleneck: boolean }) {
+  if (current <= 0) return null
+  const goodPct = Math.min((target / current) * 100, 100)
+  const badPct = 100 - goodPct
+  const badColor = isBottleneck ? '#ef4444' : '#d97706'
+  return (
+    <div style={{ display: 'flex', height: '5px', borderRadius: '3px', overflow: 'hidden' }}>
+      <div style={{ width: `${goodPct}%`, background: 'var(--green)', opacity: 0.55 }} />
+      {badPct > 0 && <div style={{ width: `${badPct}%`, background: badColor, opacity: 0.8 }} />}
+    </div>
+  )
+}
+
+// Bar: lower is better with target marker
+function KpiBarLower({ current, target, max, isBottleneck, isWarn }: { current: number; target: number; max: number; isBottleneck: boolean; isWarn: boolean }) {
+  const fillPct = max > 0 ? Math.min((current / max) * 100, 100) : 0
+  const targetPct = max > 0 ? Math.min((target / max) * 100, 100) : 60
+  const color = isBottleneck ? '#ef4444' : isWarn ? '#f59e0b' : 'var(--green)'
+  return (
+    <div style={{ position: 'relative', height: '5px', background: 'var(--gray-200)', borderRadius: '3px' }}>
+      <div style={{ position: 'absolute', height: '5px', width: `${fillPct}%`, background: color, borderRadius: '3px', opacity: 0.75 }} />
+      <div style={{ position: 'absolute', top: '-2px', left: `${targetPct}%`, width: '2px', height: '9px', background: 'var(--gray-500)', transform: 'translateX(-50%)' }} />
+    </div>
+  )
+}
+
+// ── KPI Pyramid ────────────────────────────────────────────────────────────
+function KPIPyramid({ calcResult, answers, totalLoss, dailyLoss, financialBottleneck }: {
+  calcResult: CalcResult
+  answers: Answers
+  totalLoss: number
+  dailyLoss: number
+  financialBottleneck: string | null
+}) {
+  if (totalLoss === 0) return null
+
+  const utilPct = Math.round(calcResult.util * 100)
+
+  // Dispatch time midpoint from answer
+  const dispTimeMap: Record<string, number> = {
+    'Under 15 minutes — fast response': 12,
+    '15 to 25 minutes — acceptable': 20,
+    '25 to 40 minutes — slow': 32,
+    'Over 40 minutes — critical bottleneck': 45,
+  }
+  const dispTime = dispTimeMap[answers.order_to_dispatch as string] ?? null
+
+  // Deliveries per truck per day
+  const effTrucks = calcResult.operativeTrucks || calcResult.trucks
+  const delPerTruck = effTrucks > 0 ? Math.round((calcResult.delDay / effTrucks) * 10) / 10 : 0
+  const targetDelPerTruck = calcResult.trucks > 0
+    ? Math.round((calcResult.realisticMaxDel / calcResult.trucks) * 10) / 10
+    : 0
+
+  // Which boxes get bottleneck tag
+  const isUtilBn = financialBottleneck === 'Production'
+  const isTaBn = financialBottleneck === 'Logistics'
+  const isRejectBn = financialBottleneck === 'Quality'
+  const isDispBn = financialBottleneck === 'Dispatch'
+
+  // Warning thresholds
+  const utilWarn = utilPct < 82
+  const taWarn = calcResult.ta > calcResult.TARGET_TA
+  const rejectWarn = calcResult.rejectPct > 3
+  const dispWarn = dispTime !== null && dispTime > 15
+  const delWarn = targetDelPerTruck > 0 && delPerTruck < targetDelPerTruck * 0.9
+
+  function kpiColor(isBn: boolean, isW: boolean): string {
+    if (isBn) return 'var(--red)'
+    if (isW) return '#d97706'
+    return 'var(--gray-500)'
+  }
+
+  const connector = (
+    <div style={{ display: 'flex', justifyContent: 'center', height: '14px' }}>
+      <div style={{ width: '1px', background: 'var(--gray-200)', height: '100%' }} />
+    </div>
+  )
+
+  return (
+    <div style={{ marginBottom: '24px' }}>
+      <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '8px' }}>
+        Key Metrics
+      </div>
+
+      {/* Row 1: Financial */}
+      <div style={{
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        background: 'var(--error-bg)', border: '1px solid var(--error-border)',
+        borderRadius: 'var(--radius)', padding: '14px 18px', marginBottom: '0',
+      }}>
+        <div>
+          <div style={{ fontSize: '9px', color: 'var(--gray-500)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.4px' }}>Potential Monthly Loss</div>
+          <div style={{ fontSize: '24px', fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--red)', marginTop: '1px' }}>{fmt(totalLoss)}</div>
+          <div style={{ fontSize: '9px', color: 'var(--gray-500)', marginTop: '2px' }}>{fmt(totalLoss * 12)}/year · assumes sufficient demand</div>
+        </div>
+        <div style={{ textAlign: 'right', paddingLeft: '20px', borderLeft: '1px solid var(--error-border)' }}>
+          <div style={{ fontSize: '9px', color: 'var(--gray-500)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.4px' }}>Per Working Day</div>
+          <div style={{ fontSize: '24px', fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--red)', marginTop: '1px' }}>{fmt(dailyLoss)}</div>
+          <div style={{ fontSize: '9px', color: 'var(--gray-500)', marginTop: '2px' }}>based on 22 working days/mo</div>
+        </div>
+      </div>
+
+      {connector}
+
+      {/* Row 2: Primary drivers */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+        <KpiBox
+          label="Plant Utilisation"
+          value={`${utilPct}%`}
+          target="target 85%"
+          isBottleneck={isUtilBn}
+          isWarn={utilWarn}
+          bar={<KpiBarHigher current={utilPct} target={85} max={100} isBottleneck={isUtilBn} isWarn={utilWarn} />}
+          gap={utilWarn ? `−${85 - utilPct} pp below target` : 'on target'}
+          gapColor={kpiColor(isUtilBn, utilWarn)}
+        />
+        <KpiBox
+          label="Turnaround Time"
+          value={`${calcResult.ta} min`}
+          target={`target ${calcResult.TARGET_TA} min`}
+          isBottleneck={isTaBn}
+          isWarn={taWarn}
+          bar={<KpiBarLowerOverlay current={calcResult.ta} target={calcResult.TARGET_TA} isBottleneck={isTaBn} />}
+          gap={taWarn ? `+${calcResult.ta - calcResult.TARGET_TA} min over target` : 'on target'}
+          gapColor={kpiColor(isTaBn, taWarn)}
+        />
+      </div>
+
+      {connector}
+
+      {/* Row 3: Supporting metrics */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px' }}>
+        <KpiBox
+          label="Rejection Rate"
+          value={`${calcResult.rejectPct}%`}
+          target="target <3%"
+          isBottleneck={isRejectBn}
+          isWarn={rejectWarn}
+          size="small"
+          bar={<KpiBarLower current={calcResult.rejectPct} target={3} max={Math.max(calcResult.rejectPct * 1.5, 6)} isBottleneck={isRejectBn} isWarn={rejectWarn} />}
+          gap={rejectWarn ? `+${(calcResult.rejectPct - 3).toFixed(1)} pp over target` : 'on target'}
+          gapColor={kpiColor(isRejectBn, rejectWarn)}
+        />
+        {dispTime !== null ? (
+          <KpiBox
+            label="Dispatch Time"
+            value={`${dispTime} min`}
+            target="target 15 min"
+            isBottleneck={isDispBn}
+            isWarn={dispWarn}
+            size="small"
+            bar={<KpiBarLowerOverlay current={dispTime} target={15} isBottleneck={isDispBn} />}
+            gap={dispWarn ? `+${dispTime - 15} min over target` : 'on target'}
+            gapColor={kpiColor(isDispBn, dispWarn)}
+          />
+        ) : (
+          <KpiBox label="Dispatch Time" value="—" target="target 15 min" isBottleneck={false} isWarn={false} size="small" bar={null} gap="" gapColor="var(--gray-400)" />
+        )}
+        <KpiBox
+          label="Deliveries / truck / day"
+          value={delPerTruck > 0 ? String(delPerTruck) : '—'}
+          target={targetDelPerTruck > 0 ? `target ${targetDelPerTruck}` : ''}
+          isBottleneck={false}
+          isWarn={delWarn}
+          size="small"
+          bar={delPerTruck > 0 && targetDelPerTruck > 0 ? <KpiBarHigher current={delPerTruck} target={targetDelPerTruck} max={targetDelPerTruck * 1.1} isBottleneck={false} isWarn={delWarn} /> : null}
+          gap={delWarn && targetDelPerTruck > 0 ? `−${(targetDelPerTruck - delPerTruck).toFixed(1)} per day` : ''}
+          gapColor={kpiColor(false, delWarn)}
+        />
+      </div>
+    </div>
+  )
+}
+
 // ── Main component ─────────────────────────────────────────────────────────
 interface ReportViewProps {
   calcResult: CalcResult
@@ -170,6 +391,7 @@ interface ReportViewProps {
 export default function ReportView({ calcResult, answers, meta, report, assessmentId, reportReleased, isAdmin }: ReportViewProps) {
   const supabase = createClient()
   const issues = buildIssues(calcResult, answers, meta)
+  const financialBottleneck = getFinancialBottleneck(issues)
 
   const bottleneckIssues = issues.filter(i => i.category === 'bottleneck' && i.loss > 0)
   const bottleneckLoss = bottleneckIssues.length > 0 ? Math.max(...bottleneckIssues.map(i => i.loss)) : 0
@@ -198,7 +420,7 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
     date: meta?.date || '',
     scores: calcResult.scores,
     overall: calcResult.overall,
-    bottleneck: calcResult.bottleneck,
+    bottleneck: financialBottleneck,
     ebitdaMonthly,
     dailyLoss,
     hiddenRevMonthly: calcResult.hiddenRevMonthly,
@@ -327,25 +549,18 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
         </div>
       )}
 
-      {/* ── SECTION 1: Opening hook ───────────────────────────────────────── */}
-      {totalLoss > 0 && (
-        <div style={{
-          background: 'var(--error-bg)', border: '1px solid var(--error-border)',
-          borderRadius: 'var(--radius)', padding: '16px 20px', marginBottom: '24px',
-          textAlign: 'center',
-        }}>
-          <div style={{ fontSize: '13px', color: 'var(--red)', fontWeight: 600, lineHeight: 1.5 }}>
-            This plant has a potential{' '}
-            <span style={{ fontFamily: 'var(--mono)', fontSize: '15px' }}>{fmt(dailyLoss)}</span>
-            {' '}per working day to recover.
-          </div>
-          <div style={{ fontSize: '11px', color: 'var(--gray-500)', marginTop: '4px' }}>
-            {fmt(totalLoss)}/month · {fmt(totalLoss * 12)}/year — contingent on order book
-          </div>
-        </div>
-      )}
+      {/* ── KPI Pyramid ───────────────────────────────────────────────────── */}
+      <KPIPyramid
+        calcResult={calcResult}
+        answers={answers}
+        totalLoss={totalLoss}
+        dailyLoss={dailyLoss}
+        financialBottleneck={financialBottleneck}
+      />
 
-      {/* ── SECTION 2: Plant Snapshot (AI) ───────────────────────────────── */}
+      <Divider />
+
+      {/* ── SECTION 2: Executive Summary (AI) ────────────────────────────── */}
       <AISection
         title="Executive Summary"
         text={texts.executive}
@@ -354,56 +569,6 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
         onSave={t => saveSection('executive', t)}
         minHeight={100}
       />
-
-      <Divider />
-
-      {/* ── SECTION 3: Performance scores ────────────────────────────────── */}
-      <div style={{ marginBottom: '24px' }}>
-        <h3 style={{ fontSize: '13px', fontWeight: 600, color: 'var(--gray-900)', margin: '0 0 10px', textTransform: 'uppercase', letterSpacing: '.4px' }}>
-          Performance Scores
-        </h3>
-        <ScoreChips
-          scores={calcResult.scores}
-          overall={calcResult.overall}
-          bottleneck={calcResult.bottleneck}
-        />
-      </div>
-
-      {/* ── SECTION 4: What this is costing ──────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '24px' }}>
-        <div style={{
-          background: totalLoss > 0 ? 'var(--error-bg)' : 'var(--gray-100)',
-          border: `1px solid ${totalLoss > 0 ? 'var(--error-border)' : 'var(--border)'}`,
-          borderRadius: 'var(--radius)', padding: '14px 16px',
-        }}>
-          <div style={{ fontSize: '10px', color: 'var(--gray-500)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '.3px' }}>
-            Potential cost of inaction
-            <ReportInfoTip
-              title="How this is calculated"
-              text="Estimated monthly revenue gap if current operational inefficiencies continue. Assumes sufficient customer demand exists to absorb recovered capacity — figures are potential, not guaranteed. Primary bottleneck loss (largest overlapping constraint) plus independent losses (rejects, waste). Only the largest overlapping issue is counted to avoid double-counting."
-            />
-          </div>
-          <div style={{ fontSize: '22px', fontWeight: 600, fontFamily: 'var(--mono)', color: totalLoss > 0 ? 'var(--red)' : 'var(--gray-500)', marginTop: '2px' }}>
-            {totalLoss > 0 ? fmt(totalLoss) + '/mo' : '—'}
-          </div>
-        </div>
-        <div style={{
-          background: calcResult.hiddenRevMonthly > 0 ? 'var(--green-light)' : 'var(--gray-100)',
-          border: `1px solid ${calcResult.hiddenRevMonthly > 0 ? 'var(--tooltip-border)' : 'var(--border)'}`,
-          borderRadius: 'var(--radius)', padding: '14px 16px',
-        }}>
-          <div style={{ fontSize: '10px', color: 'var(--gray-500)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '.3px' }}>
-            Potential hidden revenue
-            <ReportInfoTip
-              title="How this is calculated"
-              text="Additional monthly revenue attainable if your fleet delivered at realistic maximum capacity — contingent on having sufficient orders to fill that capacity. This is a component of the bottleneck loss, not additional to it."
-            />
-          </div>
-          <div style={{ fontSize: '22px', fontWeight: 600, fontFamily: 'var(--mono)', color: calcResult.hiddenRevMonthly > 0 ? 'var(--green)' : 'var(--gray-500)', marginTop: '2px' }}>
-            {calcResult.hiddenRevMonthly > 0 ? fmt(calcResult.hiddenRevMonthly) + '/mo' : '—'}
-          </div>
-        </div>
-      </div>
 
       <Divider />
 
