@@ -386,8 +386,9 @@ export function calc(answers: Answers, meta?: { season?: string }): CalcResult {
 
   // Truck breakdown cost estimate
   const truckBreakdowns = +(a.truck_breakdowns ?? 0) || 0
+  // Each breakdown takes ~half a day → loses 0.5 × (deliveries per truck per day) deliveries
   const breakdownCostMonthly = truckBreakdowns > 0 && operativeTrucks > 0
-    ? Math.round(truckBreakdowns * (opH * 0.5) * (delDay / operativeTrucks) * mixCap * contrib) : 0
+    ? Math.round(truckBreakdowns * 0.5 * (delDay / operativeTrucks) * mixCap * contrib) : 0
 
   // Customer concentration risk
   const topCustPct = +(a.top_customer_pct ?? 0) || 0

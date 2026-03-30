@@ -216,13 +216,13 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
   // ── Site wait + demurrage ──────────────────────────────────────────────
 
   if (r.siteWait > 45) {
+    // Dollar loss is carried by the demurrage policy issue below (if applicable) — avoid double-counting
     issues.push({
       sev: 'amber', pin: false, category: 'independent', dimension: 'Other',
       t: `Site wait time ${r.siteWait} min — trucks held ${r.siteWait - 40} min above 40-min target`,
       action: 'Require site readiness confirmation before dispatching — implement a pre-pour checklist',
       rec: 'Trucks should only depart when the site confirms pump crew and foreman are ready.',
-      loss: r.demurrageOpportunity > 0 ? r.demurrageOpportunity : 0,
-      formula: r.demurrageOpportunity > 0 ? `MAX(0, ${r.siteWait}−40 min) ÷ ${r.ta} min × ${r.realisticMaxDel} del × ${r.mixCap} m³ × $${Math.round(r.contrib)} × ${Math.round(r.opD / 12)} days` : '',
+      loss: 0,
     })
   }
   if (r.demurrageOpportunity > 0 && a.demurrage_policy === 'Clause exists but rarely enforced') {
@@ -336,7 +336,7 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
       action: 'Calibrate batch volumes to order size — train operators to batch to 102% of order, not 110%',
       rec: 'Tighter batch calibration reduces this to under 0.2 m³ at most well-run plants.',
       loss: r.surplusLeakMonthly,
-      formula: `${r.surplusMid} m³ × ${r.delDay} del/day × $${r.price} × ${Math.round(r.opD / 12)} days/month`,
+      formula: `${r.surplusMid} m³ × ${r.delDay} del/day × $${Math.round(r.price - r.contrib)} material cost × ${Math.round(r.opD / 12)} days/month`,
     })
   }
 
