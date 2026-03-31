@@ -12,9 +12,13 @@ export default async function DashboardPage() {
     .eq('id', user.id)
     .single()
 
-  if (profile?.role === 'admin') {
+  const role = profile?.role
+  if (role === 'system_admin') {
     redirect('/dashboard/portfolio')
+  } else if (role === 'customer_admin') {
+    redirect('/dashboard/reports')
   } else {
+    // customer_user — redirect to reports (they'll see their assigned assessments)
     redirect('/dashboard/reports')
   }
 }

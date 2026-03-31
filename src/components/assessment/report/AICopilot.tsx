@@ -1,6 +1,8 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import { stripMarkdown } from '@/lib/stripMarkdown'
 
 interface AICopilotProps {
   report: { executive?: string; diagnosis?: string; actions?: string } | null
@@ -13,10 +15,11 @@ type ReportSection = 'executive' | 'diagnosis' | 'actions'
 const SECTION_LABELS: Record<ReportSection, string> = {
   executive: 'Executive Summary',
   diagnosis: 'Operational Diagnosis',
-  actions: 'Improvement Actions',
+  actions: 'Next Step',
 }
 
 export default function AICopilot({ report, assessmentId, context }: AICopilotProps) {
+  const supabase = createClient()
   const [activeTab, setActiveTab] = useState<ReportSection>('executive')
   const [texts, setTexts] = useState<Record<string, string>>({
     executive: report?.executive || '',
@@ -25,9 +28,32 @@ export default function AICopilot({ report, assessmentId, context }: AICopilotPr
   })
   const [generating, setGenerating] = useState<ReportSection | null>(null)
   const [editing, setEditing] = useState<ReportSection | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [genError, setGenError] = useState<string | null>(null)
+  // Keep previous text as fallback if regeneration fails
+  const previousText = useRef<string>('')
+
+  const saveSection = useCallback(async (section: ReportSection, text: string) => {
+    setSaving(true)
+    const { error } = await supabase.from('reports').upsert({
+      assessment_id: assessmentId,
+      [section]: stripMarkdown(text),
+      edited: true,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'assessment_id' })
+    if (error) {
+      console.error('Report save error:', error)
+      setGenError('Failed to save — please try again.')
+      setTimeout(() => setGenError(null), 4000)
+    }
+    setSaving(false)
+  }, [assessmentId, supabase])
 
   const generate = useCallback(async (section: ReportSection) => {
     setGenerating(section)
+    setGenError(null)
+    // Save previous text so we can restore on failure
+    previousText.current = texts[section] || ''
     setTexts(prev => ({ ...prev, [section]: '' }))
 
     try {
@@ -49,14 +75,20 @@ export default function AICopilot({ report, assessmentId, context }: AICopilotPr
         const { done, value } = await reader.read()
         if (done) break
         accumulated += decoder.decode(value, { stream: true })
-        setTexts(prev => ({ ...prev, [section]: accumulated }))
+        // Strip markdown during streaming so user sees clean text as it arrives
+        setTexts(prev => ({ ...prev, [section]: stripMarkdown(accumulated) }))
       }
     } catch (e) {
       console.error('Report generation error:', e)
+      setGenError('Generation failed — click Generate to retry.')
+      // Restore previous text on failure
+      if (!texts[section]) {
+        setTexts(prev => ({ ...prev, [section]: previousText.current }))
+      }
     }
 
     setGenerating(null)
-  }, [assessmentId, context])
+  }, [assessmentId, context, texts])
 
   const generateAll = useCallback(async () => {
     for (const section of ['executive', 'diagnosis', 'actions'] as ReportSection[]) {
@@ -135,6 +167,17 @@ export default function AICopilot({ report, assessmentId, context }: AICopilotPr
           </div>
         )}
 
+        {/* Error feedback */}
+        {genError && (
+          <div style={{
+            background: 'var(--error-bg)', border: '1px solid var(--error-border)',
+            borderRadius: '6px', padding: '8px 12px', marginTop: '8px',
+            fontSize: '12px', color: 'var(--red)',
+          }}>
+            {genError}
+          </div>
+        )}
+
         {/* Action buttons */}
         <div style={{ display: 'flex', gap: '8px', marginTop: '12px', justifyContent: 'flex-end' }}>
           {text && editing !== activeTab && (
@@ -153,14 +196,18 @@ export default function AICopilot({ report, assessmentId, context }: AICopilotPr
           {editing === activeTab && (
             <button
               type="button"
-              onClick={() => setEditing(null)}
+              onClick={async () => {
+                await saveSection(activeTab, texts[activeTab] || '')
+                setEditing(null)
+              }}
+              disabled={saving}
               style={{
                 padding: '6px 14px', border: '1px solid var(--green-mid)', borderRadius: '6px',
                 fontSize: '11px', color: 'var(--green)', background: 'var(--green-light)',
-                cursor: 'pointer', fontFamily: 'var(--font)', fontWeight: 500,
+                cursor: saving ? 'not-allowed' : 'pointer', fontFamily: 'var(--font)', fontWeight: 500,
               }}
             >
-              Done editing
+              {saving ? 'Saving…' : 'Save & done'}
             </button>
           )}
           <button

@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Al-RMX — Report Draft v3</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #eef0f2; padding: 32px; }
+  .page { background: white; max-width: 800px; margin: 0 auto; padding: 48px; box-shadow: 0 4px 40px rgba(0,0,0,.1); }
+
+  /* Header */
+  .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 36px; padding-bottom: 18px; border-bottom: 2px solid #1a2e3b; }
+  .logo { font-size: 20px; font-weight: 800; color: #1a2e3b; }
+  .logo em { color: #0F6E56; font-style: normal; }
+  .header-sub { font-size: 10px; color: #9ca3af; letter-spacing: .4px; margin-top: 2px; }
+  .plant-name { font-size: 17px; font-weight: 700; color: #1a2e3b; text-align: right; }
+  .plant-meta { font-size: 11px; color: #9ca3af; margin-top: 2px; text-align: right; }
+
+  /* Section label */
+  .section-label { font-size: 9px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; color: #9ca3af; margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+  .section-label::after { content: ''; flex: 1; height: 1px; background: #e5e7eb; }
+
+  /* Divider */
+  hr { border: none; border-top: 1px solid #e5e7eb; margin: 28px 0; }
+
+  /* ── KPI PYRAMID ───────────────────────────────── */
+  .pyramid { display: flex; flex-direction: column; gap: 0; margin-bottom: 28px; }
+
+  .pyramid-row { display: flex; gap: 10px; }
+
+  /* Connector between rows */
+  .pyramid-connector {
+    display: flex; justify-content: center; align-items: center;
+    height: 18px; position: relative;
+  }
+  .pyramid-connector::before {
+    content: ''; position: absolute; left: 50%; top: 0;
+    width: 1px; height: 100%; background: #e5e7eb;
+  }
+
+  /* Base box */
+  .kpi-box {
+    flex: 1; border-radius: 8px; padding: 14px 16px;
+    border: 1px solid #e5e7eb; position: relative;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+
+  /* Financial box — top, full row */
+  .kpi-financial {
+    background: #fdf2f2; border-color: #fca5a5;
+    flex-direction: row; align-items: center; justify-content: space-between;
+    padding: 18px 24px;
+  }
+  .kpi-financial .kpi-label { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #ef4444; margin-bottom: 4px; }
+  .kpi-financial .kpi-value { font-size: 30px; font-weight: 800; font-family: 'Courier New', monospace; color: #b91c1c; line-height: 1; }
+  .kpi-financial .kpi-sub { font-size: 10px; color: #9ca3af; margin-top: 4px; }
+  .kpi-financial-right { text-align: right; border-left: 1px solid #fca5a5; padding-left: 20px; }
+  .kpi-financial-right .kpi-label { color: #9ca3af; }
+  .kpi-financial-right .kpi-value { font-size: 18px; font-weight: 700; font-family: 'Courier New', monospace; color: #b91c1c; }
+
+  /* Tier 2 boxes — critical */
+  .kpi-critical { background: #fffbf0; border-color: #fde68a; }
+  .kpi-critical-red { background: #fdf2f2; border-color: #fca5a5; }
+
+  /* Tier 3 boxes — supporting */
+  .kpi-supporting { background: #f9fafb; border-color: #e5e7eb; }
+
+  /* Bottleneck tag */
+  .bottleneck-tag {
+    position: absolute; top: -10px; left: 12px;
+    background: #b91c1c; color: white;
+    font-size: 8px; font-weight: 700; letter-spacing: .8px;
+    text-transform: uppercase; padding: 2px 7px; border-radius: 4px;
+  }
+
+  /* Box internals */
+  .kpi-label { font-size: 9px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; color: #9ca3af; }
+  .kpi-value { font-size: 18px; font-weight: 800; font-family: 'Courier New', monospace; line-height: 1.1; }
+  .kpi-target { font-size: 10px; color: #9ca3af; }
+
+  /* Progress bar inside box */
+  .kpi-bar-wrap { margin-top: 2px; }
+  .kpi-bar-track { height: 5px; background: #e5e7eb; border-radius: 3px; position: relative; overflow: visible; }
+  .kpi-bar-fill { height: 5px; border-radius: 3px; position: absolute; left: 0; top: 0; }
+  .kpi-bar-target { position: absolute; top: -4px; width: 2px; height: 13px; background: #374151; border-radius: 1px; }
+  .kpi-gap { font-size: 9px; font-weight: 600; margin-top: 4px; }
+
+  /* ── RECOVERY BARS ───────────────────────────── */
+  .rec-row { margin-bottom: 9px; }
+  .rec-top { display: flex; justify-content: space-between; margin-bottom: 3px; align-items: baseline; }
+  .rec-name { font-size: 11px; color: #374151; }
+  .rec-amount { font-size: 11px; font-weight: 700; font-family: 'Courier New', monospace; }
+  .rec-track { height: 8px; background: #f3f4f6; border-radius: 4px; overflow: hidden; }
+  .rec-fill { height: 100%; border-radius: 4px; }
+  .rec-total { margin-top: 12px; padding-top: 10px; border-top: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: baseline; }
+
+  /* ── NARRATIVE ────────────────────────────────── */
+  .narrative { font-size: 13px; color: #374151; line-height: 1.85; }
+
+  /* ── FINDINGS ─────────────────────────────────── */
+  .finding { display: grid; grid-template-columns: 18px 1fr auto; gap: 12px; padding: 11px 0; border-bottom: 1px solid #f3f4f6; align-items: start; }
+  .finding:last-child { border-bottom: none; }
+  .finding-num { font-size: 10px; font-family: 'Courier New', monospace; color: #d1d5db; padding-top: 2px; }
+  .finding-title { font-size: 12px; font-weight: 600; color: #1a2e3b; line-height: 1.4; }
+  .finding-action { font-size: 11px; color: #0F6E56; margin-top: 3px; }
+  .finding-amount { font-size: 12px; font-weight: 700; font-family: 'Courier New', monospace; text-align: right; white-space: nowrap; }
+  .finding-tag { font-size: 9px; color: #9ca3af; text-align: right; margin-top: 2px; }
+
+  /* ── NEXT STEP ────────────────────────────────── */
+  .nextstep { border-left: 3px solid #0F6E56; padding: 14px 18px; background: #f0faf6; border-radius: 0 6px 6px 0; }
+  .nextstep p { font-size: 13px; color: #374151; line-height: 1.8; }
+
+  /* Footer */
+  .footer { margin-top: 32px; padding-top: 14px; border-top: 1px solid #e5e7eb; display: flex; justify-content: space-between; }
+  .footer span { font-size: 10px; color: #c4c4c4; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Header -->
+  <div class="header">
+    <div>
+      <div class="logo">Al<em>-</em>RMX</div>
+      <div class="header-sub">PLANT INTELLIGENCE REPORT</div>
+    </div>
+    <div>
+      <div class="plant-name">testplant1</div>
+      <div class="plant-meta">Saudi Arabia · 29 March 2026</div>
+    </div>
+  </div>
+
+  <!-- KPI PYRAMID -->
+  <div class="section-label">Key Metrics</div>
+  <div class="pyramid">
+
+    <!-- Row 1: Financial -->
+    <div class="pyramid-row">
+      <div class="kpi-box kpi-financial">
+        <div>
+          <div class="kpi-label">Potential Monthly Loss</div>
+          <div class="kpi-value">$922,913</div>
+          <div class="kpi-sub">$11,074,956/year · assumes sufficient demand</div>
+        </div>
+        <div class="kpi-financial-right">
+          <div class="kpi-label">Per Working Day</div>
+          <div class="kpi-value">$41,950</div>
+          <div class="kpi-sub" style="margin-top:3px;">based on 22 working days/mo</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Connector -->
+    <div class="pyramid-connector"></div>
+
+    <!-- Row 2: Primary drivers -->
+    <div class="pyramid-row">
+
+      <!-- Utilisation — bottleneck -->
+      <div class="kpi-box kpi-critical-red" style="border-color:#fca5a5;">
+        <div class="bottleneck-tag">▼ Bottleneck</div>
+        <div class="kpi-label">Plant Utilisation</div>
+        <div class="kpi-value" style="color:#b91c1c;">75%</div>
+        <div class="kpi-target">target 85%</div>
+        <div class="kpi-bar-wrap">
+          <div class="kpi-bar-track">
+            <div class="kpi-bar-fill" style="width:75%;background:#ef4444;opacity:.75;"></div>
+            <div class="kpi-bar-target" style="left:85%;"></div>
+          </div>
+          <div class="kpi-gap" style="color:#b91c1c;">−10 percentage points</div>
+        </div>
+      </div>
+
+      <!-- Turnaround -->
+      <div class="kpi-box kpi-critical">
+        <div class="kpi-label">Turnaround Time</div>
+        <div class="kpi-value" style="color:#d97706;">110 min</div>
+        <div class="kpi-target">target 80 min</div>
+        <div class="kpi-bar-wrap">
+          <div class="kpi-bar-track" style="overflow:hidden;">
+            <div style="display:flex;height:5px;border-radius:3px;overflow:hidden;">
+              <div style="width:73%;background:#0F6E56;opacity:.55;height:5px;"></div>
+              <div style="width:27%;background:#d97706;opacity:.85;height:5px;"></div>
+            </div>
+          </div>
+          <div class="kpi-gap" style="color:#d97706;">+30 min over target</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Connector -->
+    <div class="pyramid-connector"></div>
+
+    <!-- Row 3: Supporting metrics -->
+    <div class="pyramid-row">
+
+      <!-- Rejection rate -->
+      <div class="kpi-box kpi-supporting">
+        <div class="kpi-label">Rejection Rate</div>
+        <div class="kpi-value" style="color:#d97706;font-size:16px;">4%</div>
+        <div class="kpi-target">target &lt;3%</div>
+        <div class="kpi-bar-wrap">
+          <div class="kpi-bar-track">
+            <div class="kpi-bar-fill" style="width:100%;background:#f59e0b;opacity:.65;"></div>
+            <div class="kpi-bar-target" style="left:75%;"></div>
+          </div>
+          <div class="kpi-gap" style="color:#d97706;">+1 pp</div>
+        </div>
+      </div>
+
+      <!-- Dispatch time -->
+      <div class="kpi-box kpi-supporting">
+        <div class="kpi-label">Dispatch Time</div>
+        <div class="kpi-value" style="color:#6b7280;font-size:16px;">28 min</div>
+        <div class="kpi-target">target 15 min</div>
+        <div class="kpi-bar-wrap">
+          <div class="kpi-bar-track" style="overflow:hidden;">
+            <div style="display:flex;height:5px;border-radius:3px;overflow:hidden;">
+              <div style="width:54%;background:#0F6E56;opacity:.45;height:5px;"></div>
+              <div style="width:46%;background:#9ca3af;opacity:.7;height:5px;"></div>
+            </div>
+          </div>
+          <div class="kpi-gap" style="color:#6b7280;">+13 min over target</div>
+        </div>
+      </div>
+
+      <!-- Deliveries per truck -->
+      <div class="kpi-box kpi-supporting">
+        <div class="kpi-label">Deliveries / truck / day</div>
+        <div class="kpi-value" style="color:#6b7280;font-size:16px;">4.4</div>
+        <div class="kpi-target">target 5.8</div>
+        <div class="kpi-bar-wrap">
+          <div class="kpi-bar-track">
+            <div class="kpi-bar-fill" style="width:76%;background:#9ca3af;opacity:.75;"></div>
+            <div class="kpi-bar-target" style="left:100%;"></div>
+          </div>
+          <div class="kpi-gap" style="color:#6b7280;">−1.4 per dag</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <hr>
+
+  <!-- Recovery breakdown -->
+  <div class="section-label">Potential Recovery Breakdown</div>
+  <div style="margin-bottom:28px;">
+    <div class="rec-row">
+      <div class="rec-top">
+        <span class="rec-name">Utilisation gap</span>
+        <span class="rec-amount" style="color:#b91c1c;">$797,333/md</span>
+      </div>
+      <div class="rec-track"><div class="rec-fill" style="width:86%;background:#ef4444;opacity:.7;"></div></div>
+    </div>
+    <div class="rec-row">
+      <div class="rec-top">
+        <span class="rec-name">Turnaround excess</span>
+        <span class="rec-amount" style="color:#d97706;">$582,235/md</span>
+      </div>
+      <div class="rec-track"><div class="rec-fill" style="width:63%;background:#f59e0b;opacity:.75;"></div></div>
+    </div>
+    <div class="rec-row">
+      <div class="rec-top">
+        <span class="rec-name">Rejected loads</span>
+        <span class="rec-amount" style="color:#d97706;">$125,580/md</span>
+      </div>
+      <div class="rec-track"><div class="rec-fill" style="width:14%;background:#f59e0b;opacity:.6;"></div></div>
+    </div>
+    <div class="rec-row">
+      <div class="rec-top">
+        <span class="rec-name">Fleet underutilisation</span>
+        <span class="rec-amount" style="color:#9ca3af;">$41,860/md</span>
+      </div>
+      <div class="rec-track"><div class="rec-fill" style="width:5%;background:#9ca3af;opacity:.7;"></div></div>
+    </div>
+    <div class="rec-total">
+      <span style="font-size:9px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:#9ca3af;">Total potential / month</span>
+      <span style="font-size:15px;font-weight:800;font-family:'Courier New',monospace;color:#b91c1c;">$922,913</span>
+    </div>
+  </div>
+
+  <hr>
+
+  <!-- Executive Summary -->
+  <div class="section-label">Executive Summary</div>
+  <div style="margin-bottom:28px;">
+    <p class="narrative">Testplant1 is a mid-sized ready-mix operation running well below its potential. Quality control is the primary drag — a score of 52 against an overall 72 — and it is pulling down what would otherwise be a solid production and dispatch setup. The plant has the fleet and the batching capacity to perform significantly better; the constraint is operational, not structural.</p>
+  </div>
+
+  <hr>
+
+  <!-- Findings -->
+  <div class="section-label">Findings (4)</div>
+  <div style="margin-bottom:28px;">
+    <div class="finding">
+      <div class="finding-num">#1</div>
+      <div>
+        <div class="finding-title">Plant running at 75% — 10 points below 85% best-practice target</div>
+        <div class="finding-action">Map peak demand window and pre-stage batching 30 min before</div>
+      </div>
+      <div>
+        <div class="finding-amount" style="color:#b91c1c;">$797,333/md</div>
+        <div class="finding-tag">potential</div>
+      </div>
+    </div>
+    <div class="finding">
+      <div class="finding-num">#2</div>
+      <div>
+        <div class="finding-title">Truck turnaround 110 min — 38% above 80-min target</div>
+        <div class="finding-action">Require site readiness confirmation before trucks depart</div>
+      </div>
+      <div>
+        <div class="finding-amount" style="color:#d97706;">$582,235/md</div>
+        <div class="finding-tag">potential</div>
+      </div>
+    </div>
+    <div class="finding">
+      <div class="finding-num">#3</div>
+      <div>
+        <div class="finding-title">4% of loads rejected — every rejection is a 100% write-off</div>
+        <div class="finding-action">Run slump test on every load before dispatch</div>
+      </div>
+      <div>
+        <div class="finding-amount" style="color:#d97706;">$125,580/md</div>
+        <div class="finding-tag">potential</div>
+      </div>
+    </div>
+    <div class="finding">
+      <div class="finding-num">#4</div>
+      <div>
+        <div class="finding-title">3 deliveries/day unrealised — fleet target 153, actual 150</div>
+        <div class="finding-action">Fix dispatch and turnaround first — no new trucks needed</div>
+      </div>
+      <div>
+        <div class="finding-amount" style="color:#9ca3af;">$41,860/md</div>
+        <div class="finding-tag">potential</div>
+      </div>
+    </div>
+  </div>
+
+  <hr>
+
+  <!-- Next Step -->
+  <div class="section-label">Next step</div>
+  <div class="nextstep">
+    <p>This pre-assessment has established the financial picture based on what the plant reports about itself. What it cannot tell us is whether those numbers match reality — and more importantly, why the gaps exist. A physical visit would examine actual batching accuracy against what is logged, how trucks physically move through the plant versus how the process is described, and whether the reject causes are plant-side, driver-side, or customer-side.</p>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <span>Generated by Al-RMX Plant Intelligence Platform</span>
+    <span>29 March 2026</span>
+  </div>
+
+</div>
+</body>
+</html>

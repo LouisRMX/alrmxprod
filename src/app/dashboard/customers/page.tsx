@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import AddCustomerForm from './AddCustomerForm'
 
+export const dynamic = 'force-dynamic'
+
 export default async function CustomersPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -14,7 +16,7 @@ export default async function CustomersPage() {
     .eq('id', user.id)
     .single()
 
-  if (profile?.role !== 'admin') redirect('/dashboard')
+  if (profile?.role !== 'system_admin') redirect('/dashboard')
 
   const { data: customers } = await supabase
     .from('customers')

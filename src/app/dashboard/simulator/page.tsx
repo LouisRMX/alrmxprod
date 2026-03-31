@@ -13,7 +13,7 @@ export default async function SimulatorPage() {
     .eq('id', user.id)
     .single()
 
-  if (profile?.role !== 'admin') redirect('/dashboard/reports')
+  if (profile?.role !== 'system_admin') redirect('/dashboard/reports')
 
   // Get all completed assessments with scores
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

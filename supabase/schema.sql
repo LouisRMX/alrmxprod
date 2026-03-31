@@ -132,7 +132,8 @@ create policy "Admins can manage all customers"
 create policy "Customers can view their own record"
   on public.customers for select
   using (
-    exists (
+    public.customers.contact_email is not null
+    and exists (
       select 1 from public.profiles
       where id = auth.uid()
       and email = public.customers.contact_email
@@ -154,7 +155,7 @@ create policy "Customers can view their plants"
   using (
     exists (
       select 1 from public.customers c
-      join public.profiles p on p.email = c.contact_email
+      join public.profiles p on p.email = c.contact_email and c.contact_email is not null
       where c.id = public.plants.customer_id
       and p.id = auth.uid()
     )
@@ -176,10 +177,11 @@ create policy "Customers can view their assessments"
     exists (
       select 1 from public.plants pl
       join public.customers c on c.id = pl.customer_id
-      join public.profiles p on p.email = c.contact_email
+      join public.profiles p on p.email = c.contact_email and c.contact_email is not null
       where pl.id = public.assessments.plant_id
       and p.id = auth.uid()
     )
+    and public.assessments.phase in ('workshop', 'workshop_complete')
   );
 
 -- Reports: same as assessments
@@ -199,7 +201,7 @@ create policy "Customers can view their reports"
       select 1 from public.assessments a
       join public.plants pl on pl.id = a.plant_id
       join public.customers c on c.id = pl.customer_id
-      join public.profiles p on p.email = c.contact_email
+      join public.profiles p on p.email = c.contact_email and c.contact_email is not null
       where a.id = public.reports.assessment_id
       and p.id = auth.uid()
     )
@@ -222,7 +224,7 @@ create policy "Customers can view their action items"
       select 1 from public.assessments a
       join public.plants pl on pl.id = a.plant_id
       join public.customers c on c.id = pl.customer_id
-      join public.profiles p on p.email = c.contact_email
+      join public.profiles p on p.email = c.contact_email and c.contact_email is not null
       where a.id = public.action_items.assessment_id
       and p.id = auth.uid()
     )

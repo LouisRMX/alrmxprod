@@ -3,6 +3,7 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { SECTIONS, type Phase } from '@/lib/questions'
 import { calc, type Answers, type CalcResult } from '@/lib/calculations'
+import { buildIssues } from '@/lib/issues'
 import ModeTabs, { type AssessmentMode } from './ModeTabs'
 import Sidebar from './Sidebar'
 import SectionView from './SectionView'
@@ -10,6 +11,7 @@ import ScoreLivePanel from './ScoreLivePanel'
 import GuidedMode from './guided/GuidedMode'
 import ReportView from './report/ReportView'
 import SimulatorView from './simulator/SimulatorView'
+import TrackingTab from './tracking/TrackingTab'
 
 interface AssessmentShellProps {
   initialAnswers: Answers
@@ -20,6 +22,8 @@ interface AssessmentShellProps {
   date?: string
   assessmentId: string
   report?: { executive?: string; diagnosis?: string; actions?: string } | null
+  reportReleased?: boolean
+  isAdmin?: boolean
   onSave: (data: {
     answers: Answers
     scores: CalcResult['scores']
@@ -31,7 +35,7 @@ interface AssessmentShellProps {
   baseline?: Answers
 }
 
-export default function AssessmentShell({ initialAnswers, phase, season, country, plant, date, assessmentId, report, onSave, baseline }: AssessmentShellProps) {
+export default function AssessmentShell({ initialAnswers, phase, season, country, plant, date, assessmentId, report, reportReleased, isAdmin, onSave, baseline }: AssessmentShellProps) {
   const [answers, setAnswers] = useState<Answers>(initialAnswers)
   const [currentSection, setCurrentSection] = useState(0)
   const [mode, setMode] = useState<AssessmentMode>('questions')
@@ -45,16 +49,20 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
   const triggerSave = useCallback((updatedAnswers: Answers, result: CalcResult) => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
     saveTimerRef.current = setTimeout(() => {
+      // Compute totalLoss with correct bottleneck logic (max of overlapping, not sum)
+      const iss = buildIssues(result, updatedAnswers, { country: country || '' })
+      const bnLoss = Math.max(0, ...iss.filter(i => i.category === 'bottleneck' && i.loss > 0).map(i => i.loss))
+      const indLoss = iss.filter(i => i.category === 'independent').reduce((s, i) => s + i.loss, 0)
       onSave({
         answers: updatedAnswers,
         scores: result.scores,
         overall: result.overall,
         bottleneck: result.bottleneck,
-        ebitdaMonthly: result.capLeakMonthly + result.turnaroundLeakMonthly + result.rejectLeakMonthly,
+        ebitdaMonthly: bnLoss + indLoss,
         hiddenRevMonthly: result.hiddenRevMonthly,
       })
     }, 1000)
-  }, [onSave])
+  }, [onSave, country])
 
   // Cleanup timer on unmount
   useEffect(() => {
@@ -141,12 +149,53 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
           meta={{ country, plant, date }}
           report={report ?? null}
           assessmentId={assessmentId}
+          reportReleased={reportReleased}
+          isAdmin={isAdmin}
         />
       )}
 
       {mode === 'simulator' && (
         <SimulatorView calcResult={calcResult} />
       )}
+
+      {mode === 'track' && (() => {
+        // Compute dispatch baseline from dropdown answer
+        const DISPATCH_MAP: Record<string, number> = {
+          'Under 15 minutes — fast response': 12,
+          '15 to 25 minutes — acceptable': 20,
+          '25 to 40 minutes — slow': 32,
+          'Over 40 minutes — critical bottleneck': 45,
+        }
+        const baselineDispatchMin = DISPATCH_MAP[answers.order_to_dispatch as string] ?? null
+
+        // Financial coefficients: $/month per 1-unit improvement
+        const coeffTurnaround = calcResult.excessMin > 0
+          ? Math.round(calcResult.turnaroundLeakMonthly / calcResult.excessMin)
+          : 0
+        const coeffReject = calcResult.rejectPct > 0
+          ? Math.round(calcResult.rejectLeakMonthly / calcResult.rejectPct)
+          : 0
+
+        // Baseline monthly loss from issues engine
+        const iss = buildIssues(calcResult, answers, { country: country || '' })
+        const bnLoss = Math.max(0, ...iss.filter(i => i.category === 'bottleneck' && i.loss > 0).map(i => i.loss))
+        const indLoss = iss.filter(i => i.category === 'independent').reduce((s, i) => s + i.loss, 0)
+        const baselineMonthlyLoss = bnLoss + indLoss
+
+        return (
+          <TrackingTab
+            assessmentId={assessmentId}
+            isAdmin={isAdmin ?? false}
+            baselineTurnaround={answers.turnaround ? Number(answers.turnaround) : null}
+            baselineRejectPct={answers.reject_pct ? Number(answers.reject_pct) : null}
+            baselineDispatchMin={baselineDispatchMin}
+            coeffTurnaround={coeffTurnaround}
+            coeffReject={coeffReject}
+            baselineMonthlyLoss={baselineMonthlyLoss}
+            targetTA={calcResult.TARGET_TA}
+          />
+        )
+      })()}
     </div>
   )
 }

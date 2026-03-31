@@ -29,7 +29,8 @@ export default function AddCustomerForm({ userId }: { userId: string }) {
     })
 
     if (error) {
-      setError('Failed to create customer. Please try again.')
+      setError('Failed to create customer: ' + error.message)
+      console.error('Customer insert error:', error)
       setLoading(false)
       return
     }

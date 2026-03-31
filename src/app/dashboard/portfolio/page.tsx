@@ -4,10 +4,10 @@ import Link from 'next/link'
 import DeleteButton from './DeleteButton'
 
 function scoreColor(s: number | null) {
-  if (s === null) return '#c8c8c8'
-  if (s >= 80) return '#27ae60'
-  if (s >= 60) return '#D68910'
-  return '#C0392B'
+  if (s === null) return 'var(--gray-300)'
+  if (s >= 80) return 'var(--phase-complete)'
+  if (s >= 60) return 'var(--warning)'
+  return 'var(--red)'
 }
 
 function fmt(n: number | null) {
@@ -28,9 +28,9 @@ export default async function PortfolioPage() {
     .eq('id', user.id)
     .single()
 
-  if (profile?.role !== 'admin') redirect('/dashboard/reports')
+  if (profile?.role !== 'system_admin') redirect('/dashboard/reports')
 
-  // Get all assessments with plant and customer info
+  // Get all assessments with plant, customer info, and tracking status
   const { data: assessments } = await supabase
     .from('assessments')
     .select(`
@@ -39,7 +39,8 @@ export default async function PortfolioPage() {
         name, country,
         customer:customers(name)
       ),
-      analyst:profiles(full_name)
+      analyst:profiles(full_name),
+      tracking_config:tracking_configs(id, started_at)
     `)
     .order('created_at', { ascending: false })
 
@@ -68,7 +69,7 @@ export default async function PortfolioPage() {
       </div>
 
       {/* KPI row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '24px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginBottom: '24px' }}>
         {[
           { label: 'Total assessments', value: total.toString() },
           { label: 'Average score', value: avgScore ? `${avgScore}/100` : '—' },
@@ -102,10 +103,11 @@ export default async function PortfolioPage() {
             </Link>
           </div>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '700px' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--gray-50)' }}>
-                {['Plant', 'Customer', 'Date', 'Phase', 'Score', 'EBITDA gap', ''].map(h => (
+                {['Plant', 'Customer', 'Date', 'Phase', 'Score', 'EBITDA gap', 'Tracking', ''].map(h => (
                   <th key={h} style={{
                     padding: '10px 16px', fontSize: '11px', fontWeight: '500',
                     color: 'var(--gray-500)', textAlign: 'left', textTransform: 'uppercase', letterSpacing: '.4px'
@@ -135,9 +137,9 @@ export default async function PortfolioPage() {
                     {(() => {
                       const p = a.phase || 'workshop'
                       const cfg: Record<string, { label: string; bg: string; color: string }> = {
-                        workshop: { label: 'Workshop', bg: '#EBF5FB', color: '#2471A3' },
-                        onsite: { label: 'On-site', bg: '#FEF9E7', color: '#B7950B' },
-                        complete: { label: 'Complete', bg: '#E8F8F5', color: '#27ae60' },
+                        workshop: { label: 'Workshop', bg: 'var(--phase-workshop-bg)', color: 'var(--phase-workshop)' },
+                        onsite: { label: 'On-site', bg: 'var(--phase-onsite-bg)', color: 'var(--phase-onsite)' },
+                        complete: { label: 'Complete', bg: 'var(--phase-complete-bg)', color: 'var(--phase-complete)' },
                       }
                       const c = cfg[p] || cfg.workshop
                       return (
@@ -163,6 +165,24 @@ export default async function PortfolioPage() {
                   <td style={{ padding: '12px 16px', fontSize: '13px', fontFamily: 'var(--mono)', color: 'var(--gray-700)' }}>
                     {fmt(a.ebitda_monthly)}<span style={{ fontSize: '11px', color: 'var(--gray-400)' }}>/mo</span>
                   </td>
+                  <td style={{ padding: '12px 16px' }}>
+                    {(() => {
+                      const tc = Array.isArray(a.tracking_config) ? a.tracking_config[0] : a.tracking_config
+                      if (!tc) return <span style={{ color: 'var(--gray-300)', fontSize: '13px' }}>—</span>
+                      const days = Math.floor((Date.now() - new Date(tc.started_at).getTime()) / 86_400_000)
+                      const week = Math.min(13, Math.max(1, Math.ceil((days + 1) / 7)))
+                      const done = week >= 13
+                      return (
+                        <span style={{
+                          padding: '3px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: '600',
+                          background: done ? 'var(--phase-complete-bg)' : 'var(--phase-onsite-bg)',
+                          color: done ? 'var(--phase-complete)' : 'var(--phase-onsite)',
+                        }}>
+                          {done ? '✓ Done' : `Wk ${week}/13`}
+                        </span>
+                      )
+                    })()}
+                  </td>
                   <td style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <Link href={`/dashboard/assess/${a.id}`} style={{
                       fontSize: '12px', color: 'var(--green)', textDecoration: 'none', fontWeight: '500'
@@ -175,6 +195,7 @@ export default async function PortfolioPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </div>

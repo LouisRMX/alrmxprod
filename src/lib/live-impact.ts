@@ -76,12 +76,15 @@ export function getLiveImpact(questionId: string, r: CalcResult, a: Answers): st
     case 'admix_cost': {
       if (r.price <= 0) return null
       const lines = [`Contribution margin: ${fmt(r.contrib)}/m³ (${Math.round(r.marginRatio * 100)}% of selling price)`]
-      if (r.marginIncomplete) {
+      if (r.marginRatio >= 0.95) {
+        // No meaningful costs entered yet — margin is just the selling price
+        lines.push('Material costs not yet entered — margin will update as you answer cement, aggregate and admixture questions.')
+      } else if (r.marginIncomplete) {
         lines.push('Warning: aggregate and admixture costs not entered — actual margin is likely $8–15/m³ lower than shown.')
+      } else if (r.price < 45 || r.price > 150) {
+        lines.push(`Note: selling price ${r.price < 45 ? 'below' : 'above'} typical GCC range — double-check the figure.`)
       } else if (r.contrib < 12) {
         lines.push('Warning: margin below $12/m³ — verify all material costs are entered correctly.')
-      } else if (r.contrib > 55) {
-        lines.push('Note: margin above $55/m³ — confirm this excludes fixed overhead costs.')
       } else {
         lines.push('Margin looks realistic for ready-mix in this region.')
       }

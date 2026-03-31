@@ -14,7 +14,7 @@ export default function NavBar({ user, profile }: NavBarProps) {
   const router = useRouter()
   const pathname = usePathname()
   const supabase = createClient()
-  const isAdmin = profile?.role === 'admin'
+  const isAdmin = profile?.role === 'system_admin'
 
   async function handleSignOut() {
     await supabase.auth.signOut()
@@ -51,7 +51,7 @@ export default function NavBar({ user, profile }: NavBarProps) {
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', fontFamily: 'var(--mono)' }}>
-            {profile?.full_name || user.email} · {profile?.role || 'user'}
+            {profile?.full_name || user.email} · {profile?.role === 'system_admin' ? 'admin' : profile?.role || 'user'}
           </span>
           <button
             onClick={handleSignOut}
@@ -70,7 +70,7 @@ export default function NavBar({ user, profile }: NavBarProps) {
       {/* Tab bar */}
       <div style={{
         background: 'var(--white)', borderBottom: '1px solid var(--border)',
-        display: 'flex', padding: '0 24px'
+        display: 'flex', padding: '0 24px', overflowX: 'auto'
       }}>
         {tabs.map(tab => {
           const active = pathname.startsWith(tab.href)
