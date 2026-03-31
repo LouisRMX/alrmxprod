@@ -100,6 +100,7 @@ export interface CalcResult {
   overall: number | null
   bottleneck: string | null
   price: number
+  dispatchMin: number | null
   warnings: string[]
 }
 
@@ -177,6 +178,13 @@ const DISPATCH_OTD_MAP: Record<string, number> = {
   '15 to 25 minutes \u2014 acceptable': 70,
   '25 to 40 minutes \u2014 slow': 40,
   'Over 40 minutes \u2014 critical bottleneck': 10,
+}
+
+const DISPATCH_MIN_MAP: Record<string, number> = {
+  'Under 15 minutes \u2014 fast response': 12,
+  '15 to 25 minutes \u2014 acceptable': 20,
+  '25 to 40 minutes \u2014 slow': 32,
+  'Over 40 minutes \u2014 critical bottleneck': 45,
 }
 
 const ROUTE_CLUSTERING_MAP: Record<string, number> = {
@@ -524,7 +532,9 @@ export function calc(answers: Answers, meta?: { season?: string }): CalcResult {
     atypicalMonth, isSummer, summerAdjusted, daysMismatchPenalty,
     // Scores
     scores: { prod: utilScore, dispatch: dispScore, fleet: logisticsScore, logistics: logisticsScore, quality: qualityScore },
-    overall, bottleneck, price, warnings,
+    overall, bottleneck, price,
+    dispatchMin: DISPATCH_MIN_MAP[a.order_to_dispatch as string] ?? null,
+    warnings,
   }
 }
 

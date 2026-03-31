@@ -35,7 +35,7 @@ export default function SimulatorView({ calcResult }: SimulatorViewProps) {
   const [sTrucks, setSTrucks] = useState(r.trucks || 10)
   const [sUtil, setSUtil] = useState(Math.round(r.util * 100) || 70)
   const [sPrice, setSPrice] = useState(r.price || 65)
-  const [sOTD, setSOTD] = useState(15)
+  const [sOTD, setSOTD] = useState(r.dispatchMin ?? 15)
 
   const scenario: SimScenario = useMemo(() => ({
     turnaround: sTurnaround,
@@ -55,7 +55,7 @@ export default function SimulatorView({ calcResult }: SimulatorViewProps) {
     setSTrucks(r.trucks || 10)
     setSUtil(Math.round(r.util * 100) || 70)
     setSPrice(r.price || 65)
-    setSOTD(15)
+    setSOTD(r.dispatchMin ?? 15)
   }
 
   if (!result || baseline.cap === 0) {
@@ -103,7 +103,7 @@ export default function SimulatorView({ calcResult }: SimulatorViewProps) {
           <Slider label="Trucks" value={sTrucks} min={1} max={Math.max(r.trucks * 2, 20)} step={1} baselineValue={r.trucks || 10} unit="" onChange={setSTrucks} />
           <Slider label="Utilisation" value={sUtil} min={30} max={100} step={1} baselineValue={Math.round(r.util * 100) || 70} unit="%" onChange={setSUtil} />
           <Slider label="Price" value={sPrice} min={20} max={200} step={1} baselineValue={r.price || 65} unit="$/m³" onChange={setSPrice} />
-          <Slider label="Order-to-dispatch" value={sOTD} min={5} max={60} step={1} baselineValue={15} unit="min" onChange={setSOTD} />
+          <Slider label="Dispatch Time" value={sOTD} min={5} max={60} step={1} baselineValue={r.dispatchMin ?? 15} unit="min" onChange={setSOTD} />
         </div>
 
         {/* Right: Results */}

@@ -301,7 +301,7 @@ function KPIPyramid({ calcResult, answers, totalLoss, dailyLoss, financialBottle
         <div style={{ textAlign: 'right', paddingLeft: '20px', borderLeft: '1px solid var(--error-border)' }}>
           <div style={{ fontSize: '9px', color: 'var(--gray-500)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.4px' }}>Per Working Day</div>
           <div style={{ fontSize: '24px', fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--red)', marginTop: '1px' }}>{fmt(dailyLoss)}</div>
-          <div style={{ fontSize: '9px', color: 'var(--gray-500)', marginTop: '2px' }}>based on 22 working days/mo</div>
+          <div style={{ fontSize: '9px', color: 'var(--gray-500)', marginTop: '2px' }}>based on {calcResult.workingDaysMonth || 22} working days/mo</div>
         </div>
       </div>
 
@@ -398,7 +398,7 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
   const independentLoss = issues.filter(i => i.category === 'independent').reduce((s, i) => s + i.loss, 0)
   const totalLoss = bottleneckLoss + independentLoss
   const primaryBottleneckLoss = bottleneckLoss
-  const dailyLoss = Math.round(totalLoss / 22)
+  const dailyLoss = Math.round(totalLoss / (calcResult.workingDaysMonth || 22))
 
   // ── AI section state ─────────────────────────────────────────────────────
   const [texts, setTexts] = useState({
