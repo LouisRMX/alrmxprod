@@ -302,15 +302,18 @@ function KpiCard({ label, baseline, target, latest, coeff, unit = 'min' }: {
       <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '12px' }}>
         {label}
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px', marginBottom: '12px' }}>
+      <div style={{ display: 'flex', gap: '20px', marginBottom: '14px' }}>
         {[
-          { lbl: 'Before', val: baseline != null ? `${baseline} ${unit}` : '—', faded: true },
-          { lbl: 'Target', val: target != null ? `${target} ${unit}` : '—', faded: true },
-          { lbl: 'Now', val: latest != null ? `${latest} ${unit}` : '—', faded: false },
+          { lbl: 'Before', val: baseline != null ? `${baseline}` : '—', faded: true },
+          { lbl: 'Now', val: latest != null ? `${latest}` : '—', faded: false },
+          { lbl: 'Target', val: target != null ? `${target}` : '—', faded: true },
         ].map(({ lbl, val, faded }) => (
           <div key={lbl}>
-            <div style={{ fontSize: '9px', color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '.3px', marginBottom: '2px' }}>{lbl}</div>
-            <div style={{ fontSize: '15px', fontWeight: 700, fontFamily: 'var(--mono)', color: faded ? 'var(--gray-400)' : 'var(--gray-900)' }}>{val}</div>
+            <div style={{ fontSize: '9px', color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: '3px' }}>{lbl}</div>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px' }}>
+              <span style={{ fontSize: '22px', fontWeight: 700, fontFamily: 'var(--mono)', color: faded ? 'var(--gray-300)' : 'var(--gray-900)', lineHeight: 1 }}>{val}</span>
+              <span style={{ fontSize: '11px', color: 'var(--gray-400)' }}>{unit}</span>
+            </div>
           </div>
         ))}
       </div>
