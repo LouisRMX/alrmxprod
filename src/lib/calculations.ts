@@ -100,6 +100,7 @@ export interface CalcResult {
   overall: number | null
   bottleneck: string | null
   price: number
+  dispatchMin: number | null
   warnings: string[]
 }
 
@@ -177,6 +178,13 @@ const DISPATCH_OTD_MAP: Record<string, number> = {
   '15 to 25 minutes \u2014 acceptable': 70,
   '25 to 40 minutes \u2014 slow': 40,
   'Over 40 minutes \u2014 critical bottleneck': 10,
+}
+
+const DISPATCH_MIN_MAP: Record<string, number> = {
+  'Under 15 minutes \u2014 fast response': 12,
+  '15 to 25 minutes \u2014 acceptable': 20,
+  '25 to 40 minutes \u2014 slow': 32,
+  'Over 40 minutes \u2014 critical bottleneck': 45,
 }
 
 const ROUTE_CLUSTERING_MAP: Record<string, number> = {
@@ -353,8 +361,10 @@ export function calc(answers: Answers, meta?: { season?: string }): CalcResult {
     'Over 1.0 m³ — serious problem': 1.2,
   }
   const surplusMid = SURPLUS_MID_MAP[a.surplus_concrete as string] || 0
-  const surplusLeakMonthly = surplusMid > 0 && delDay > 0 && price > 0
-    ? Math.round(surplusMid * delDay * price * (opD / 12)) : 0
+  // Surplus loss = wasted raw material cost (not selling price — concrete was never sold)
+  const materialCost = Math.max(0, price - contrib)
+  const surplusLeakMonthly = surplusMid > 0 && delDay > 0 && materialCost > 0
+    ? Math.round(surplusMid * delDay * materialCost * (opD / 12)) : 0
 
   // Turnaround breakdown
   const siteWait = +(a.site_wait_time ?? 0) || 0
@@ -380,12 +390,13 @@ export function calc(answers: Answers, meta?: { season?: string }): CalcResult {
     a.demurrage_policy === 'Clause exists but rarely enforced' ||
     a.demurrage_policy === 'No demurrage charge in contracts' ||
     a.demurrage_policy === 'Not sure'
-  )) ? Math.round(Math.max(0, siteWait - 40) / ta * realisticMaxDel * mixCap * contrib * (opD / 12)) : 0
+  )) && ta > 0 ? Math.round(Math.max(0, siteWait - 40) / ta * realisticMaxDel * mixCap * contrib * (opD / 12)) : 0
 
   // Truck breakdown cost estimate
   const truckBreakdowns = +(a.truck_breakdowns ?? 0) || 0
+  // Each breakdown takes ~half a day → loses 0.5 × (deliveries per truck per day) deliveries
   const breakdownCostMonthly = truckBreakdowns > 0 && operativeTrucks > 0
-    ? Math.round(truckBreakdowns * (opH * 0.5) * (delDay / operativeTrucks) * mixCap * contrib) : 0
+    ? Math.round(truckBreakdowns * 0.5 * (delDay / operativeTrucks) * mixCap * contrib) : 0
 
   // Customer concentration risk
   const topCustPct = +(a.top_customer_pct ?? 0) || 0
@@ -450,15 +461,17 @@ export function calc(answers: Answers, meta?: { season?: string }): CalcResult {
     ? Math.max(0, Math.min(100, Math.round(Math.min(qualifiedDrivers / operativeTrucks, 1) / 0.95 * 100)))
     : null
   const washoutScore = WASHOUT_MAP[a.washout_time as string] ?? null
-  const logisticsScore = weightedAvg([
+  // Logistics requires turnaround to be answered (50% weight — most critical input)
+  const logisticsScore = taScore !== null ? weightedAvg([
     { v: taScore, w: 0.50 },
     { v: availScore, w: 0.25 },
     { v: driverScore, w: 0.15 },
     { v: washoutScore, w: 0.10 },
-  ])
+  ]) : null
 
-  // Quality score
-  const rejectScore = rejectPct >= 0 ? Math.max(0, Math.min(100, Math.round(100 - rejectPct * 12))) : null
+  // Quality score — rejectScore only when reject_pct is explicitly answered (0 is a valid answer, but blank is not)
+  const rejectAnswered = a.reject_pct != null && String(a.reject_pct).trim() !== ''
+  const rejectScore = rejectAnswered ? Math.max(0, Math.min(100, Math.round(100 - rejectPct * 12))) : null
   const qcScore = QC_MAP[a.quality_control as string] ?? null
   const calibScore = CALIB_MAP[a.batch_calibration as string] ?? null
   const surplusScore = SURPLUS_SCORE_MAP[a.surplus_concrete as string] ?? null
@@ -519,7 +532,9 @@ export function calc(answers: Answers, meta?: { season?: string }): CalcResult {
     atypicalMonth, isSummer, summerAdjusted, daysMismatchPenalty,
     // Scores
     scores: { prod: utilScore, dispatch: dispScore, fleet: logisticsScore, logistics: logisticsScore, quality: qualityScore },
-    overall, bottleneck, price, warnings,
+    overall, bottleneck, price,
+    dispatchMin: DISPATCH_MIN_MAP[a.order_to_dispatch as string] ?? null,
+    warnings,
   }
 }
 
