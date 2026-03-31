@@ -122,7 +122,6 @@ export interface SimBaseline {
 export interface SimScenario {
   turnaround: number
   trucks: number
-  util: number // 0-100
   price: number
   otd: number // order-to-dispatch minutes
 }
@@ -141,6 +140,7 @@ export interface SimResult {
   sContrib: number
   dispEff: number
   maxUtilPct: number
+  sUtil: number
 }
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -676,14 +676,14 @@ export function calcConsistency(result: CalcResult, answers: Answers): Consisten
 
 export function simCalc(baseline: SimBaseline, scenario: SimScenario): SimResult {
   const { cap, opH, opD, mixCap, TARGET_TA } = baseline
-  const { turnaround: sTA, trucks: sTrucks, util: sUtilPct, price: sPrice, otd: sOTD } = scenario
+  const { turnaround: sTA, trucks: sTrucks, price: sPrice, otd: sOTD } = scenario
 
   // Variable costs from baseline
   const bVarCosts = baseline.price - baseline.contrib
 
-  // Production-limited daily capacity
-  const sActualRate = cap * (sUtilPct / 100) * 0.92
-  const prodDaily = sActualRate * opH
+  // Plant max daily capacity (best-practice ceiling: 92% of nameplate)
+  const plantMaxDaily = cap * 0.92 * opH
+  const prodDaily = plantMaxDaily
 
   // Fleet-limited daily capacity
   const delsPerTruck = sTA > 0 ? (opH * 60 / sTA) : 0
@@ -694,18 +694,21 @@ export function simCalc(baseline: SimBaseline, scenario: SimScenario): SimResult
   const dispEff = Math.max(0.40, Math.min(0.98, 1 - (sOTD / 100)))
   const effFleetDaily = fleetDaily * dispEff
 
-  // Scenario output = min of constraints
-  const scenarioDaily = Math.min(prodDaily, effFleetDaily)
+  // Scenario output = min of plant and fleet constraints
+  const scenarioDaily = Math.min(plantMaxDaily, effFleetDaily)
   const scenarioAnnual = Math.round(scenarioDaily * opD)
 
+  // Derived utilisation — what plant + fleet together actually produce
+  const sUtil = cap > 0 && opH > 0 ? Math.round((scenarioDaily / (cap * opH)) * 100) : 0
+
   // Bottleneck
-  const scenarioBottleneck = prodDaily <= effFleetDaily ? 'Production' : 'Fleet / Logistics'
+  const scenarioBottleneck = plantMaxDaily <= effFleetDaily ? 'Production' : 'Fleet / Logistics'
 
   // Contribution recalculated when price changes
   const sContrib = Math.max(0, sPrice - bVarCosts)
 
-  // Baseline annual volume (using same constraint logic)
-  const bProdDaily = cap * (baseline.util / 100) * 0.92 * opH
+  // Baseline annual volume (current actual production vs current fleet)
+  const bProdDaily = cap * (baseline.util / 100) * opH
   const bDelsPerTruck = baseline.turnaround > 0 ? (opH * 60 / baseline.turnaround) : 0
   const bFleetDaily = bDelsPerTruck * baseline.trucks * mixCap
   const bDispEff = Math.max(0.4, Math.min(0.98, (baseline.dispatchScore / 100) * 0.3 + 0.7))
@@ -718,19 +721,16 @@ export function simCalc(baseline: SimBaseline, scenario: SimScenario): SimResult
   const contribUpside = deltaVol * sContrib
 
   // Scores
-  const sProdScore = Math.max(0, Math.min(100, Math.round((sUtilPct / 92) * 100)))
+  const sProdScore = Math.max(0, Math.min(100, Math.round((sUtil / 92) * 100)))
   const taRatio = TARGET_TA > 0 ? sTA / TARGET_TA : 1
   const sFleetScore = Math.max(0, Math.min(100, Math.round(taRatio <= 1 ? 100 : 100 - ((taRatio - 1) * 120))))
   const sDispScore = Math.max(0, Math.min(100, Math.round(100 - sOTD * 1.4)))
 
-  // Max plant utilisation the current fleet/turnaround/dispatch can support
-  // i.e. if you had unlimited plant capacity, what % utilisation would the fleet fill?
-  const maxUtilPct = cap > 0 && opH > 0
-    ? Math.min(100, Math.round((effFleetDaily / (cap * 0.92 * opH)) * 100))
-    : 0
+  // maxUtilPct kept for compatibility (now equals sUtil when fleet is bottleneck)
+  const maxUtilPct = sUtil
 
   return {
     scenarioAnnual, deltaVol, revenueUpside, contribUpside, scenarioBottleneck,
-    prodDaily, effFleetDaily, sProdScore, sFleetScore, sDispScore, sContrib, dispEff, maxUtilPct,
+    prodDaily, effFleetDaily, sProdScore, sFleetScore, sDispScore, sContrib, dispEff, maxUtilPct, sUtil,
   }
 }

@@ -33,17 +33,15 @@ export default function SimulatorView({ calcResult }: SimulatorViewProps) {
 
   const [sTurnaround, setSTurnaround] = useState(r.ta || 90)
   const [sTrucks, setSTrucks] = useState(r.trucks || 10)
-  const [sUtil, setSUtil] = useState(Math.round(r.util * 100) || 70)
   const [sPrice, setSPrice] = useState(r.price || 65)
   const [sOTD, setSOTD] = useState(r.dispatchMin ?? 15)
 
   const scenario: SimScenario = useMemo(() => ({
     turnaround: sTurnaround,
     trucks: sTrucks,
-    util: sUtil,
     price: sPrice,
     otd: sOTD,
-  }), [sTurnaround, sTrucks, sUtil, sPrice, sOTD])
+  }), [sTurnaround, sTrucks, sPrice, sOTD])
 
   const result = useMemo(() => {
     if (baseline.cap === 0) return null
@@ -53,7 +51,6 @@ export default function SimulatorView({ calcResult }: SimulatorViewProps) {
   const resetAll = () => {
     setSTurnaround(r.ta || 90)
     setSTrucks(r.trucks || 10)
-    setSUtil(Math.round(r.util * 100) || 70)
     setSPrice(r.price || 65)
     setSOTD(r.dispatchMin ?? 15)
   }
@@ -74,7 +71,7 @@ export default function SimulatorView({ calcResult }: SimulatorViewProps) {
   // Realism warnings
   const simWarnings: string[] = []
   if (sTurnaround < r.TARGET_TA * 0.7) simWarnings.push(`Turnaround ${sTurnaround} min is ${Math.round((1 - sTurnaround / (r.TARGET_TA || 80)) * 100)}% below regional target — unlikely without major route changes.`)
-  if (sUtil > 95) simWarnings.push('Utilisation above 95% is unrealistic — even best-practice plants peak at 92%.')
+  if (result.sUtil > 95) simWarnings.push('Utilisation above 95% is unrealistic — even best-practice plants peak at 92%.')
   if (sTrucks > (r.trucks || 10) * 1.5) simWarnings.push(`Fleet expanded ${Math.round((sTrucks / (r.trucks || 10) - 1) * 100)}% — requires significant capital investment.`)
   if (sPrice > (r.price || 65) * 1.3) simWarnings.push(`Price ${Math.round((sPrice / (r.price || 65) - 1) * 100)}% above current — verify market will accept this.`)
   if (sOTD < 8) simWarnings.push('Order-to-dispatch under 8 min requires dedicated dispatch software and pre-staged batching.')
@@ -101,16 +98,6 @@ export default function SimulatorView({ calcResult }: SimulatorViewProps) {
         <div>
           <Slider label="Turnaround" value={sTurnaround} min={40} max={180} step={1} baselineValue={r.ta || 90} unit="min" onChange={setSTurnaround} />
           <Slider label="Trucks" value={sTrucks} min={1} max={Math.max(r.trucks * 2, 20)} step={1} baselineValue={r.trucks || 10} unit="" onChange={setSTrucks} />
-          <Slider label="Utilisation" value={sUtil} min={30} max={100} step={1} baselineValue={Math.round(r.util * 100) || 70} unit="%" onChange={setSUtil} />
-          {result.maxUtilPct > sUtil ? (
-            <div style={{ fontSize: '11px', color: 'var(--phase-complete)', marginTop: '-6px', marginBottom: '8px', paddingLeft: '2px' }}>
-              Fleet supports up to {result.maxUtilPct}% at current turnaround — consider raising utilisation
-            </div>
-          ) : result.maxUtilPct < sUtil ? (
-            <div style={{ fontSize: '11px', color: 'var(--warning)', marginTop: '-6px', marginBottom: '8px', paddingLeft: '2px' }}>
-              Fleet capacity limits utilisation to {result.maxUtilPct}% at current turnaround
-            </div>
-          ) : null}
           <Slider label="Price" value={sPrice} min={20} max={200} step={1} baselineValue={r.price || 65} unit="$/m³" onChange={setSPrice} />
           <Slider label="Dispatch Time" value={sOTD} min={5} max={60} step={1} baselineValue={r.dispatchMin ?? 15} unit="min" onChange={setSOTD} />
         </div>
@@ -189,6 +176,10 @@ export default function SimulatorView({ calcResult }: SimulatorViewProps) {
               }}>
                 {result.scenarioBottleneck}
               </span>
+            </div>
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '4px' }}>
+              <span style={{ fontSize: '12px', color: 'var(--gray-500)', width: '80px' }}>Utilisation:</span>
+              <span style={{ fontSize: '12px', fontFamily: 'var(--mono)', fontWeight: 600, color: result.sUtil >= 88 ? 'var(--green)' : result.sUtil >= 70 ? 'var(--warning)' : 'var(--red)' }}>{result.sUtil}%</span>
             </div>
             <div style={{ display: 'flex', gap: '8px', marginBottom: '4px' }}>
               <span style={{ fontSize: '12px', color: 'var(--gray-500)', width: '80px' }}>Production:</span>
