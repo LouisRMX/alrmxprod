@@ -198,33 +198,6 @@ export default function SimulatorView({ calcResult }: SimulatorViewProps) {
             </div>
           </div>
 
-          {/* Scenario scores */}
-          <div style={{
-            background: 'var(--white)', border: '1px solid var(--border)',
-            borderRadius: '8px', padding: '12px',
-          }}>
-            <div style={{ fontSize: '10px', color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '.3px', marginBottom: '8px' }}>
-              Scenario scores
-            </div>
-            {[
-              { label: 'Production', value: result.sProdScore },
-              { label: 'Fleet', value: result.sFleetScore },
-              { label: 'Dispatch', value: result.sDispScore },
-            ].map(s => (
-              <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                <span style={{ fontSize: '12px', color: 'var(--gray-500)', width: '70px' }}>{s.label}</span>
-                <div style={{ flex: 1, height: '6px', background: 'var(--gray-100)', borderRadius: '3px', overflow: 'hidden' }}>
-                  <div style={{
-                    width: `${s.value}%`, height: '6px', borderRadius: '3px',
-                    background: s.value >= 80 ? 'var(--green-mid)' : s.value >= 60 ? 'var(--warning)' : 'var(--red)',
-                  }} />
-                </div>
-                <span style={{ fontSize: '11px', fontFamily: 'var(--mono)', fontWeight: 500, width: '30px', textAlign: 'right' }}>
-                  {s.value}
-                </span>
-              </div>
-            ))}
-          </div>
         </div>
       </div>
     </div>
