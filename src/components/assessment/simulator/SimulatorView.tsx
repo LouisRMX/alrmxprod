@@ -1,5 +1,5 @@
 'use client'
-
+// v2
 import { useState, useMemo } from 'react'
 import { simCalc, type CalcResult, type SimBaseline, type SimScenario } from '@/lib/calculations'
 import Slider from './Slider'
@@ -102,6 +102,15 @@ export default function SimulatorView({ calcResult }: SimulatorViewProps) {
           <Slider label="Turnaround" value={sTurnaround} min={40} max={180} step={1} baselineValue={r.ta || 90} unit="min" onChange={setSTurnaround} />
           <Slider label="Trucks" value={sTrucks} min={1} max={Math.max(r.trucks * 2, 20)} step={1} baselineValue={r.trucks || 10} unit="" onChange={setSTrucks} />
           <Slider label="Utilisation" value={sUtil} min={30} max={100} step={1} baselineValue={Math.round(r.util * 100) || 70} unit="%" onChange={setSUtil} />
+          {result.maxUtilPct > sUtil ? (
+            <div style={{ fontSize: '11px', color: 'var(--phase-complete)', marginTop: '-6px', marginBottom: '8px', paddingLeft: '2px' }}>
+              Fleet supports up to {result.maxUtilPct}% at current turnaround — consider raising utilisation
+            </div>
+          ) : result.maxUtilPct < sUtil ? (
+            <div style={{ fontSize: '11px', color: 'var(--warning)', marginTop: '-6px', marginBottom: '8px', paddingLeft: '2px' }}>
+              Fleet capacity limits utilisation to {result.maxUtilPct}% at current turnaround
+            </div>
+          ) : null}
           <Slider label="Price" value={sPrice} min={20} max={200} step={1} baselineValue={r.price || 65} unit="$/m³" onChange={setSPrice} />
           <Slider label="Dispatch Time" value={sOTD} min={5} max={60} step={1} baselineValue={r.dispatchMin ?? 15} unit="min" onChange={setSOTD} />
         </div>

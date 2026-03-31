@@ -140,6 +140,7 @@ export interface SimResult {
   sDispScore: number
   sContrib: number
   dispEff: number
+  maxUtilPct: number
 }
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -722,8 +723,14 @@ export function simCalc(baseline: SimBaseline, scenario: SimScenario): SimResult
   const sFleetScore = Math.max(0, Math.min(100, Math.round(taRatio <= 1 ? 100 : 100 - ((taRatio - 1) * 120))))
   const sDispScore = Math.max(0, Math.min(100, Math.round(100 - sOTD * 1.4)))
 
+  // Max plant utilisation the current fleet/turnaround/dispatch can support
+  // i.e. if you had unlimited plant capacity, what % utilisation would the fleet fill?
+  const maxUtilPct = cap > 0 && opH > 0
+    ? Math.min(100, Math.round((effFleetDaily / (cap * 0.92 * opH)) * 100))
+    : 0
+
   return {
     scenarioAnnual, deltaVol, revenueUpside, contribUpside, scenarioBottleneck,
-    prodDaily, effFleetDaily, sProdScore, sFleetScore, sDispScore, sContrib, dispEff,
+    prodDaily, effFleetDaily, sProdScore, sFleetScore, sDispScore, sContrib, dispEff, maxUtilPct,
   }
 }
