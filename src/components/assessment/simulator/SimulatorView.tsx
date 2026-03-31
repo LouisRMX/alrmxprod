@@ -1,5 +1,5 @@
 'use client'
-// v2
+// v3
 import { useState, useMemo } from 'react'
 import { simCalc, type CalcResult, type SimBaseline, type SimScenario } from '@/lib/calculations'
 import Slider from './Slider'
@@ -8,12 +8,21 @@ function fmt(n: number): string {
   return '$' + n.toLocaleString()
 }
 
+function fmtMarginal(n: number): string {
+  const abs = Math.abs(n)
+  if (abs >= 100_000) return '$' + Math.round(abs / 1000) + 'k'
+  if (abs >= 10_000) return '$' + Math.round(abs / 1000) + 'k'
+  if (abs >= 1_000) return '$' + (abs / 1000).toFixed(1) + 'k'
+  return '$' + Math.round(abs)
+}
+
 interface SimulatorViewProps {
   calcResult: CalcResult
 }
 
 export default function SimulatorView({ calcResult }: SimulatorViewProps) {
   const r = calcResult
+  const [showInfo, setShowInfo] = useState(false)
 
   // Build baseline from calc result
   const baseline: SimBaseline = useMemo(() => ({
@@ -49,6 +58,99 @@ export default function SimulatorView({ calcResult }: SimulatorViewProps) {
     return simCalc(baseline, scenario)
   }, [baseline, scenario])
 
+  // ── Marginal values: contribution impact of 1-unit improvement per slider ──
+  const marginalTA = useMemo(() => {
+    if (!result || sTurnaround <= 41) return 0
+    const r2 = simCalc(baseline, { ...scenario, turnaround: sTurnaround - 1 })
+    return r2.contribUpside - result.contribUpside
+  }, [baseline, scenario, result, sTurnaround])
+
+  const marginalTrucks = useMemo(() => {
+    if (!result) return 0
+    const r2 = simCalc(baseline, { ...scenario, trucks: sTrucks + 1 })
+    return r2.contribUpside - result.contribUpside
+  }, [baseline, scenario, result, sTrucks])
+
+  const marginalPrice = useMemo(() => {
+    if (!result) return 0
+    const r2 = simCalc(baseline, { ...scenario, price: sPrice + 1 })
+    return r2.contribUpside - result.contribUpside
+  }, [baseline, scenario, result, sPrice])
+
+  const marginalOTD = useMemo(() => {
+    if (!result || sOTD <= 6) return 0
+    const r2 = simCalc(baseline, { ...scenario, otd: sOTD - 1 })
+    return r2.contribUpside - result.contribUpside
+  }, [baseline, scenario, result, sOTD])
+
+  // ── Info modal: intermediate calculation values ──
+  const infoData = useMemo(() => {
+    if (!result) return null
+    const { cap, opH, opD, mixCap } = baseline
+
+    // Scenario fleet
+    const delsPerTruck = sTurnaround > 0 ? (opH * 60 / sTurnaround) : 0
+    const fleetRaw = delsPerTruck * sTrucks * mixCap
+    const dispEffPct = Math.round(result.dispEff * 100)
+    const fleetEff = Math.round(result.effFleetDaily)
+
+    // Scenario plant
+    const nameplateDaily = Math.round(cap * opH)
+    const plantCeiling = Math.round(cap * 0.92 * opH)
+
+    // Scenario output
+    const scenarioDaily = Math.round(result.scenarioAnnual / opD)
+
+    // Baseline fleet
+    const bTA = baseline.turnaround
+    const bDelsPerTruck = bTA > 0 ? (opH * 60 / bTA) : 0
+    const bFleetRaw = Math.round(bDelsPerTruck * baseline.trucks * mixCap)
+    const bDispEff = Math.max(0.40, Math.min(0.98, 1 - baseline.dispatchMin / 100))
+    const bDispEffPct = Math.round(bDispEff * 100)
+    const bFleetEff = Math.round(bFleetRaw * bDispEff)
+
+    // Baseline plant
+    const bProdRate = Math.round(cap * (baseline.util / 100))
+    const bProdDaily = bProdRate * opH
+    const bBaselineDaily = Math.min(bProdDaily, bFleetEff)
+    const bAnnualVol = Math.round(bBaselineDaily * opD)
+
+    // Financial
+    const bVarCosts = Math.round(baseline.price - baseline.contrib)
+    const sContrib = Math.round(sPrice - bVarCosts)
+
+    return {
+      // Scenario fleet
+      delsPerTruck: delsPerTruck.toFixed(1), fleetRaw: Math.round(fleetRaw), dispEffPct, fleetEff,
+      // Scenario plant
+      nameplateDaily, plantCeiling,
+      // Scenario output
+      scenarioDaily,
+      // Baseline fleet
+      bTA, bDelsPerTruck: bDelsPerTruck.toFixed(1), bFleetRaw, bDispEffPct, bFleetEff,
+      // Baseline plant
+      bProdRate, bProdDaily: Math.round(bProdDaily), bBaselineDaily: Math.round(bBaselineDaily),
+      bAnnualVol,
+      // Financial
+      bVarCosts, sContrib,
+    }
+  }, [baseline, result, sTurnaround, sTrucks, sOTD, sPrice])
+
+  // ── Dynamic insight text ──
+  const insight = useMemo(() => {
+    if (!result) return ''
+    if (result.scenarioBottleneck === 'Fleet / Logistics') {
+      const gap = Math.round(result.prodDaily - result.effFleetDaily)
+      const dispEff = result.dispEff
+      const targetTA = result.prodDaily > 0
+        ? Math.max(40, Math.round(baseline.opH * 60 * sTrucks * baseline.mixCap * dispEff / result.prodDaily))
+        : sTurnaround
+      return `Fleet is the binding constraint — ${Math.round(result.effFleetDaily)} m³/day delivered vs ${Math.round(result.prodDaily)} m³/day plant ceiling (${gap} m³/day gap). To fully utilise plant capacity at current dispatch efficiency, reduce turnaround to ~${targetTA} min.`
+    } else {
+      return `Plant is at its best-practice ceiling (${Math.round(result.prodDaily)} m³/day, 92% utilisation). Fleet can already deliver more — adding trucks or improving turnaround will not increase output until plant throughput improves.`
+    }
+  }, [result, baseline, sTurnaround, sTrucks])
+
   const resetAll = () => {
     setSTurnaround(r.ta || 90)
     setSTrucks(r.trucks || 10)
@@ -77,30 +179,72 @@ export default function SimulatorView({ calcResult }: SimulatorViewProps) {
   if (sPrice > (r.price || 65) * 1.3) simWarnings.push(`Price ${Math.round((sPrice / (r.price || 65) - 1) * 100)}% above current — verify market will accept this.`)
   if (sOTD < 8) simWarnings.push('Order-to-dispatch under 8 min requires dedicated dispatch software and pre-staged batching.')
 
+  const MARGINAL_THRESHOLD = 500
+
   return (
     <div style={{ flex: 1, overflowY: 'auto', padding: '20px', paddingBottom: '60px' }}>
+      {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
         <h2 style={{ fontSize: '16px', fontWeight: 500 }}>Scenario simulator</h2>
-        <button
-          type="button"
-          onClick={resetAll}
-          style={{
-            padding: '4px 12px', border: '1px solid var(--gray-300)', borderRadius: '6px',
-            fontSize: '11px', color: 'var(--gray-500)', background: 'var(--white)',
-            cursor: 'pointer', fontFamily: 'var(--font)',
-          }}
-        >
-          Reset to baseline
-        </button>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <button
+            type="button"
+            onClick={() => setShowInfo(true)}
+            title="Show calculation breakdown"
+            style={{
+              width: '28px', height: '28px', borderRadius: '50%',
+              border: '1px solid var(--gray-300)', background: 'var(--white)',
+              color: 'var(--gray-500)', fontSize: '13px', fontWeight: 600,
+              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontFamily: 'var(--font)',
+            }}
+          >
+            ⓘ
+          </button>
+          <button
+            type="button"
+            onClick={resetAll}
+            style={{
+              padding: '4px 12px', border: '1px solid var(--gray-300)', borderRadius: '6px',
+              fontSize: '11px', color: 'var(--gray-500)', background: 'var(--white)',
+              cursor: 'pointer', fontFamily: 'var(--font)',
+            }}
+          >
+            Reset to baseline
+          </button>
+        </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
         {/* Left: Sliders */}
         <div>
           <Slider label="Turnaround" value={sTurnaround} min={40} max={180} step={1} baselineValue={r.ta || 90} unit="min" onChange={setSTurnaround} />
+          {marginalTA > MARGINAL_THRESHOLD && (
+            <div style={{ fontSize: '11px', color: 'var(--gray-400)', marginTop: '-10px', marginBottom: '10px', textAlign: 'right' }}>
+              −1 min → +{fmtMarginal(marginalTA)}/yr contribution
+            </div>
+          )}
+
           <Slider label="Trucks" value={sTrucks} min={1} max={Math.max(r.trucks * 2, 20)} step={1} baselineValue={r.trucks || 10} unit="" onChange={setSTrucks} />
+          {marginalTrucks > MARGINAL_THRESHOLD && (
+            <div style={{ fontSize: '11px', color: 'var(--gray-400)', marginTop: '-10px', marginBottom: '10px', textAlign: 'right' }}>
+              +1 truck → +{fmtMarginal(marginalTrucks)}/yr contribution
+            </div>
+          )}
+
           <Slider label="Price" value={sPrice} min={20} max={200} step={1} baselineValue={r.price || 65} unit="$/m³" onChange={setSPrice} />
+          {Math.abs(marginalPrice) > MARGINAL_THRESHOLD && (
+            <div style={{ fontSize: '11px', color: 'var(--gray-400)', marginTop: '-10px', marginBottom: '10px', textAlign: 'right' }}>
+              +$1/m³ → +{fmtMarginal(marginalPrice)}/yr contribution
+            </div>
+          )}
+
           <Slider label="Dispatch Time" value={sOTD} min={5} max={60} step={1} baselineValue={r.dispatchMin ?? 15} unit="min" onChange={setSOTD} />
+          {marginalOTD > MARGINAL_THRESHOLD && (
+            <div style={{ fontSize: '11px', color: 'var(--gray-400)', marginTop: '-10px', marginBottom: '10px', textAlign: 'right' }}>
+              −1 min → +{fmtMarginal(marginalOTD)}/yr contribution
+            </div>
+          )}
         </div>
 
         {/* Right: Results */}
@@ -117,6 +261,7 @@ export default function SimulatorView({ calcResult }: SimulatorViewProps) {
               ))}
             </div>
           )}
+
           {/* Volume delta */}
           <div style={{
             background: deltaPositive ? 'var(--green-light)' : result.deltaVol < 0 ? '#FDE8E6' : 'var(--gray-100)',
@@ -161,10 +306,10 @@ export default function SimulatorView({ calcResult }: SimulatorViewProps) {
             </div>
           </div>
 
-          {/* Bottleneck + constraint */}
+          {/* Constraint analysis */}
           <div style={{
             background: 'var(--white)', border: '1px solid var(--border)',
-            borderRadius: '8px', padding: '12px', marginBottom: '12px',
+            borderRadius: '8px', padding: '12px',
           }}>
             <div style={{ fontSize: '10px', color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '.3px', marginBottom: '8px' }}>
               Constraint analysis
@@ -196,10 +341,125 @@ export default function SimulatorView({ calcResult }: SimulatorViewProps) {
               <span style={{ fontSize: '12px', color: 'var(--gray-500)', width: '80px' }}>Disp. eff.:</span>
               <span style={{ fontSize: '12px', fontFamily: 'var(--mono)' }}>{Math.round(result.dispEff * 100)}%</span>
             </div>
-          </div>
 
+            {/* Dynamic insight */}
+            {insight && (
+              <div style={{
+                marginTop: '10px', paddingTop: '10px',
+                borderTop: '1px solid var(--gray-100)',
+                fontSize: '11px', color: 'var(--gray-600)', lineHeight: 1.6,
+              }}>
+                {insight}
+              </div>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* ── Info modal ── */}
+      {showInfo && infoData && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)',
+            zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+          onClick={() => setShowInfo(false)}
+        >
+          <div
+            style={{
+              background: 'var(--white)', borderRadius: '12px', padding: '24px',
+              maxWidth: '540px', width: '90%', maxHeight: '82vh', overflowY: 'auto',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <span style={{ fontSize: '14px', fontWeight: 600 }}>Calculation breakdown</span>
+              <button
+                type="button"
+                onClick={() => setShowInfo(false)}
+                style={{ background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer', color: 'var(--gray-400)', lineHeight: 1 }}
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Section helper */}
+            {[
+              {
+                title: 'Fleet capacity — scenario',
+                rows: [
+                  [`Deliveries per truck`, `${baseline.opH}h × 60 / ${sTurnaround} min`, `${infoData.delsPerTruck} trips`],
+                  [`Raw fleet volume`, `${infoData.delsPerTruck} × ${sTrucks} trucks × ${baseline.mixCap} m³/load`, `${infoData.fleetRaw} m³/day`],
+                  [`Dispatch efficiency`, `1 − ${sOTD} min / 100`, `${infoData.dispEffPct}%`],
+                  [`Effective fleet capacity`, `${infoData.fleetRaw} × ${infoData.dispEffPct}%`, `${infoData.fleetEff} m³/day`],
+                ],
+              },
+              {
+                title: 'Plant capacity — scenario',
+                rows: [
+                  [`Nameplate daily`, `${baseline.cap} m³/hr × ${baseline.opH} hr`, `${infoData.nameplateDaily} m³/day`],
+                  [`Best-practice ceiling (92%)`, `${infoData.nameplateDaily} × 92%`, `${infoData.plantCeiling} m³/day`],
+                ],
+              },
+              {
+                title: 'Scenario output',
+                rows: [
+                  [`Binding constraint`, `min(fleet ${infoData.fleetEff}, plant ${infoData.plantCeiling})`, `${infoData.scenarioDaily} m³/day`],
+                  [`Annual`, `${infoData.scenarioDaily} m³/day × ${baseline.opD} days`, `${result.scenarioAnnual.toLocaleString()} m³/yr`],
+                ],
+              },
+              {
+                title: 'Baseline (current state)',
+                rows: [
+                  [`Deliveries per truck`, `${baseline.opH}h × 60 / ${infoData.bTA} min`, `${infoData.bDelsPerTruck} trips`],
+                  [`Raw fleet volume`, `${infoData.bDelsPerTruck} × ${baseline.trucks} trucks × ${baseline.mixCap} m³/load`, `${infoData.bFleetRaw} m³/day`],
+                  [`Dispatch efficiency`, `1 − ${baseline.dispatchMin} min / 100`, `${infoData.bDispEffPct}%`],
+                  [`Effective fleet capacity`, `${infoData.bFleetRaw} × ${infoData.bDispEffPct}%`, `${infoData.bFleetEff} m³/day`],
+                  [`Plant (current actual)`, `${infoData.bProdRate} m³/hr × ${baseline.opH} hr`, `${infoData.bProdDaily} m³/day`],
+                  [`Baseline output`, `min(fleet ${infoData.bFleetEff}, plant ${infoData.bProdDaily})`, `${infoData.bBaselineDaily} m³/day`],
+                  [`Annual baseline`, `${infoData.bBaselineDaily} m³/day × ${baseline.opD} days`, `${infoData.bAnnualVol.toLocaleString()} m³/yr`],
+                ],
+              },
+              {
+                title: 'Revenue & contribution impact',
+                rows: [
+                  [`Variable costs (from assessment)`, `$${baseline.price}/m³ − $${baseline.contrib}/m³`, `$${infoData.bVarCosts}/m³`],
+                  [`Scenario contribution margin`, `$${sPrice}/m³ − $${infoData.bVarCosts}/m³`, `$${infoData.sContrib}/m³`],
+                  [`Revenue impact`, `${result.scenarioAnnual.toLocaleString()} × $${sPrice} − ${infoData.bAnnualVol.toLocaleString()} × $${baseline.price}`, `${result.revenueUpside >= 0 ? '+' : ''}${fmt(result.revenueUpside)}/yr`],
+                  [`Contribution impact`, `${result.scenarioAnnual.toLocaleString()} × $${infoData.sContrib} − ${infoData.bAnnualVol.toLocaleString()} × $${baseline.contrib}`, `${result.contribUpside >= 0 ? '+' : ''}${fmt(result.contribUpside)}/yr`],
+                ],
+              },
+            ].map(section => (
+              <div key={section.title} style={{ marginBottom: '20px' }}>
+                <div style={{
+                  fontSize: '10px', fontWeight: 600, textTransform: 'uppercase',
+                  letterSpacing: '.4px', color: 'var(--gray-500)', marginBottom: '8px',
+                }}>
+                  {section.title}
+                </div>
+                <div style={{ borderRadius: '6px', overflow: 'hidden', border: '1px solid var(--gray-100)' }}>
+                  {section.rows.map(([label, formula, value], i) => (
+                    <div key={i} style={{
+                      display: 'grid', gridTemplateColumns: '1fr 1fr auto',
+                      gap: '8px', padding: '7px 10px', alignItems: 'baseline',
+                      background: i % 2 === 0 ? 'var(--white)' : 'var(--gray-50)',
+                    }}>
+                      <span style={{ fontSize: '11px', color: 'var(--gray-700)' }}>{label}</span>
+                      <span style={{ fontSize: '10px', color: 'var(--gray-400)', fontFamily: 'var(--mono)' }}>{formula}</span>
+                      <span style={{ fontSize: '11px', fontWeight: 600, fontFamily: 'var(--mono)', color: 'var(--gray-800)', textAlign: 'right', whiteSpace: 'nowrap' }}>{value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+
+            <div style={{ fontSize: '10px', color: 'var(--gray-400)', textAlign: 'center', marginTop: '4px' }}>
+              Click anywhere outside to close
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
