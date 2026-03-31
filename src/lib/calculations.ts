@@ -115,7 +115,8 @@ export interface SimBaseline {
   price: number
   contrib: number
   TARGET_TA: number
-  dispatchScore: number // 0-100 baseline
+  dispatchMin: number  // baseline order-to-dispatch minutes (same scale as scenario)
+  dispatchScore: number // 0-100 baseline (kept for score display)
   qualityScore: number // 0-100 baseline
 }
 
@@ -707,18 +708,20 @@ export function simCalc(baseline: SimBaseline, scenario: SimScenario): SimResult
   // Contribution recalculated when price changes
   const sContrib = Math.max(0, sPrice - bVarCosts)
 
-  // Baseline annual volume (current actual production vs current fleet)
+  // Baseline annual volume — same dispatch formula as scenario (minutes-based)
   const bProdDaily = cap * (baseline.util / 100) * opH
   const bDelsPerTruck = baseline.turnaround > 0 ? (opH * 60 / baseline.turnaround) : 0
   const bFleetDaily = bDelsPerTruck * baseline.trucks * mixCap
-  const bDispEff = Math.max(0.4, Math.min(0.98, (baseline.dispatchScore / 100) * 0.3 + 0.7))
+  const bDispEff = Math.max(0.40, Math.min(0.98, 1 - (baseline.dispatchMin / 100)))
   const bEffFleetDaily = bFleetDaily * bDispEff
   const bBaselineDaily = Math.min(bProdDaily, bEffFleetDaily)
   const bAnnualVol = Math.round(bBaselineDaily * opD)
 
   const deltaVol = scenarioAnnual - bAnnualVol
-  const revenueUpside = deltaVol * sPrice
-  const contribUpside = deltaVol * sContrib
+  // Revenue and contribution impact = total scenario earnings minus total baseline earnings
+  // This captures both volume change AND price change on all volume
+  const revenueUpside = Math.round(scenarioAnnual * sPrice - bAnnualVol * baseline.price)
+  const contribUpside = Math.round(scenarioAnnual * sContrib - bAnnualVol * baseline.contrib)
 
   // Scores
   const sProdScore = Math.max(0, Math.min(100, Math.round((sUtil / 92) * 100)))

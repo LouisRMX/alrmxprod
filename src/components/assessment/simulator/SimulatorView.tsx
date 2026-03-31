@@ -27,6 +27,7 @@ export default function SimulatorView({ calcResult }: SimulatorViewProps) {
     price: r.price,
     contrib: r.contrib,
     TARGET_TA: r.TARGET_TA,
+    dispatchMin: r.dispatchMin ?? 20,
     dispatchScore: r.scores.dispatch ?? 50,
     qualityScore: r.scores.quality ?? 50,
   }), [r])
@@ -142,19 +143,21 @@ export default function SimulatorView({ calcResult }: SimulatorViewProps) {
               background: 'var(--white)', border: '1px solid var(--border)',
               borderRadius: '8px', padding: '12px', textAlign: 'center',
             }}>
-              <div style={{ fontSize: '10px', color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '.3px' }}>Revenue</div>
-              <div style={{ fontSize: '16px', fontWeight: 600, fontFamily: 'var(--mono)', color: result.revenueUpside > 0 ? 'var(--green)' : 'var(--gray-500)', marginTop: '2px' }}>
+              <div style={{ fontSize: '10px', color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '.3px' }}>Revenue impact</div>
+              <div style={{ fontSize: '16px', fontWeight: 600, fontFamily: 'var(--mono)', color: result.revenueUpside > 0 ? 'var(--green)' : result.revenueUpside < 0 ? 'var(--red)' : 'var(--gray-500)', marginTop: '2px' }}>
                 {result.revenueUpside > 0 ? '+' : ''}{fmt(result.revenueUpside)}
               </div>
+              <div style={{ fontSize: '10px', color: 'var(--gray-400)', marginTop: '2px' }}>/yr vs baseline</div>
             </div>
             <div style={{
               background: 'var(--white)', border: '1px solid var(--border)',
               borderRadius: '8px', padding: '12px', textAlign: 'center',
             }}>
-              <div style={{ fontSize: '10px', color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '.3px' }}>Contribution</div>
-              <div style={{ fontSize: '16px', fontWeight: 600, fontFamily: 'var(--mono)', color: result.contribUpside > 0 ? 'var(--green)' : 'var(--gray-500)', marginTop: '2px' }}>
+              <div style={{ fontSize: '10px', color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '.3px' }}>Contrib. impact</div>
+              <div style={{ fontSize: '16px', fontWeight: 600, fontFamily: 'var(--mono)', color: result.contribUpside > 0 ? 'var(--green)' : result.contribUpside < 0 ? 'var(--red)' : 'var(--gray-500)', marginTop: '2px' }}>
                 {result.contribUpside > 0 ? '+' : ''}{fmt(result.contribUpside)}
               </div>
+              <div style={{ fontSize: '10px', color: 'var(--gray-400)', marginTop: '2px' }}>/yr vs baseline</div>
             </div>
           </div>
 
