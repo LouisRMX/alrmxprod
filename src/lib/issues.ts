@@ -109,15 +109,20 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
   // ── Production utilisation ─────────────────────────────────────────────
 
   // Only show capLeak as a separate loss when turnaround is within benchmark.
-  // If ta > TARGET_TA, turnaroundLeakMonthly already captures the capacity gap —
-  // showing capLeak as well would count the same loss twice.
+  // If ta > TARGET_TA, turnaroundLeakMonthly already captures the capacity gap.
+  // If demand is insufficient, show as indicator only (loss = 0).
   if (r.util < 0.82 && r.actual > 0 && r.ta <= r.TARGET_TA) {
+    const demandGated = r.demandSufficient === false
     issues.push({
-      sev: 'red', pin: bn === 'Production', category: 'bottleneck', dimension: 'Production',
-      t: `Plant running at ${Math.round(r.util * 100)}% — ${Math.round((0.92 - r.util) * 100)} points below 92% target`,
-      action: 'Map peak demand window and pre-stage batching 30 min before',
-      rec: 'Check batch cycle time and aggregate feed rate. Pre-staging batching before peak hours is the fastest lever.',
-      loss: r.capLeakMonthly,
+      sev: demandGated ? 'amber' : 'red',
+      pin: !demandGated && bn === 'Production',
+      category: 'bottleneck', dimension: 'Production',
+      t: `Plant running at ${Math.round(r.util * 100)}% — ${Math.round((r.utilisationTarget - r.util * 100))} points below ${r.utilisationTarget}% target${demandGated ? ' (demand-limited)' : ''}`,
+      action: demandGated ? 'Grow sales pipeline before optimising throughput' : 'Map peak demand window and pre-stage batching 30 min before',
+      rec: demandGated
+        ? 'Plant has operational headroom but current volume reflects available orders. Focus on sales and pricing before investing in throughput improvements.'
+        : 'Check batch cycle time and aggregate feed rate. Pre-staging batching before peak hours is the fastest lever.',
+      loss: demandGated ? 0 : r.capLeakMonthly,
       formula: `(${r.cap} designed − ${r.actual.toFixed(1)} actual m³/hr) × ${r.opH} hr × ${Math.round(r.opD / 12)} days/month × $${Math.round(r.contribSafe)} margin`,
     })
   }
@@ -125,13 +130,16 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
   // ── Hidden deliveries ──────────────────────────────────────────────────
 
   if (r.hiddenDel > 0) {
+    const demandGated = r.demandSufficient === false
     issues.push({
       sev: 'amber', pin: false, category: 'independent', dimension: 'Fleet',
-      t: `Fleet capacity headroom: ${r.hiddenDel} more deliveries/day possible at ${r.TARGET_TA}-min turnaround`,
-      action: 'Fix turnaround and dispatch first — confirm demand exists before adding trucks',
-      rec: `At the ${r.TARGET_TA}-min target turnaround, your fleet can support ${r.realisticMaxDel} deliveries/day vs. ${r.delDay} today. Equivalent to ${fmt(r.hiddenRevMonthly)}/month in additional contribution — if customer demand supports it. Do not count this as a guaranteed recovery.`,
+      t: `Fleet capacity headroom: ${r.hiddenDel} more deliveries/day possible at ${r.TARGET_TA}-min turnaround${demandGated ? ' — demand-limited' : ''}`,
+      action: demandGated ? 'Grow order book before expanding delivery capacity' : 'Fix turnaround and dispatch first — confirm demand exists before adding trucks',
+      rec: demandGated
+        ? `Fleet can support ${r.realisticMaxDel} deliveries/day at target turnaround vs. ${r.delDay} today. This headroom (${fmt(r.hiddenRevMonthly)}/month) is not realisable until demand grows — focus on sales pipeline.`
+        : `At the ${r.TARGET_TA}-min target turnaround, your fleet can support ${r.realisticMaxDel} deliveries/day vs. ${r.delDay} today. Equivalent to ${fmt(r.hiddenRevMonthly)}/month in additional contribution — if customer demand supports it.`,
       loss: 0,
-      formula: `${r.trucks} trucks × (${r.opH} hr × 60 ÷ ${r.TARGET_TA} min target) × 85% utilisation = ${r.realisticMaxDel} del/day capacity. Gap vs. actual: ${r.hiddenDel} del/day × ${r.mixCap} m³ × $${Math.round(r.contribSafe)} margin × ${Math.round(r.opD / 12)} days`,
+      formula: `${r.trucks} trucks × (${r.opH} hr × 60 ÷ ${r.TARGET_TA} min target) × ${r.fleetUtilFactor}% utilisation = ${r.realisticMaxDel} del/day capacity. Gap vs. actual: ${r.hiddenDel} del/day × ${r.mixCap} m³ × $${Math.round(r.contribSafe)} margin × ${Math.round(r.opD / 12)} days`,
     })
   }
 

@@ -186,6 +186,92 @@ function ImpactSummary({ config, entries, coeffDispatch, currentWeek }: {
   )
 }
 
+// ── Monthly Milestones ─────────────────────────────────────────────────────
+
+function MonthlyMilestones({ config, entries, coeffDispatch }: {
+  config: TrackingConfig
+  entries: TrackingEntry[]
+  coeffDispatch: number
+}) {
+  const CHECKPOINTS = [
+    { label: 'Month 1', week: 4 },
+    { label: 'Month 2', week: 8 },
+    { label: 'Month 3', week: 13 },
+  ]
+  const currentWeek = getWeekNumber(config.started_at)
+
+  return (
+    <div style={{ background: 'var(--white)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '16px 20px', marginBottom: '16px' }}>
+      <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '14px' }}>
+        Milestones
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+        {CHECKPOINTS.map(({ label, week }) => {
+          const entry = entries.find(e => e.week_number === week)
+            ?? [...entries].sort((a, b) => Math.abs(a.week_number - week) - Math.abs(b.week_number - week))[0]
+          const reached = currentWeek >= week
+          const taBaseline = config.baseline_turnaround ?? 0
+          const taTarget = config.target_turnaround ?? taBaseline
+          const diBaseline = config.baseline_dispatch_min ?? 0
+          const diTarget = config.target_dispatch_min ?? diBaseline
+          // Predicted at this checkpoint
+          const predictedTA = Math.round(taBaseline - (taBaseline - taTarget) * (week / 12))
+          const predictedDI = Math.round(diBaseline - (diBaseline - diTarget) * (week / 12))
+          // Actual recovery at this checkpoint
+          const actualEntry = entries.find(e => e.week_number === week)
+          const taActual = actualEntry?.turnaround_min ?? null
+          const diActual = actualEntry?.dispatch_min ?? null
+          const predictedRecovery = Math.round(
+            Math.max(0, taBaseline - predictedTA) * config.coeff_turnaround
+            + Math.max(0, diBaseline - predictedDI) * coeffDispatch
+          )
+          const actualRecovery = reached && (taActual != null || diActual != null) ? Math.round(
+            Math.max(0, taBaseline - (taActual ?? predictedTA)) * config.coeff_turnaround
+            + Math.max(0, diBaseline - (diActual ?? predictedDI)) * coeffDispatch
+          ) : null
+
+          const ahead = actualRecovery != null && predictedRecovery > 0 && actualRecovery >= predictedRecovery
+          const behind = actualRecovery != null && predictedRecovery > 0 && actualRecovery < predictedRecovery
+
+          return (
+            <div
+              key={label}
+              style={{
+                padding: '12px', borderRadius: '8px',
+                background: !reached ? 'var(--gray-50)' : ahead ? 'var(--phase-complete-bg)' : behind ? 'var(--warning-bg)' : 'var(--gray-50)',
+                border: `1px solid ${!reached ? 'var(--border)' : ahead ? 'var(--tooltip-border)' : behind ? 'var(--warning-border)' : 'var(--border)'}`,
+                opacity: !reached ? 0.6 : 1,
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--gray-700)' }}>{label}</div>
+                <div style={{ fontSize: '9px', color: 'var(--gray-400)' }}>wk {week}</div>
+              </div>
+              <div style={{ marginBottom: '6px' }}>
+                <div style={{ fontSize: '9px', color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: '2px' }}>Predicted</div>
+                <div style={{ fontSize: '13px', fontWeight: 600, fontFamily: 'var(--mono)', color: 'var(--gray-500)' }}>
+                  {predictedRecovery > 0 ? fmt(predictedRecovery) + '/mo' : '—'}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: '9px', color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: '2px' }}>Actual</div>
+                <div style={{ fontSize: '15px', fontWeight: 700, fontFamily: 'var(--mono)', color: !reached ? 'var(--gray-300)' : ahead ? 'var(--phase-complete)' : behind ? '#d97706' : 'var(--gray-900)' }}>
+                  {actualRecovery != null ? fmt(actualRecovery) + '/mo' : reached ? '— not logged' : '—'}
+                </div>
+              </div>
+              {actualRecovery != null && predictedRecovery > 0 && (
+                <div style={{ marginTop: '6px', fontSize: '9px', fontWeight: 600, color: ahead ? 'var(--phase-complete)' : '#d97706' }}>
+                  {ahead ? `✓ +${fmt(actualRecovery - predictedRecovery)} ahead` : `▼ ${fmt(predictedRecovery - actualRecovery)} behind`}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 // ── ImpactChart (Section B) ────────────────────────────────────────────────
 
 function ImpactChart({ config, entries }: { config: TrackingConfig; entries: TrackingEntry[] }) {
@@ -632,6 +718,9 @@ function ProgressView({ config, entries, onEntryLogged, coeffDispatch }: {
 
       {/* A: Impact Summary */}
       <ImpactSummary config={config} entries={entries} coeffDispatch={coeffDispatch} currentWeek={currentWeek} />
+
+      {/* A2: Monthly milestones */}
+      <MonthlyMilestones config={config} entries={entries} coeffDispatch={coeffDispatch} />
 
       {/* B: Chart */}
       <ImpactChart config={config} entries={entries} />

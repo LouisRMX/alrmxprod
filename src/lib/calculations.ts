@@ -96,6 +96,13 @@ export interface CalcResult {
   summerAdjusted: boolean
   daysMismatchPenalty: number
 
+  // Demand context
+  demandSufficient: boolean | null  // true = operations-limited, false = demand-limited, null = unknown
+
+  // Override-aware targets
+  utilisationTarget: number  // 0–100, default 92
+  fleetUtilFactor: number    // 0–100, default 85
+
   // Scores
   scores: CalcScores
   overall: number | null
@@ -145,9 +152,26 @@ export interface SimResult {
   sUtil: number
 }
 
+// ── Overrides ────────────────────────────────────────────────────────────────
+
+export interface CalcOverrides {
+  utilisationTarget?: number  // 0–100, default 92
+  fleetUtilFactor?: number    // 0–100, default 85
+}
+
 // ── Constants ────────────────────────────────────────────────────────────────
 
 export const FLEET_UTIL_TARGET = 0.85
+
+/** Low / mid / high range on a totalLoss figure (±30%).
+ *  Only shown when data confidence is below system-records level. */
+export function calcLossRange(totalLoss: number): { low: number; mid: number; high: number } {
+  return {
+    low: Math.round(totalLoss * 0.70),
+    mid: totalLoss,
+    high: Math.round(totalLoss * 1.30),
+  }
+}
 
 export function calcTargetTA(radius: number): number {
   return radius > 0 ? Math.min(110, Math.max(65, Math.round(60 + radius * 1.5))) : 80
@@ -264,8 +288,12 @@ function weightedAvg(items: { v: number | null | undefined; w: number }[]): numb
 
 // ── Main Calculation ─────────────────────────────────────────────────────────
 
-export function calc(answers: Answers, meta?: { season?: string }): CalcResult {
+export function calc(answers: Answers, meta?: { season?: string }, overrides?: CalcOverrides): CalcResult {
   const a = answers
+  const utilisationTargetPct = overrides?.utilisationTarget ?? 92
+  const fleetUtilFactorPct = overrides?.fleetUtilFactor ?? 85
+  const utilisationTargetFrac = utilisationTargetPct / 100
+  const fleetUtilFactorFrac = fleetUtilFactorPct / 100
 
   // Economics
   const price = +(a.price_m3 ?? 0) || 0
@@ -326,7 +354,7 @@ export function calc(answers: Answers, meta?: { season?: string }): CalcResult {
   const driverConstrained = qualifiedDrivers > 0 && qualifiedDrivers < operativeTrucks * 0.85
 
   const maxDelDay = effectiveUnits > 0 && ta > 0 ? Math.floor(effectiveUnits * (opH * 60 / ta)) : 0
-  const realisticMaxDel = effectiveUnits > 0 ? Math.floor(effectiveUnits * (opH * 60 / TARGET_TA) * FLEET_UTIL_TARGET) : 0
+  const realisticMaxDel = effectiveUnits > 0 ? Math.floor(effectiveUnits * (opH * 60 / TARGET_TA) * fleetUtilFactorFrac) : 0
   const rawHidden = Math.max(0, realisticMaxDel - delDay)
   const hiddenSuspect = operativeTrucks > 0 && rawHidden > operativeTrucks * 3
   const hiddenDel = rawHidden
@@ -422,12 +450,20 @@ export function calc(answers: Answers, meta?: { season?: string }): CalcResult {
 
   const isSummer = meta?.season === 'summer'
 
+  // Demand context
+  const dsAnswer = a.demand_sufficient as string | undefined
+  const demandSufficient: boolean | null =
+    dsAnswer === 'Operations — we have more demand than we can currently produce or deliver' ||
+    dsAnswer === 'Both — we could sell more, and operations are also holding us back' ? true :
+    dsAnswer === 'Demand — our volume reflects available orders, not operational limits' ? false :
+    null
+
   // ── Scores ─────────────────────────────────────────────────────────────────
 
   const confWeight = CONF_WEIGHT[a.prod_data_source as string] ?? 1
 
   // Production score
-  let utilScore: number | null = actual > 0 ? Math.max(0, Math.min(100, Math.round(util / 0.92 * 100))) : null
+  let utilScore: number | null = actual > 0 ? Math.max(0, Math.min(100, Math.round(util / utilisationTargetFrac * 100))) : null
   if (utilScore !== null) {
     const batchPenalty = BATCH_CYCLE_PENALTY[a.batch_cycle as string] ?? 0
     utilScore = Math.max(0, utilScore - batchPenalty)
@@ -522,6 +558,11 @@ export function calc(answers: Answers, meta?: { season?: string }): CalcResult {
   return {
     // Economics
     contrib, contribSafe, contribFuelAdj, marginRatio, marginIncomplete,
+    // Demand context
+    demandSufficient,
+    // Override-aware targets (exposed for display in assumptions panel)
+    utilisationTarget: utilisationTargetPct,
+    fleetUtilFactor: fleetUtilFactorPct,
     mixWeightedContrib, mixMarginLift, hsPremium, hsFraction, waterCost,
     // Production
     util, unusedCapAnnual, capLeakMonthly, actual, monthlyM3, cap, opH, opD, workingDaysMonth,
@@ -738,8 +779,13 @@ export function simCalc(baseline: SimBaseline, scenario: SimScenario): SimResult
   const sFleetScore = Math.max(0, Math.min(100, Math.round(taRatio <= 1 ? 100 : 100 - ((taRatio - 1) * 120))))
   const sDispScore = Math.max(0, Math.min(100, Math.round(100 - sOTD * 1.4)))
 
-  // maxUtilPct kept for compatibility (now equals sUtil when fleet is bottleneck)
-  const maxUtilPct = sUtil
+  // maxUtilPct: what fraction of the plant's 92% best-practice ceiling the current fleet can support.
+  // = 100 → fleet exactly matches plant ceiling (in balance)
+  // > 100 → fleet can exceed plant ceiling → plant is the binding constraint
+  // < 100 → fleet is limiting → turnaround/trucks must improve for utilisation to rise
+  const maxUtilPct = cap > 0 && opH > 0
+    ? Math.min(100, Math.round((effFleetDaily / (cap * 0.92 * opH)) * 100))
+    : sUtil
 
   return {
     scenarioAnnual, deltaVol, revenueUpside, contribUpside, scenarioBottleneck,

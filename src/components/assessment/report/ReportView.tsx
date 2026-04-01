@@ -2,8 +2,10 @@
 
 import { useState, useRef, useEffect, useCallback, useMemo, type ReactNode } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import type { CalcResult, Answers } from '@/lib/calculations'
+import type { CalcResult, Answers, CalcOverrides } from '@/lib/calculations'
+import { calcLossRange } from '@/lib/calculations'
 import { buildIssues, getFinancialBottleneck } from '@/lib/issues'
+import { benchmarkTag } from '@/lib/benchmarks'
 import { stripMarkdown } from '@/lib/stripMarkdown'
 import FindingCard from './FindingCard'
 import ExportPDF from './ExportPDF'
@@ -167,9 +169,10 @@ interface KpiBoxProps {
   bar: ReactNode
   gap: string
   gapColor: string
+  benchmark?: string
 }
 
-function KpiBox({ label, value, target, isBottleneck, isWarn, size = 'normal', bar, gap, gapColor }: KpiBoxProps) {
+function KpiBox({ label, value, target, isBottleneck, isWarn, size = 'normal', bar, gap, gapColor, benchmark }: KpiBoxProps) {
   const bg = isBottleneck ? 'var(--error-bg)' : isWarn ? 'var(--warning-bg)' : 'var(--gray-100)'
   const border = isBottleneck ? 'var(--error-border)' : isWarn ? 'var(--warning-border)' : 'var(--border)'
   return (
@@ -184,6 +187,7 @@ function KpiBox({ label, value, target, isBottleneck, isWarn, size = 'normal', b
       {target && <div style={{ fontSize: '9px', color: 'var(--gray-400)', marginTop: '1px' }}>{target}</div>}
       {bar && <div style={{ marginTop: '7px' }}>{bar}</div>}
       {gap && <div style={{ fontSize: '9px', fontWeight: 600, color: gapColor, marginTop: '3px' }}>{gap}</div>}
+      {benchmark && <div style={{ fontSize: '8px', color: 'var(--gray-400)', marginTop: '5px', borderTop: '1px solid var(--border)', paddingTop: '4px', fontStyle: 'italic' }}>{benchmark}</div>}
     </div>
   )
 }
@@ -229,14 +233,16 @@ function KpiBarLower({ current, target, max, isBottleneck, isWarn }: { current: 
 }
 
 // ── KPI Pyramid ────────────────────────────────────────────────────────────
-function KPIPyramid({ calcResult, answers, totalLoss, dailyLoss, financialBottleneck }: {
+function KPIPyramid({ calcResult, answers, totalLoss, dailyLoss, financialBottleneck, showRange }: {
   calcResult: CalcResult
   answers: Answers
   totalLoss: number
   dailyLoss: number
   financialBottleneck: string | null
+  showRange: boolean
 }) {
   if (totalLoss === 0) return null
+  const lossRange = calcLossRange(totalLoss)
 
   const utilPct = Math.round(calcResult.util * 100)
 
@@ -298,13 +304,29 @@ function KPIPyramid({ calcResult, answers, totalLoss, dailyLoss, financialBottle
         borderRadius: 'var(--radius)', padding: '14px 18px', marginBottom: '0',
       }}>
         <div>
-          <div style={{ fontSize: '9px', color: 'var(--gray-500)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.4px' }}>Potential Monthly Loss</div>
+          <div style={{ fontSize: '9px', color: 'var(--gray-500)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.4px' }}>
+            {calcResult.demandSufficient === false ? 'Margin Improvement Potential' : 'Potential Monthly Loss'}
+          </div>
           <div style={{ fontSize: '24px', fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--red)', marginTop: '1px' }}>{fmt(totalLoss)}</div>
-          <div style={{ fontSize: '9px', color: 'var(--gray-500)', marginTop: '2px' }}>{fmt(totalLoss * 12)}/year · assumes sufficient demand</div>
+          {showRange && (
+            <div style={{ fontSize: '9px', color: 'var(--gray-400)', marginTop: '1px', fontFamily: 'var(--mono)' }}>
+              range {fmt(lossRange.low)} – {fmt(lossRange.high)}
+            </div>
+          )}
+          <div style={{ fontSize: '9px', color: 'var(--gray-500)', marginTop: '2px' }}>
+            {calcResult.demandSufficient === false
+              ? 'demand-constrained — focus on margin, not throughput'
+              : `${fmt(totalLoss * 12)}/year · requires sufficient demand`}
+          </div>
         </div>
         <div style={{ textAlign: 'right', paddingLeft: '20px', borderLeft: '1px solid var(--error-border)' }}>
           <div style={{ fontSize: '9px', color: 'var(--gray-500)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.4px' }}>Per Working Day</div>
           <div style={{ fontSize: '24px', fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--red)', marginTop: '1px' }}>{fmt(dailyLoss)}</div>
+          {showRange && (
+            <div style={{ fontSize: '9px', color: 'var(--gray-400)', marginTop: '1px', fontFamily: 'var(--mono)' }}>
+              range {fmt(Math.round(dailyLoss * 0.70))} – {fmt(Math.round(dailyLoss * 1.30))}
+            </div>
+          )}
           <div style={{ fontSize: '9px', color: 'var(--gray-500)', marginTop: '2px' }}>based on {calcResult.workingDaysMonth || 22} working days/mo</div>
         </div>
       </div>
@@ -322,6 +344,7 @@ function KPIPyramid({ calcResult, answers, totalLoss, dailyLoss, financialBottle
           bar={<KpiBarHigher current={utilPct} target={85} max={100} isBottleneck={isUtilBn} isWarn={utilWarn} />}
           gap={utilWarn ? `−${85 - utilPct} pp below target` : 'on target'}
           gapColor={kpiColor(isUtilBn, utilWarn)}
+          benchmark={benchmarkTag('utilisation')}
         />
         <KpiBox
           label="Turnaround Time"
@@ -332,6 +355,7 @@ function KPIPyramid({ calcResult, answers, totalLoss, dailyLoss, financialBottle
           bar={<KpiBarLowerOverlay current={calcResult.ta} target={calcResult.TARGET_TA} isBottleneck={isTaBn} />}
           gap={taWarn ? `+${calcResult.ta - calcResult.TARGET_TA} min over target` : 'on target'}
           gapColor={kpiColor(isTaBn, taWarn)}
+          benchmark={benchmarkTag('turnaround')}
         />
       </div>
 
@@ -349,6 +373,7 @@ function KPIPyramid({ calcResult, answers, totalLoss, dailyLoss, financialBottle
           bar={<KpiBarLower current={calcResult.rejectPct} target={3} max={Math.max(calcResult.rejectPct * 1.5, 6)} isBottleneck={isRejectBn} isWarn={rejectWarn} />}
           gap={rejectWarn ? `+${(calcResult.rejectPct - 3).toFixed(1)} pp over target` : 'on target'}
           gapColor={kpiColor(isRejectBn, rejectWarn)}
+          benchmark={benchmarkTag('rejection')}
         />
         {dispTime !== null ? (
           <KpiBox
@@ -361,6 +386,7 @@ function KPIPyramid({ calcResult, answers, totalLoss, dailyLoss, financialBottle
             bar={<KpiBarLowerOverlay current={dispTime} target={15} isBottleneck={isDispBn} />}
             gap={dispWarn ? `+${dispTime - 15} min over target` : 'on target'}
             gapColor={kpiColor(isDispBn, dispWarn)}
+            benchmark={benchmarkTag('dispatch')}
           />
         ) : (
           <KpiBox label="Dispatch Time" value="—" target="target 15 min" isBottleneck={false} isWarn={false} size="small" bar={null} gap="" gapColor="var(--gray-400)" />
@@ -375,8 +401,263 @@ function KPIPyramid({ calcResult, answers, totalLoss, dailyLoss, financialBottle
           bar={delPerTruck > 0 && targetDelPerTruck > 0 ? <KpiBarHigher current={delPerTruck} target={targetDelPerTruck} max={targetDelPerTruck * 1.1} isBottleneck={false} isWarn={delWarn} /> : null}
           gap={delWarn && targetDelPerTruck > 0 ? `−${(targetDelPerTruck - delPerTruck).toFixed(1)} per day` : ''}
           gapColor={kpiColor(false, delWarn)}
+          benchmark={benchmarkTag('deliveriesPerTruck')}
         />
       </div>
+    </div>
+  )
+}
+
+// ── Case Study Section ─────────────────────────────────────────────────────
+function CaseStudySection({ calcResult, meta, totalLoss, assessmentId }: {
+  calcResult: CalcResult
+  meta?: { country?: string; plant?: string; date?: string }
+  totalLoss: number
+  assessmentId: string
+}) {
+  const [open, setOpen] = useState(false)
+  const [consent, setConsent] = useState(false)
+  const [outcome, setOutcome] = useState('')
+  const [saved, setSaved] = useState(false)
+  const supabase = createClient()
+
+  const plantName = meta?.plant || 'Plant'
+  const country = meta?.country || ''
+  const date = meta?.date || new Date().toISOString().slice(0, 10)
+
+  // Pre-filled template derived from calcResult
+  const template = [
+    `Client: ${plantName}${country ? ` — ${country}` : ''}`,
+    `Assessment date: ${date}`,
+    ``,
+    `BEFORE`,
+    `Turnaround: ${calcResult.ta} min (benchmark ${calcResult.TARGET_TA} min)`,
+    `Rejection rate: ${calcResult.rejectPct}%`,
+    calcResult.dispatchMin ? `Dispatch time: ${calcResult.dispatchMin} min` : null,
+    `Estimated monthly loss: $${totalLoss.toLocaleString()}`,
+    ``,
+    `AFTER (to complete at 90-day review)`,
+    `Turnaround: ___ min`,
+    `Rejection rate: ___%`,
+    calcResult.dispatchMin ? `Dispatch time: ___ min` : null,
+    `Monthly margin recovered: $___`,
+    ``,
+    `KEY ACTIONS THAT DROVE RESULTS`,
+    `1. `,
+    `2. `,
+    `3. `,
+  ].filter(Boolean).join('\n')
+
+  async function handleSave() {
+    if (!outcome.trim()) return
+    await supabase.from('reports').upsert({
+      assessment_id: assessmentId,
+      case_study_consent: consent,
+      case_study_notes: outcome,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'assessment_id' })
+    setSaved(true)
+    setTimeout(() => setSaved(false), 3000)
+  }
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+        <h3 style={{ fontSize: '13px', fontWeight: 600, color: 'var(--gray-900)', margin: 0, textTransform: 'uppercase', letterSpacing: '.4px' }}>
+          Case Study Framework
+        </h3>
+        <button
+          type="button"
+          onClick={() => setOpen(v => !v)}
+          style={{
+            padding: '4px 10px', border: '1px solid var(--border)', borderRadius: '6px',
+            fontSize: '11px', color: 'var(--gray-500)', background: 'var(--white)',
+            cursor: 'pointer', fontFamily: 'var(--font)',
+          }}
+        >
+          {open ? 'Collapse' : 'Expand'}
+        </button>
+      </div>
+
+      {!open && (
+        <div style={{ fontSize: '12px', color: 'var(--gray-400)', lineHeight: 1.5 }}>
+          Pre-filled before/after template. Complete after 90-day tracking to create a publishable case study.
+        </div>
+      )}
+
+      {open && (
+        <div>
+          {/* Template */}
+          <div style={{
+            background: 'var(--gray-50)', border: '1px solid var(--border)', borderRadius: '8px',
+            padding: '14px 16px', marginBottom: '14px',
+          }}>
+            <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: '8px' }}>
+              Pre-filled template (from assessment data)
+            </div>
+            <pre style={{
+              fontSize: '11px', color: 'var(--gray-600)', fontFamily: 'var(--mono)',
+              lineHeight: 1.7, margin: 0, whiteSpace: 'pre-wrap',
+            }}>
+              {template}
+            </pre>
+          </div>
+
+          {/* Outcome notes */}
+          <div style={{ marginBottom: '12px' }}>
+            <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: '6px' }}>
+              Outcome notes (complete at 90-day review)
+            </label>
+            <textarea
+              value={outcome}
+              onChange={e => setOutcome(e.target.value)}
+              placeholder="Describe the actual results, key actions taken, and any context useful for a case study…"
+              style={{
+                width: '100%', minHeight: '100px', padding: '10px 12px',
+                border: '1px solid var(--border)', borderRadius: '8px',
+                fontSize: '13px', fontFamily: 'var(--font)', color: 'var(--gray-900)',
+                lineHeight: 1.6, resize: 'vertical', outline: 'none', boxSizing: 'border-box',
+              }}
+            />
+          </div>
+
+          {/* Consent */}
+          <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer', marginBottom: '14px', fontSize: '12px', color: 'var(--gray-600)', lineHeight: 1.5 }}>
+            <input
+              type="checkbox"
+              checked={consent}
+              onChange={e => setConsent(e.target.checked)}
+              style={{ marginTop: '2px', flexShrink: 0 }}
+            />
+            Client consents to anonymised before/after results being used as a case study (no plant name or location will be published without separate written consent)
+          </label>
+
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={!outcome.trim()}
+            style={{
+              padding: '8px 18px',
+              background: saved ? 'var(--phase-complete)' : 'var(--green)',
+              color: '#fff', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600,
+              cursor: !outcome.trim() ? 'not-allowed' : 'pointer',
+              opacity: !outcome.trim() ? 0.5 : 1,
+              fontFamily: 'var(--font)', transition: 'background .2s',
+            }}
+          >
+            {saved ? '✓ Saved' : 'Save case study notes'}
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Assumptions Panel ──────────────────────────────────────────────────────
+function AssumptionsPanel({ overrides, onChange }: {
+  overrides: CalcOverrides
+  onChange: (o: CalcOverrides) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const utilTarget = overrides.utilisationTarget ?? 92
+  const fleetFactor = overrides.fleetUtilFactor ?? 85
+  const isModified = (overrides.utilisationTarget !== undefined && overrides.utilisationTarget !== 92)
+    || (overrides.fleetUtilFactor !== undefined && overrides.fleetUtilFactor !== 85)
+
+  return (
+    <div style={{ marginBottom: '16px' }}>
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        style={{
+          display: 'flex', alignItems: 'center', gap: '6px',
+          background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+          fontSize: '11px', color: isModified ? 'var(--green)' : 'var(--gray-400)',
+          fontFamily: 'var(--font)', fontWeight: 500,
+        }}
+      >
+        <span style={{ fontSize: '9px' }}>{open ? '▲' : '▼'}</span>
+        Model assumptions
+        {isModified && <span style={{ fontSize: '10px', color: 'var(--green)', fontWeight: 600 }}>● modified</span>}
+      </button>
+
+      {open && (
+        <div style={{
+          marginTop: '10px', padding: '14px 16px',
+          background: 'var(--gray-50)', border: '1px solid var(--border)',
+          borderRadius: 'var(--radius)', display: 'flex', flexWrap: 'wrap', gap: '16px',
+          alignItems: 'flex-end',
+        }}>
+          {/* Utilisation target */}
+          <div>
+            <div style={{ fontSize: '10px', color: 'var(--gray-500)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: '4px' }}>
+              Utilisation target %
+            </div>
+            <div style={{ fontSize: '9px', color: 'var(--gray-400)', marginBottom: '6px', lineHeight: 1.4, maxWidth: '180px' }}>
+              Plant target utilisation rate. Used to benchmark actual production and compute utilisation score. Industry default: 92%.
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <input
+                type="number" min={70} max={99} step={1}
+                value={utilTarget}
+                onChange={e => {
+                  const v = Number(e.target.value)
+                  if (v >= 70 && v <= 99) onChange({ ...overrides, utilisationTarget: v })
+                }}
+                style={{
+                  width: '64px', padding: '5px 8px', border: '1px solid var(--border)',
+                  borderRadius: '6px', fontSize: '13px', fontFamily: 'var(--mono)',
+                  color: 'var(--gray-900)', background: 'var(--white)',
+                }}
+              />
+              <span style={{ fontSize: '11px', color: 'var(--gray-400)' }}>% (default 92)</span>
+            </div>
+          </div>
+
+          {/* Fleet utilisation factor */}
+          <div>
+            <div style={{ fontSize: '10px', color: 'var(--gray-500)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: '4px' }}>
+              Fleet utilisation factor %
+            </div>
+            <div style={{ fontSize: '9px', color: 'var(--gray-400)', marginBottom: '6px', lineHeight: 1.4, maxWidth: '180px' }}>
+              Fraction of theoretical fleet capacity that is practically achievable — accounts for breaks, queuing and driver idle. Industry default: 85%.
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <input
+                type="number" min={60} max={98} step={1}
+                value={fleetFactor}
+                onChange={e => {
+                  const v = Number(e.target.value)
+                  if (v >= 60 && v <= 98) onChange({ ...overrides, fleetUtilFactor: v })
+                }}
+                style={{
+                  width: '64px', padding: '5px 8px', border: '1px solid var(--border)',
+                  borderRadius: '6px', fontSize: '13px', fontFamily: 'var(--mono)',
+                  color: 'var(--gray-900)', background: 'var(--white)',
+                }}
+              />
+              <span style={{ fontSize: '11px', color: 'var(--gray-400)' }}>% (default 85)</span>
+            </div>
+          </div>
+
+          {/* Reset */}
+          {isModified && (
+            <div style={{ alignSelf: 'flex-end' }}>
+              <button
+                type="button"
+                onClick={() => onChange({})}
+                style={{
+                  padding: '5px 12px', border: '1px solid var(--border)', borderRadius: '6px',
+                  fontSize: '11px', color: 'var(--gray-500)', background: 'var(--white)',
+                  cursor: 'pointer', fontFamily: 'var(--font)',
+                }}
+              >
+                Reset to defaults
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -390,9 +671,11 @@ interface ReportViewProps {
   assessmentId: string
   reportReleased?: boolean
   isAdmin?: boolean
+  overrides?: CalcOverrides
+  onOverrideChange?: (o: CalcOverrides) => void
 }
 
-export default function ReportView({ calcResult, answers, meta, report, assessmentId, reportReleased, isAdmin }: ReportViewProps) {
+export default function ReportView({ calcResult, answers, meta, report, assessmentId, reportReleased, isAdmin, overrides, onOverrideChange }: ReportViewProps) {
   const supabase = createClient()
   const issues = buildIssues(calcResult, answers, meta)
   const financialBottleneck = getFinancialBottleneck(issues)
@@ -579,7 +862,13 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
         totalLoss={totalLoss}
         dailyLoss={dailyLoss}
         financialBottleneck={financialBottleneck}
+        showRange={answers.prod_data_source !== 'System records — read from batch computer or dispatch system'}
       />
+
+      {/* ── Assumptions Panel ─────────────────────────────────────────────── */}
+      {isAdmin && onOverrideChange && (
+        <AssumptionsPanel overrides={overrides ?? {}} onChange={onOverrideChange} />
+      )}
 
       <Divider />
 
@@ -639,6 +928,19 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
         onSave={t => saveSection('actions', t)}
         minHeight={80}
       />
+
+      {/* ── Case Study Framework ──────────────────────────────────────────── */}
+      {isAdmin && totalLoss > 0 && (
+        <>
+          <Divider />
+          <CaseStudySection
+            calcResult={calcResult}
+            meta={meta}
+            totalLoss={totalLoss}
+            assessmentId={assessmentId}
+          />
+        </>
+      )}
 
     </div>
   )

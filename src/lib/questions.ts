@@ -468,6 +468,25 @@ export const SECTIONS: Section[] = [
         },
       },
       {
+        id: 'demand_sufficient',
+        label: 'Is current production limited by demand or by operational capacity?',
+        hint: 'This shapes the entire financial analysis. Be honest — if you have more orders than you can handle, operational improvements translate directly to revenue. If you have spare capacity but not enough orders, the focus shifts to margin and pricing.',
+        howto: 'Ask the plant manager: "If you could produce 20% more concrete tomorrow, do you have customers to buy it?" The answer will be clear.',
+        type: 'opts',
+        opts: [
+          'Operations — we have more demand than we can currently produce or deliver',
+          'Both — we could sell more, and operations are also holding us back',
+          'Demand — our volume reflects available orders, not operational limits',
+          'Not sure',
+        ],
+        req: false,
+        info: {
+          what: 'Whether additional operational capacity would translate to additional revenue.',
+          why: 'The most important contextual variable in the report. If demand is the constraint, "hidden capacity" figures show the operational ceiling — not guaranteed revenue.',
+          calc: 'If "Demand": capacity gap figures are shown as indicators only, not as revenue opportunity. If "Operations" or "Both": full financial recovery estimates are shown.',
+        },
+      },
+      {
         id: 'operator_backup',
         label: 'If the primary batch plant operator was absent, is there another person on site who can run the plant independently?',
         hint: 'Single-operator dependency is one of the most common hidden risks in GCC ready-mix plants.',

@@ -343,6 +343,25 @@ export default function SimulatorView({ calcResult }: SimulatorViewProps) {
               <span style={{ fontSize: '12px', fontFamily: 'var(--mono)' }}>{Math.round(result.dispEff * 100)}%</span>
             </div>
 
+            {/* Fleet-supports indicator */}
+            {result.maxUtilPct < result.sUtil ? (
+              <div style={{
+                marginTop: '10px', padding: '8px 10px', borderRadius: '6px',
+                background: 'var(--warning-bg)', border: '1px solid var(--warning-border)',
+                fontSize: '11px', color: 'var(--warning-dark)', lineHeight: 1.5,
+              }}>
+                ⚠ Fleet limits utilisation to {result.maxUtilPct}% at this turnaround — shorten turnaround or add trucks to raise it
+              </div>
+            ) : result.maxUtilPct > result.sUtil ? (
+              <div style={{
+                marginTop: '10px', padding: '8px 10px', borderRadius: '6px',
+                background: 'var(--phase-complete-bg)', border: '1px solid var(--tooltip-border)',
+                fontSize: '11px', color: 'var(--phase-complete)', lineHeight: 1.5,
+              }}>
+                ✓ Fleet can support up to {result.maxUtilPct}% utilisation at this turnaround — plant is the binding constraint
+              </div>
+            ) : null}
+
             {/* Dynamic insight */}
             {insight && (
               <div style={{

@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { SECTIONS, type Phase } from '@/lib/questions'
-import { calc, type Answers, type CalcResult } from '@/lib/calculations'
+import { calc, type Answers, type CalcResult, type CalcOverrides } from '@/lib/calculations'
 import { buildIssues } from '@/lib/issues'
 import ModeTabs, { type AssessmentMode } from './ModeTabs'
 import Sidebar from './Sidebar'
@@ -40,10 +40,11 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
   const [currentSection, setCurrentSection] = useState(0)
   const [mode, setMode] = useState<AssessmentMode>('questions')
   const [guidedMode, setGuidedMode] = useState(phase === 'onsite' && Object.keys(initialAnswers).length < 20)
+  const [overrides, setOverrides] = useState<CalcOverrides>({})
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const meta = useMemo(() => ({ season }), [season])
-  const calcResult: CalcResult = useMemo(() => calc(answers, meta), [answers, meta])
+  const calcResult: CalcResult = useMemo(() => calc(answers, meta, overrides), [answers, meta, overrides])
 
   // Debounced autosave
   const triggerSave = useCallback((updatedAnswers: Answers, result: CalcResult) => {
@@ -151,6 +152,8 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
           assessmentId={assessmentId}
           reportReleased={reportReleased}
           isAdmin={isAdmin}
+          overrides={overrides}
+          onOverrideChange={setOverrides}
         />
       )}
 
