@@ -125,7 +125,6 @@ export interface SimScenario {
   trucks: number
   price: number
   otd: number // order-to-dispatch minutes
-  opH: number // operating hours per day
 }
 
 export interface SimResult {
@@ -677,18 +676,18 @@ export function calcConsistency(result: CalcResult, answers: Answers): Consisten
 // ── Scenario Simulator ───────────────────────────────────────────────────────
 
 export function simCalc(baseline: SimBaseline, scenario: SimScenario): SimResult {
-  const { cap, opH: bOpH, opD, mixCap, TARGET_TA } = baseline
-  const { turnaround: sTA, trucks: sTrucks, price: sPrice, otd: sOTD, opH: sOpH } = scenario
+  const { cap, opH, opD, mixCap, TARGET_TA } = baseline
+  const { turnaround: sTA, trucks: sTrucks, price: sPrice, otd: sOTD } = scenario
 
   // Variable costs from baseline
   const bVarCosts = baseline.price - baseline.contrib
 
-  // Plant max daily capacity — uses scenario operating hours
-  const plantMaxDaily = cap * 0.92 * sOpH
+  // Plant max daily capacity (best-practice ceiling: 92% of nameplate)
+  const plantMaxDaily = cap * 0.92 * opH
   const prodDaily = plantMaxDaily
 
-  // Fleet-limited daily capacity — uses scenario operating hours
-  const delsPerTruck = sTA > 0 ? (sOpH * 60 / sTA) : 0
+  // Fleet-limited daily capacity
+  const delsPerTruck = sTA > 0 ? (opH * 60 / sTA) : 0
   const totalDels = delsPerTruck * sTrucks
   const fleetDaily = totalDels * mixCap
 
@@ -701,7 +700,7 @@ export function simCalc(baseline: SimBaseline, scenario: SimScenario): SimResult
   const scenarioAnnual = Math.round(scenarioDaily * opD)
 
   // Derived utilisation — what plant + fleet together actually produce
-  const sUtil = cap > 0 && sOpH > 0 ? Math.round((scenarioDaily / (cap * sOpH)) * 100) : 0
+  const sUtil = cap > 0 && opH > 0 ? Math.round((scenarioDaily / (cap * opH)) * 100) : 0
 
   // Bottleneck
   const scenarioBottleneck = plantMaxDaily <= effFleetDaily ? 'Production' : 'Fleet / Logistics'
@@ -709,9 +708,9 @@ export function simCalc(baseline: SimBaseline, scenario: SimScenario): SimResult
   // Contribution recalculated when price changes
   const sContrib = Math.max(0, sPrice - bVarCosts)
 
-  // Baseline annual volume — uses baseline opH (not scenario), same 92% ceiling
-  const bProdDaily = cap * 0.92 * bOpH
-  const bDelsPerTruck = baseline.turnaround > 0 ? (bOpH * 60 / baseline.turnaround) : 0
+  // Baseline annual volume — same 92% ceiling, same opH
+  const bProdDaily = cap * 0.92 * opH
+  const bDelsPerTruck = baseline.turnaround > 0 ? (opH * 60 / baseline.turnaround) : 0
   const bFleetDaily = bDelsPerTruck * baseline.trucks * mixCap
   const bDispEff = Math.max(0.40, Math.min(0.98, 1 - (baseline.dispatchMin / 100)))
   const bEffFleetDaily = bFleetDaily * bDispEff
