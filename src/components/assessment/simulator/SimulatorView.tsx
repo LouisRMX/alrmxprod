@@ -45,13 +45,15 @@ export default function SimulatorView({ calcResult }: SimulatorViewProps) {
   const [sTrucks, setSTrucks] = useState(r.trucks || 10)
   const [sPrice, setSPrice] = useState(r.price || 65)
   const [sOTD, setSOTD] = useState(r.dispatchMin ?? 15)
+  const [sOpH, setSOpH] = useState(r.opH || 10)
 
   const scenario: SimScenario = useMemo(() => ({
     turnaround: sTurnaround,
     trucks: sTrucks,
     price: sPrice,
     otd: sOTD,
-  }), [sTurnaround, sTrucks, sPrice, sOTD])
+    opH: sOpH,
+  }), [sTurnaround, sTrucks, sPrice, sOTD, sOpH])
 
   const result = useMemo(() => {
     if (baseline.cap === 0) return null
@@ -83,35 +85,41 @@ export default function SimulatorView({ calcResult }: SimulatorViewProps) {
     return r2.contribUpside - result.contribUpside
   }, [baseline, scenario, result, sOTD])
 
+  const marginalOpH = useMemo(() => {
+    if (!result) return 0
+    const r2 = simCalc(baseline, { ...scenario, opH: sOpH + 1 })
+    return r2.contribUpside - result.contribUpside
+  }, [baseline, scenario, result, sOpH])
+
   // ── Info modal: intermediate calculation values ──
   const infoData = useMemo(() => {
     if (!result) return null
-    const { cap, opH, opD, mixCap } = baseline
+    const { cap, opH: bOpH, opD, mixCap } = baseline
 
     // Scenario fleet
-    const delsPerTruck = sTurnaround > 0 ? (opH * 60 / sTurnaround) : 0
+    const delsPerTruck = sTurnaround > 0 ? (sOpH * 60 / sTurnaround) : 0
     const fleetRaw = delsPerTruck * sTrucks * mixCap
     const dispEffPct = Math.round(result.dispEff * 100)
     const fleetEff = Math.round(result.effFleetDaily)
 
     // Scenario plant
-    const nameplateDaily = Math.round(cap * opH)
-    const plantCeiling = Math.round(cap * 0.92 * opH)
+    const nameplateDaily = Math.round(cap * sOpH)
+    const plantCeiling = Math.round(cap * 0.92 * sOpH)
 
     // Scenario output
     const scenarioDaily = Math.round(result.scenarioAnnual / opD)
 
     // Baseline fleet
     const bTA = baseline.turnaround
-    const bDelsPerTruck = bTA > 0 ? (opH * 60 / bTA) : 0
+    const bDelsPerTruck = bTA > 0 ? (bOpH * 60 / bTA) : 0
     const bFleetRaw = Math.round(bDelsPerTruck * baseline.trucks * mixCap)
     const bDispEff = Math.max(0.40, Math.min(0.98, 1 - baseline.dispatchMin / 100))
     const bDispEffPct = Math.round(bDispEff * 100)
     const bFleetEff = Math.round(bFleetRaw * bDispEff)
 
     // Baseline plant
-    const bProdRate = Math.round(cap * (baseline.util / 100))
-    const bProdDaily = bProdRate * opH
+    const bProdRate = Math.round(cap * 0.92)
+    const bProdDaily = Math.round(bProdRate * bOpH)
     const bBaselineDaily = Math.min(bProdDaily, bFleetEff)
     const bAnnualVol = Math.round(bBaselineDaily * opD)
 
@@ -129,12 +137,12 @@ export default function SimulatorView({ calcResult }: SimulatorViewProps) {
       // Baseline fleet
       bTA, bDelsPerTruck: bDelsPerTruck.toFixed(1), bFleetRaw, bDispEffPct, bFleetEff,
       // Baseline plant
-      bProdRate, bProdDaily: Math.round(bProdDaily), bBaselineDaily: Math.round(bBaselineDaily),
-      bAnnualVol,
+      bProdRate, bProdDaily, bBaselineDaily: Math.round(bBaselineDaily),
+      bAnnualVol, bOpH,
       // Financial
       bVarCosts, sContrib,
     }
-  }, [baseline, result, sTurnaround, sTrucks, sOTD, sPrice])
+  }, [baseline, result, sTurnaround, sTrucks, sOTD, sPrice, sOpH])
 
   // ── Dynamic insight text ──
   const insight = useMemo(() => {
@@ -147,7 +155,7 @@ export default function SimulatorView({ calcResult }: SimulatorViewProps) {
         : sTurnaround
       return `Fleet is the binding constraint — ${Math.round(result.effFleetDaily)} m³/day delivered vs ${Math.round(result.prodDaily)} m³/day plant ceiling (${gap} m³/day gap). To fully utilise plant capacity at current dispatch efficiency, reduce turnaround to ~${targetTA} min.`
     } else {
-      return `Plant is at its best-practice ceiling (${Math.round(result.prodDaily)} m³/day, 92% utilisation). Fleet can already deliver more — adding trucks or improving turnaround will not increase output until plant throughput improves.`
+      return `Plant is at its best-practice ceiling (${Math.round(result.prodDaily)} m³/day). Fleet can already deliver more — adding trucks or improving turnaround will not increase output. To grow volume, try extending operating hours or raising price.`
     }
   }, [result, baseline, sTurnaround, sTrucks])
 
@@ -156,6 +164,7 @@ export default function SimulatorView({ calcResult }: SimulatorViewProps) {
     setSTrucks(r.trucks || 10)
     setSPrice(r.price || 65)
     setSOTD(r.dispatchMin ?? 15)
+    setSOpH(r.opH || 10)
   }
 
   if (!result || baseline.cap === 0) {
@@ -178,6 +187,7 @@ export default function SimulatorView({ calcResult }: SimulatorViewProps) {
   if (sTrucks > (r.trucks || 10) * 1.5) simWarnings.push(`Fleet expanded ${Math.round((sTrucks / (r.trucks || 10) - 1) * 100)}% — requires significant capital investment.`)
   if (sPrice > (r.price || 65) * 1.3) simWarnings.push(`Price ${Math.round((sPrice / (r.price || 65) - 1) * 100)}% above current — verify market will accept this.`)
   if (sOTD < 8) simWarnings.push('Order-to-dispatch under 8 min requires dedicated dispatch software and pre-staged batching.')
+  if (sOpH > (r.opH || 10) * 1.3) simWarnings.push(`Operating hours extended ${Math.round((sOpH / (r.opH || 10) - 1) * 100)}% — verify labour availability and permit requirements.`)
 
   const MARGINAL_THRESHOLD = 500
 
@@ -243,6 +253,13 @@ export default function SimulatorView({ calcResult }: SimulatorViewProps) {
           {marginalOTD > MARGINAL_THRESHOLD && (
             <div style={{ fontSize: '11px', color: 'var(--gray-400)', marginTop: '-10px', marginBottom: '10px', textAlign: 'right' }}>
               −1 min → +{fmtMarginal(marginalOTD)}/yr contribution
+            </div>
+          )}
+
+          <Slider label="Operating Hours" value={sOpH} min={6} max={24} step={1} baselineValue={r.opH || 10} unit="hr/day" onChange={setSOpH} />
+          {marginalOpH > MARGINAL_THRESHOLD && (
+            <div style={{ fontSize: '11px', color: 'var(--gray-400)', marginTop: '-10px', marginBottom: '10px', textAlign: 'right' }}>
+              +1 hr/day → +{fmtMarginal(marginalOpH)}/yr contribution
             </div>
           )}
         </div>
@@ -389,7 +406,7 @@ export default function SimulatorView({ calcResult }: SimulatorViewProps) {
               {
                 title: 'Fleet capacity — scenario',
                 rows: [
-                  [`Deliveries per truck`, `${baseline.opH}h × 60 / ${sTurnaround} min`, `${infoData.delsPerTruck} trips`],
+                  [`Deliveries per truck`, `${sOpH}h × 60 / ${sTurnaround} min`, `${infoData.delsPerTruck} trips`],
                   [`Raw fleet volume`, `${infoData.delsPerTruck} × ${sTrucks} trucks × ${baseline.mixCap} m³/load`, `${infoData.fleetRaw} m³/day`],
                   [`Dispatch efficiency`, `1 − ${sOTD} min / 100`, `${infoData.dispEffPct}%`],
                   [`Effective fleet capacity`, `${infoData.fleetRaw} × ${infoData.dispEffPct}%`, `${infoData.fleetEff} m³/day`],
@@ -398,7 +415,7 @@ export default function SimulatorView({ calcResult }: SimulatorViewProps) {
               {
                 title: 'Plant capacity — scenario',
                 rows: [
-                  [`Nameplate daily`, `${baseline.cap} m³/hr × ${baseline.opH} hr`, `${infoData.nameplateDaily} m³/day`],
+                  [`Nameplate daily`, `${baseline.cap} m³/hr × ${sOpH} hr`, `${infoData.nameplateDaily} m³/day`],
                   [`Best-practice ceiling (92%)`, `${infoData.nameplateDaily} × 92%`, `${infoData.plantCeiling} m³/day`],
                 ],
               },
@@ -412,11 +429,11 @@ export default function SimulatorView({ calcResult }: SimulatorViewProps) {
               {
                 title: 'Baseline (current state)',
                 rows: [
-                  [`Deliveries per truck`, `${baseline.opH}h × 60 / ${infoData.bTA} min`, `${infoData.bDelsPerTruck} trips`],
+                  [`Deliveries per truck`, `${infoData.bOpH}h × 60 / ${infoData.bTA} min`, `${infoData.bDelsPerTruck} trips`],
                   [`Raw fleet volume`, `${infoData.bDelsPerTruck} × ${baseline.trucks} trucks × ${baseline.mixCap} m³/load`, `${infoData.bFleetRaw} m³/day`],
                   [`Dispatch efficiency`, `1 − ${baseline.dispatchMin} min / 100`, `${infoData.bDispEffPct}%`],
                   [`Effective fleet capacity`, `${infoData.bFleetRaw} × ${infoData.bDispEffPct}%`, `${infoData.bFleetEff} m³/day`],
-                  [`Plant (current actual)`, `${infoData.bProdRate} m³/hr × ${baseline.opH} hr`, `${infoData.bProdDaily} m³/day`],
+                  [`Plant ceiling (92%)`, `${baseline.cap} m³/hr × 92% × ${infoData.bOpH} hr`, `${infoData.bProdDaily} m³/day`],
                   [`Baseline output`, `min(fleet ${infoData.bFleetEff}, plant ${infoData.bProdDaily})`, `${infoData.bBaselineDaily} m³/day`],
                   [`Annual baseline`, `${infoData.bBaselineDaily} m³/day × ${baseline.opD} days`, `${infoData.bAnnualVol.toLocaleString()} m³/yr`],
                 ],
