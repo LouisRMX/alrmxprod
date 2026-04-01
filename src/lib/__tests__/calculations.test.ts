@@ -296,6 +296,7 @@ function makeBaseline(overrides: Partial<SimBaseline> = {}): SimBaseline {
     price: 58,
     contrib: 20,
     TARGET_TA: 83, // 60 + 15*1.5 = 82.5 → 83
+    dispatchMin: 25,
     dispatchScore: 65,
     qualityScore: 60,
     ...overrides,
@@ -365,10 +366,12 @@ describe('simCalc() — Constraint Logic', () => {
 
   it('adding trucks with production bottleneck gives no extra output', () => {
     const b = makeBaseline()
-    // Fast turnaround + many trucks → both are production-limited
-    const few = simCalc(b, makeScenario({ trucks: 10, turnaround: 60 }))
+    // With cap=134, opH=10, mixCap=7, otd=20 (dispEff=0.80):
+    // plantMaxDaily = 134 × 0.92 × 10 = 1232.8 m³/day
+    // effFleetDaily = (600/60) × trucks × 7 × 0.80 = 56 × trucks
+    // Need ≥23 trucks to exceed plant ceiling at ta=60 → both production-bottlenecked
+    const few = simCalc(b, makeScenario({ trucks: 23, turnaround: 60 }))
     const many = simCalc(b, makeScenario({ trucks: 50, turnaround: 60 }))
-    // Both hit the plant ceiling — output should be the same
     expect(Math.abs(many.scenarioAnnual - few.scenarioAnnual)).toBeLessThan(10000)
   })
 })
@@ -425,9 +428,10 @@ describe('simCalc() — Dispatch Efficiency', () => {
 })
 
 describe('simCalc() — Scores', () => {
-  it('92% util → prod score 100', () => {
+  it('prod score 100 when fleet is at plant ceiling', () => {
     const b = makeBaseline()
-    const r = simCalc(b, makeScenario({ util: 92 }))
+    // Use enough trucks + fast turnaround to hit the plant ceiling → sUtil ≈ 92
+    const r = simCalc(b, makeScenario({ trucks: 50, turnaround: 60 }))
     expect(r.sProdScore).toBe(100)
   })
 

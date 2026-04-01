@@ -536,6 +536,25 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
         </div>
       )}
 
+      {/* Incomplete margin warning */}
+      {calcResult.marginIncomplete && (
+        <div style={{
+          background: 'var(--warning-bg)', border: '1px solid var(--warning-border)',
+          borderRadius: 'var(--radius)', padding: '12px 16px', marginBottom: '12px',
+          display: 'flex', alignItems: 'flex-start', gap: '10px',
+        }}>
+          <span style={{ fontSize: '14px', flexShrink: 0, marginTop: '1px' }}>⚠</span>
+          <div>
+            <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--warning-dark)', marginBottom: '2px' }}>
+              Material costs incomplete — margin estimated at 35%
+            </div>
+            <div style={{ fontSize: '11px', color: 'var(--warning-dark)', lineHeight: 1.5 }}>
+              Aggregate and admixture costs were not entered. All financial loss figures use a 35% margin estimate instead of actual margin. Enter full material costs in section 1 for precise figures.
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Data warnings */}
       {calcResult.warnings && calcResult.warnings.length > 0 && (
         <div style={{

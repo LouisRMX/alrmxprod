@@ -20,6 +20,7 @@ export interface CalcScores {
 export interface CalcResult {
   // Economics
   contrib: number
+  contribSafe: number   // contrib capped at price×35% when material costs are incomplete
   contribFuelAdj: number
   marginRatio: number
   marginIncomplete: boolean
@@ -276,6 +277,14 @@ export function calc(answers: Answers, meta?: { season?: string }): CalcResult {
     (+(a.admix_cost ?? 0) === 0 || a.admix_cost === undefined || a.admix_cost === '')
   const contrib = Math.max(0, price - cement - agg - admix)
   const marginRatio = price > 0 ? contrib / price : 0.35
+  // contribSafe: used for all loss calculations.
+  // When material costs are incomplete, contrib = price (100% margin) which inflates all loss figures 3-4x.
+  // Fall back to 35% of price — conservative for GCC standard-mix, errs toward understatement.
+  const marginIncompleteEarly = price > 0 && cement > 0 &&
+    (+(a.aggregate_cost ?? 0) === 0 || a.aggregate_cost === undefined || a.aggregate_cost === '') &&
+    (+(a.admix_cost ?? 0) === 0 || a.admix_cost === undefined || a.admix_cost === '')
+  const noCosts = price > 0 && cement === 0 && agg === 0 && admix === 0
+  const contribSafe = (marginIncompleteEarly || noCosts) ? Math.round(price * 0.35) : contrib
 
   // Mix-weighted margin
   const HS_FRACTION_MAP: Record<string, number> = {
@@ -299,7 +308,7 @@ export function calc(answers: Answers, meta?: { season?: string }): CalcResult {
   const actual = hoursPerMonth > 0 ? monthlyM3 / hoursPerMonth : 0
   const util = cap > 0 ? actual / cap : 0
   const unusedCapAnnual = Math.max(0, (cap - actual) * opH * opD)
-  const capLeakMonthly = Math.round(unusedCapAnnual * contrib / 12)
+  const capLeakMonthly = Math.round(unusedCapAnnual * contribSafe / 12)
 
   // Fleet
   const trucks = +(a.n_trucks ?? 0) || 0
@@ -322,10 +331,10 @@ export function calc(answers: Answers, meta?: { season?: string }): CalcResult {
   const hiddenSuspect = operativeTrucks > 0 && rawHidden > operativeTrucks * 3
   const hiddenDel = rawHidden
   const hiddenConfidence: 'high' | 'low' = hiddenSuspect ? 'low' : 'high'
-  const hiddenRevMonthly = Math.round(hiddenDel * mixCap * contrib * (opD / 12))
+  const hiddenRevMonthly = Math.round(hiddenDel * mixCap * contribSafe * (opD / 12))
   const excessMin = Math.max(0, ta - TARGET_TA)
   const turnaroundLeakMonthly = ta > 0 && effectiveUnits > 0
-    ? Math.round(excessMin / ta * realisticMaxDel * mixCap * contrib * (opD / 12))
+    ? Math.round(excessMin / ta * realisticMaxDel * mixCap * contribSafe * (opD / 12))
     : 0
 
   // Fuel
@@ -352,8 +361,8 @@ export function calc(answers: Answers, meta?: { season?: string }): CalcResult {
   // Partial load analysis
   const partialLoad = +(a.partial_load_size ?? 0) || 0
   const partialRatio = partialLoad > 0 && mixCap > 0 ? partialLoad / mixCap : 1
-  const partialLeakMonthly = (partialLoad > 0 && partialLoad < mixCap * 0.80 && delDay > 0 && contrib > 0)
-    ? Math.round((mixCap - partialLoad) * delDay * contrib * (opD / 12)) : 0
+  const partialLeakMonthly = (partialLoad > 0 && partialLoad < mixCap * 0.80 && delDay > 0 && contribSafe > 0)
+    ? Math.round((mixCap - partialLoad) * delDay * contribSafe * (opD / 12)) : 0
 
   // Surplus concrete waste
   const SURPLUS_MID_MAP: Record<string, number> = {
@@ -392,13 +401,13 @@ export function calc(answers: Answers, meta?: { season?: string }): CalcResult {
     a.demurrage_policy === 'Clause exists but rarely enforced' ||
     a.demurrage_policy === 'No demurrage charge in contracts' ||
     a.demurrage_policy === 'Not sure'
-  )) && ta > 0 ? Math.round(Math.max(0, siteWait - 40) / ta * realisticMaxDel * mixCap * contrib * (opD / 12)) : 0
+  )) && ta > 0 ? Math.round(Math.max(0, siteWait - 40) / ta * realisticMaxDel * mixCap * contribSafe * (opD / 12)) : 0
 
   // Truck breakdown cost estimate
   const truckBreakdowns = +(a.truck_breakdowns ?? 0) || 0
   // Each breakdown takes ~half a day → loses 0.5 × (deliveries per truck per day) deliveries
   const breakdownCostMonthly = truckBreakdowns > 0 && operativeTrucks > 0
-    ? Math.round(truckBreakdowns * 0.5 * (delDay / operativeTrucks) * mixCap * contrib) : 0
+    ? Math.round(truckBreakdowns * 0.5 * (delDay / operativeTrucks) * mixCap * contribSafe) : 0
 
   // Customer concentration risk
   const topCustPct = +(a.top_customer_pct ?? 0) || 0
@@ -512,7 +521,7 @@ export function calc(answers: Answers, meta?: { season?: string }): CalcResult {
 
   return {
     // Economics
-    contrib, contribFuelAdj, marginRatio, marginIncomplete,
+    contrib, contribSafe, contribFuelAdj, marginRatio, marginIncomplete,
     mixWeightedContrib, mixMarginLift, hsPremium, hsFraction, waterCost,
     // Production
     util, unusedCapAnnual, capLeakMonthly, actual, monthlyM3, cap, opH, opD, workingDaysMonth,

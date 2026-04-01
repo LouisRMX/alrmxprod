@@ -56,7 +56,7 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
       action: 'Require site readiness confirmation before trucks depart',
       rec: `Trucks should only depart when the site confirms the pump crew is ready. Closing this gap recovers ${fmt(r.turnaroundLeakMonthly)}/month.`,
       loss: r.turnaroundLeakMonthly,
-      formula: `(${r.excessMin} excess min ÷ ${r.ta} actual min) × ${r.realisticMaxDel} target del × ${r.mixCap} m³ × $${Math.round(r.contrib)} margin × ${Math.round(r.opD / 12)} days/month`,
+      formula: `(${r.excessMin} excess min ÷ ${r.ta} actual min) × ${r.realisticMaxDel} target del × ${r.mixCap} m³ × $${Math.round(r.contribSafe)} margin × ${Math.round(r.opD / 12)} days/month`,
     })
   }
 
@@ -102,20 +102,23 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
       action: 'Require site readiness confirmation before trucks depart',
       rec: `Trucks should only depart when the site confirms the pump crew is ready. Closing this gap recovers ${fmt(r.turnaroundLeakMonthly)}/month.`,
       loss: r.turnaroundLeakMonthly,
-      formula: `(${r.excessMin} excess min ÷ ${r.ta} actual min) × ${r.realisticMaxDel} target del × ${r.mixCap} m³ × $${Math.round(r.contrib)} margin × ${Math.round(r.opD / 12)} days/month`,
+      formula: `(${r.excessMin} excess min ÷ ${r.ta} actual min) × ${r.realisticMaxDel} target del × ${r.mixCap} m³ × $${Math.round(r.contribSafe)} margin × ${Math.round(r.opD / 12)} days/month`,
     })
   }
 
   // ── Production utilisation ─────────────────────────────────────────────
 
-  if (r.util < 0.82 && r.actual > 0) {
+  // Only show capLeak as a separate loss when turnaround is within benchmark.
+  // If ta > TARGET_TA, turnaroundLeakMonthly already captures the capacity gap —
+  // showing capLeak as well would count the same loss twice.
+  if (r.util < 0.82 && r.actual > 0 && r.ta <= r.TARGET_TA) {
     issues.push({
       sev: 'red', pin: bn === 'Production', category: 'bottleneck', dimension: 'Production',
       t: `Plant running at ${Math.round(r.util * 100)}% — ${Math.round((0.92 - r.util) * 100)} points below 92% target`,
       action: 'Map peak demand window and pre-stage batching 30 min before',
       rec: 'Check batch cycle time and aggregate feed rate. Pre-staging batching before peak hours is the fastest lever.',
       loss: r.capLeakMonthly,
-      formula: `(${r.cap} designed − ${r.actual.toFixed(1)} actual m³/hr) × ${r.opH} hr × ${Math.round(r.opD / 12)} days/month × $${Math.round(r.contrib)} margin`,
+      formula: `(${r.cap} designed − ${r.actual.toFixed(1)} actual m³/hr) × ${r.opH} hr × ${Math.round(r.opD / 12)} days/month × $${Math.round(r.contribSafe)} margin`,
     })
   }
 
@@ -123,12 +126,12 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
 
   if (r.hiddenDel > 0) {
     issues.push({
-      sev: 'amber', pin: false, category: 'bottleneck', dimension: 'Production',
-      t: `${r.hiddenDel} deliveries/day unrealised — fleet target ${r.realisticMaxDel}, actual ${r.delDay}`,
-      action: 'Fix dispatch and turnaround first — no new trucks needed',
-      rec: `No new trucks needed. Gap closes when turnaround hits ${r.TARGET_TA} min target and dispatch is at 85% fleet utilisation.`,
-      loss: r.hiddenRevMonthly,
-      formula: `${r.trucks} trucks × (${r.opH} hr × 60 ÷ ${r.TARGET_TA} min target) × 85% = ${r.realisticMaxDel} del. Gap: ${r.realisticMaxDel} − ${r.delDay} = ${r.hiddenDel} × ${r.mixCap} m³ × $${Math.round(r.contrib)} × ${Math.round(r.opD / 12)} days`,
+      sev: 'amber', pin: false, category: 'independent', dimension: 'Fleet',
+      t: `Fleet capacity headroom: ${r.hiddenDel} more deliveries/day possible at ${r.TARGET_TA}-min turnaround`,
+      action: 'Fix turnaround and dispatch first — confirm demand exists before adding trucks',
+      rec: `At the ${r.TARGET_TA}-min target turnaround, your fleet can support ${r.realisticMaxDel} deliveries/day vs. ${r.delDay} today. Equivalent to ${fmt(r.hiddenRevMonthly)}/month in additional contribution — if customer demand supports it. Do not count this as a guaranteed recovery.`,
+      loss: 0,
+      formula: `${r.trucks} trucks × (${r.opH} hr × 60 ÷ ${r.TARGET_TA} min target) × 85% utilisation = ${r.realisticMaxDel} del/day capacity. Gap vs. actual: ${r.hiddenDel} del/day × ${r.mixCap} m³ × $${Math.round(r.contribSafe)} margin × ${Math.round(r.opD / 12)} days`,
     })
   }
 
@@ -182,7 +185,7 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
       action: 'Shift first dispatch to 05:30, complete major pours before 11:00',
       rec: 'Plants without a Ramadan schedule typically lose 15–25% of Ramadan revenue.',
       loss: ramadanLoss,
-      formula: `${r.delDay} del/day × ${r.mixCap} m³ × $${Math.round(r.contrib)} margin × 30 days × 20%`,
+      formula: `${r.delDay} del/day × ${r.mixCap} m³ × $${Math.round(r.contribSafe)} margin × 30 days × 20%`,
     })
   }
 
@@ -323,7 +326,7 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
       action: `Consolidate small orders — minimum batch size policy or surcharge below ${Math.round(r.mixCap * 0.8)} m³`,
       rec: `Introducing a minimum order size or small-load surcharge recovers ${fmt(r.partialLeakMonthly)}/month.`,
       loss: r.partialLeakMonthly,
-      formula: `(${r.mixCap} capacity − ${r.partialLoad} avg load) × ${r.delDay} del/day × $${Math.round(r.contrib)} margin × ${Math.round(r.opD / 12)} days/month`,
+      formula: `(${r.mixCap} capacity − ${r.partialLoad} avg load) × ${r.delDay} del/day × $${Math.round(r.contribSafe)} margin × ${Math.round(r.opD / 12)} days/month`,
     })
   }
 
@@ -361,7 +364,7 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
       action: 'Review delivery radius and route efficiency — fuel is eroding margin',
       rec: `Monthly fleet fuel cost: ${fmt(r.fuelMonthly)}. Review whether fuel costs are factored into pricing.`,
       loss: 0,
-      formula: `$${r.fuelPerDel} per delivery ÷ ${r.mixCap} m³ = $${r.fuelPerM3.toFixed(2)}/m³. ${Math.round(r.fuelMarginImpact * 100)}% of $${Math.round(r.contrib)} margin.`,
+      formula: `$${r.fuelPerDel} per delivery ÷ ${r.mixCap} m³ = $${r.fuelPerM3.toFixed(2)}/m³. ${Math.round(r.fuelMarginImpact * 100)}% of $${Math.round(r.contribSafe)} margin.`,
     })
   }
 
