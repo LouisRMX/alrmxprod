@@ -258,11 +258,11 @@ function KPIPyramid({ calcResult, answers, totalLoss, dailyLoss, financialBottle
 
   // Which boxes get bottleneck tag.
   // If Production is the financial bottleneck but turnaround is over target,
-  // the root cause is Fleet Turnaround (Logistics) — not Plant Utilisation.
+  // the root cause is Fleet Turnaround — not Plant Utilisation.
   // Plant Utilisation is a symptom; turnaround is the lever.
   const taIsRootCause = financialBottleneck === 'Production' && calcResult.ta > calcResult.TARGET_TA
   const isUtilBn = financialBottleneck === 'Production' && !taIsRootCause
-  const isTaBn = financialBottleneck === 'Logistics' || taIsRootCause
+  const isTaBn = financialBottleneck === 'Fleet' || taIsRootCause
   const isRejectBn = financialBottleneck === 'Quality'
   const isDispBn = financialBottleneck === 'Dispatch'
 

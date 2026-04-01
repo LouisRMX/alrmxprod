@@ -178,7 +178,7 @@ describe('calc() — Overall & Bottleneck', () => {
     const scores: Record<string, number | null> = {
       Production: r.scores.prod,
       Dispatch: r.scores.dispatch,
-      Logistics: r.scores.logistics,
+      Fleet: r.scores.logistics,
       Quality: r.scores.quality,
     }
     const validScores = Object.entries(scores).filter(([, v]) => v !== null) as [string, number][]
@@ -306,7 +306,6 @@ function makeScenario(overrides: Partial<SimScenario> = {}): SimScenario {
   return {
     turnaround: 97,
     trucks: 32,
-    util: 51,
     price: 58,
     otd: 20,
     ...overrides,
@@ -336,11 +335,12 @@ describe('simCalc() — Basic', () => {
     expect(moreTrucks.scenarioAnnual).toBeGreaterThanOrEqual(base.scenarioAnnual)
   })
 
-  it('higher utilization → more output', () => {
+  it('faster turnaround → more output when fleet is limiting', () => {
     const b = makeBaseline()
-    const base = simCalc(b, makeScenario({ util: 51 }))
-    const higher = simCalc(b, makeScenario({ util: 80 }))
-    expect(higher.scenarioAnnual).toBeGreaterThan(base.scenarioAnnual)
+    // Few trucks → fleet is limiting factor
+    const slow = simCalc(b, makeScenario({ trucks: 5, turnaround: 120 }))
+    const fast = simCalc(b, makeScenario({ trucks: 5, turnaround: 70 }))
+    expect(fast.scenarioAnnual).toBeGreaterThan(slow.scenarioAnnual)
   })
 })
 
@@ -351,24 +351,24 @@ describe('simCalc() — Constraint Logic', () => {
     expect(r.scenarioAnnual).toBe(Math.round(Math.min(r.prodDaily, r.effFleetDaily) * b.opD))
   })
 
-  it('bottleneck is Production when prod < fleet', () => {
+  it('bottleneck is Production when fleet exceeds plant ceiling', () => {
     const b = makeBaseline()
-    const r = simCalc(b, makeScenario({ util: 20, trucks: 50 })) // low util, many trucks
+    const r = simCalc(b, makeScenario({ trucks: 50, turnaround: 60 })) // many fast trucks
     expect(r.scenarioBottleneck).toBe('Production')
   })
 
-  it('bottleneck is Fleet when fleet < prod', () => {
+  it('bottleneck is Fleet when fleet < plant ceiling', () => {
     const b = makeBaseline()
-    const r = simCalc(b, makeScenario({ util: 90, trucks: 5 })) // high util, few trucks
+    const r = simCalc(b, makeScenario({ trucks: 5, turnaround: 120 })) // few slow trucks
     expect(r.scenarioBottleneck).toBe('Fleet / Logistics')
   })
 
   it('adding trucks with production bottleneck gives no extra output', () => {
     const b = makeBaseline()
-    const few = simCalc(b, makeScenario({ util: 30, trucks: 10 }))
-    const many = simCalc(b, makeScenario({ util: 30, trucks: 50 }))
-    // Production is limiting in both cases — at 30% util with 10+ trucks,
-    // prod daily is very low. Difference comes from dispatch efficiency rounding.
+    // Fast turnaround + many trucks → both are production-limited
+    const few = simCalc(b, makeScenario({ trucks: 10, turnaround: 60 }))
+    const many = simCalc(b, makeScenario({ trucks: 50, turnaround: 60 }))
+    // Both hit the plant ceiling — output should be the same
     expect(Math.abs(many.scenarioAnnual - few.scenarioAnnual)).toBeLessThan(10000)
   })
 })

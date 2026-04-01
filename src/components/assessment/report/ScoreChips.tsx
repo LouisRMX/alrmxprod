@@ -46,7 +46,7 @@ export default function ScoreChips({ scores, overall, bottleneck }: ScoreChipsPr
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: '8px', marginBottom: '16px' }}>
       <Chip label="Production" value={scores.prod} isBottleneck={bottleneck === 'Production'} />
       <Chip label="Dispatch" value={scores.dispatch} isBottleneck={bottleneck === 'Dispatch'} />
-      <Chip label="Logistics" value={scores.logistics} isBottleneck={bottleneck === 'Logistics'} />
+      <Chip label="Fleet" value={scores.logistics} isBottleneck={bottleneck === 'Fleet'} />
       <Chip label="Quality" value={scores.quality} isBottleneck={bottleneck === 'Quality'} />
       <Chip label="Overall" value={overall} isBottleneck={false} />
     </div>

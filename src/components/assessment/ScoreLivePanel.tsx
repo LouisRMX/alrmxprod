@@ -48,7 +48,7 @@ export default function ScoreLivePanel({ scores, overall, bottleneck }: ScoreLiv
       </div>
       <ScoreRow label="Production" value={scores.prod} />
       <ScoreRow label="Dispatch" value={scores.dispatch} />
-      <ScoreRow label="Logistics" value={scores.logistics} />
+      <ScoreRow label="Fleet" value={scores.logistics} />
       <ScoreRow label="Quality" value={scores.quality} />
       <div style={{ borderTop: '1px solid var(--border)', marginTop: '6px', paddingTop: '8px' }}>
         <ScoreRow label="Overall" value={overall} />

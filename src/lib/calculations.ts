@@ -494,7 +494,7 @@ export function calc(answers: Answers, meta?: { season?: string }): CalcResult {
   const overall = valid.length ? Math.round(valid.reduce((s, v) => s + v, 0) / valid.length) : null
   let bottleneck: string | null = null
   if (valid.length >= 2) {
-    const scores: Record<string, number | null> = { Production: utilScore, Dispatch: dispScore, Logistics: logisticsScore, Quality: qualityScore }
+    const scores: Record<string, number | null> = { Production: utilScore, Dispatch: dispScore, Fleet: logisticsScore, Quality: qualityScore }
     const validScores = Object.entries(scores).filter(([, v]) => v !== null) as [string, number][]
     const mn = Math.min(...validScores.map(([, v]) => v))
     const worst = validScores.find(([, v]) => v === mn)

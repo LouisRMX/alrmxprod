@@ -98,7 +98,7 @@ export default function ExportPDF({ calcResult, answers, meta, report }: ExportP
   const scores = [
     { label: 'Production', value: calcResult.scores.prod },
     { label: 'Dispatch', value: calcResult.scores.dispatch },
-    { label: 'Logistics', value: calcResult.scores.logistics },
+    { label: 'Fleet', value: calcResult.scores.logistics },
     { label: 'Quality', value: calcResult.scores.quality },
     { label: 'Overall', value: calcResult.overall },
   ]
@@ -164,7 +164,7 @@ export default function ExportPDF({ calcResult, answers, meta, report }: ExportP
               </div>
               {s.label === 'Overall' && financialBottleneck && (
                 <div style={{ fontSize: '9px', color: '#C0392B', fontWeight: 600, marginTop: '2px' }}>
-                  Bottleneck: {financialBottleneck}
+                  Financial driver: {financialBottleneck}
                 </div>
               )}
             </div>

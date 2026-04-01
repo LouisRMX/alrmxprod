@@ -171,7 +171,7 @@ You are writing the Operational Diagnosis section of a Plant Intelligence Report
 SCORES:
 Production: ${scores?.prod ?? '—'}/100
 Dispatch: ${scores?.dispatch ?? '—'}/100
-Logistics / Fleet: ${scores?.logistics ?? '—'}/100
+Fleet: ${scores?.logistics ?? '—'}/100
 Quality: ${scores?.quality ?? '—'}/100
 Overall: ${ctx.overall}/100
 Primary bottleneck: ${ctx.bottleneck}

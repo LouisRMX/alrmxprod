@@ -17,7 +17,7 @@ export interface Issue {
    *  'independent' = separate loss that stacks additively. */
   category: 'bottleneck' | 'independent'
   /** Operational dimension this issue belongs to — used for financial bottleneck calculation. */
-  dimension?: 'Production' | 'Dispatch' | 'Logistics' | 'Quality' | 'Other'
+  dimension?: 'Production' | 'Dispatch' | 'Fleet' | 'Quality' | 'Other'
 }
 
 /**
@@ -49,9 +49,9 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
 
   // ── Turnaround & Dispatch (primary bottleneck) ─────────────────────────
 
-  if (r.ta > r.TARGET_TA && (bn === 'Logistics' || bn === 'Fleet')) {
+  if (r.ta > r.TARGET_TA && (bn === 'Fleet')) {
     issues.push({
-      sev: 'red', pin: true, category: 'bottleneck', dimension: 'Logistics',
+      sev: 'red', pin: true, category: 'bottleneck', dimension: 'Fleet',
       t: `Truck turnaround ${r.ta} min — ${Math.round((r.ta - r.TARGET_TA) / r.TARGET_TA * 100)}% above ${r.TARGET_TA}-min target`,
       action: 'Require site readiness confirmation before trucks depart',
       rec: `Trucks should only depart when the site confirms the pump crew is ready. Closing this gap recovers ${fmt(r.turnaroundLeakMonthly)}/month.`,
@@ -88,7 +88,7 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
 
     if (r.ta > r.TARGET_TA && bn !== 'Fleet') {
       issues.push({
-        sev: 'amber', pin: false, category: 'bottleneck', dimension: 'Logistics',
+        sev: 'amber', pin: false, category: 'bottleneck', dimension: 'Fleet',
         t: `Truck turnaround ${r.ta} min — ${Math.round((r.ta - r.TARGET_TA) / r.TARGET_TA * 100)}% above ${r.TARGET_TA}-min target (included in dispatch estimate)`,
         action: 'Require site readiness confirmation before trucks depart',
         rec: 'Trucks should only depart when the site confirms readiness. Fastest lever inside the dispatch bottleneck.',
@@ -97,7 +97,7 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
     }
   } else if (r.ta > r.TARGET_TA) {
     issues.push({
-      sev: 'red', pin: bn === 'Logistics' || bn === 'Fleet', category: 'bottleneck', dimension: 'Logistics',
+      sev: 'red', pin: bn === 'Fleet', category: 'bottleneck', dimension: 'Fleet',
       t: `Truck turnaround ${r.ta} min — ${Math.round((r.ta - r.TARGET_TA) / r.TARGET_TA * 100)}% above ${r.TARGET_TA}-min target`,
       action: 'Require site readiness confirmation before trucks depart',
       rec: `Trucks should only depart when the site confirms the pump crew is ready. Closing this gap recovers ${fmt(r.turnaroundLeakMonthly)}/month.`,
@@ -191,7 +191,7 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
   if (r.availRate < 0.85 && r.operativeTrucks > 0 && r.trucks > 0) {
     const offRoad = r.trucks - r.operativeTrucks
     issues.push({
-      sev: r.availRate < 0.70 ? 'red' : 'amber', pin: false, category: 'bottleneck', dimension: 'Logistics',
+      sev: r.availRate < 0.70 ? 'red' : 'amber', pin: false, category: 'bottleneck', dimension: 'Fleet',
       t: `Fleet availability ${Math.round(r.availRate * 100)}% — ${offRoad} truck${offRoad > 1 ? 's' : ''} regularly off-road`,
       action: 'Set daily availability target of 90%+ — track off-road trucks on a whiteboard',
       rec: `Effective fleet is ${r.operativeTrucks} trucks, not ${r.trucks}. Improving availability to 90% adds ${Math.floor(r.trucks * 0.9) - r.operativeTrucks} trucks back to daily capacity.`,
@@ -205,7 +205,7 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
     const wMin = a.washout_time === 'Over 30 minutes — significant bottleneck' ? 35 : 25
     const wLoss = r.operativeTrucks > 0 && r.contrib > 0 ? Math.round((wMin - 15) / 60 * r.operativeTrucks * r.delDay / r.operativeTrucks * r.mixCap * r.contrib * (r.opD / 12)) : 0
     issues.push({
-      sev: 'amber', pin: false, category: 'independent', dimension: 'Logistics',
+      sev: 'amber', pin: false, category: 'independent', dimension: 'Fleet',
       t: `Washout takes ${(a.washout_time as string).split(' —')[0].toLowerCase()} — recoverable idle time`,
       action: 'Install dedicated washout bay with high-pressure water supply',
       rec: `Reducing washout to 10–15 min frees ${wMin - 15} min per truck per cycle.`,
@@ -248,7 +248,7 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
 
   if (r.truckBreakdowns > 2 || a.maint_programme === 'Reactive only — trucks are repaired when they break down' || a.maint_programme === 'No maintenance programme') {
     issues.push({
-      sev: r.truckBreakdowns > 4 ? 'red' : 'amber', pin: false, category: 'independent', dimension: 'Logistics',
+      sev: r.truckBreakdowns > 4 ? 'red' : 'amber', pin: false, category: 'independent', dimension: 'Fleet',
       t: r.truckBreakdowns > 0 ? `${r.truckBreakdowns} truck breakdown${r.truckBreakdowns > 1 ? 's' : ''} last month — reactive maintenance costing ${fmt(r.breakdownCostMonthly)}/month` : 'Reactive-only maintenance — breakdown risk unquantified',
       action: 'Implement monthly truck service schedule — tyres, drum, hydraulics, engine',
       rec: "Reactive maintenance costs 3–5× more over a fleet's lifetime. A basic monthly service schedule reduces unplanned downtime by 50–70%.",
@@ -404,7 +404,7 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
     const driversShort = r.operativeTrucks - r.qualifiedDrivers
     const driverCapLoss = Math.round(driversShort * (r.opH * 60 / r.TARGET_TA) * 0.85 * r.mixCap * r.contrib * (r.opD / 12))
     issues.push({
-      sev: 'amber', pin: false, category: 'bottleneck', dimension: 'Logistics',
+      sev: 'amber', pin: false, category: 'bottleneck', dimension: 'Fleet',
       t: `Only ${r.qualifiedDrivers} qualified drivers for ${r.operativeTrucks} operative trucks — drivers are the bottleneck`,
       action: 'Prioritise licence renewal and stagger home leave schedules',
       rec: `${driversShort} truck${driversShort > 1 ? 's are' : ' is'} sitting idle due to driver shortage. Monthly capacity impact: ${fmt(driverCapLoss)}.`,
