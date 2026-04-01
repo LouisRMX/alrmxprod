@@ -41,8 +41,7 @@ export function generateLogisticsSection(
 
   const lines: string[] = []
 
-  // ── Header ───────────────────────────────────────────────
-  lines.push('LOGISTICS INTELLIGENCE')
+  // ── Header metadata (no section title — ReportView renders that) ─────────
   lines.push(
     `Based on ${fleet.tripsAnalyzed} deliveries across ${fleet.trucksAnalyzed} trucks over ${days} days.`
   )

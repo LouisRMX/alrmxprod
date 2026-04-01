@@ -401,6 +401,97 @@ function KPIPyramid({ calcResult, answers, totalLoss, dailyLoss, financialBottle
   )
 }
 
+// ── Logistics Intelligence Section ────────────────────────────────────────
+const SECTION_HEADERS = ['TURNAROUND PERFORMANCE', 'SITE WAITING TIME', 'RETURN LOAD SIGNALS', 'DATA NOTE']
+
+function LogisticsSection({ text }: { text: string }) {
+  const rawLines = text.split('\n')
+
+  // Split into [{ header, lines[] }] blocks
+  type Block = { header: string | null; lines: string[] }
+  const blocks: Block[] = []
+  let current: Block = { header: null, lines: [] }
+
+  for (const line of rawLines) {
+    if (SECTION_HEADERS.includes(line.trim())) {
+      if (current.lines.length > 0 || current.header) blocks.push(current)
+      current = { header: line.trim(), lines: [] }
+    } else {
+      current.lines.push(line)
+    }
+  }
+  if (current.lines.length > 0 || current.header) blocks.push(current)
+
+  const headerColor: Record<string, string> = {
+    'TURNAROUND PERFORMANCE': 'var(--phase-onsite)',
+    'SITE WAITING TIME':      'var(--phase-onsite)',
+    'RETURN LOAD SIGNALS':    'var(--phase-workshop)',
+    'DATA NOTE':              'var(--gray-400)',
+  }
+
+  return (
+    <div>
+      {/* Section label */}
+      <div style={{
+        fontSize: '11px', fontWeight: 600, letterSpacing: '.08em',
+        color: 'var(--gray-400)', textTransform: 'uppercase', marginBottom: '12px',
+        display: 'flex', alignItems: 'center', gap: '8px',
+      }}>
+        Logistics Intelligence
+        <span style={{
+          fontSize: '10px', padding: '2px 7px', borderRadius: '4px',
+          background: 'var(--info-bg)', border: '1px solid var(--info-border)',
+          color: 'var(--phase-workshop)', fontWeight: 500,
+          letterSpacing: 0, textTransform: 'none',
+        }}>
+          GPS data
+        </span>
+      </div>
+
+      {/* Metadata line (first block, no header) */}
+      {blocks[0]?.header === null && (
+        <div style={{ fontSize: '12px', color: 'var(--gray-400)', marginBottom: '16px', lineHeight: '1.5' }}>
+          {blocks[0].lines.filter(l => l.trim()).map((l, i) => <div key={i}>{l}</div>)}
+        </div>
+      )}
+
+      {/* Metric blocks */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        {blocks.filter(b => b.header !== null).map((block, i) => {
+          const isDataNote = block.header === 'DATA NOTE'
+          const bodyLines = block.lines.filter(l => l.trim())
+          return (
+            <div key={i} style={{
+              padding: '14px 16px',
+              border: '1px solid var(--border)',
+              borderLeft: isDataNote ? '1px solid var(--border)' : `3px solid ${headerColor[block.header!] ?? 'var(--border)'}`,
+              borderRadius: '8px',
+              background: isDataNote ? 'transparent' : 'var(--white)',
+            }}>
+              <div style={{
+                fontSize: '10px', fontWeight: 700, letterSpacing: '.07em',
+                color: isDataNote ? 'var(--gray-400)' : (headerColor[block.header!] ?? 'var(--gray-600)'),
+                textTransform: 'uppercase', marginBottom: '8px',
+              }}>
+                {block.header}
+              </div>
+              {bodyLines.map((line, j) => (
+                <div key={j} style={{
+                  fontSize: '13px', lineHeight: '1.65',
+                  color: isDataNote ? 'var(--gray-400)' : 'var(--gray-700)',
+                  marginBottom: j < bodyLines.length - 1 ? '4px' : 0,
+                }}>
+                  {line}
+                </div>
+              ))}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 // ── Case Study Section ─────────────────────────────────────────────────────
 function CaseStudySection({ calcResult, meta, totalLoss, assessmentId }: {
   calcResult: CalcResult
@@ -945,30 +1036,7 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
       {logisticsText && (
         <>
           <Divider />
-          <div>
-            <div style={{
-              fontSize: '11px', fontWeight: 600, letterSpacing: '.08em',
-              color: 'var(--gray-400)', textTransform: 'uppercase', marginBottom: '10px',
-            }}>
-              Logistics Intelligence
-              <span style={{
-                marginLeft: '8px', fontSize: '10px', padding: '2px 7px',
-                borderRadius: '4px', background: 'var(--info-bg)',
-                border: '1px solid var(--info-border)', color: 'var(--phase-workshop)',
-                fontWeight: 500, letterSpacing: 0, textTransform: 'none',
-              }}>
-                GPS data
-              </span>
-            </div>
-            <div style={{
-              whiteSpace: 'pre-wrap', fontSize: '13px', lineHeight: '1.7',
-              color: 'var(--gray-700)', fontFamily: 'var(--font)',
-              padding: '16px', background: 'var(--gray-50)',
-              border: '1px solid var(--border)', borderRadius: '8px',
-            }}>
-              {logisticsText}
-            </div>
-          </div>
+          <LogisticsSection text={logisticsText} />
         </>
       )}
 
