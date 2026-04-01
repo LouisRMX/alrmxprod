@@ -1081,7 +1081,7 @@ export const SECTIONS: Section[] = [
 export const TOTAL_Q = SECTIONS.reduce((s, sec) => s + sec.qs.length, 0)
 
 export const PRE_ASSESSMENT_IDS = new Set([
-  'price_m3', 'cement_cost',
+  'price_m3', 'cement_cost', 'aggregate_cost', 'admix_cost',
   'plant_cap', 'actual_prod', 'op_hours', 'op_days',
   'n_trucks', 'mixer_capacity', 'deliveries_day', 'turnaround',
   'reject_pct',
@@ -1091,7 +1091,7 @@ export const PRE_ASSESSMENT_IDS = new Set([
 ])
 
 export const CORE_BLOCKS: CoreBlock[] = [
-  { id: 'economics', label: 'Economics & production volume', ids: ['price_m3', 'cement_cost', 'op_days', 'plant_cap', 'op_hours', 'actual_prod', 'working_days_month'] },
+  { id: 'economics', label: 'Economics & production volume', ids: ['price_m3', 'cement_cost', 'aggregate_cost', 'admix_cost', 'op_days', 'plant_cap', 'op_hours', 'actual_prod', 'working_days_month'] },
   { id: 'fleet', label: 'Fleet & deliveries', ids: ['n_trucks', 'turnaround', 'deliveries_day'] },
   { id: 'quality_dispatch', label: 'Quality & dispatch', ids: ['reject_pct', 'quality_control', 'order_to_dispatch', 'dispatch_tool'] },
   { id: 'context', label: 'Visit context', ids: ['typical_month', 'prod_data_source', 'data_confidence_self', 'biggest_pain'] },

@@ -21,10 +21,12 @@ import type { Phase } from '@/lib/questions'
 //   Contribution margin: $68 − $26 − $7 − $3 = $32/m³
 // ─────────────────────────────────────────────────────────────────────────────
 
-// The 14 questions sent to the plant before the visit (PRE_ASSESSMENT_IDS)
+// The questions sent to the plant before the visit (PRE_ASSESSMENT_IDS)
 const WORKSHOP_ANSWERS: Answers = {
   price_m3:           '68',
   cement_cost:        '26',
+  aggregate_cost:     '7',
+  admix_cost:         '3',
   plant_cap:          '34',
   actual_prod:        '6400',
   op_hours:           '10',
