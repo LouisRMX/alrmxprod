@@ -454,7 +454,26 @@ export default function SimulatorView({ calcResult }: SimulatorViewProps) {
               </div>
             ))}
 
-            <div style={{ fontSize: '10px', color: 'var(--gray-400)', textAlign: 'center', marginTop: '4px' }}>
+            {/* Plain-language note on report vs simulator discrepancy */}
+            <div style={{
+              background: 'var(--gray-50)', border: '1px solid var(--gray-100)',
+              borderRadius: '8px', padding: '12px 14px', marginTop: '4px',
+            }}>
+              <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--gray-700)', marginBottom: '4px' }}>
+                Why the report and simulator may show different utilisation
+              </div>
+              <div style={{ fontSize: '11px', color: 'var(--gray-500)', lineHeight: 1.6 }}>
+                The <strong>report</strong> shows what the plant actually produced last month — based on the numbers entered in the assessment. That figure includes everything: quiet periods, machine downtime, slow days.
+              </div>
+              <div style={{ fontSize: '11px', color: 'var(--gray-500)', lineHeight: 1.6, marginTop: '6px' }}>
+                The <strong>simulator</strong> calculates what the plant <em>could</em> produce if trucks ran continuously at the current turnaround and dispatch settings. It does not know about quiet days or unexpected stops — it only models the physical capacity of the fleet.
+              </div>
+              <div style={{ fontSize: '11px', color: 'var(--gray-500)', lineHeight: 1.6, marginTop: '6px' }}>
+                This means the simulator is best used to compare scenarios against each other — not as an exact prediction of output.
+              </div>
+            </div>
+
+            <div style={{ fontSize: '10px', color: 'var(--gray-400)', textAlign: 'center', marginTop: '12px' }}>
               Click anywhere outside to close
             </div>
           </div>

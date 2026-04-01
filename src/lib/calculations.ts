@@ -708,8 +708,10 @@ export function simCalc(baseline: SimBaseline, scenario: SimScenario): SimResult
   // Contribution recalculated when price changes
   const sContrib = Math.max(0, sPrice - bVarCosts)
 
-  // Baseline annual volume — same dispatch formula as scenario (minutes-based)
-  const bProdDaily = cap * (baseline.util / 100) * opH
+  // Baseline annual volume — use same plant ceiling as scenario (92% best practice)
+  // so that Reset to baseline gives $0 delta. Actual reported utilisation may differ
+  // due to demand variation or factors outside this model's scope.
+  const bProdDaily = cap * 0.92 * opH
   const bDelsPerTruck = baseline.turnaround > 0 ? (opH * 60 / baseline.turnaround) : 0
   const bFleetDaily = bDelsPerTruck * baseline.trucks * mixCap
   const bDispEff = Math.max(0.40, Math.min(0.98, 1 - (baseline.dispatchMin / 100)))
