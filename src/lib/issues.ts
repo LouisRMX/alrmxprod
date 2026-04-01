@@ -246,17 +246,20 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
   }
   // Wow-moment: precise site-wait breakdown finding (only when breakdown questions filled)
   if (r.taSiteWaitMin !== null && r.siteWaitExcess > 0) {
-    // Dollar value: excess site wait as fraction of total TA × monthly delivery revenue opportunity
-    const siteWaitLoss = r.ta > 0
-      ? Math.round((r.siteWaitExcess / r.ta) * r.realisticMaxDel * r.mixCap * r.contribSafe * (r.opD / 12))
+    // Cap at excessMin: site wait can only account for at most the full turnaround gap.
+    // Without this, siteWaitExcess > excessMin would claim more recovery than the turnaround
+    // calculation allows — e.g. site wait 65 min (excess 30) when ta is only 20 min over target.
+    const effectiveSiteWaitExcess = Math.min(r.siteWaitExcess, r.excessMin)
+    const siteWaitLoss = r.ta > 0 && effectiveSiteWaitExcess > 0
+      ? Math.round((effectiveSiteWaitExcess / r.ta) * r.realisticMaxDel * r.mixCap * r.contribSafe * (r.opD / 12))
       : 0
     issues.push({
       sev: 'red', pin: true, category: 'bottleneck', dimension: 'Fleet',
       t: `Site waiting time ${r.taSiteWaitMin} min — ${r.siteWaitExcess} min above 35-min benchmark`,
       action: 'Enforce demurrage charge and require site readiness confirmation before dispatch',
-      rec: `Site waiting time is the single largest controllable component of your ${r.ta}-min turnaround. Reducing it by ${r.siteWaitExcess} min to the 35-min benchmark would recover approximately ${fmt(siteWaitLoss)}/month — without adding a single truck.`,
+      rec: `Site waiting time is the single largest controllable component of your ${r.ta}-min turnaround. Reducing it by ${effectiveSiteWaitExcess} min recovers approximately ${fmt(siteWaitLoss)}/month — without adding a single truck.`,
       loss: siteWaitLoss,
-      formula: `${r.siteWaitExcess} excess min ÷ ${r.ta} total TA × ${r.realisticMaxDel} max del/day × ${r.mixCap} m³ × ${Math.round(r.contribSafe)}/m³ × ${Math.round(r.opD / 12)} days`,
+      formula: `${effectiveSiteWaitExcess} actionable excess min ÷ ${r.ta} total TA × ${r.realisticMaxDel} max del/day × ${r.mixCap} m³ × ${Math.round(r.contribSafe)}/m³ × ${Math.round(r.opD / 12)} days`,
     })
   }
 
