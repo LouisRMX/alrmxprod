@@ -63,9 +63,10 @@ export default function GpsUploadView({ assessmentId, isAdmin }: GpsUploadViewPr
       if (upload) {
         setExistingUpload(upload)
 
-        // If stuck in analyzing/processing (e.g. server crashed mid-run),
-        // treat as failed so user can re-upload
-        const displayStatus = (upload.processing_status === 'analyzing' || upload.processing_status === 'processing')
+        // If stuck in a transient state on page reload (no in-memory state to recover),
+        // treat as failed so user can re-upload cleanly
+        const transientStatuses = ['analyzing', 'processing', 'mapping_required', 'uploaded']
+        const displayStatus = transientStatuses.includes(upload.processing_status)
           ? 'failed'
           : upload.processing_status as GpsStatus
         setStatus(displayStatus)
