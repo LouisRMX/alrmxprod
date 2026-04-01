@@ -464,7 +464,11 @@ export function calc(answers: Answers, meta?: { season?: string }, overrides?: C
   // Reject leak — adjusted by return_liability
   const rejectPct = +(a.reject_pct ?? 0) || 0
   const liab = LIABILITY_MAP[a.return_liability as string] || { factor: 1, base: 'price' }
-  const rejectBase = liab.base === 'materials' ? cement + agg + admix : price
+  // When base === 'materials', use actual material cost; fall back to contribSafe (price×35%) if not entered
+  // This prevents rejectBase = 0 when plant absorbs cost but material costs were not entered
+  const rejectBase = liab.base === 'materials'
+    ? (cement + agg + admix > 0 ? cement + agg + admix : contribSafe)
+    : price
   const rejectLeakMonthly = Math.round(rejectPct / 100 * delDay * mixCap * rejectBase * liab.factor * (opD / 12))
 
   // Demurrage opportunity
@@ -838,12 +842,13 @@ export function simCalc(baseline: SimBaseline, scenario: SimScenario): SimResult
   const sFleetScore = Math.max(0, Math.min(100, Math.round(taRatio <= 1 ? 100 : 100 - ((taRatio - 1) * 120))))
   const sDispScore = Math.max(0, Math.min(100, Math.round(100 - sOTD * 1.4)))
 
-  // maxUtilPct: what fraction of the plant's 92% best-practice ceiling the current fleet can support.
-  // = 100 → fleet exactly matches plant ceiling (in balance)
-  // > 100 → fleet can exceed plant ceiling → plant is the binding constraint
-  // < 100 → fleet is limiting → turnaround/trucks must improve for utilisation to rise
+  // maxUtilPct: the utilisation % the current fleet configuration can support.
+  // Expressed as % of plant capacity (cap × opH), not as % of the 92% target.
+  // < sUtil → fleet is the binding constraint (amber warning)
+  // > sUtil → fleet has headroom above current utilisation (green prompt to raise slider)
+  // Capped at 99 to avoid showing "100%" which implies no constraint at all
   const maxUtilPct = cap > 0 && opH > 0
-    ? Math.min(100, Math.round((effFleetDaily / (cap * 0.92 * opH)) * 100))
+    ? Math.min(99, Math.round((effFleetDaily / (cap * opH)) * 100))
     : sUtil
 
   return {

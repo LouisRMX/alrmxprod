@@ -50,13 +50,18 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
   // ── Turnaround & Dispatch (primary bottleneck) ─────────────────────────
 
   if (r.ta > r.TARGET_TA && (bn === 'Fleet')) {
+    // When breakdown questions identify site wait as the cause, defer the dollar value to the
+    // site-wait finding below — prevents visual double-count in the findings list.
+    const taLossDeferred = r.taBreakdownEntered && r.siteWaitExcess > 0
     issues.push({
       sev: 'red', pin: true, category: 'bottleneck', dimension: 'Fleet',
       t: `Truck turnaround ${r.ta} min — ${Math.round((r.ta - r.TARGET_TA) / r.TARGET_TA * 100)}% above ${r.TARGET_TA}-min target`,
       action: 'Require site readiness confirmation before trucks depart',
-      rec: `Trucks should only depart when the site confirms the pump crew is ready. Closing this gap recovers ${fmt(r.turnaroundLeakMonthly)}/month.`,
-      loss: r.turnaroundLeakMonthly,
-      formula: `(${r.excessMin} excess min ÷ ${r.ta} actual min) × ${r.realisticMaxDel} target del × ${r.mixCap} m³ × $${Math.round(r.contribSafe)} margin × ${Math.round(r.opD / 12)} days/month`,
+      rec: taLossDeferred
+        ? `Site waiting time (${r.taSiteWaitMin} min) is the identified primary cause — see finding below for dollar impact.`
+        : `Trucks should only depart when the site confirms the pump crew is ready. Closing this gap recovers ${fmt(r.turnaroundLeakMonthly)}/month.`,
+      loss: taLossDeferred ? 0 : r.turnaroundLeakMonthly,
+      formula: taLossDeferred ? undefined : `(${r.excessMin} excess min ÷ ${r.ta} actual min) × ${r.realisticMaxDel} target del × ${r.mixCap} m³ × $${Math.round(r.contribSafe)} margin × ${Math.round(r.opD / 12)} days/month`,
     })
   }
 
@@ -96,13 +101,16 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
       })
     }
   } else if (r.ta > r.TARGET_TA) {
+    const taLossDeferred = r.taBreakdownEntered && r.siteWaitExcess > 0
     issues.push({
       sev: 'red', pin: bn === 'Fleet', category: 'bottleneck', dimension: 'Fleet',
       t: `Truck turnaround ${r.ta} min — ${Math.round((r.ta - r.TARGET_TA) / r.TARGET_TA * 100)}% above ${r.TARGET_TA}-min target`,
       action: 'Require site readiness confirmation before trucks depart',
-      rec: `Trucks should only depart when the site confirms the pump crew is ready. Closing this gap recovers ${fmt(r.turnaroundLeakMonthly)}/month.`,
-      loss: r.turnaroundLeakMonthly,
-      formula: `(${r.excessMin} excess min ÷ ${r.ta} actual min) × ${r.realisticMaxDel} target del × ${r.mixCap} m³ × $${Math.round(r.contribSafe)} margin × ${Math.round(r.opD / 12)} days/month`,
+      rec: taLossDeferred
+        ? `Site waiting time (${r.taSiteWaitMin} min) is the identified primary cause — see finding below for dollar impact.`
+        : `Trucks should only depart when the site confirms the pump crew is ready. Closing this gap recovers ${fmt(r.turnaroundLeakMonthly)}/month.`,
+      loss: taLossDeferred ? 0 : r.turnaroundLeakMonthly,
+      formula: taLossDeferred ? undefined : `(${r.excessMin} excess min ÷ ${r.ta} actual min) × ${r.realisticMaxDel} target del × ${r.mixCap} m³ × $${Math.round(r.contribSafe)} margin × ${Math.round(r.opD / 12)} days/month`,
     })
   }
 
