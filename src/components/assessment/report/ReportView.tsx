@@ -730,7 +730,7 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
 
   const generate = useCallback(async (section: string) => {
     setGenerating(section)
-    setGenError(null)
+    setGenError(null)  // clear previous error
     setTexts(prev => ({ ...prev, [section]: '' }))
 
     try {
@@ -739,10 +739,14 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ assessmentId, type: section, context: aiContext }),
       })
-      if (!resp.ok) throw new Error('Generation failed')
+      if (!resp.ok) {
+        let detail = ''
+        try { const body = await resp.json(); detail = body?.error || '' } catch { /* ignore */ }
+        throw new Error(`HTTP ${resp.status}${detail ? ': ' + detail : ''}`)
+      }
 
       const reader = resp.body?.getReader()
-      if (!reader) throw new Error('No reader')
+      if (!reader) throw new Error('No stream reader')
       const decoder = new TextDecoder()
       let accumulated = ''
 
@@ -752,9 +756,12 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
         accumulated += decoder.decode(value, { stream: true })
         setTexts(prev => ({ ...prev, [section]: stripMarkdown(accumulated) }))
       }
-    } catch {
-      setGenError(`Failed to generate ${section} — click to retry.`)
-      setTimeout(() => setGenError(null), 5000)
+
+      if (!accumulated.trim()) throw new Error('Empty response — AI returned no content')
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error'
+      setGenError(`Failed to generate ${section}: ${msg}`)
+      // Don't auto-dismiss — keep visible until next attempt
     }
 
     setGenerating(null)
