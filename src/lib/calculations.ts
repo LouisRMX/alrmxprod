@@ -20,7 +20,8 @@ export interface CalcScores {
 export interface CalcResult {
   // Economics
   contrib: number
-  contribSafe: number   // contrib capped at price×35% when material costs are incomplete
+  contribSafe: number        // contrib capped at price×35% when material costs are incomplete
+  materialCostPerM3: number  // cement + agg + admix — used for reject/surplus loss calculations
   contribFuelAdj: number
   marginRatio: number
   marginIncomplete: boolean
@@ -62,11 +63,20 @@ export interface CalcResult {
   hiddenConfidence: 'high' | 'low'
   turnaroundLeakMonthly: number
 
-  // Turnaround breakdown
+  // Turnaround breakdown (derived from washout_time + site_wait_time + radius)
   siteWait: number
   washoutMin: number
   transitEst: number
   taUnexplained: number
+  // Detailed breakdown from optional new questions
+  taTransitMin: number | null
+  taSiteWaitMin: number | null
+  taUnloadMin: number | null
+  taWashoutMin: number | null
+  taBreakdownSum: number
+  taBreakdownEntered: boolean
+  siteWaitExcess: number   // minutes over 35-min benchmark — demurrage candidate
+  washoutExcess: number    // minutes over 12-min benchmark — procedure fix candidate
 
   // Reject & quality
   rejectPct: number
@@ -94,6 +104,7 @@ export interface CalcResult {
   atypicalMonth: boolean
   isSummer: boolean
   summerAdjusted: boolean
+  seasonalFactor: number     // 1.0 = no adjustment; <1.0 = summer reduction applied to loss calcs
   daysMismatchPenalty: number
 
   // Demand context
@@ -272,9 +283,11 @@ const WASHOUT_MAP: Record<string, number> = {
 
 const LIABILITY_MAP: Record<string, { factor: number; base: string }> = {
   'Contractor always pays \u2014 formal policy enforced': { factor: 0, base: 'materials' },
-  'Contractor sometimes pays \u2014 handled case by case': { factor: 0.6, base: 'price' },
-  'Plant always absorbs the cost': { factor: 1, base: 'price' },
-  'No clear policy': { factor: 1, base: 'price' },
+  'Contractor sometimes pays \u2014 handled case by case': { factor: 0.6, base: 'materials' },
+  // Plant absorbs: loss = materials wasted (cement + agg + admix), not selling price.
+  // The plant already paid labor/fuel; those are sunk. Only materials are thrown in the bin.
+  'Plant always absorbs the cost': { factor: 1, base: 'materials' },
+  'No clear policy': { factor: 1, base: 'materials' },
 }
 
 // ── Helper ───────────────────────────────────────────────────────────────────
@@ -336,7 +349,23 @@ export function calc(answers: Answers, meta?: { season?: string }, overrides?: C
   const actual = hoursPerMonth > 0 ? monthlyM3 / hoursPerMonth : 0
   const util = cap > 0 ? actual / cap : 0
   const unusedCapAnnual = Math.max(0, (cap - actual) * opH * opD)
-  const capLeakMonthly = Math.round(unusedCapAnnual * contribSafe / 12)
+
+  // Seasonal factor — applied to monthly loss calculations when season = 'summer'
+  // Prevents turnaroundLeakMonthly and capLeakMonthly from using full annual opD/12
+  // when the plant is known to run at reduced capacity in summer.
+  const isSummer = meta?.season === 'summer'
+  const SUMMER_PROD_DROP_MAP: Record<string, number> = {
+    'Under 10% — minimal seasonal impact': 0.95,
+    '10 to 20% — moderate drop': 0.85,
+    '20 to 35% — significant summer slowdown': 0.72,
+    'Over 35% — severe seasonal reduction': 0.60,
+    'Not sure — no seasonal comparison available': 0.80,
+  }
+  const seasonalFactor = isSummer && a.summer_prod_drop
+    ? (SUMMER_PROD_DROP_MAP[a.summer_prod_drop as string] ?? 1.0)
+    : 1.0
+
+  const capLeakMonthly = Math.round(unusedCapAnnual * contribSafe / 12 * seasonalFactor)
 
   // Fleet
   const trucks = +(a.n_trucks ?? 0) || 0
@@ -362,7 +391,7 @@ export function calc(answers: Answers, meta?: { season?: string }, overrides?: C
   const hiddenRevMonthly = Math.round(hiddenDel * mixCap * contribSafe * (opD / 12))
   const excessMin = Math.max(0, ta - TARGET_TA)
   const turnaroundLeakMonthly = ta > 0 && effectiveUnits > 0
-    ? Math.round(excessMin / ta * realisticMaxDel * mixCap * contribSafe * (opD / 12))
+    ? Math.round(excessMin / ta * realisticMaxDel * mixCap * contribSafe * (opD / 12) * seasonalFactor)
     : 0
 
   // Fuel
@@ -405,7 +434,7 @@ export function calc(answers: Answers, meta?: { season?: string }, overrides?: C
   const surplusLeakMonthly = surplusMid > 0 && delDay > 0 && materialCost > 0
     ? Math.round(surplusMid * delDay * materialCost * (opD / 12)) : 0
 
-  // Turnaround breakdown
+  // Turnaround breakdown — detailed component split (from new breakdown questions)
   const siteWait = +(a.site_wait_time ?? 0) || 0
   const WASHOUT_MID_MAP: Record<string, number> = {
     'Under 10 minutes — fast': 7,
@@ -417,6 +446,20 @@ export function calc(answers: Answers, meta?: { season?: string }, overrides?: C
   const transitEst = radius > 0 ? Math.round(radius * 2 * 1.5) : 0
   const taExplained = siteWait + washoutMin + transitEst
   const taUnexplained = ta > 0 && taExplained > 0 ? Math.max(0, ta - taExplained) : 0
+
+  // Detailed breakdown from new questions (optional — all null if not answered)
+  const taTransitMin   = +(a.ta_transit_min ?? 0) || null
+  const taSiteWaitMin  = +(a.ta_site_wait_min ?? 0) || null
+  const taUnloadMin    = +(a.ta_unload_min ?? 0) || null
+  const taWashoutMin   = +(a.ta_washout_return_min ?? 0) || null
+  // Sum of entered components — used to validate against reported turnaround
+  const taBreakdownSum = (taTransitMin ?? 0) + (taSiteWaitMin ?? 0) + (taUnloadMin ?? 0) + (taWashoutMin ?? 0)
+  const taBreakdownEntered = taTransitMin !== null || taSiteWaitMin !== null || taUnloadMin !== null || taWashoutMin !== null
+  // Site wait benchmark: 35 min. Each minute over 35 on site = opportunity for demurrage recovery.
+  const SITE_WAIT_BENCHMARK = 35
+  const WASHOUT_BENCHMARK = 12
+  const siteWaitExcess = taSiteWaitMin !== null ? Math.max(0, taSiteWaitMin - SITE_WAIT_BENCHMARK) : 0
+  const washoutExcess  = taWashoutMin !== null  ? Math.max(0, taWashoutMin  - WASHOUT_BENCHMARK)   : 0
 
   // Reject leak — adjusted by return_liability
   const rejectPct = +(a.reject_pct ?? 0) || 0
@@ -447,8 +490,6 @@ export function calc(answers: Answers, meta?: { season?: string }, overrides?: C
     (a.admix_strategy === 'Workability only — admixtures used to improve flow and placement' || a.admix_strategy === 'Admixtures not used') &&
     (+(a.cement_cost ?? 0) || 0) > 0 && monthlyM3 > 0
   ) ? Math.round(+(a.cement_cost ?? 0) * 0.08 * monthlyM3) : 0
-
-  const isSummer = meta?.season === 'summer'
 
   // Demand context
   const dsAnswer = a.demand_sufficient as string | undefined
@@ -553,11 +594,26 @@ export function calc(answers: Answers, meta?: { season?: string }, overrides?: C
     warnings.push('Delivery count suggests higher volume than reported production — check deliveries_day or actual_prod.')
   }
   if (ta > 0 && radius > 0 && ta < radius * 3) warnings.push('Turnaround time is shorter than estimated transit time — check turnaround or delivery_radius.')
+  // Turnaround / deliveries_day consistency check.
+  // Theoretical max = trucks × (opH × 60 / ta). If entered delDay is >30% below theoretical,
+  // one of the two figures is wrong — this invalidates turnaround-based loss calculations.
+  if (ta > 0 && trucks > 0 && opH > 0 && delDay > 0) {
+    const theoreticalDel = Math.floor(trucks * (opH * 60 / ta))
+    const gap = (theoreticalDel - delDay) / theoreticalDel
+    if (gap > 0.30) {
+      warnings.push(
+        `Data inconsistency: ${trucks} trucks × ${opH}h × 60 ÷ ${ta} min turnaround = ${theoreticalDel} theoretical deliveries/day, but ${delDay} entered (${Math.round(gap * 100)}% below). ` +
+        `Either turnaround is understated or deliveries_day is understated. Verify both before presenting financials.`
+      )
+    }
+  }
   if (workingDaysMonth > 0 && opD > 0 && workingDaysMonth > opD / 12 * 1.3) warnings.push('Working days this month exceeds annual average by >30% — check working_days_month or op_days.')
+
+  const materialCostPerM3 = cement + agg + admix
 
   return {
     // Economics
-    contrib, contribSafe, contribFuelAdj, marginRatio, marginIncomplete,
+    contrib, contribSafe, materialCostPerM3, contribFuelAdj, marginRatio, marginIncomplete,
     // Demand context
     demandSufficient,
     // Override-aware targets (exposed for display in assumptions panel)
@@ -570,8 +626,11 @@ export function calc(answers: Answers, meta?: { season?: string }, overrides?: C
     ta, trucks, operativeTrucks, availRate, qualifiedDrivers, effectiveUnits, driverConstrained,
     delDay, mixCap, radius, TARGET_TA, maxDelDay, realisticMaxDel, excessMin,
     hiddenDel, hiddenRevMonthly, hiddenSuspect, hiddenConfidence, turnaroundLeakMonthly,
-    // Turnaround breakdown
+    // Turnaround breakdown (legacy fields)
     siteWait, washoutMin, transitEst, taUnexplained,
+    // Turnaround breakdown (detailed — from breakdown questions)
+    taTransitMin, taSiteWaitMin, taUnloadMin, taWashoutMin,
+    taBreakdownSum, taBreakdownEntered, siteWaitExcess, washoutExcess,
     // Reject & quality
     rejectPct, rejectLeakMonthly,
     // Financial leaks
@@ -581,7 +640,7 @@ export function calc(answers: Answers, meta?: { season?: string }, overrides?: C
     topCustPct, concentrationRisk, cementOptOpp, calibrationExposure,
     fuelPerDel, fuelPerM3, fuelMonthly, fuelMarginImpact,
     // Flags
-    atypicalMonth, isSummer, summerAdjusted, daysMismatchPenalty,
+    atypicalMonth, isSummer, summerAdjusted, seasonalFactor, daysMismatchPenalty,
     // Scores
     scores: { prod: utilScore, dispatch: dispScore, fleet: logisticsScore, logistics: logisticsScore, quality: qualityScore },
     overall, bottleneck, price,

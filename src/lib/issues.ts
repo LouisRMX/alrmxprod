@@ -148,11 +148,11 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
   if (r.rejectPct > 1.5) {
     issues.push({
       sev: 'amber', pin: false, category: 'independent', dimension: 'Quality',
-      t: `${r.rejectPct}% of loads rejected — every rejection is a 100% write-off`,
+      t: `${r.rejectPct}% of loads rejected — materials wasted on every returned load`,
       action: 'Run slump test on every load before dispatch',
-      rec: 'Calibrate water-cement ratio sensors monthly. One rejected load costs the full selling price, not just margin.',
+      rec: `Each rejected load wastes the raw materials batched into it — $${Math.round(r.materialCostPerM3 || r.contribSafe)}/m³ (cement + aggregates + admixtures). Reduce by calibrating water-cement ratio sensors monthly and enforcing slump testing before dispatch.`,
       loss: r.rejectLeakMonthly,
-      formula: `${r.rejectPct}% ÷ 100 × ${r.delDay} del/day × ${r.mixCap} m³ × $${r.price} selling price × ${Math.round(r.opD / 12)} days`,
+      formula: `${r.rejectPct}% ÷ 100 × ${r.delDay} del/day × ${r.mixCap} m³ × $${Math.round(r.materialCostPerM3 || r.contribSafe)}/m³ material cost × ${Math.round(r.opD / 12)} days`,
     })
   }
 
@@ -236,6 +236,22 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
       loss: 0,
     })
   }
+  // Wow-moment: precise site-wait breakdown finding (only when breakdown questions filled)
+  if (r.taSiteWaitMin !== null && r.siteWaitExcess > 0) {
+    // Dollar value: excess site wait as fraction of total TA × monthly delivery revenue opportunity
+    const siteWaitLoss = r.ta > 0
+      ? Math.round((r.siteWaitExcess / r.ta) * r.realisticMaxDel * r.mixCap * r.contribSafe * (r.opD / 12))
+      : 0
+    issues.push({
+      sev: 'red', pin: true, category: 'bottleneck', dimension: 'Fleet',
+      t: `Site waiting time ${r.taSiteWaitMin} min — ${r.siteWaitExcess} min above 35-min benchmark`,
+      action: 'Enforce demurrage charge and require site readiness confirmation before dispatch',
+      rec: `Site waiting time is the single largest controllable component of your ${r.ta}-min turnaround. Reducing it by ${r.siteWaitExcess} min to the 35-min benchmark would recover approximately ${fmt(siteWaitLoss)}/month — without adding a single truck.`,
+      loss: siteWaitLoss,
+      formula: `${r.siteWaitExcess} excess min ÷ ${r.ta} total TA × ${r.realisticMaxDel} max del/day × ${r.mixCap} m³ × ${Math.round(r.contribSafe)}/m³ × ${Math.round(r.opD / 12)} days`,
+    })
+  }
+
   if (r.demurrageOpportunity > 0 && a.demurrage_policy === 'Clause exists but rarely enforced') {
     issues.push({
       sev: 'amber', pin: false, category: 'independent', dimension: 'Other',
