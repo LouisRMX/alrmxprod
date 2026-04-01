@@ -62,7 +62,16 @@ export default function GpsUploadView({ assessmentId, isAdmin }: GpsUploadViewPr
 
       if (upload) {
         setExistingUpload(upload)
-        setStatus(upload.processing_status as GpsStatus)
+
+        // If stuck in analyzing/processing (e.g. server crashed mid-run),
+        // treat as failed so user can re-upload
+        const displayStatus = (upload.processing_status === 'analyzing' || upload.processing_status === 'processing')
+          ? 'failed'
+          : upload.processing_status as GpsStatus
+        setStatus(displayStatus)
+        if (displayStatus === 'failed') {
+          setErrorMessage('Previous analysis did not complete. Please upload the file again.')
+        }
 
         if (upload.processing_status === 'complete') {
           // Load analysis result
