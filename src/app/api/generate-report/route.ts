@@ -38,6 +38,96 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   }
 
+  // Demo mode: return fixed pre-written report text, no database access needed
+  if (assessmentId === 'demo') {
+    const DEMO_TEXTS: Record<string, string> = {
+      executive: `This plant is leaving an estimated $3,231 on the table every working day.
+
+Al-Noor RMX operates 10 trucks out of a 34 m³/hr plant on a 10 km delivery radius. The fleet is doing the work of 8 — two trucks are regularly off-road — and the 95-minute turnaround is 20 minutes above what the radius and shift length require. Afternoons are where the losses accumulate: trucks that should be on their fourth cycle are still on their third.
+
+What This Is Costing
+Cost of inaction: $80,787/month
+Turnaround excess (17 min above 78-min target): $46,200/month
+Rejection losses (3.8% rate, plant absorbs 100%): $18,400/month
+Partial loads (6.5 m³ on 7 m³ trucks): $9,100/month
+Truck breakdowns (3 last month, reactive maintenance): $7,100/month
+
+Annual equivalent: $969,000/year — roughly the cost of two additional trucks, recurring every year without a capital decision.
+
+Hidden revenue: $52,000/month
+At a 78-minute turnaround, the existing 8-operative fleet can support 54 deliveries per day versus 42 today. That gap — 12 deliveries — represents $52,000/month in contribution that requires no new trucks, no new customers, and no capital. It requires a site readiness protocol and a dispatcher with a target.`,
+
+      diagnosis: `Performance Scores
+Production: 82/100
+What this means: The plant is producing 6,400 m³/month at 89% of rated capacity — close to the 92% best-practice target, but this figure is misleading. Utilisation appears healthy because the constraint is downstream in the fleet, not at the batch plant.
+
+Dispatch: 52/100
+What this means: Order-to-dispatch averaging 32 minutes against a 15-minute target is the largest controllable gap in the operation. No zone system, no pre-loading protocol, no real-time tracking. The dispatcher is reacting to orders rather than anticipating them.
+
+Fleet: 61/100
+What this means: A 95-minute turnaround on a 10 km radius costs the plant 17 minutes per cycle that it should not be spending. Two trucks off-road on any given day reduce effective fleet size by 20%. Three breakdowns last month on an informally maintained fleet.
+
+Quality: 71/100
+What this means: A 3.8% rejection rate is 0.8 percentage points above the 3% benchmark. At $36/m³ in raw materials and 100% plant liability, each returned load is a write-off. The cause — heat stiffening during transit — is expected but only partially mitigated.
+
+Overall: 67/100
+The plant has the infrastructure to perform significantly above its current level. The constraint is operational rhythm, not capacity.
+
+Primary constraint: Fleet
+The turnaround bottleneck is preventing the batch plant from converting available capacity into deliveries. Fixing dispatch and site coordination recovers this without capital.
+
+Findings
+Finding: Truck turnaround 95 min against a 78-min target for this delivery radius — 17 minutes of avoidable idle time per cycle.
+Benchmark: Well-run plants on a 10 km radius achieve 75–82 min round trips.
+Gap: 17 min excess × 54 target deliveries × 22 operating days = 20,196 lost truck-minutes per month.
+Impact: $46,200/month
+Action: Require site readiness confirmation before dispatch. No truck leaves until the pump crew and foreman have confirmed ready — via WhatsApp message, logged by dispatcher.
+
+Finding: Order-to-dispatch 32 minutes against a 15-minute target — longest controllable gap in the dispatch chain.
+Benchmark: Well-run plants dispatch within 10–15 minutes of order confirmation.
+Gap: 17 min excess per order × 42 deliveries/day × 22 days = 15,708 excess dispatch-minutes per month.
+Impact: $16,100/month (included in fleet bottleneck estimate)
+Action: Pre-load 3 trucks before the morning peak. Assign one dispatcher whose sole metric is order-to-dispatch time, tracked daily.
+
+Finding: 3.8% rejection rate with plant absorbing 100% of material costs — no contractor liability.
+Benchmark: Well-run plants hold rejections below 3%, with shared liability clauses standard in GCC contracts.
+Gap: 0.8 percentage points above benchmark × 42 deliveries × 7 m³ × $36 material cost.
+Impact: $18,400/month
+Action: Enforce retarder dosage protocol on all loads with transit time over 40 minutes. Add a material cost recovery clause to all contract renewals.
+
+Finding: Average load 6.5 m³ on 7 m³ trucks — 7% of mixer capacity unused per trip.
+Benchmark: Well-run plants achieve average loads above 6.8 m³ through minimum order policies or small-load surcharges.
+Gap: 0.5 m³ × 42 deliveries/day × 22 days = 462 m³/month unbilled.
+Impact: $9,100/month
+Action: Introduce a minimum batch size of 6.8 m³ or a surcharge below that threshold. Implement in next contract renewal cycle.`,
+
+      actions: `The pattern here is consistent: this plant has the fleet, the capacity, and the demand to perform at a significantly higher level — but the daily operating rhythm is working against it at three points simultaneously: trucks leave before sites are ready, orders are dispatched 17 minutes later than necessary, and rejected loads are written off with no recovery mechanism.
+
+Next Step
+This pre-assessment has established the financial picture based on what Al-Noor reports about itself: a potential $80,000/month in recoverable margin, concentrated in fleet turnaround and dispatch.
+
+What it cannot tell us is where in the 95-minute turnaround time is actually being lost — whether the 32-minute dispatch figure reflects a consistent pattern or a busy-day average, and whether the rejection cause is primarily a dosing issue at the plant or a site-readiness issue at the customer end.
+
+An on-site visit answers those three questions in half a day and produces a findings report the plant owner can act on the same week.`,
+    }
+    const text = DEMO_TEXTS[type]
+    if (!text) return NextResponse.json({ error: 'Invalid report type' }, { status: 400 })
+    // Stream demo text in chunks to simulate generation
+    const encoder = new TextEncoder()
+    const stream = new ReadableStream({
+      async start(controller) {
+        const words = text.split(' ')
+        for (let i = 0; i < words.length; i += 4) {
+          const chunk = words.slice(i, i + 4).join(' ') + (i + 4 < words.length ? ' ' : '')
+          controller.enqueue(encoder.encode(chunk))
+          await new Promise(resolve => setTimeout(resolve, 18))
+        }
+        controller.close()
+      }
+    })
+    return new Response(stream, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } })
+  }
+
   // Verify assessment exists and user has access
   const { data: assessment } = await supabase
     .from('assessments')
