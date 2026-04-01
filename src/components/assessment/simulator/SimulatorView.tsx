@@ -155,7 +155,7 @@ export default function SimulatorView({ calcResult }: SimulatorViewProps) {
         : sTurnaround
       return `Fleet is the binding constraint — ${Math.round(result.effFleetDaily)} m³/day delivered vs ${Math.round(result.prodDaily)} m³/day plant ceiling (${gap} m³/day gap). To fully utilise plant capacity at current dispatch efficiency, reduce turnaround to ~${targetTA} min.`
     } else {
-      return `Plant is at its best-practice ceiling (${Math.round(result.prodDaily)} m³/day). Fleet can already deliver more — adding trucks or improving turnaround will not increase output. To grow volume, try extending operating hours or raising price.`
+      return `Plant is at its best-practice ceiling (${Math.round(result.prodDaily)} m³/day). Fleet can deliver more — fleet improvements will not increase output. Extend operating hours to produce more m³ at the same constraint, or raise price to grow revenue without changing volume.`
     }
   }, [result, baseline, sTurnaround, sTrucks])
 
