@@ -689,6 +689,26 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
   const [generating, setGenerating] = useState<string | null>(null)
   const [genError, setGenError] = useState<string | null>(null)
 
+  // ── Logistics Intelligence (GPS) ─────────────────────────────────────────
+  const [logisticsText, setLogisticsText] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (assessmentId === 'demo') return
+    supabase
+      .from('logistics_analysis_results')
+      .select('generated_section_text, confidence_score')
+      .eq('assessment_id', assessmentId)
+      .eq('archived', false)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.generated_section_text) {
+          setLogisticsText(data.generated_section_text)
+        }
+      })
+  }, [assessmentId, supabase])
+
   const hasAllSections = !!(texts.executive && texts.diagnosis && texts.actions)
   const hasAnySections = !!(texts.executive || texts.diagnosis || texts.actions)
 
@@ -920,6 +940,37 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
         onSave={t => saveSection('actions', t)}
         minHeight={80}
       />
+
+      {/* ── SECTION 7: Logistics Intelligence (GPS) ──────────────────────── */}
+      {logisticsText && (
+        <>
+          <Divider />
+          <div>
+            <div style={{
+              fontSize: '11px', fontWeight: 600, letterSpacing: '.08em',
+              color: 'var(--gray-400)', textTransform: 'uppercase', marginBottom: '10px',
+            }}>
+              Logistics Intelligence
+              <span style={{
+                marginLeft: '8px', fontSize: '10px', padding: '2px 7px',
+                borderRadius: '4px', background: 'var(--info-bg)',
+                border: '1px solid var(--info-border)', color: 'var(--phase-workshop)',
+                fontWeight: 500, letterSpacing: 0, textTransform: 'none',
+              }}>
+                GPS data
+              </span>
+            </div>
+            <div style={{
+              whiteSpace: 'pre-wrap', fontSize: '13px', lineHeight: '1.7',
+              color: 'var(--gray-700)', fontFamily: 'var(--font)',
+              padding: '16px', background: 'var(--gray-50)',
+              border: '1px solid var(--border)', borderRadius: '8px',
+            }}>
+              {logisticsText}
+            </div>
+          </div>
+        </>
+      )}
 
       {/* ── Case Study Framework ──────────────────────────────────────────── */}
       {isAdmin && totalLoss > 0 && (

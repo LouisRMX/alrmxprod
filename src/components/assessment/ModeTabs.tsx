@@ -1,6 +1,6 @@
 'use client'
 
-export type AssessmentMode = 'questions' | 'report' | 'simulator' | 'track'
+export type AssessmentMode = 'questions' | 'report' | 'simulator' | 'track' | 'gps'
 
 interface ModeTabsProps {
   activeMode: AssessmentMode
@@ -12,6 +12,7 @@ const TABS: { mode: AssessmentMode; label: string }[] = [
   { mode: 'report', label: 'Report' },
   { mode: 'simulator', label: 'Simulator' },
   { mode: 'track', label: '90-day Track' },
+  { mode: 'gps', label: 'GPS Data' },
 ]
 
 export default function ModeTabs({ activeMode, onSwitch }: ModeTabsProps) {

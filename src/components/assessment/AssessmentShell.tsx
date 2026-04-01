@@ -12,6 +12,7 @@ import GuidedMode from './guided/GuidedMode'
 import ReportView from './report/ReportView'
 import SimulatorView from './simulator/SimulatorView'
 import TrackingTab from './tracking/TrackingTab'
+import GpsUploadView from '@/components/gps-upload/GpsUploadView'
 
 interface AssessmentShellProps {
   initialAnswers: Answers
@@ -203,6 +204,13 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
           />
         )
       })()}
+
+      {mode === 'gps' && (
+        <GpsUploadView
+          assessmentId={assessmentId}
+          isAdmin={isAdmin}
+        />
+      )}
     </div>
   )
 }
