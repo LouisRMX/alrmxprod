@@ -2433,7 +2433,13 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
         financialBottleneck={financialBottleneck}
       />
 
-      {/* 2. START HERE ───────────────────────────────────────────────────── */}
+      {/* 2. RECOVERY BREAKDOWN (compact numbers + bars) ─────────────────── */}
+      <RecoveryBreakdown calcResult={calcResult} />
+
+      {/* 3. RECOVERY PANEL (interactive sliders) ────────────────────────── */}
+      <RecoveryPanel calcResult={calcResult} />
+
+      {/* 4. START HERE ───────────────────────────────────────────────────── */}
       <StartHereCard
         calcResult={calcResult}
         issues={issues}
@@ -2441,12 +2447,6 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
         financialBottleneck={financialBottleneck}
         onSwitchToTracking={onSwitchToTracking}
       />
-
-      {/* 3. RECOVERY BREAKDOWN (compact numbers + bars) ─────────────────── */}
-      <RecoveryBreakdown calcResult={calcResult} />
-
-      {/* 4. RECOVERY PANEL (interactive sliders) ────────────────────────── */}
-      <RecoveryPanel calcResult={calcResult} />
 
       {/* 5. NEXT IMPROVEMENTS (collapsed by default) ────────────────────── */}
       <NextImprovements issues={issues} />
