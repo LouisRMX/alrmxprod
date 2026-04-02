@@ -234,15 +234,13 @@ function KpiBarLower({ current, target, max, isBottleneck, isWarn }: { current: 
 }
 
 // ── KPI Pyramid ────────────────────────────────────────────────────────────
-function KPIPyramid({ calcResult, answers, totalLoss, dailyLoss, financialBottleneck }: {
+function KPIPyramid({ calcResult, answers, totalLoss, financialBottleneck }: {
   calcResult: CalcResult
   answers: Answers
   totalLoss: number
-  dailyLoss: number
   financialBottleneck: string | null
 }) {
   if (totalLoss === 0) return null
-  const lossRange = calcLossRange(totalLoss)
 
   const utilPct = Math.round(calcResult.util * 100)
 
@@ -296,36 +294,6 @@ function KPIPyramid({ calcResult, answers, totalLoss, dailyLoss, financialBottle
       <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '8px' }}>
         Key Metrics
       </div>
-
-      {/* Row 1: Financial */}
-      <div style={{
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        background: 'var(--error-bg)', border: '1px solid var(--error-border)',
-        borderRadius: 'var(--radius)', padding: '14px 18px', marginBottom: '0',
-      }}>
-        <div>
-          <div style={{ fontSize: '9px', color: 'var(--gray-500)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.4px' }}>
-            {calcResult.demandSufficient === false ? 'Margin Improvement Potential' : 'Potential Monthly Loss'}
-          </div>
-          <div style={{ fontSize: '22px', fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--red)', marginTop: '2px', lineHeight: 1.15 }}>
-            {fmt(lossRange.low)} – {fmt(lossRange.high)}
-          </div>
-          <div style={{ fontSize: '9px', color: 'var(--gray-500)', marginTop: '3px' }}>
-            {calcResult.demandSufficient === false
-              ? 'demand-constrained — focus on margin, not throughput'
-              : `${fmt(Math.round(totalLoss * 12 * 0.7))} – ${fmt(Math.round(totalLoss * 12 * 1.3))}/year · requires sufficient demand`}
-          </div>
-        </div>
-        <div style={{ textAlign: 'right', paddingLeft: '20px', borderLeft: '1px solid var(--error-border)' }}>
-          <div style={{ fontSize: '9px', color: 'var(--gray-500)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.4px' }}>Per Working Day</div>
-          <div style={{ fontSize: '22px', fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--red)', marginTop: '2px', lineHeight: 1.15 }}>
-            {fmt(Math.round(dailyLoss * 0.70))} – {fmt(Math.round(dailyLoss * 1.30))}
-          </div>
-          <div style={{ fontSize: '9px', color: 'var(--gray-500)', marginTop: '3px' }}>based on {calcResult.workingDaysMonth || 22} working days/mo</div>
-        </div>
-      </div>
-
-      {connector}
 
       {/* Row 2: Primary drivers */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
@@ -1907,7 +1875,6 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
         calcResult={calcResult}
         answers={answers}
         totalLoss={totalLoss}
-        dailyLoss={dailyLoss}
         financialBottleneck={financialBottleneck}
       />
 
