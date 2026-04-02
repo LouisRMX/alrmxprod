@@ -234,7 +234,8 @@ function buildDiagnosisPrompt(ctx: Record<string, unknown>) {
 - No jargon. Banned: optimize, leverage, streamline, robust, synergy, utilize, actionable, deep dive.
 - Short sentences. One idea per sentence.
 - Write for a plant owner who is intelligent and has no patience for consultants who talk around things.
-- All analysis is based on reported input data. Do not present conclusions as absolute facts. Frame insights as data-consistent interpretations of the reported metrics.`
+- All analysis is based on reported input data. Do not present conclusions as absolute facts. Frame insights as data-consistent interpretations of the reported metrics.
+- Limit cognitive load. Avoid combining multiple operational dimensions in the same paragraph unless strictly necessary.`
 
   if (ctx.performingWell) {
     return `${RULES}
