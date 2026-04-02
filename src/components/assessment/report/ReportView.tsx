@@ -1002,6 +1002,121 @@ function ScoreOverview({ calcResult, meta, phase }: {
   )
 }
 
+// ── Dimension Summary (auto-generated diagnosis bullets) ───────────────────
+function DimensionSummary({ calcResult, issues, answers }: {
+  calcResult: CalcResult
+  issues: Issue[]
+  answers: Answers
+}) {
+  if (calcResult.overall === null) return null
+
+  const dispTimeMap: Record<string, number> = {
+    'Under 15 minutes — fast response': 12,
+    '15 to 25 minutes — acceptable': 20,
+    '25 to 40 minutes — slow': 32,
+    'Over 40 minutes — critical bottleneck': 45,
+  }
+  const dispMin = dispTimeMap[answers.order_to_dispatch as string] ?? null
+  const utilPct = Math.round(calcResult.util * 100)
+  const taLeak = calcResult.demandSufficient === false
+    ? calcResult.turnaroundLeakMonthlyCostOnly
+    : calcResult.turnaroundLeakMonthly
+
+  type DimEntry = { label: string; score: number | null; text: string; loss: number }
+  const dims: DimEntry[] = []
+
+  // Fleet / Logistics
+  const taExcess = Math.round(calcResult.ta - calcResult.TARGET_TA)
+  if (taExcess > 0) {
+    const fleetIssue = issues.find(i => i.dimension === 'Fleet')
+    const extra = fleetIssue?.rec ? ` ${fleetIssue.rec}.` : ''
+    dims.push({
+      label: 'Logistics',
+      score: calcResult.scores?.fleet ?? null,
+      text: `Turnaround at ${calcResult.ta} min — ${taExcess} min above the ${calcResult.TARGET_TA}-min benchmark.${extra} Costs ${fmt(Math.round(taLeak))}/month.`,
+      loss: Math.round(taLeak),
+    })
+  }
+
+  // Dispatch
+  if (dispMin !== null && dispMin > 15) {
+    const dispCoeff = Math.max(100, Math.round(taLeak * 0.22))
+    const dispLoss = Math.round((dispMin - 15) * dispCoeff)
+    const dispIssue = issues.find(i => i.dimension === 'Dispatch')
+    const extra = dispIssue?.rec ? ` ${dispIssue.rec}.` : ''
+    dims.push({
+      label: 'Dispatch',
+      score: calcResult.scores?.dispatch ?? null,
+      text: `Order-to-dispatch averaging ${dispMin} min vs 15-min target.${extra} Costs ${fmt(dispLoss)}/month.`,
+      loss: dispLoss,
+    })
+  }
+
+  // Quality
+  if (calcResult.rejectPct > 1.5 && calcResult.rejectLeakMonthly > 0) {
+    const qualIssue = issues.find(i => i.dimension === 'Quality')
+    const extra = qualIssue?.rec ? ` ${qualIssue.rec}.` : ''
+    dims.push({
+      label: 'Quality',
+      score: calcResult.scores?.quality ?? null,
+      text: `Rejection rate ${calcResult.rejectPct}%${extra} Costs ${fmt(Math.round(calcResult.rejectLeakMonthly))}/month.`,
+      loss: Math.round(calcResult.rejectLeakMonthly),
+    })
+  }
+
+  // Production
+  if (utilPct > 0 && utilPct < calcResult.utilisationTarget && calcResult.capLeakMonthly > 0) {
+    dims.push({
+      label: 'Production',
+      score: calcResult.scores?.prod ?? null,
+      text: `Plant utilisation at ${utilPct}% vs ${calcResult.utilisationTarget}% target — capacity constrained by downstream fleet cycle time.`,
+      loss: Math.round(calcResult.capLeakMonthly),
+    })
+  }
+
+  if (dims.length === 0) return null
+
+  function scoreChipStyle(score: number | null): React.CSSProperties {
+    if (score === null) return { color: '#9b9b9b', background: '#f5f5f3', borderColor: '#e8e8e6' }
+    const s = Math.round(score)
+    if (s < 60) return { color: '#cc3333', background: '#fff0f0', borderColor: '#f5c6c6' }
+    if (s < 75) return { color: '#c96a00', background: '#fffaf2', borderColor: '#f5ddb5' }
+    return             { color: '#1a6644', background: '#f0faf6', borderColor: '#b5dfc9' }
+  }
+
+  return (
+    <div style={{
+      background: '#fff', border: '1px solid #e8e8e6',
+      borderRadius: '10px', padding: '20px 24px', marginBottom: '10px',
+    }}>
+      <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#9b9b9b', marginBottom: '16px' }}>
+        Operational diagnosis
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        {dims.map((dim, i) => {
+          const cs = scoreChipStyle(dim.score)
+          return (
+            <div key={i} style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+              <div style={{
+                flexShrink: 0, padding: '3px 10px', borderRadius: '20px',
+                fontSize: '11px', fontWeight: 700,
+                border: `1.5px solid ${cs.borderColor as string}`,
+                color: cs.color as string, background: cs.background as string,
+                whiteSpace: 'nowrap', marginTop: '1px',
+              }}>
+                {dim.label}{dim.score !== null ? ` ${Math.round(dim.score)}` : ''}
+              </div>
+              <div style={{ fontSize: '13px', color: '#444', lineHeight: 1.5 }}>
+                {dim.text}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 // ── Recovery Slider Row (controlled) ──────────────────────────────────────
 function RecoverySliderRow({ config, value, onChange }: {
   config: SliderConfig
@@ -2433,13 +2548,16 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
         financialBottleneck={financialBottleneck}
       />
 
-      {/* 2. RECOVERY BREAKDOWN (compact numbers + bars) ─────────────────── */}
-      <RecoveryBreakdown calcResult={calcResult} />
+      {/* 2. SCORE OVERVIEW ───────────────────────────────────────────────── */}
+      <ScoreOverview calcResult={calcResult} meta={meta} phase={phase} />
 
-      {/* 3. RECOVERY PANEL (interactive sliders) ────────────────────────── */}
+      {/* 3. OPERATIONAL DIAGNOSIS (auto-generated dimension bullets) ─────── */}
+      <DimensionSummary calcResult={calcResult} issues={issues} answers={answers} />
+
+      {/* 4. RECOVERY PANEL (interactive sliders) ────────────────────────── */}
       <RecoveryPanel calcResult={calcResult} />
 
-      {/* 4. START HERE ───────────────────────────────────────────────────── */}
+      {/* 5. START HERE ───────────────────────────────────────────────────── */}
       <StartHereCard
         calcResult={calcResult}
         issues={issues}
@@ -2448,11 +2566,8 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
         onSwitchToTracking={onSwitchToTracking}
       />
 
-      {/* 5. NEXT IMPROVEMENTS (collapsed by default) ────────────────────── */}
+      {/* 6. NEXT IMPROVEMENTS (collapsed by default) ────────────────────── */}
       <NextImprovements issues={issues} />
-
-      {/* 6. METRICS SNAPSHOT ─────────────────────────────────────────────── */}
-      <MetricsSnapshot calcResult={calcResult} answers={answers} />
 
       {/* Pre-assessment: Benchmark Positioning + Quick Wins + On-site Preview */}
       {phase === 'workshop' && totalLoss > 0 && (
