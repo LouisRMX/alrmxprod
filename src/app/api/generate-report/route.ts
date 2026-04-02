@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
 
 A 17-minute excess on every departure compounds across the shift: combined with a 95-minute turnaround, each late departure delays the return and reload, reducing the number of cycles the fleet can complete without any truck being unavailable.
 
-Dispatch is the binding constraint because utilisation is already below the 85% target and the turnaround gap is driven by departure timing, not by distance or site conditions — production capacity exists, but the dispatch rhythm is preventing it from reaching customers.`,
+Dispatch is the binding constraint because it directly gates how many cycles the fleet completes, regardless of other improvements. The 3.8% rejection rate is a real cost but affects a fraction of loads and does not limit throughput. Utilisation appears close to target but is inflated by the dispatch delay itself — the plant is producing to fill waiting trucks, not to fill demand. Fixing dispatch unlocks throughput across the entire fleet; fixing quality or utilisation alone does not.`,
 
       diagnosis: `Performance Scores
 Production: 82/100
@@ -256,7 +256,7 @@ Paragraph 1: State the measured gap as a fact (use the actual metric vs target).
 
 Paragraph 2: State the downstream consequence that follows directly from the gap in paragraph 1. Use only what the data confirms — turnaround time, cycle count, utilisation. Do not introduce specifics (shift length, number of deliveries) unless they appear in the plant data above.
 
-Paragraph 3: State why this dimension is the binding constraint. Support it with two data points from the plant data: one showing another dimension is not the limit, one showing this one is. Stop there.`
+Paragraph 3: State why this dimension is the binding constraint over the others. Reference ALL other dimensions that are off-target (e.g. rejection rate, utilisation, turnaround) and briefly state why each is secondary — either smaller financial gap, already partially constrained by the primary issue, or not yet at the point of system-wide impact. One sentence per secondary dimension. End with one sentence confirming why the primary constraint unlocks the most recovery.`
 }
 
 function buildDiagnosisPrompt(ctx: Record<string, unknown>) {
