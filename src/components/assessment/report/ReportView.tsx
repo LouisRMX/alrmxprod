@@ -926,7 +926,7 @@ function ImpactHook({ totalLoss, dailyLoss, calcResult, issues, financialBottlen
     <div style={{
       border: '1.5px solid #f0f0ee', borderRadius: '12px',
       overflow: 'hidden', marginBottom: '16px',
-      display: 'grid', gridTemplateColumns: '1fr 1fr',
+      display: 'grid', gridTemplateColumns: '3fr 2fr',
     }}>
       {/* Left — Estimated revenue leakage */}
       <div style={{ padding: '24px', background: '#ffeded', borderRight: '1px solid #f5c6c6' }}>
