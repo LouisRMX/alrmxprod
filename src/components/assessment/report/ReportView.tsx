@@ -2003,14 +2003,47 @@ function FullReportDrawer({
             )
           })()}
 
-          {/* Score Overview at top of drawer */}
-          <ScoreOverview calcResult={calcResult} meta={meta} phase={phase} />
+          {/* 2. EXECUTIVE EXPLANATION — why the bottleneck occurs */}
+          <AISection
+            title="Executive Explanation"
+            text={texts.executive}
+            generating={generating === 'executive'}
+            onGenerate={() => onGenerate('executive')}
+            onSave={t => onSave('executive', t)}
+            minHeight={100}
+          />
 
-          {/* Findings */}
+          <Divider />
+
+          {/* 3. CONSTRAINT ANALYSIS */}
+          <AISection
+            title="Constraint Analysis"
+            text={texts.diagnosis}
+            generating={generating === 'diagnosis'}
+            onGenerate={() => onGenerate('diagnosis')}
+            onSave={t => onSave('diagnosis', t)}
+            minHeight={120}
+          />
+
+          <Divider />
+
+          {/* 4. ACTION PLAN */}
+          <AISection
+            title="Action Plan"
+            text={texts.actions}
+            generating={generating === 'actions'}
+            onGenerate={() => onGenerate('actions')}
+            onSave={t => onSave('actions', t)}
+            minHeight={80}
+          />
+
+          <Divider />
+
+          {/* 5. SUPPORTING FINDINGS — evidence, not introduction */}
           {issues.filter(i => i.loss > 0 || i.category === 'bottleneck').length > 0 && (
             <div style={{ marginBottom: '24px' }}>
               <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#9b9b9b', marginBottom: '10px', paddingLeft: '2px' }}>
-                Findings ({issues.filter(i => i.loss > 0 || i.category === 'bottleneck').length})
+                Supporting Findings ({issues.filter(i => i.loss > 0 || i.category === 'bottleneck').length})
               </div>
               {issues
                 .filter(issue => issue.loss > 0 || issue.category === 'bottleneck')
@@ -2024,36 +2057,6 @@ function FullReportDrawer({
                 ))}
             </div>
           )}
-
-          <Divider />
-
-          <AISection
-            title="Executive Explanation"
-            text={texts.executive}
-            generating={generating === 'executive'}
-            onGenerate={() => onGenerate('executive')}
-            onSave={t => onSave('executive', t)}
-            minHeight={100}
-          />
-          <Divider />
-          <AISection
-            title="Operational Diagnosis"
-            text={texts.diagnosis}
-            generating={generating === 'diagnosis'}
-            onGenerate={() => onGenerate('diagnosis')}
-            onSave={t => onSave('diagnosis', t)}
-            minHeight={120}
-          />
-          <Divider />
-
-          <AISection
-            title="Next Step"
-            text={texts.actions}
-            generating={generating === 'actions'}
-            onGenerate={() => onGenerate('actions')}
-            onSave={t => onSave('actions', t)}
-            minHeight={80}
-          />
 
           {logisticsText && (
             <>
