@@ -2429,9 +2429,10 @@ function RecoverableValueCard({ totalLoss, financialBottleneck }: {
 }
 
 // ── Score Grid ─────────────────────────────────────────────────────────────
-function ScoreGrid({ calcResult, financialBottleneck, onSwitchToTracking }: {
+function ScoreGrid({ calcResult, financialBottleneck, totalLoss, onSwitchToTracking }: {
   calcResult: CalcResult
   financialBottleneck: string | null
+  totalLoss: number
   onSwitchToTracking?: () => void
 }) {
   if (calcResult.overall === null) return null
@@ -2458,9 +2459,9 @@ function ScoreGrid({ calcResult, financialBottleneck, onSwitchToTracking }: {
   const dispCoeff = Math.max(100, Math.round(taLeak * 0.22))
   const excessDispatch = Math.max(0, (calcResult.dispatchMin ?? 0) - 15)
   const bnLossMap: Record<string, number> = {
-    Dispatch:   excessDispatch > 0 ? Math.round(excessDispatch * dispCoeff) : 0,
-    Fleet:      Math.round(taLeak),
-    Quality:    Math.round(calcResult.rejectLeakMonthly),
+    Dispatch:   excessDispatch > 0 ? Math.min(Math.round(taLeak * 0.22), totalLoss) : 0,
+    Fleet:      Math.min(Math.round(taLeak), totalLoss),
+    Quality:    Math.min(Math.round(calcResult.rejectLeakMonthly), totalLoss),
     Production: 0,
   }
   const bnLoss = bnKey ? (bnLossMap[bnKey] ?? 0) : 0
@@ -2997,7 +2998,7 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
 
 
       {/* 3. SCORE GRID */}
-      <ScoreGrid calcResult={calcResult} financialBottleneck={financialBottleneck} onSwitchToTracking={onSwitchToTracking} />
+      <ScoreGrid calcResult={calcResult} financialBottleneck={financialBottleneck} totalLoss={totalLoss} onSwitchToTracking={onSwitchToTracking} />
 
       {/* 4. WHY THIS HAPPENS + START HERE */}
       <WhyAndStartHere
