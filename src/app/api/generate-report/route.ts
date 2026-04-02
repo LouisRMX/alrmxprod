@@ -41,11 +41,11 @@ export async function POST(req: NextRequest) {
   // Demo mode: return fixed pre-written report text, no database access needed
   if (assessmentId === 'demo') {
     const DEMO_TEXTS: Record<string, string> = {
-      executive: `Al-Noor's dispatch sequence has no anticipation built into it. Orders arrive, and the dispatcher begins the process of finding an available truck, confirming the mix, and coordinating departure — in sequence, not in parallel. The 32-minute average is not a single delay but the cumulative result of four or five small gaps, each of which feels manageable on its own.
+      executive: `The dispatch sequence is reactive: orders are processed individually as they arrive, with no pre-loading or zone anticipation, which causes a 17-minute structural delay on every departure.
 
-The effect on the fleet is direct. A truck that departs 17 minutes late on its first run of the day does not recover that time during the shift. On a 10 km radius with a 95-minute cycle, each departure delay cascades into a delayed return, a delayed reload, and one fewer completed delivery by early afternoon. With 10 trucks doing this simultaneously, the plant is losing the equivalent of two full truck-shifts per day without any truck breaking down.
+Each delayed departure compresses the remaining shift: on a 95-minute cycle, a truck leaving 17 minutes late completes one fewer delivery by end of day, reducing effective fleet output without any truck being unavailable.
 
-Dispatch is the binding constraint here — not the batch plant, not the fleet size — because production capacity is already underutilised and the trucks are physically capable of completing more cycles. The limit is not what the plant can produce or what the fleet can carry. It is how quickly the plant can get a loaded truck off the yard and onto the road.`,
+Dispatch is the binding constraint because production capacity is underutilised and the fleet is physically capable of more cycles — the limit is not output or vehicle count, it is departure rate.`,
 
       diagnosis: `Performance Scores
 Production: 82/100
@@ -229,11 +229,11 @@ Paragraph 3: What to monitor. One or two areas that could slip if not actively m
 
 You are writing the Executive Explanation section of a Plant Intelligence Report for ${ctx.plant} in ${ctx.country}.
 
-IMPORTANT: This is NOT an executive summary. Do not summarise the findings. Do not list what is wrong. Do not repeat financial figures or scores — those are already displayed above.
+This is NOT a summary. Do not list findings. Do not repeat financial figures or scores — those are already shown above this text.
 
-PURPOSE: Explain WHY the primary bottleneck occurs and HOW it affects the operation. Operational flow and cause-effect logic only.
+PURPOSE: Explain WHY the primary bottleneck occurs and HOW it constrains the operation. Cause-effect logic only.
 
-PLANT DATA (for context — do not repeat these numbers unless essential to the explanation):
+PLANT DATA:
 Primary bottleneck: ${ctx.bottleneck}
 Turnaround: ${ctx.turnaround} min (target: ${ctx.targetTA} min)
 Dispatch time: ${ctx.dispatchMin ?? '—'} min (target: 15 min)
@@ -241,18 +241,20 @@ Rejection rate: ${ctx.rejectPct ?? '—'}% (target: <3%)
 Utilisation: ${ctx.utilPct}% (target: 85%)
 Fleet: ${ctx.trucks} trucks
 
-WRITE EXACTLY THREE PARAGRAPHS — no headings, no labels, no bullets:
+WRITE EXACTLY THREE PARAGRAPHS. No headings. No bullets. No labels.
 
-Paragraph 1 — What is breaking:
-Describe the specific part of the operational flow that is failing. Where do delays or inefficiencies actually occur? Be precise about the mechanism — not "dispatch is slow" but what is happening in the dispatch sequence that causes the delay.
+COMPRESSION RULES — strictly enforced:
+- Each paragraph contains ONE core idea and ONE cause-effect relationship. Nothing else.
+- Maximum 2–3 sentences per paragraph.
+- No examples. No illustrative scenarios. No storytelling.
+- No throat-clearing. Start with the operational fact.
+- If a sentence does not add a new idea or new causal link, cut it.
 
-Paragraph 2 — What happens as a result:
-Explain the downstream effect of this failure on throughput, truck utilisation, or delivery capacity. How does one broken part of the flow constrain what comes after it? Use cause-and-effect language.
+Paragraph 1: State what is structurally broken in the operational flow. One cause, one effect. No elaboration.
 
-Paragraph 3 — Why this is the system constraint:
-Explain why this dimension — not quality, not production, not fleet size — is the binding limit on performance right now. Why does fixing this unlock the most recovery? Why are the other areas secondary to this one?
+Paragraph 2: State the downstream consequence. What cannot happen because of the failure in paragraph 1. Direct causal chain only.
 
-Each paragraph: max 3–4 sentences. Direct, operational language. Must feel specific to this plant, not generic.`
+Paragraph 3: State why this is the binding constraint and not another dimension. One reason. One sentence of supporting logic. Stop.`
 }
 
 function buildDiagnosisPrompt(ctx: Record<string, unknown>) {
