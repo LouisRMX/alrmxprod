@@ -41,21 +41,11 @@ export async function POST(req: NextRequest) {
   // Demo mode: return fixed pre-written report text, no database access needed
   if (assessmentId === 'demo') {
     const DEMO_TEXTS: Record<string, string> = {
-      executive: `Executive Snapshot
-Overall score: 75/100
-Primary bottleneck: Dispatch — 32 min vs 15 min target
-Bottleneck loss: up to $71,000/month ($3,200/day)
-Total recoverable (all areas): up to $94,000/month
-Turnaround: 95 min vs 75 min benchmark
+      executive: `Al-Noor's dispatch sequence has no anticipation built into it. Orders arrive, and the dispatcher begins the process of finding an available truck, confirming the mix, and coordinating departure — in sequence, not in parallel. The 32-minute average is not a single delay but the cumulative result of four or five small gaps, each of which feels manageable on its own.
 
-Situation
-Al-Noor RMX scores 75/100. Three of four operational dimensions are underperforming against benchmark. The primary bottleneck is Dispatch — order-to-dispatch averaging 32 minutes against a 15-minute target — and it is costing an estimated $71,000/month in recoverable margin.
+The effect on the fleet is direct. A truck that departs 17 minutes late on its first run of the day does not recover that time during the shift. On a 10 km radius with a 95-minute cycle, each departure delay cascades into a delayed return, a delayed reload, and one fewer completed delivery by early afternoon. With 10 trucks doing this simultaneously, the plant is losing the equivalent of two full truck-shifts per day without any truck breaking down.
 
-Why It Matters
-A 32-minute dispatch cycle means trucks are idle at the plant for 17 minutes longer than necessary on every order. That idle time compounds across 42 daily deliveries: by the afternoon shift, trucks that should be completing a fourth cycle are still on their third. The batch plant has the capacity to produce more — the constraint is not tons per hour, it is the dispatch rhythm that gates how much of that capacity reaches paying customers.
-
-Direction
-Fixing dispatch to the 15-minute target — through pre-loading, a dedicated dispatcher, and a confirmed site-readiness protocol — recovers up to $71,000/month from the primary constraint alone. Across all operational areas, total recoverable margin reaches up to $94,000/month. No capital is required. These are process and protocol changes that can start this week.`,
+Dispatch is the binding constraint here — not the batch plant, not the fleet size — because production capacity is already underutilised and the trucks are physically capable of completing more cycles. The limit is not what the plant can produce or what the fleet can carry. It is how quickly the plant can get a loaded truck off the yard and onto the road.`,
 
       diagnosis: `Performance Scores
 Production: 82/100
@@ -209,71 +199,60 @@ This pre-assessment has established the financial picture based on what Al-Noor 
 
 function buildExecutivePrompt(ctx: Record<string, unknown>) {
   const RULES = `RULES:
-- Plain text only. No markdown, no asterisks, no bold, no headings with #, no bullet dashes.
+- Plain text only. No markdown, no asterisks, no bold, no headings with #, no bullet dashes, no numbered lists.
 - Never invent data. Use only the figures provided.
-- All financial figures are POTENTIAL — contingent on demand. Say "up to $X" or "recoverable", never "the plant is losing $X".
+- Do NOT repeat revenue figures, scores, or bullet metrics — those are already shown above this text in the UI.
 - No jargon. Banned: optimize, leverage, streamline, robust, synergy, utilize, actionable, deep dive.
 - Short sentences. One idea per sentence.
-- Do not repeat information the reader has already seen on the front page (scores, individual issue amounts).`
+- If this text could apply to any ready-mix plant, it is too generic. Rewrite until it is specific to this plant.`
 
   if (ctx.performingWell) {
     return `${RULES}
 
-You are writing the Executive Summary of a Plant Intelligence Report for a well-performing ready-mix concrete plant. No significant operational losses were found.
+You are writing a short operational explanation for a well-performing ready-mix concrete plant. The reader has already seen the scores and metrics. Your job is to explain in plain language why the plant is performing well and what operational discipline this reflects.
 
 PLANT DATA:
-Plant: ${ctx.plant}, ${ctx.country} | Date: ${ctx.date}
+Plant: ${ctx.plant}, ${ctx.country}
 Overall score: ${ctx.overall}/100
 Utilisation: ${ctx.utilPct}% (target: 85%) | Turnaround: ${ctx.turnaround} min (target: ${ctx.targetTA} min)
-Hidden revenue headroom: up to $${ctx.hiddenRevMonthly}/month if demand supports it
 
-WRITE FOUR SECTIONS:
+WRITE THREE SHORT PARAGRAPHS — no headings, no labels:
 
-Section 1 — heading "Executive Snapshot" on its own line:
-Write exactly 4–5 lines. Each line is a single fact: a number, a metric, or a one-phrase status. No sentences, no explanations. Cover: overall score, utilisation, turnaround, hidden revenue headroom, and one sentence on the absence of significant losses. These must match the dashboard values exactly.
+Paragraph 1: What the data shows about operational flow. What is working at the process level — not just that the numbers are good, but what that implies about how the plant is run day-to-day.
 
-Section 2 — Situation (no heading): One sentence confirming strong performance, specific to actual numbers.
+Paragraph 2: Why this level of performance holds. What operational habits or disciplines are likely keeping these metrics stable.
 
-Section 3 — What is working and why (no heading): 2–3 sentences. Reference actual metrics. Explain what the numbers say about operational discipline.
-
-Section 4 — heading "What To Watch" on its own line: 2–3 areas worth monitoring. If hidden revenue headroom exists, state what it requires to capture.`
+Paragraph 3: What to monitor. One or two areas that could slip if not actively maintained. Specific to this plant's numbers.`
   }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const issues = ctx.issues as any[]
-  const topIssues = issues.filter(i => i.loss > 0).slice(0, 4)
 
   return `${RULES}
 
-You are writing the Executive Summary of a Plant Intelligence Report for ${ctx.plant} in ${ctx.country}. This will be reviewed by a consultant before being shared with the plant owner — a family business owner who manages daily operations and makes decisions based on trust and clear financial consequence.
+You are writing the Executive Explanation section of a Plant Intelligence Report for ${ctx.plant} in ${ctx.country}.
 
-PLANT DATA:
-Plant: ${ctx.plant}, ${ctx.country} | Date: ${ctx.date}
-Overall score: ${ctx.overall}/100
+IMPORTANT: This is NOT an executive summary. Do not summarise the findings. Do not list what is wrong. Do not repeat financial figures or scores — those are already displayed above.
+
+PURPOSE: Explain WHY the primary bottleneck occurs and HOW it affects the operation. Operational flow and cause-effect logic only.
+
+PLANT DATA (for context — do not repeat these numbers unless essential to the explanation):
 Primary bottleneck: ${ctx.bottleneck}
-Bottleneck loss: up to $${ctx.bnLossMonthly}/month ($${ctx.bnDailyLoss}/day)
-Total recoverable (all areas): up to $${ctx.totalLossMonthly}/month
 Turnaround: ${ctx.turnaround} min (target: ${ctx.targetTA} min)
 Dispatch time: ${ctx.dispatchMin ?? '—'} min (target: 15 min)
 Rejection rate: ${ctx.rejectPct ?? '—'}% (target: <3%)
 Utilisation: ${ctx.utilPct}% (target: 85%)
+Fleet: ${ctx.trucks} trucks
 
-TOP ISSUES (do not repeat these verbatim — use them to inform your writing):
-${topIssues.map(i => `- ${i.t}: up to $${i.loss.toLocaleString()}/month`).join('\n')}
+WRITE EXACTLY THREE PARAGRAPHS — no headings, no labels, no bullets:
 
-WRITE FOUR SECTIONS:
+Paragraph 1 — What is breaking:
+Describe the specific part of the operational flow that is failing. Where do delays or inefficiencies actually occur? Be precise about the mechanism — not "dispatch is slow" but what is happening in the dispatch sequence that causes the delay.
 
-Section 1 — heading "Executive Snapshot" on its own line:
-Write exactly 4–5 lines. Each line is a single fact: a number, a metric, or a one-phrase status. No sentences, no explanations. Must include: overall score, primary bottleneck, bottleneck loss per month and per day, total recoverable, and one key metric (turnaround or dispatch). These figures must match the plant data above exactly — do not round differently or restate as ranges.
+Paragraph 2 — What happens as a result:
+Explain the downstream effect of this failure on throughput, truck utilisation, or delivery capacity. How does one broken part of the flow constrain what comes after it? Use cause-and-effect language.
 
-Section 2 — heading "Situation" on its own line:
-State the overall score, the number of underperforming areas, and the primary bottleneck in 2–3 sentences. Then one sentence on the financial implication. Be direct.
+Paragraph 3 — Why this is the system constraint:
+Explain why this dimension — not quality, not production, not fleet size — is the binding limit on performance right now. Why does fixing this unlock the most recovery? Why are the other areas secondary to this one?
 
-Section 3 — heading "Why It Matters" on its own line:
-Explain what the bottleneck is doing to the operation — in plain cause-and-effect terms. Reference the specific metric (e.g. dispatch time, turnaround) and what it restricts downstream. 2–3 sentences.
-
-Section 4 — heading "Direction" on its own line:
-State clearly what needs to happen and what fixing the primary bottleneck is expected to recover. One sentence on the bottleneck fix. One sentence on total upside across all areas. One sentence on what this requires operationally (no capital, just process).`
+Each paragraph: max 3–4 sentences. Direct, operational language. Must feel specific to this plant, not generic.`
 }
 
 function buildDiagnosisPrompt(ctx: Record<string, unknown>) {
