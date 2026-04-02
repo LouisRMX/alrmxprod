@@ -969,6 +969,9 @@ function ImpactHook({ totalLoss, dailyLoss, calcResult, issues, financialBottlen
                 Achievable by improving {driverLabel.toLowerCase()} performance
               </div>
             )}
+            <div style={{ fontSize: '11px', color: '#5aaa82', marginBottom: '4px' }}>
+              + Additional upside discovered in other operational areas
+            </div>
             <div style={{ fontSize: '11px', color: '#b0b0b0' }}>
               Based on current operational data
             </div>
