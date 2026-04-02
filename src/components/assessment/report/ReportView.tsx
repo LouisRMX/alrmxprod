@@ -2429,10 +2429,10 @@ function RecoverableValueCard({ totalLoss, financialBottleneck }: {
 }
 
 // ── Score Grid ─────────────────────────────────────────────────────────────
-function ScoreGrid({ calcResult, financialBottleneck, totalLoss, onSwitchToTracking }: {
+function ScoreGrid({ calcResult, financialBottleneck, issues, onSwitchToTracking }: {
   calcResult: CalcResult
   financialBottleneck: string | null
-  totalLoss: number
+  issues: Issue[]
   onSwitchToTracking?: () => void
 }) {
   if (calcResult.overall === null) return null
@@ -2452,19 +2452,10 @@ function ScoreGrid({ calcResult, financialBottleneck, totalLoss, onSwitchToTrack
   const bottleneck = dims.find(d => d.key === bnKey)
   const others = dims.filter(d => d.key !== bnKey)
 
-  // Compute bottleneck-specific loss
-  const taLeak = calcResult.demandSufficient === false
-    ? calcResult.turnaroundLeakMonthlyCostOnly
-    : calcResult.turnaroundLeakMonthly
-  const dispCoeff = Math.max(100, Math.round(taLeak * 0.22))
-  const excessDispatch = Math.max(0, (calcResult.dispatchMin ?? 0) - 15)
-  const bnLossMap: Record<string, number> = {
-    Dispatch:   excessDispatch > 0 ? Math.min(Math.round(taLeak * 0.22), totalLoss) : 0,
-    Fleet:      Math.min(Math.round(taLeak), totalLoss),
-    Quality:    Math.min(Math.round(calcResult.rejectLeakMonthly), totalLoss),
-    Production: 0,
-  }
-  const bnLoss = bnKey ? (bnLossMap[bnKey] ?? 0) : 0
+  // Compute bottleneck-specific loss from issues (authoritative source)
+  const bnLoss = bnKey
+    ? issues.filter(i => i.dimension === bnKey).reduce((sum, i) => sum + (i.loss ?? 0), 0)
+    : 0
   const bnDailyLoss = Math.round(bnLoss / (calcResult.workingDaysMonth || 22))
 
   // Dimension-specific detail config
@@ -3011,7 +3002,7 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
 
 
       {/* 3. SCORE GRID */}
-      <ScoreGrid calcResult={calcResult} financialBottleneck={financialBottleneck} totalLoss={totalLoss} onSwitchToTracking={onSwitchToTracking} />
+      <ScoreGrid calcResult={calcResult} financialBottleneck={financialBottleneck} issues={issues} onSwitchToTracking={onSwitchToTracking} />
 
       {/* 4. WHY THIS HAPPENS + START HERE */}
       <WhyAndStartHere
