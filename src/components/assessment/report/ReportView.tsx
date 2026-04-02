@@ -2429,9 +2429,10 @@ function RecoverableValueCard({ totalLoss, financialBottleneck }: {
 }
 
 // ── Score Grid ─────────────────────────────────────────────────────────────
-function ScoreGrid({ calcResult, financialBottleneck }: {
+function ScoreGrid({ calcResult, financialBottleneck, onSwitchToTracking }: {
   calcResult: CalcResult
   financialBottleneck: string | null
+  onSwitchToTracking?: () => void
 }) {
   if (calcResult.overall === null) return null
 
@@ -2447,9 +2448,88 @@ function ScoreGrid({ calcResult, financialBottleneck }: {
   if (dims.length === 0) return null
 
   const bnKey = financialBottleneck
-
   const bottleneck = dims.find(d => d.key === bnKey)
   const others = dims.filter(d => d.key !== bnKey)
+
+  // Compute bottleneck-specific loss
+  const taLeak = calcResult.demandSufficient === false
+    ? calcResult.turnaroundLeakMonthlyCostOnly
+    : calcResult.turnaroundLeakMonthly
+  const dispCoeff = Math.max(100, Math.round(taLeak * 0.22))
+  const excessDispatch = Math.max(0, (calcResult.dispatchMin ?? 0) - 15)
+  const bnLossMap: Record<string, number> = {
+    Dispatch:   excessDispatch > 0 ? Math.round(excessDispatch * dispCoeff) : 0,
+    Fleet:      Math.round(taLeak),
+    Quality:    Math.round(calcResult.rejectLeakMonthly),
+    Production: 0,
+  }
+  const bnLoss = bnKey ? (bnLossMap[bnKey] ?? 0) : 0
+  const bnDailyLoss = Math.round(bnLoss / (calcResult.workingDaysMonth || 22))
+
+  // Dimension-specific detail config
+  type BnDetail = {
+    rootCauseLabel: string
+    rootCauseMetric: string | null
+    startHere: string[]
+    outcome: string[]
+  }
+  const bnDetail: BnDetail | null = bnKey ? (() => {
+    switch (bnKey) {
+      case 'Dispatch': return {
+        rootCauseLabel: 'Order-to-dispatch time too high',
+        rootCauseMetric: calcResult.dispatchMin ? `${calcResult.dispatchMin} min vs 15 min target` : null,
+        startHere: [
+          'Measure order-to-dispatch time daily',
+          'Target: <15 min from order confirmation to dispatch',
+          'Only release trucks when site confirms readiness',
+        ],
+        outcome: [
+          'Dispatch time reduced to <15 min',
+          `Recovery of up to ${fmtK(bnLoss)} / month`,
+        ],
+      }
+      case 'Fleet': return {
+        rootCauseLabel: 'Fleet turnaround time above benchmark',
+        rootCauseMetric: calcResult.ta ? `${calcResult.ta} min vs ${calcResult.TARGET_TA} min target` : null,
+        startHere: [
+          'Time-stamp 3 full truck cycles to map delay sources',
+          `Target: <${calcResult.TARGET_TA} min turnaround`,
+          'Enforce demurrage clause after 45 min on site',
+        ],
+        outcome: [
+          `Turnaround reduced to ${calcResult.TARGET_TA} min`,
+          `Recovery of up to ${fmtK(bnLoss)} / month`,
+        ],
+      }
+      case 'Quality': return {
+        rootCauseLabel: 'Rejection rate above benchmark',
+        rootCauseMetric: calcResult.rejectPct > 0 ? `${Math.round(calcResult.rejectPct)}% vs 1.5% target` : null,
+        startHere: [
+          'Log all rejections with reason codes for 30 days',
+          'Identify top 3 rejection causes',
+          'Measure transit time on rejected loads',
+        ],
+        outcome: [
+          'Rejection rate reduced below 3%',
+          `Recovery of up to ${fmtK(bnLoss)} / month`,
+        ],
+      }
+      case 'Production': return {
+        rootCauseLabel: 'Plant utilisation below target',
+        rootCauseMetric: calcResult.util ? `${Math.round(calcResult.util * 100)}% vs 92% target` : null,
+        startHere: [
+          'Audit downstream constraints limiting throughput',
+          'Align production schedule with fleet availability',
+          'Review preventive maintenance schedule',
+        ],
+        outcome: [
+          'Utilisation increased to 92%+',
+          `Recovery of up to ${fmtK(bnLoss)} / month`,
+        ],
+      }
+      default: return null
+    }
+  })() : null
 
   return (
     <div style={{
@@ -2460,28 +2540,79 @@ function ScoreGrid({ calcResult, financialBottleneck }: {
         Operational scores — lowest is the constraint
       </div>
 
-      {/* Bottleneck card — dominant, full width */}
+      {/* Bottleneck card — expanded */}
       {bottleneck && (
         <div style={{
           background: '#fff0f0', border: '2px solid #f5c6c6', borderRadius: '12px',
           padding: '20px 24px', marginBottom: '8px',
-          display: 'flex', alignItems: 'center', gap: '24px',
         }}>
-          <div style={{ fontSize: '56px', fontWeight: 800, color: '#cc3333', lineHeight: 1, letterSpacing: '-2px' }}>
-            {Math.round(bottleneck.score)}
-          </div>
-          <div>
-            <div style={{ fontSize: '18px', fontWeight: 700, color: '#cc3333', marginBottom: '4px' }}>{bottleneck.label}</div>
-            <div style={{ display: 'inline-block', fontSize: '9px', fontWeight: 700, letterSpacing: '.8px', textTransform: 'uppercase', color: '#fff', background: '#cc3333', borderRadius: '4px', padding: '3px 8px' }}>
-              Fix this first
+          {/* Header row */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '24px', marginBottom: bnDetail ? '20px' : '0' }}>
+            <div style={{ fontSize: '56px', fontWeight: 800, color: '#cc3333', lineHeight: 1, letterSpacing: '-2px' }}>
+              {Math.round(bottleneck.score)}
             </div>
+            <div>
+              <div style={{ fontSize: '18px', fontWeight: 700, color: '#cc3333', marginBottom: '4px' }}>{bottleneck.label}</div>
+              <div style={{ display: 'inline-block', fontSize: '9px', fontWeight: 700, letterSpacing: '.8px', textTransform: 'uppercase', color: '#fff', background: '#cc3333', borderRadius: '4px', padding: '3px 8px' }}>
+                Fix this first
+              </div>
+            </div>
+            {bnLoss > 0 && (
+              <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
+                <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase', color: '#c09090', marginBottom: '2px' }}>Impact</div>
+                <div style={{ fontSize: '24px', fontWeight: 800, color: '#cc3333', lineHeight: 1, letterSpacing: '-0.5px' }}>{fmtK(bnLoss)} <span style={{ fontSize: '13px', fontWeight: 400, color: '#e88' }}>/ month</span></div>
+                <div style={{ fontSize: '12px', color: '#c09090' }}>≈ {fmtK(bnDailyLoss)} per day</div>
+              </div>
+            )}
           </div>
+
+          {/* Detail sections */}
+          {bnDetail && (
+            <div style={{ borderTop: '1px solid #f5c6c6', paddingTop: '20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+
+              {/* Left: Root cause */}
+              <div>
+                <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#c09090', marginBottom: '8px' }}>Root cause</div>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: '#cc3333', marginBottom: '3px' }}>{bnDetail.rootCauseLabel}</div>
+                {bnDetail.rootCauseMetric && (
+                  <div style={{ fontSize: '12px', color: '#aaa', marginBottom: '20px' }}>{bnDetail.rootCauseMetric}</div>
+                )}
+
+                <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#c09090', marginBottom: '8px' }}>Expected outcome</div>
+                {bnDetail.outcome.map((line, i) => (
+                  <div key={i} style={{ fontSize: '13px', color: '#444', marginBottom: '3px' }}>{line}</div>
+                ))}
+              </div>
+
+              {/* Right: Start here + CTA */}
+              <div>
+                <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#c09090', marginBottom: '8px' }}>Start here — next 7 days</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' }}>
+                  {bnDetail.startHere.map((bullet, i) => (
+                    <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                      <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#cc3333', flexShrink: 0, marginTop: '6px' }} />
+                      <span style={{ fontSize: '13px', color: '#444', lineHeight: 1.5 }}>{bullet}</span>
+                    </div>
+                  ))}
+                </div>
+                {onSwitchToTracking && (
+                  <button onClick={onSwitchToTracking} style={{
+                    background: 'none', border: '1px solid #f5c6c6', borderRadius: '6px',
+                    padding: '8px 14px', fontSize: '12px', fontWeight: 600, color: '#cc3333',
+                    cursor: 'pointer', width: '100%', textAlign: 'left',
+                  }}>
+                    Activate 90-day tracking to measure improvement →
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
       {/* Other scores — muted, 3 columns */}
       {others.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${others.length}, 1fr)`, gap: '8px', marginBottom: '16px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${others.length}, 1fr)`, gap: '8px', marginBottom: '8px' }}>
           {others.map(d => (
             <div key={d.key} style={{
               background: '#f9faf9', border: '1px solid #e8e8e6', borderRadius: '12px',
@@ -2491,13 +2622,6 @@ function ScoreGrid({ calcResult, financialBottleneck }: {
               <div style={{ fontSize: '12px', color: '#aaa', fontWeight: 500 }}>{d.label}</div>
             </div>
           ))}
-        </div>
-      )}
-
-      {/* Constraint text */}
-      {bnKey && (
-        <div style={{ fontSize: '13px', color: '#555' }}>
-          <strong style={{ color: '#1a1a1a' }}>{bnKey === 'Fleet' ? 'Logistics' : bnKey}</strong> is your primary constraint. Fix this first.
         </div>
       )}
     </div>
@@ -2873,7 +2997,7 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
 
 
       {/* 3. SCORE GRID */}
-      <ScoreGrid calcResult={calcResult} financialBottleneck={financialBottleneck} />
+      <ScoreGrid calcResult={calcResult} financialBottleneck={financialBottleneck} onSwitchToTracking={onSwitchToTracking} />
 
       {/* 4. WHY THIS HAPPENS + START HERE */}
       <WhyAndStartHere
