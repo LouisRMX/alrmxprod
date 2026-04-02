@@ -929,7 +929,7 @@ function ImpactHook({ totalLoss, dailyLoss, calcResult, issues, financialBottlen
       display: 'grid', gridTemplateColumns: '1fr 1fr',
     }}>
       {/* Left — Estimated revenue leakage */}
-      <div style={{ padding: '24px', background: '#fff8f8', borderRight: '1px solid #f0f0ee' }}>
+      <div style={{ padding: '24px', background: '#ffeded', borderRight: '1px solid #f5c6c6' }}>
         <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.4px', textTransform: 'uppercase', color: '#c0a0a0', marginBottom: '8px' }}>
           {calcResult.demandSufficient === false ? 'Margin improvement potential' : 'Estimated revenue leakage'}
         </div>
