@@ -885,81 +885,98 @@ function ImpactHook({ totalLoss, dailyLoss, calcResult, issues, financialBottlen
     )
   }
 
-  // Biggest contributor description
-  const topIssue = [...issues].filter(i => i.loss > 0).sort((a, b) => b.loss - a.loss)[0]
-  let contributorDesc = ''
-  if (topIssue) {
-    const dim = topIssue.dimension || financialBottleneck || ''
-    const excessMin = Math.round(calcResult.ta - calcResult.TARGET_TA)
-    if ((dim === 'Fleet' || dim === 'Logistics') && excessMin > 0) {
-      contributorDesc = `Turnaround time (+${excessMin} min over ${calcResult.TARGET_TA} min target)`
-    } else if (dim === 'Dispatch' && (calcResult.dispatchMin ?? 0) > 15) {
-      contributorDesc = `Dispatch time (${calcResult.dispatchMin} min vs 15 min target)`
-    } else if (dim === 'Quality' && calcResult.rejectPct > 1.5) {
-      contributorDesc = `Rejection rate (${calcResult.rejectPct}% vs 1.5% target)`
-    } else if (dim === 'Production') {
-      contributorDesc = `Plant utilisation (${Math.round(calcResult.util * 100)}%)`
-    } else {
-      contributorDesc = topIssue.t
-    }
-  }
-
-  // Bottleneck score + specific metric line
-  const bnScore = (() => {
-    switch (financialBottleneck) {
-      case 'Fleet':      return calcResult.scores?.fleet    ?? null
-      case 'Dispatch':   return calcResult.scores?.dispatch ?? null
-      case 'Quality':    return calcResult.scores?.quality  ?? null
-      case 'Production': return calcResult.scores?.prod     ?? null
-      default: return null
-    }
-  })()
-  const bnMetric = (() => {
+  // Primary driver label + metric
+  const driverLabel = financialBottleneck === 'Fleet' ? 'Logistics' : financialBottleneck
+  const driverMetric = (() => {
     switch (financialBottleneck) {
       case 'Fleet':
-        return calcResult.ta > 0
-          ? `Turnaround: ${calcResult.ta} min  ·  Target: ${calcResult.TARGET_TA} min`
-          : null
+        return calcResult.ta > 0 ? `${calcResult.ta} min → ${calcResult.TARGET_TA} min target` : null
       case 'Dispatch':
-        return calcResult.dispatchMin
-          ? `Order-to-dispatch: ${calcResult.dispatchMin} min  ·  Target: 15 min`
-          : null
+        return calcResult.dispatchMin ? `${calcResult.dispatchMin} min → 15 min target` : null
       case 'Quality':
-        return calcResult.rejectPct > 0
-          ? `Rejection rate: ${calcResult.rejectPct}%  ·  Target: 1.5%`
-          : null
+        return calcResult.rejectPct > 0 ? `${calcResult.rejectPct}% → 1.5% target` : null
       case 'Production': {
         const up = Math.round(calcResult.util * 100)
-        return up > 0
-          ? `Utilisation: ${up}%  ·  Target: ${calcResult.utilisationTarget}%`
-          : null
+        return up > 0 ? `${up}% → ${calcResult.utilisationTarget}% target` : null
       }
       default: return null
     }
   })()
-  const bnLabel = financialBottleneck === 'Fleet' ? 'Logistics' : financialBottleneck
+
+  // Recoverable revenue (same logic as RecoveryPanel max)
+  const taLeak = calcResult.demandSufficient === false
+    ? calcResult.turnaroundLeakMonthlyCostOnly
+    : calcResult.turnaroundLeakMonthly
+  const calcMax = (cfg: SliderConfig | null): number => {
+    if (!cfg) return 0
+    const imp = cfg.direction === 'down' ? cfg.currentVal - cfg.targetVal : cfg.targetVal - cfg.currentVal
+    return Math.max(0, Math.round(imp * cfg.coefficient))
+  }
+  const excessDispatch = Math.max(0, (calcResult.dispatchMin ?? 0) - 15)
+  const dispatchMaxSavings = excessDispatch > 0
+    ? Math.round(excessDispatch * Math.max(100, Math.round(taLeak * 0.22)))
+    : 0
+  const totalMaxRecoverable =
+    calcMax(getSliderConfig(calcResult, 'Fleet')) +
+    dispatchMaxSavings +
+    calcMax(getSliderConfig(calcResult, 'Quality'))
+  const dailyRecoverable = Math.round(totalMaxRecoverable / (calcResult.workingDaysMonth || 22))
 
   return (
     <div style={{
-      background: '#fff8f8',
-      border: '1.5px solid #f5c6c6', borderRadius: '12px',
-      padding: '24px', marginBottom: '16px',
+      border: '1.5px solid #f0f0ee', borderRadius: '12px',
+      overflow: 'hidden', marginBottom: '16px',
+      display: 'grid', gridTemplateColumns: '1fr 1fr',
     }}>
-      <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.4px', textTransform: 'uppercase', color: '#b0b0b0', marginBottom: '8px' }}>
-        {calcResult.demandSufficient === false ? 'Margin improvement potential' : 'You are losing'}
-      </div>
-      <div style={{ fontSize: '48px', fontWeight: 800, color: '#cc3333', lineHeight: 1, marginBottom: '16px', letterSpacing: '-1px' }}>
-        {fmt(totalLoss)}<span style={{ fontSize: '20px', fontWeight: 500, color: '#e88', marginLeft: '8px' }}>/ month</span>
-      </div>
-      {bnLabel && bnScore !== null && (
-        <div style={{ fontSize: '15px', color: '#555', marginBottom: '4px' }}>
-          Primary bottleneck:{' '}
-          <strong style={{ color: '#cc3333' }}>{bnLabel} ({Math.round(bnScore)}/100)</strong>
+      {/* Left — Estimated revenue leakage */}
+      <div style={{ padding: '24px', background: '#fff8f8', borderRight: '1px solid #f0f0ee' }}>
+        <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.4px', textTransform: 'uppercase', color: '#c0a0a0', marginBottom: '8px' }}>
+          {calcResult.demandSufficient === false ? 'Margin improvement potential' : 'Estimated revenue leakage'}
         </div>
-      )}
-      {bnMetric && (
-        <div style={{ fontSize: '13px', color: '#999' }}>{bnMetric}</div>
-      )}
+        <div style={{ fontSize: '48px', fontWeight: 800, color: '#cc3333', lineHeight: 1, letterSpacing: '-1px', marginBottom: '4px' }}>
+          {fmt(totalLoss)}<span style={{ fontSize: '20px', fontWeight: 500, color: '#e88', marginLeft: '8px' }}>/ month</span>
+        </div>
+        <div style={{ fontSize: '13px', color: '#c09090', marginBottom: '16px' }}>
+          ≈ {fmt(dailyLoss)} per day
+        </div>
+        {driverLabel && (
+          <div style={{ fontSize: '13px', color: '#666', marginBottom: '3px' }}>
+            Primary driver: <strong style={{ color: '#cc3333' }}>{driverLabel}</strong>
+          </div>
+        )}
+        {driverMetric && (
+          <div style={{ fontSize: '12px', color: '#aaa' }}>{driverMetric}</div>
+        )}
+      </div>
+
+      {/* Right — Recoverable revenue */}
+      <div style={{ padding: '24px', background: '#f6fbf8' }}>
+        <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.4px', textTransform: 'uppercase', color: '#7ab89a', marginBottom: '8px' }}>
+          Recoverable revenue
+        </div>
+        {totalMaxRecoverable > 0 ? (
+          <>
+            <div style={{ fontSize: '48px', fontWeight: 800, color: '#1a6644', lineHeight: 1, letterSpacing: '-1px', marginBottom: '4px' }}>
+              {fmt(totalMaxRecoverable)}<span style={{ fontSize: '20px', fontWeight: 500, color: '#5aaa82', marginLeft: '8px' }}>/ month</span>
+            </div>
+            <div style={{ fontSize: '13px', color: '#7ab89a', marginBottom: '16px' }}>
+              ≈ {fmt(dailyRecoverable)} per day
+            </div>
+            {driverLabel && (
+              <div style={{ fontSize: '13px', color: '#2a6644', marginBottom: '8px' }}>
+                Achievable by improving {driverLabel.toLowerCase()} performance
+              </div>
+            )}
+            <div style={{ fontSize: '11px', color: '#b0b0b0' }}>
+              Based on current operational data
+            </div>
+          </>
+        ) : (
+          <div style={{ fontSize: '13px', color: '#aaa', marginTop: '8px' }}>
+            No recoverable margin identified
+          </div>
+        )}
+      </div>
     </div>
   )
 }
