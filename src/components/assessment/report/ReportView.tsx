@@ -327,13 +327,13 @@ function KPIPyramid({ calcResult, answers, totalLoss, financialBottleneck }: {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px' }}>
         <KpiBox
           label="Rejection Rate"
-          value={`${calcResult.rejectPct}%`}
+          value={`${Math.round(calcResult.rejectPct)}%`}
           target="target <3%"
           isBottleneck={isRejectBn}
           isWarn={rejectWarn}
           size="small"
           bar={<KpiBarLower current={calcResult.rejectPct} target={3} max={Math.max(calcResult.rejectPct * 1.5, 6)} isBottleneck={isRejectBn} isWarn={rejectWarn} />}
-          gap={rejectWarn ? `+${(calcResult.rejectPct - 3).toFixed(1)} pp over target` : 'on target'}
+          gap={rejectWarn ? `+${Math.round(calcResult.rejectPct - 3)} pp over target` : 'on target'}
           gapColor={kpiColor(isRejectBn, rejectWarn)}
           benchmark={benchmarkTag('rejection')}
         />
@@ -361,7 +361,7 @@ function KPIPyramid({ calcResult, answers, totalLoss, financialBottleneck }: {
           isWarn={delWarn}
           size="small"
           bar={delPerTruck > 0 && targetDelPerTruck > 0 ? <KpiBarHigher current={delPerTruck} target={targetDelPerTruck} max={targetDelPerTruck * 1.1} isBottleneck={false} isWarn={delWarn} /> : null}
-          gap={delWarn && targetDelPerTruck > 0 ? `−${(targetDelPerTruck - delPerTruck).toFixed(1)} per day` : ''}
+          gap={delWarn && targetDelPerTruck > 0 ? `−${Math.round(targetDelPerTruck - delPerTruck)} per day` : ''}
           gapColor={kpiColor(false, delWarn)}
           benchmark={benchmarkTag('deliveriesPerTruck')}
         />
@@ -534,7 +534,7 @@ function CaseStudySection({ calcResult, meta, totalLoss, assessmentId }: {
     ``,
     `BEFORE`,
     `Turnaround: ${calcResult.ta} min (benchmark ${calcResult.TARGET_TA} min)`,
-    `Rejection rate: ${calcResult.rejectPct}%`,
+    `Rejection rate: ${Math.round(calcResult.rejectPct)}%`,
     calcResult.dispatchMin ? `Dispatch time: ${calcResult.dispatchMin} min` : null,
     `Estimated monthly loss: $${totalLoss.toLocaleString()}`,
     ``,
@@ -894,7 +894,7 @@ function ImpactHook({ totalLoss, dailyLoss, calcResult, issues, financialBottlen
       case 'Dispatch':
         return calcResult.dispatchMin ? `${calcResult.dispatchMin} min vs 15 min target` : null
       case 'Quality':
-        return calcResult.rejectPct > 0 ? `${calcResult.rejectPct}% vs 1.5% target` : null
+        return calcResult.rejectPct > 0 ? `${Math.round(calcResult.rejectPct)}% vs 1.5% target` : null
       case 'Production': {
         const up = Math.round(calcResult.util * 100)
         return up > 0 ? `${up}% vs ${calcResult.utilisationTarget}% target` : null
@@ -1110,7 +1110,7 @@ function DimensionSummary({ calcResult, issues, answers }: {
     dims.push({
       label: 'Quality',
       score: calcResult.scores?.quality ?? null,
-      text: `Rejection rate ${calcResult.rejectPct}%${extra} Costs ${fmt(Math.round(calcResult.rejectLeakMonthly))}/month.`,
+      text: `Rejection rate ${Math.round(calcResult.rejectPct)}%${extra} Costs ${fmt(Math.round(calcResult.rejectLeakMonthly))}/month.`,
       loss: Math.round(calcResult.rejectLeakMonthly),
     })
   }
@@ -1357,7 +1357,7 @@ function StartTrackingCard({ calcResult, issues, totalLoss, financialBottleneck,
   const baselines: string[] = []
   if (calcResult.ta > 0) baselines.push(`Turnaround ${calcResult.ta} min`)
   if (calcResult.dispatchMin) baselines.push(`Dispatch ${calcResult.dispatchMin} min`)
-  if (calcResult.rejectPct > 0) baselines.push(`Rejection ${calcResult.rejectPct}%`)
+  if (calcResult.rejectPct > 0) baselines.push(`Rejection ${Math.round(calcResult.rejectPct)}%`)
 
   const rows = [
     { label: 'Biggest loss',       value: topIssue.t, bold: true },
@@ -1549,7 +1549,7 @@ function RecoveryBreakdown({ calcResult }: { calcResult: CalcResult }) {
     {
       label: 'Rejection rate',
       subLabel: calcResult.rejectPct > 1.5
-        ? `${calcResult.rejectPct}% → 1.5% target`
+        ? `${Math.round(calcResult.rejectPct)}% → 1.5% target`
         : 'At benchmark',
       loss: rejectionLoss,
       show: rejectionLoss > 0,
@@ -1621,7 +1621,7 @@ function MetricsSnapshot({ calcResult, answers }: { calcResult: CalcResult; answ
     },
     {
       label: 'Rejection',
-      value: calcResult.rejectPct > 0 ? `${calcResult.rejectPct}%` : '—',
+      value: calcResult.rejectPct > 0 ? `${Math.round(calcResult.rejectPct)}%` : '—',
       target: 'Target 1.5%',
       status: calcResult.rejectPct > 3 ? 'warn' : calcResult.rejectPct > 1.5 ? 'caution' : 'ok',
     },
@@ -2173,7 +2173,7 @@ function BenchmarkPositioning({ calcResult, answers }: { calcResult: CalcResult;
   if (calcResult.rejectPct > 0) {
     items.push({
       label: 'Rejection rate',
-      value: `${calcResult.rejectPct}%`,
+      value: `${Math.round(calcResult.rejectPct)}%`,
       q: gcQuartile('rejection', calcResult.rejectPct),
       p50: '3.2%', p75: '1.4%',
     })
@@ -2237,7 +2237,7 @@ function WhatWeWillMeasure({ calcResult, answers }: { calcResult: CalcResult; an
     items.push({
       area: 'Rejection root cause',
       measurement: 'Rejection log review (last 30 days): reason codes, time in transit per rejected load, contractor breakdown.',
-      why: `Rejection rate of ${calcResult.rejectPct}% is above the 3% threshold — root cause is rarely obvious from aggregate data.`,
+      why: `Rejection rate of ${Math.round(calcResult.rejectPct)}% is above the 3% threshold — root cause is rarely obvious from aggregate data.`,
     })
   }
 
