@@ -904,29 +904,73 @@ function ImpactHook({ totalLoss, dailyLoss, calcResult, issues, financialBottlen
     }
   }
 
+  // Bottleneck score + specific metric line
+  const bnScore = (() => {
+    switch (financialBottleneck) {
+      case 'Fleet':      return calcResult.scores?.fleet    ?? null
+      case 'Dispatch':   return calcResult.scores?.dispatch ?? null
+      case 'Quality':    return calcResult.scores?.quality  ?? null
+      case 'Production': return calcResult.scores?.prod     ?? null
+      default: return null
+    }
+  })()
+  const bnMetric = (() => {
+    switch (financialBottleneck) {
+      case 'Fleet':
+        return calcResult.ta > 0
+          ? `Turnaround: ${calcResult.ta} min  ·  Target: ${calcResult.TARGET_TA} min`
+          : null
+      case 'Dispatch':
+        return calcResult.dispatchMin
+          ? `Order-to-dispatch: ${calcResult.dispatchMin} min  ·  Target: 15 min`
+          : null
+      case 'Quality':
+        return calcResult.rejectPct > 0
+          ? `Rejection rate: ${calcResult.rejectPct}%  ·  Target: 1.5%`
+          : null
+      case 'Production': {
+        const up = Math.round(calcResult.util * 100)
+        return up > 0
+          ? `Utilisation: ${up}%  ·  Target: ${calcResult.utilisationTarget}%`
+          : null
+      }
+      default: return null
+    }
+  })()
+  const bnLabel = financialBottleneck === 'Fleet' ? 'Logistics' : financialBottleneck
+
   return (
     <div style={{
       background: 'linear-gradient(135deg, #fff8f8 0%, #fff 60%)',
       border: '1.5px solid #f5c6c6', borderRadius: '10px',
       padding: '24px 28px', marginBottom: '10px',
+      display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
     }}>
-      <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#9b9b9b', marginBottom: '8px' }}>
-        {calcResult.demandSufficient === false ? 'Margin improvement potential' : 'You are losing'}
-      </div>
-      <div style={{ fontSize: '36px', fontWeight: 800, color: '#cc3333', lineHeight: 1, marginBottom: '10px' }}>
-        {fmt(totalLoss)}<span style={{ fontSize: '18px', fontWeight: 500, color: '#e88', marginLeft: '6px' }}>/ month</span>
-      </div>
-      <div style={{ display: 'flex', gap: '28px', flexWrap: 'wrap', alignItems: 'center' }}>
-        <div style={{ fontSize: '13px', color: '#666' }}>
-          <span style={{ fontWeight: 700, color: '#cc3333' }}>{fmt(dailyLoss)}</span>
-          <span style={{ color: '#9b9b9b', marginLeft: '4px' }}>every working day</span>
+      <div>
+        <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#9b9b9b', marginBottom: '8px' }}>
+          {calcResult.demandSufficient === false ? 'Margin improvement potential' : 'You are losing'}
         </div>
-        {contributorDesc && (
-          <div style={{ fontSize: '13px', color: '#666' }}>
-            Biggest contributor:{' '}
-            <span style={{ fontWeight: 600, color: '#1a1a1a' }}>{contributorDesc}</span>
+        <div style={{ fontSize: '36px', fontWeight: 800, color: '#cc3333', lineHeight: 1, marginBottom: '10px' }}>
+          {fmt(totalLoss)}<span style={{ fontSize: '18px', fontWeight: 500, color: '#e88', marginLeft: '6px' }}>/ month</span>
+        </div>
+        {bnLabel && bnScore !== null && (
+          <div style={{ fontSize: '14px', color: '#666', marginBottom: '4px' }}>
+            Primary bottleneck:{' '}
+            <strong style={{ color: '#cc3333' }}>{bnLabel} ({Math.round(bnScore)}/100)</strong>
           </div>
         )}
+        {bnMetric && (
+          <div style={{ fontSize: '13px', color: '#888' }}>{bnMetric}</div>
+        )}
+      </div>
+      {/* Red arrow icon */}
+      <div style={{
+        width: '52px', height: '52px', borderRadius: '50%',
+        background: '#fff0f0', border: '1px solid #f5c6c6',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        flexShrink: 0, fontSize: '22px', marginTop: '4px',
+      }}>
+        ↘
       </div>
     </div>
   )
@@ -2330,6 +2374,253 @@ function StartThisWeek({ calcResult, answers }: { calcResult: CalcResult; answer
   )
 }
 
+// ── Recoverable Value Card ─────────────────────────────────────────────────
+function RecoverableValueCard({ totalLoss, financialBottleneck }: {
+  totalLoss: number
+  financialBottleneck: string | null
+}) {
+  if (totalLoss === 0) return null
+  const yearlyLoss = totalLoss * 12
+  const bnLabel = financialBottleneck === 'Fleet' ? 'logistics' : (financialBottleneck?.toLowerCase() ?? null)
+
+  return (
+    <div style={{
+      background: '#fff', border: '1px solid #e8e8e6',
+      borderRadius: '10px', padding: '20px 24px', marginBottom: '10px',
+      display: 'flex', alignItems: 'center', gap: '20px',
+    }}>
+      {/* $ icon */}
+      <div style={{
+        width: '52px', height: '52px', borderRadius: '50%',
+        border: '2px solid #2a9d6e', display: 'flex',
+        alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+        color: '#2a9d6e', fontSize: '22px', fontWeight: 800,
+      }}>$</div>
+
+      {/* Amount */}
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#9b9b9b', marginBottom: '4px' }}>
+          Total recoverable value
+        </div>
+        <div style={{ fontSize: '28px', fontWeight: 800, color: '#1a6644', lineHeight: 1 }}>
+          {fmt(yearlyLoss)}<span style={{ fontSize: '15px', fontWeight: 500, color: '#5aaa82', marginLeft: '5px' }}>/ year</span>
+        </div>
+      </div>
+
+      {/* Checklist */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flexShrink: 0 }}>
+        <div style={{ fontSize: '12px', color: '#1a6644', display: 'flex', alignItems: 'center', gap: '7px' }}>
+          <span style={{ color: '#2a9d6e', fontWeight: 700 }}>✓</span> No capital investment required
+        </div>
+        {bnLabel && (
+          <div style={{ fontSize: '12px', color: '#1a6644', display: 'flex', alignItems: 'center', gap: '7px' }}>
+            <span style={{ color: '#2a9d6e', fontWeight: 700 }}>✓</span> Driven by {bnLabel} improvement
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Score Grid ─────────────────────────────────────────────────────────────
+function ScoreGrid({ calcResult, financialBottleneck }: {
+  calcResult: CalcResult
+  financialBottleneck: string | null
+}) {
+  if (calcResult.overall === null) return null
+
+  const dims = [
+    { label: 'Dispatch',   score: calcResult.scores?.dispatch ?? null, key: 'Dispatch'   },
+    { label: 'Quality',    score: calcResult.scores?.quality  ?? null, key: 'Quality'    },
+    { label: 'Logistics',  score: calcResult.scores?.fleet    ?? null, key: 'Fleet'      },
+    { label: 'Production', score: calcResult.scores?.prod     ?? null, key: 'Production' },
+  ]
+    .filter(d => d.score !== null)
+    .sort((a, b) => (a.score ?? 100) - (b.score ?? 100)) as { label: string; score: number; key: string }[]
+
+  if (dims.length === 0) return null
+
+  const bnKey = financialBottleneck
+
+  return (
+    <div style={{
+      background: '#fff', border: '1px solid #e8e8e6',
+      borderRadius: '10px', padding: '20px 24px', marginBottom: '10px',
+    }}>
+      <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#9b9b9b', marginBottom: '14px' }}>
+        Your operational scores — lowest is the constraint
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', marginBottom: '12px' }}>
+        {dims.map(d => {
+          const s = Math.round(d.score)
+          const isBn = d.key === bnKey
+          const col  = isBn ? '#cc3333' : s < 60 ? '#cc3333' : s < 75 ? '#c96a00' : '#1a6644'
+          const bg   = isBn ? '#fff8f8' : s < 60 ? '#fff8f8' : s < 75 ? '#fffaf2' : '#f0faf6'
+          const bdr  = isBn ? '2px solid #f5c6c6' : s < 60 ? '1.5px solid #f5c6c6' : s < 75 ? '1.5px solid #f5ddb5' : '1.5px solid #b5dfc9'
+          return (
+            <div key={d.key} style={{
+              background: bg, border: bdr, borderRadius: '10px',
+              padding: '16px 12px', textAlign: 'center',
+            }}>
+              <div style={{ fontSize: '34px', fontWeight: 800, color: col, lineHeight: 1, marginBottom: '4px' }}>{s}</div>
+              <div style={{ fontSize: '12px', color: '#1a1a1a', fontWeight: 500 }}>{d.label}</div>
+              {isBn && (
+                <div style={{
+                  display: 'inline-block', marginTop: '6px',
+                  fontSize: '8px', fontWeight: 700, letterSpacing: '.5px', textTransform: 'uppercase',
+                  color: '#fff', background: '#cc3333', borderRadius: '3px', padding: '2px 6px',
+                }}>Bottleneck</div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+      {bnKey && (
+        <div style={{ fontSize: '13px', color: '#444' }}>
+          <strong style={{ color: '#1a1a1a' }}>
+            {bnKey === 'Fleet' ? 'Logistics' : bnKey}
+          </strong>{' '}
+          is your primary constraint. Fix this first.
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Why & Start Here ───────────────────────────────────────────────────────
+function WhyAndStartHere({ issues, totalLoss, calcResult, onSwitchToTracking }: {
+  issues: Issue[]
+  totalLoss: number
+  calcResult: CalcResult
+  onSwitchToTracking?: () => void
+}) {
+  if (totalLoss === 0 || calcResult.overall === null) return null
+
+  const actionIssues = [...issues].filter(i => i.loss > 0).sort((a, b) => b.loss - a.loss)
+  if (actionIssues.length === 0) return null
+
+  const whyBullets = actionIssues.slice(0, 3).map(i => i.rec).filter(Boolean) as string[]
+  const actionItems = actionIssues.slice(0, 3).map(i => i.action).filter(Boolean) as string[]
+
+  if (whyBullets.length === 0 && actionItems.length === 0) return null
+
+  return (
+    <div style={{
+      background: '#fff', border: '1px solid #e8e8e6',
+      borderRadius: '10px', overflow: 'hidden', marginBottom: '10px',
+    }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
+
+        {/* Left: WHY THIS HAPPENS */}
+        <div style={{ padding: '20px 24px', borderRight: '1px solid #f0f0ee' }}>
+          <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#9b9b9b', marginBottom: '14px' }}>
+            Why this happens
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {whyBullets.map((bullet, i) => (
+              <div key={i} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+                <div style={{
+                  width: '7px', height: '7px', borderRadius: '50%',
+                  background: '#ffd0d0', border: '1.5px solid #e88',
+                  flexShrink: 0, marginTop: '5px',
+                }} />
+                <span style={{ fontSize: '13px', color: '#444', lineHeight: 1.5 }}>{bullet}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Right: START HERE */}
+        <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#9b9b9b', marginBottom: '14px' }}>
+            Start here (next 7 days)
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1 }}>
+            {actionItems.map((action, i) => (
+              <div key={i} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+                <span style={{ color: '#2a9d6e', flexShrink: 0, fontSize: '16px', lineHeight: 1.2, fontWeight: 700 }}>✓</span>
+                <span style={{ fontSize: '13px', color: '#1a1a1a', lineHeight: 1.5 }}>{action}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{ marginTop: '20px' }}>
+            <div style={{ fontSize: '11px', color: '#9b9b9b', marginBottom: '10px', lineHeight: 1.5 }}>
+              Track your improvement week-by-week and prove the ROI.
+            </div>
+            <button
+              type="button"
+              onClick={onSwitchToTracking}
+              style={{
+                width: '100%', background: '#1a1a1a', color: '#fff',
+                border: 'none', borderRadius: '8px', padding: '12px 20px',
+                fontSize: '13px', fontWeight: 600, cursor: 'pointer',
+                fontFamily: 'var(--font)',
+              }}
+            >
+              Activate 90-day tracking →
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  )
+}
+
+// ── Simulator Drawer ───────────────────────────────────────────────────────
+function SimulatorDrawer({ open, onClose, calcResult }: {
+  open: boolean
+  onClose: () => void
+  calcResult: CalcResult
+}) {
+  return (
+    <>
+      {open && (
+        <div
+          onClick={onClose}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.25)', zIndex: 199 }}
+        />
+      )}
+      <div style={{
+        position: 'fixed', top: 0, right: 0, bottom: 0,
+        width: '420px',
+        background: 'var(--white)',
+        boxShadow: '-8px 0 32px rgba(0,0,0,0.12)',
+        zIndex: 200,
+        display: 'flex', flexDirection: 'column',
+        transform: open ? 'translateX(0)' : 'translateX(100%)',
+        transition: 'transform 0.28s cubic-bezier(.22,.68,0,1.2)',
+      }}>
+        {/* Header */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '14px 20px', borderBottom: '1px solid var(--border)',
+          flexShrink: 0,
+        }}>
+          <div>
+            <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--gray-900)' }}>Recovery simulator</div>
+            <div style={{ fontSize: '11px', color: 'var(--gray-400)', marginTop: '1px' }}>Explore what-if improvement scenarios</div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              padding: '6px 12px', background: 'var(--gray-100)',
+              border: '1px solid var(--border)', borderRadius: '6px',
+              fontSize: '12px', color: 'var(--gray-500)',
+              cursor: 'pointer', fontFamily: 'var(--font)',
+            }}
+          >✕</button>
+        </div>
+        {/* Body */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
+          <RecoveryPanel calcResult={calcResult} />
+        </div>
+      </div>
+    </>
+  )
+}
+
 // ── Main component ─────────────────────────────────────────────────────────
 interface ReportViewProps {
   calcResult: CalcResult
@@ -2367,6 +2658,7 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
   const [generating, setGenerating] = useState<string | null>(null)
   const [genError, setGenError] = useState<string | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [simulatorOpen, setSimulatorOpen] = useState(false)
 
   // ── Logistics Intelligence (GPS) ─────────────────────────────────────────
   const [logisticsText, setLogisticsText] = useState<string | null>(null)
@@ -2477,7 +2769,6 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
     }
   }, [generate])
 
-  // Show sliders in right column only when there's something to slide
   const hasSliders = !!(
     getSliderConfig(calcResult, 'Fleet') ||
     getSliderConfig(calcResult, 'Quality') ||
@@ -2487,7 +2778,7 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
   return (
     <div style={{ flex: 1, overflowY: 'auto', padding: '20px', paddingBottom: '60px' }}>
 
-      {/* Top bar: "View full report" + admin controls */}
+      {/* Top bar */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           {isAdmin && !reportReleased && (
@@ -2496,22 +2787,39 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
             </span>
           )}
         </div>
-        <button
-          type="button"
-          onClick={() => setDrawerOpen(true)}
-          style={{
-            display: 'flex', alignItems: 'center', gap: '6px',
-            padding: '7px 16px',
-            background: 'var(--white)', border: '1px solid var(--border)',
-            borderRadius: '8px', fontSize: '12px', fontWeight: 600,
-            color: 'var(--gray-700)', cursor: 'pointer', fontFamily: 'var(--font)',
-          }}
-        >
-          View full report →
-        </button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          {hasSliders && (
+            <button
+              type="button"
+              onClick={() => setSimulatorOpen(true)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '6px',
+                padding: '7px 16px',
+                background: 'var(--white)', border: '1px solid var(--border)',
+                borderRadius: '8px', fontSize: '12px', fontWeight: 600,
+                color: 'var(--gray-700)', cursor: 'pointer', fontFamily: 'var(--font)',
+              }}
+            >
+              ⟳ Simulate recovery
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setDrawerOpen(true)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '6px',
+              padding: '7px 16px',
+              background: 'var(--white)', border: '1px solid var(--border)',
+              borderRadius: '8px', fontSize: '12px', fontWeight: 600,
+              color: 'var(--gray-700)', cursor: 'pointer', fontFamily: 'var(--font)',
+            }}
+          >
+            View full report →
+          </button>
+        </div>
       </div>
 
-      {/* Banners (full-width, above the grid) */}
+      {/* Banners */}
       {genError && (
         <div style={{
           background: 'var(--error-bg)', border: '1px solid var(--error-border)', borderRadius: '8px',
@@ -2541,56 +2849,54 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
         </div>
       )}
 
-      {/* ── Two-column layout ─────────────────────────────────────────────── */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: hasSliders ? '1fr 360px' : '1fr',
-        gap: '16px',
-        alignItems: 'start',
-      }}>
+      {/* 1. IMPACT / HOOK */}
+      <ImpactHook
+        totalLoss={totalLoss}
+        dailyLoss={dailyLoss}
+        calcResult={calcResult}
+        issues={issues}
+        financialBottleneck={financialBottleneck}
+      />
 
-        {/* LEFT — narrative content */}
-        <div>
-          <ImpactHook
-            totalLoss={totalLoss}
-            dailyLoss={dailyLoss}
-            calcResult={calcResult}
-            issues={issues}
-            financialBottleneck={financialBottleneck}
-          />
-          <ScoreOverview calcResult={calcResult} meta={meta} phase={phase} />
-          <DimensionSummary calcResult={calcResult} issues={issues} answers={answers} />
-          <StartHereCard
-            calcResult={calcResult}
-            issues={issues}
-            totalLoss={totalLoss}
-            financialBottleneck={financialBottleneck}
-            onSwitchToTracking={onSwitchToTracking}
-          />
-          <NextImprovements issues={issues} />
+      {/* 2. TOTAL RECOVERABLE VALUE */}
+      <RecoverableValueCard totalLoss={totalLoss} financialBottleneck={financialBottleneck} />
 
-          {phase === 'workshop' && totalLoss > 0 && (
-            <>
-              <BenchmarkPositioning calcResult={calcResult} answers={answers} />
-              <StartThisWeek calcResult={calcResult} answers={answers} />
-              <WhatWeWillMeasure calcResult={calcResult} answers={answers} />
-            </>
-          )}
-          {isAdmin && onOverrideChange && (
-            <AssumptionsPanel overrides={overrides ?? {}} onChange={onOverrideChange} />
-          )}
-        </div>
+      {/* 3. SCORE GRID */}
+      <ScoreGrid calcResult={calcResult} financialBottleneck={financialBottleneck} />
 
-        {/* RIGHT — sticky simulator */}
-        {hasSliders && (
-          <div style={{ position: 'sticky', top: '20px' }}>
-            <RecoveryPanel calcResult={calcResult} />
-          </div>
-        )}
+      {/* 4. WHY THIS HAPPENS + START HERE */}
+      <WhyAndStartHere
+        issues={issues}
+        totalLoss={totalLoss}
+        calcResult={calcResult}
+        onSwitchToTracking={onSwitchToTracking}
+      />
 
-      </div>
+      {/* 5. NEXT IMPROVEMENTS (collapsed) */}
+      <NextImprovements issues={issues} />
 
-      {/* ── Full Report Drawer (always in DOM) ───────────────────────────── */}
+      {/* Pre-assessment cards (workshop phase) */}
+      {phase === 'workshop' && totalLoss > 0 && (
+        <>
+          <BenchmarkPositioning calcResult={calcResult} answers={answers} />
+          <StartThisWeek calcResult={calcResult} answers={answers} />
+          <WhatWeWillMeasure calcResult={calcResult} answers={answers} />
+        </>
+      )}
+
+      {/* Assumptions Panel (admin) */}
+      {isAdmin && onOverrideChange && (
+        <AssumptionsPanel overrides={overrides ?? {}} onChange={onOverrideChange} />
+      )}
+
+      {/* Simulator drawer (always in DOM for animation) */}
+      <SimulatorDrawer
+        open={simulatorOpen}
+        onClose={() => setSimulatorOpen(false)}
+        calcResult={calcResult}
+      />
+
+      {/* Full report drawer */}
       <FullReportDrawer
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
