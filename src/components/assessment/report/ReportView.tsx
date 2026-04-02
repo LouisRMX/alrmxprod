@@ -853,9 +853,9 @@ function FinancialHeadline({ totalLoss, dailyLoss, calcResult }: {
 }
 
 // ── Impact Hook ────────────────────────────────────────────────────────────
-function ImpactHook({ totalLoss, dailyLoss, calcResult, issues, financialBottleneck }: {
-  totalLoss: number
-  dailyLoss: number
+function ImpactHook({ bnLoss, bnDailyLoss, calcResult, issues, financialBottleneck }: {
+  bnLoss: number
+  bnDailyLoss: number
   calcResult: CalcResult
   issues: Issue[]
   financialBottleneck: string | null
@@ -872,7 +872,7 @@ function ImpactHook({ totalLoss, dailyLoss, calcResult, issues, financialBottlen
     )
   }
 
-  if (totalLoss === 0) {
+  if (bnLoss === 0) {
     return (
       <div style={{
         background: 'linear-gradient(135deg, #f0faf6 0%, #fff 60%)',
@@ -908,26 +908,7 @@ function ImpactHook({ totalLoss, dailyLoss, calcResult, issues, financialBottlen
     }
   })()
 
-  // Recoverable revenue (same logic as RecoveryPanel max)
-  const taLeak = calcResult.demandSufficient === false
-    ? calcResult.turnaroundLeakMonthlyCostOnly
-    : calcResult.turnaroundLeakMonthly
-  const calcMax = (cfg: SliderConfig | null): number => {
-    if (!cfg) return 0
-    const imp = cfg.direction === 'down' ? cfg.currentVal - cfg.targetVal : cfg.targetVal - cfg.currentVal
-    return Math.max(0, Math.round(imp * cfg.coefficient))
-  }
-  const excessDispatch = Math.max(0, (calcResult.dispatchMin ?? 0) - 15)
-  const dispatchMaxSavings = excessDispatch > 0
-    ? Math.round(excessDispatch * Math.max(100, Math.round(taLeak * 0.22)))
-    : 0
-  const totalMaxRecoverable = Math.min(
-    calcMax(getSliderConfig(calcResult, 'Fleet')) +
-    dispatchMaxSavings +
-    calcMax(getSliderConfig(calcResult, 'Quality')),
-    totalLoss
-  )
-  const dailyRecoverable = Math.round(totalMaxRecoverable / (calcResult.workingDaysMonth || 22))
+  // Right side mirrors left — bnLoss is both the leakage and the recoverable for this dimension
 
   return (
     <div style={{
@@ -941,10 +922,10 @@ function ImpactHook({ totalLoss, dailyLoss, calcResult, issues, financialBottlen
           {calcResult.demandSufficient === false ? 'Margin improvement potential' : 'Estimated revenue leakage'}
         </div>
         <div style={{ fontSize: '48px', fontWeight: 800, color: '#cc3333', lineHeight: 1, letterSpacing: '-1px', marginBottom: '4px' }}>
-          {fmtK(totalLoss)}<span style={{ fontSize: '20px', fontWeight: 500, color: '#e88', marginLeft: '8px' }}>/ month</span>
+          {fmtK(bnLoss)}<span style={{ fontSize: '20px', fontWeight: 500, color: '#e88', marginLeft: '8px' }}>/ month</span>
         </div>
         <div style={{ fontSize: '13px', color: '#c09090', marginBottom: '16px' }}>
-          ≈ {fmtK(dailyLoss)} per day
+          ≈ {fmtK(bnDailyLoss)} per day
         </div>
         {driverLabel && (
           <div style={{ fontSize: '13px', color: '#666', marginBottom: '3px' }}>
@@ -961,13 +942,13 @@ function ImpactHook({ totalLoss, dailyLoss, calcResult, issues, financialBottlen
         <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.4px', textTransform: 'uppercase', color: '#7ab89a', marginBottom: '8px' }}>
           Recoverable revenue
         </div>
-        {totalMaxRecoverable > 0 ? (
+        {bnLoss > 0 ? (
           <>
             <div style={{ fontSize: '40px', fontWeight: 800, color: '#1a6644', lineHeight: 1, letterSpacing: '-1px', marginBottom: '4px' }}>
-              {fmtK(totalMaxRecoverable)}<span style={{ fontSize: '17px', fontWeight: 500, color: '#5aaa82', marginLeft: '8px' }}>/ month</span>
+              {fmtK(bnLoss)}<span style={{ fontSize: '17px', fontWeight: 500, color: '#5aaa82', marginLeft: '8px' }}>/ month</span>
             </div>
             <div style={{ fontSize: '13px', color: '#7ab89a', marginBottom: '20px' }}>
-              ≈ {fmtK(dailyRecoverable)} per day
+              ≈ {fmtK(bnDailyLoss)} per day
             </div>
             {driverLabel && (
               <div style={{ marginBottom: '20px' }}>
@@ -2791,6 +2772,12 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
 
   const dailyLoss = Math.round(totalLoss / (calcResult.workingDaysMonth || 22))
 
+  // Bottleneck-specific loss (single dimension) — used for ImpactHook headline
+  const bnLoss = financialBottleneck
+    ? issues.filter(i => i.dimension === financialBottleneck).reduce((sum, i) => sum + (i.loss ?? 0), 0)
+    : 0
+  const bnDailyLoss = Math.round(bnLoss / (calcResult.workingDaysMonth || 22))
+
   // ── AI section state ─────────────────────────────────────────────────────
   const [texts, setTexts] = useState({
     executive: stripMarkdown(report?.executive || ''),
@@ -2993,8 +2980,8 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
 
       {/* 1. IMPACT / HOOK */}
       <ImpactHook
-        totalLoss={totalLoss}
-        dailyLoss={dailyLoss}
+        bnLoss={bnLoss}
+        bnDailyLoss={bnDailyLoss}
         calcResult={calcResult}
         issues={issues}
         financialBottleneck={financialBottleneck}
