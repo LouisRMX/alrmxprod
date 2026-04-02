@@ -2542,7 +2542,7 @@ function ScoreGrid({ calcResult, financialBottleneck, issues, onSwitchToTracking
           {/* Impact */}
           <div style={{ marginBottom: '24px' }}>
             <div style={{ fontSize: '15px', fontWeight: 600, color: '#cc3333', marginBottom: '2px' }}>
-              Impact: {fmtK(bnLoss)} / month
+              Impact: up to {fmtK(bnLoss)} / month
             </div>
             <div style={{ fontSize: '13px', color: '#c09090' }}>≈ {fmtK(bnDailyLoss)} per day</div>
           </div>
