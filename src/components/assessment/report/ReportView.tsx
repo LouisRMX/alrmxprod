@@ -2570,7 +2570,7 @@ function ScoreGrid({ calcResult, financialBottleneck, totalLoss, onSwitchToTrack
           {/* Impact */}
           <div style={{ marginBottom: '24px' }}>
             <div style={{ fontSize: '15px', fontWeight: 600, color: '#cc3333', marginBottom: '2px' }}>
-              Impact: {fmtK(totalLoss)} / month
+              Impact: {fmtK(bnLoss)} / month
             </div>
             <div style={{ fontSize: '13px', color: '#c09090' }}>≈ {fmtK(bnDailyLoss)} per day</div>
           </div>
@@ -2606,7 +2606,7 @@ function ScoreGrid({ calcResult, financialBottleneck, totalLoss, onSwitchToTrack
               <div style={{ marginBottom: '20px' }}>
                 <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#c09090', marginBottom: '8px' }}>Expected outcome</div>
                 <div style={{ fontSize: '14px', color: '#333', marginBottom: '3px' }}>{bnDetail.outcome[0]}</div>
-                <div style={{ fontSize: '14px', fontWeight: 600, color: '#cc3333' }}>Recovers {fmtK(totalLoss)} / month</div>
+                <div style={{ fontSize: '14px', fontWeight: 600, color: '#cc3333' }}>Recovers {fmtK(bnLoss)} / month</div>
               </div>
 
               {/* CTA */}
