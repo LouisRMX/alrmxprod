@@ -41,7 +41,14 @@ export async function POST(req: NextRequest) {
   // Demo mode: return fixed pre-written report text, no database access needed
   if (assessmentId === 'demo') {
     const DEMO_TEXTS: Record<string, string> = {
-      executive: `Situation
+      executive: `Executive Snapshot
+Overall score: 75/100
+Primary bottleneck: Dispatch — 32 min vs 15 min target
+Bottleneck loss: up to $71,000/month ($3,200/day)
+Total recoverable (all areas): up to $94,000/month
+Turnaround: 95 min vs 75 min benchmark
+
+Situation
 Al-Noor RMX scores 75/100. Three of four operational dimensions are underperforming against benchmark. The primary bottleneck is Dispatch — order-to-dispatch averaging 32 minutes against a 15-minute target — and it is costing an estimated $71,000/month in recoverable margin.
 
 Why It Matters
@@ -220,13 +227,16 @@ Overall score: ${ctx.overall}/100
 Utilisation: ${ctx.utilPct}% (target: 85%) | Turnaround: ${ctx.turnaround} min (target: ${ctx.targetTA} min)
 Hidden revenue headroom: up to $${ctx.hiddenRevMonthly}/month if demand supports it
 
-WRITE THREE PARAGRAPHS — no headings:
+WRITE FOUR SECTIONS:
 
-Paragraph 1 — Situation: One sentence confirming strong performance, specific to actual numbers.
+Section 1 — heading "Executive Snapshot" on its own line:
+Write exactly 4–5 lines. Each line is a single fact: a number, a metric, or a one-phrase status. No sentences, no explanations. Cover: overall score, utilisation, turnaround, hidden revenue headroom, and one sentence on the absence of significant losses. These must match the dashboard values exactly.
 
-Paragraph 2 — What is working and why: 2–3 sentences. Reference actual metrics. Explain what the numbers say about operational discipline.
+Section 2 — Situation (no heading): One sentence confirming strong performance, specific to actual numbers.
 
-Paragraph 3 — heading "What To Watch" on its own line, then 2–3 areas worth monitoring. If hidden revenue headroom exists, state what it requires to capture.`
+Section 3 — What is working and why (no heading): 2–3 sentences. Reference actual metrics. Explain what the numbers say about operational discipline.
+
+Section 4 — heading "What To Watch" on its own line: 2–3 areas worth monitoring. If hidden revenue headroom exists, state what it requires to capture.`
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -251,15 +261,18 @@ Utilisation: ${ctx.utilPct}% (target: 85%)
 TOP ISSUES (do not repeat these verbatim — use them to inform your writing):
 ${topIssues.map(i => `- ${i.t}: up to $${i.loss.toLocaleString()}/month`).join('\n')}
 
-WRITE THREE PARAGRAPHS with these headings:
+WRITE FOUR SECTIONS:
 
-Paragraph 1 — heading "Situation" on its own line:
+Section 1 — heading "Executive Snapshot" on its own line:
+Write exactly 4–5 lines. Each line is a single fact: a number, a metric, or a one-phrase status. No sentences, no explanations. Must include: overall score, primary bottleneck, bottleneck loss per month and per day, total recoverable, and one key metric (turnaround or dispatch). These figures must match the plant data above exactly — do not round differently or restate as ranges.
+
+Section 2 — heading "Situation" on its own line:
 State the overall score, the number of underperforming areas, and the primary bottleneck in 2–3 sentences. Then one sentence on the financial implication. Be direct.
 
-Paragraph 2 — heading "Why It Matters" on its own line:
+Section 3 — heading "Why It Matters" on its own line:
 Explain what the bottleneck is doing to the operation — in plain cause-and-effect terms. Reference the specific metric (e.g. dispatch time, turnaround) and what it restricts downstream. 2–3 sentences.
 
-Paragraph 3 — heading "Direction" on its own line:
+Section 4 — heading "Direction" on its own line:
 State clearly what needs to happen and what fixing the primary bottleneck is expected to recover. One sentence on the bottleneck fix. One sentence on total upside across all areas. One sentence on what this requires operationally (no capital, just process).`
 }
 
