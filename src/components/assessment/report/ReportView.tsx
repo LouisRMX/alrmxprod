@@ -2541,54 +2541,58 @@ function ScoreGrid({ calcResult, financialBottleneck, totalLoss, onSwitchToTrack
         Operational scores — lowest is the constraint
       </div>
 
-      {/* Bottleneck card — expanded */}
+      {/* Bottleneck card — expanded, single column */}
       {bottleneck && (
         <div style={{
           background: '#fff0f0', border: '2px solid #f5c6c6', borderRadius: '12px',
-          padding: '20px 24px', marginBottom: '8px',
+          padding: '24px 28px', marginBottom: '8px',
         }}>
-          {/* Header row */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '24px', marginBottom: bnDetail ? '20px' : '0' }}>
-            <div style={{ fontSize: '56px', fontWeight: 800, color: '#cc3333', lineHeight: 1, letterSpacing: '-2px' }}>
-              {Math.round(bottleneck.score)}
-            </div>
-            <div>
-              <div style={{ fontSize: '18px', fontWeight: 700, color: '#cc3333', marginBottom: '4px' }}>{bottleneck.label}</div>
-              <div style={{ display: 'inline-block', fontSize: '9px', fontWeight: 700, letterSpacing: '.8px', textTransform: 'uppercase', color: '#fff', background: '#cc3333', borderRadius: '4px', padding: '3px 8px' }}>
-                Fix this first
-              </div>
-            </div>
-            {bnLoss > 0 && (
-              <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
-                <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase', color: '#c09090', marginBottom: '2px' }}>Impact</div>
-                <div style={{ fontSize: '24px', fontWeight: 800, color: '#cc3333', lineHeight: 1, letterSpacing: '-0.5px' }}>{fmtK(bnLoss)} <span style={{ fontSize: '13px', fontWeight: 400, color: '#e88' }}>/ month</span></div>
-                <div style={{ fontSize: '12px', color: '#c09090' }}>≈ {fmtK(bnDailyLoss)} per day</div>
-              </div>
-            )}
+          {/* Eyebrow */}
+          <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.4px', textTransform: 'uppercase', color: '#c09090', marginBottom: '4px' }}>
+            {bottleneck.label}
+          </div>
+          {/* Subtitle */}
+          <div style={{ fontSize: '13px', color: '#b08080', marginBottom: '20px' }}>
+            Primary bottleneck across all operations
           </div>
 
-          {/* Detail sections */}
+          {/* Score row */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '6px' }}>
+            <div style={{ fontSize: '42px', fontWeight: 800, color: '#cc3333', lineHeight: 1, letterSpacing: '-2px' }}>
+              {Math.round(bottleneck.score)}
+            </div>
+            <div style={{ fontSize: '18px', fontWeight: 700, color: '#cc3333' }}>— {bottleneck.label}</div>
+          </div>
+          <div style={{ display: 'inline-block', fontSize: '9px', fontWeight: 700, letterSpacing: '.8px', textTransform: 'uppercase', color: '#fff', background: '#cc3333', borderRadius: '4px', padding: '3px 8px', marginBottom: '20px' }}>
+            Fix this first
+          </div>
+
+          {/* Impact */}
+          <div style={{ marginBottom: '24px' }}>
+            <div style={{ fontSize: '15px', fontWeight: 600, color: '#cc3333', marginBottom: '2px' }}>
+              Impact: {fmtK(totalLoss)} / month
+            </div>
+            <div style={{ fontSize: '13px', color: '#c09090' }}>≈ {fmtK(bnDailyLoss)} per day</div>
+          </div>
+
           {bnDetail && (
-            <div style={{ borderTop: '1px solid #f5c6c6', paddingTop: '20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+            <>
+              {/* Divider */}
+              <div style={{ borderTop: '1px solid #f5c6c6', marginBottom: '20px' }} />
 
-              {/* Left: Root cause */}
-              <div>
+              {/* Root cause */}
+              <div style={{ marginBottom: '20px' }}>
                 <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#c09090', marginBottom: '8px' }}>Root cause</div>
-                <div style={{ fontSize: '13px', fontWeight: 600, color: '#cc3333', marginBottom: '3px' }}>{bnDetail.rootCauseLabel}</div>
+                <div style={{ fontSize: '14px', fontWeight: 600, color: '#333', marginBottom: '3px' }}>{bnDetail.rootCauseLabel}</div>
                 {bnDetail.rootCauseMetric && (
-                  <div style={{ fontSize: '12px', color: '#aaa', marginBottom: '20px' }}>{bnDetail.rootCauseMetric}</div>
+                  <div style={{ fontSize: '12px', color: '#aaa' }}>{bnDetail.rootCauseMetric}</div>
                 )}
-
-                <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#c09090', marginBottom: '8px' }}>Expected outcome</div>
-                {bnDetail.outcome.map((line, i) => (
-                  <div key={i} style={{ fontSize: '13px', color: '#444', marginBottom: '3px' }}>{line}</div>
-                ))}
               </div>
 
-              {/* Right: Start here + CTA */}
-              <div>
+              {/* Start here */}
+              <div style={{ marginBottom: '20px' }}>
                 <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#c09090', marginBottom: '8px' }}>Start here — next 7 days</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {bnDetail.startHere.map((bullet, i) => (
                     <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
                       <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#cc3333', flexShrink: 0, marginTop: '6px' }} />
@@ -2596,17 +2600,26 @@ function ScoreGrid({ calcResult, financialBottleneck, totalLoss, onSwitchToTrack
                     </div>
                   ))}
                 </div>
-                {onSwitchToTracking && (
-                  <button onClick={onSwitchToTracking} style={{
-                    background: 'none', border: '1px solid #f5c6c6', borderRadius: '6px',
-                    padding: '8px 14px', fontSize: '12px', fontWeight: 600, color: '#cc3333',
-                    cursor: 'pointer', width: '100%', textAlign: 'left',
-                  }}>
-                    Activate 90-day tracking to measure improvement →
-                  </button>
-                )}
               </div>
-            </div>
+
+              {/* Expected outcome */}
+              <div style={{ marginBottom: '20px' }}>
+                <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#c09090', marginBottom: '8px' }}>Expected outcome</div>
+                <div style={{ fontSize: '14px', color: '#333', marginBottom: '3px' }}>{bnDetail.outcome[0]}</div>
+                <div style={{ fontSize: '14px', fontWeight: 600, color: '#cc3333' }}>Recovers {fmtK(totalLoss)} / month</div>
+              </div>
+
+              {/* CTA */}
+              {onSwitchToTracking && (
+                <button onClick={onSwitchToTracking} style={{
+                  background: 'none', border: 'none', padding: '0',
+                  fontSize: '13px', fontWeight: 600, color: '#cc3333',
+                  cursor: 'pointer', textAlign: 'left',
+                }}>
+                  Start 90-day tracking →
+                </button>
+              )}
+            </>
           )}
         </div>
       )}
