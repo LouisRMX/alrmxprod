@@ -64,10 +64,10 @@ describe('Constants', () => {
 // ── calc() — Production Score ────────────────────────────────────────────────
 
 describe('calc() — Production Score', () => {
-  it('92% utilization = score 100', () => {
-    // actual_prod = cap * opH * workingDays * 0.92
-    // 134 * 0.92 = 123.28 m³/hr → monthly = 123.28 * 10 * 25 = 30820
-    const r = calc(makeAnswers({ actual_prod: 30820 }))
+  it('85% utilization = score 100', () => {
+    // actual_prod = cap * opH * workingDays * 0.85
+    // 134 * 0.85 = 113.9 m³/hr → monthly = 113.9 * 10 * 25 = 28475
+    const r = calc(makeAnswers({ actual_prod: 28475 }))
     expect(r.scores.prod).toBe(100)
   })
 
@@ -367,7 +367,7 @@ describe('simCalc() — Constraint Logic', () => {
   it('adding trucks with production bottleneck gives no extra output', () => {
     const b = makeBaseline()
     // With cap=134, opH=10, mixCap=7, otd=20 (dispEff=0.80):
-    // plantMaxDaily = 134 × 0.92 × 10 = 1232.8 m³/day
+    // plantMaxDaily = 134 × 0.92 × 10 = 1232.8 m³/day  (0.92 = physics ceiling, not scoring target)
     // effFleetDaily = (600/60) × trucks × 7 × 0.80 = 56 × trucks
     // Need ≥23 trucks to exceed plant ceiling at ta=60 → both production-bottlenecked
     const few = simCalc(b, makeScenario({ trucks: 23, turnaround: 60 }))

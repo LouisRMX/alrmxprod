@@ -45,14 +45,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Upload record not found' }, { status: 404 })
     }
 
-    // ── Fetch assessment + delivery_radius ───────────────────
+    // ── Fetch assessment + delivery_radius + customer_id ────
     const { data: assessment } = await supabase
       .from('assessments')
-      .select('id, answers, plant:plants(latitude, longitude)')
+      .select('id, answers, plant:plants(latitude, longitude, customer_id)')
       .eq('id', assessmentId)
       .single()
 
     const answers = (assessment?.answers ?? {}) as Record<string, unknown>
+    const customerId = (assessment?.plant as { customer_id?: string } | null)?.customer_id ?? null
     const rawRadius = answers['delivery_radius']
     const deliveryRadiusKm = rawRadius ? parseFloat(String(rawRadius)) : NaN
     const finalRadiusKm = isNaN(deliveryRadiusKm) ? 12.0 : deliveryRadiusKm
@@ -128,12 +129,55 @@ export async function POST(req: NextRequest) {
     // ── Map columns ──────────────────────────────────────────
     let mappingResult = autoMapColumns(headers, formatResult.type)
     let usedManualMapping = false
+    let usedTemplateId: string | null = null
+
+    // Check for a saved mapping template (same customer + format, column overlap >80%)
+    if (customerId && !manualMapping) {
+      const { data: templates } = await supabase
+        .from('mapping_templates')
+        .select('id, column_mappings, format_type')
+        .eq('customer_id', customerId)
+        .order('last_used_at', { ascending: false })
+        .limit(10)
+
+      if (templates) {
+        for (const tmpl of templates) {
+          if (tmpl.format_type && tmpl.format_type !== formatResult.type) continue
+          const tmplCols = Object.values(tmpl.column_mappings as Record<string, string | null>)
+            .filter(Boolean) as string[]
+          const overlap = tmplCols.filter(col => headers.includes(col)).length
+          if (tmplCols.length > 0 && overlap / tmplCols.length >= 0.8) {
+            // Apply template mapping
+            const merged = { ...mappingResult.mapping, ...(tmpl.column_mappings as Record<CanonicalField, string | null>) }
+            mappingResult = { ...mappingResult, mapping: merged, requiresManualMapping: false }
+            usedTemplateId = tmpl.id
+            // Update last_used_at and use_count
+            await supabase.from('mapping_templates').update({
+              last_used_at: new Date().toISOString(),
+              use_count: (await supabase.from('mapping_templates').select('use_count').eq('id', tmpl.id).single()).data?.use_count + 1 || 1,
+            }).eq('id', tmpl.id)
+            break
+          }
+        }
+      }
+    }
 
     if (manualMapping) {
       // Apply manual overrides
       const merged = { ...mappingResult.mapping, ...manualMapping }
       mappingResult = { ...mappingResult, mapping: merged, requiresManualMapping: false }
       usedManualMapping = true
+
+      // Save as reusable template for this customer
+      if (customerId) {
+        const templateName = `${formatResult.type}-${uploadRecord.original_filename.replace(/\.csv$/i, '').slice(0, 40)}`
+        await supabase.from('mapping_templates').insert({
+          customer_id: customerId,
+          template_name: templateName,
+          format_type: formatResult.type,
+          column_mappings: manualMapping,
+        })
+      }
     }
 
     // If manual mapping still required — return mapping data for the client
@@ -274,10 +318,22 @@ export async function POST(req: NextRequest) {
       .select()
       .single()
 
-    // Mark upload as complete
+    // Mark upload as complete — store debug info in parse_error_log for admin panel
+    const debugInfo = {
+      headers,
+      fieldMatches: mappingResult.fieldMatches,
+      overallMappingConfidence: mappingResult.overallConfidence,
+      formatType: formatResult.type,
+      rowsTotal: normResult.rowsTotal,
+      rowsParsed: normResult.rowsParsed,
+      templateUsed: usedTemplateId,
+      usedManualMapping,
+    }
     await supabase.from('uploaded_gps_files').update({
       processing_status: 'complete',
       analysis_confidence_score: metrics.confidenceScore,
+      mapping_template_id: usedTemplateId,
+      parse_error_log: { debug: debugInfo },
     }).eq('id', uploadId)
 
     return NextResponse.json({

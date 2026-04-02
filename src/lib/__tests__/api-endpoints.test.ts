@@ -13,14 +13,14 @@ import { describe, it, expect } from 'vitest'
 describe('/api/ai-stream — validation', () => {
   it('requires either prompt or messages', () => {
     const body = {}
-    const messages = (body as Record<string, unknown>).messages || [{ role: 'user', content: (body as Record<string, unknown>).prompt }]
+    const messages = ((body as Record<string, unknown>).messages as Array<Record<string, unknown>> | undefined) || [{ role: 'user', content: (body as Record<string, unknown>).prompt }]
     const hasContent = messages?.length > 0 && messages[0].content
     expect(hasContent).toBeFalsy()
   })
 
   it('accepts a simple prompt', () => {
     const body = { prompt: 'Hello' }
-    const messages = (body as Record<string, unknown>).messages || [{ role: 'user', content: body.prompt }]
+    const messages = ((body as Record<string, unknown>).messages as Array<Record<string, unknown>> | undefined) || [{ role: 'user', content: body.prompt }]
     expect(messages.length).toBe(1)
     expect(messages[0].content).toBe('Hello')
   })

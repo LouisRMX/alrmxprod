@@ -147,7 +147,7 @@ export default function SimulatorView({ calcResult }: SimulatorViewProps) {
         : sTurnaround
       return `Fleet is the binding constraint — ${Math.round(result.effFleetDaily)} m³/day delivered vs ${Math.round(result.prodDaily)} m³/day plant ceiling (${gap} m³/day gap). To fully utilise plant capacity at current dispatch efficiency, reduce turnaround to ~${targetTA} min.`
     } else {
-      return `Plant is at its 92% best-practice ceiling (${Math.round(result.prodDaily)} m³/day) — this is a capacity constraint, not a fleet problem. Fleet improvements will not increase output. The only lever available here is price: use the Price slider to grow revenue on existing volume.`
+      return `Plant is at its physical ceiling (${Math.round(result.prodDaily)} m³/day at 92% nameplate) — this is a capacity constraint, not a fleet problem. Fleet improvements will not increase output. The only lever available here is price: use the Price slider to grow revenue on existing volume.`
     }
   }, [result, baseline, sTurnaround, sTrucks])
 
@@ -174,7 +174,7 @@ export default function SimulatorView({ calcResult }: SimulatorViewProps) {
   // Realism warnings
   const simWarnings: string[] = []
   if (sTurnaround < r.TARGET_TA * 0.7) simWarnings.push(`Turnaround ${sTurnaround} min is ${Math.round((1 - sTurnaround / (r.TARGET_TA || 80)) * 100)}% below regional target — unlikely without major route changes.`)
-  if (result.sUtil > 95) simWarnings.push('Utilisation above 95% is unrealistic — even best-practice plants peak at 92%.')
+  if (result.sUtil > 95) simWarnings.push('Utilisation above 95% is unrealistic — the physical ceiling is 92% of nameplate (the 85% benchmark is the recommended operating point, not the hard limit).')
   if (sTrucks > (r.trucks || 10) * 1.5) simWarnings.push(`Fleet expanded ${Math.round((sTrucks / (r.trucks || 10) - 1) * 100)}% — requires significant capital investment.`)
   if (sPrice > (r.price || 65) * 1.3) simWarnings.push(`Price ${Math.round((sPrice / (r.price || 65) - 1) * 100)}% above current — verify market will accept this.`)
   if (sOTD < 8) simWarnings.push('Order-to-dispatch under 8 min requires dedicated dispatch software and pre-staged batching.')
@@ -419,7 +419,7 @@ export default function SimulatorView({ calcResult }: SimulatorViewProps) {
                 title: 'Plant capacity — scenario',
                 rows: [
                   [`Nameplate daily`, `${baseline.cap} m³/hr × ${infoData.opH} hr`, `${infoData.nameplateDaily} m³/day`],
-                  [`Best-practice ceiling (92%)`, `${infoData.nameplateDaily} × 92%`, `${infoData.plantCeiling} m³/day`],
+                  [`Physical ceiling (92% nameplate)`, `${infoData.nameplateDaily} × 92%`, `${infoData.plantCeiling} m³/day`],
                 ],
               },
               {
@@ -436,7 +436,7 @@ export default function SimulatorView({ calcResult }: SimulatorViewProps) {
                   [`Raw fleet volume`, `${infoData.bDelsPerTruck} × ${baseline.trucks} trucks × ${baseline.mixCap} m³/load`, `${infoData.bFleetRaw} m³/day`],
                   [`Dispatch efficiency`, `1 − ${baseline.dispatchMin} min / 100`, `${infoData.bDispEffPct}%`],
                   [`Effective fleet capacity`, `${infoData.bFleetRaw} × ${infoData.bDispEffPct}%`, `${infoData.bFleetEff} m³/day`],
-                  [`Plant ceiling (92%)`, `${baseline.cap} m³/hr × 92% × ${infoData.opH} hr`, `${infoData.bProdDaily} m³/day`],
+                  [`Plant ceiling (92% nameplate)`, `${baseline.cap} m³/hr × 92% × ${infoData.opH} hr`, `${infoData.bProdDaily} m³/day`],
                   [`Baseline output`, `min(fleet ${infoData.bFleetEff}, plant ${infoData.bProdDaily})`, `${infoData.bBaselineDaily} m³/day`],
                   [`Annual baseline`, `${infoData.bBaselineDaily} m³/day × ${baseline.opD} days`, `${infoData.bAnnualVol.toLocaleString()} m³/yr`],
                 ],

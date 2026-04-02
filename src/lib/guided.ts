@@ -69,7 +69,7 @@ export function getGuidedTriggers(r: CalcResult, a: Answers, meta?: { country?: 
       id: 'production',
       icon: '',
       title: 'Production efficiency',
-      why: `Plant running at ${Math.round(r.util * 100)}% — ${Math.round((0.92 - r.util) * 100)} points below 92% target.`,
+      why: `Plant running at ${Math.round(r.util * 100)}% — ${Math.round((r.utilisationTarget / 100 - r.util) * 100)} points below ${r.utilisationTarget}% target.`,
       ids: ['batch_cycle', 'stops_freq', 'operator_backup', 'batch_calibration'],
     })
   }

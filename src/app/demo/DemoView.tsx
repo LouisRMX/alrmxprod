@@ -10,15 +10,18 @@ import type { Phase } from '@/lib/questions'
 // ─────────────────────────────────────────────────────────────────────────────
 // Demo dataset: Al-Noor RMX, Dubai
 //
-// Pre-assessment (workshop): 14 core questions filled remotely by plant manager.
+// Pre-assessment (workshop): core questions filled remotely by plant manager.
 // On-site: All questions filled during Louis's plant visit.
 //
 // Plant profile:
 //   10-truck fleet (8 operative), 10 h/day, 290 days/year, 22 days this month
-//   Delivery radius 12 km → TARGET_TA = 78 min; actual turnaround 95 min (+17 min)
-//   38 deliveries/day, 7 m³ trucks → ~5,900 m³/month
-//   Rated capacity 30 m³/hr → utilisation ~89%, just below 92% target
-//   Contribution margin: $68 − $26 − $7 − $3 = $32/m³
+//   Deliveries mostly 12–20 km (suburban/outer city) → TARGET_TA = 84 min
+//   Actual turnaround: 100–125 min range (calc midpoint 112 min → +28 min excess)
+//   42 deliveries/day, actual_prod 6,400 m³/month → effectiveMixCap ≈ 6.9 m³
+//   Rated capacity 34 m³/hr → utilisation ~86%, close to 85% target
+//   Contribution margin: $68 − $26 − $7 − $3 = $32/m³ (fuel further reduces)
+//   turnaroundLeak ≈ 28 × $1,750/min = $49k/month · rejectLeak ≈ $14k/month
+//   Total recoverable ≈ $63k/month
 // ─────────────────────────────────────────────────────────────────────────────
 
 // The questions sent to the plant before the visit (PRE_ASSESSMENT_IDS)
@@ -32,14 +35,15 @@ const WORKSHOP_ANSWERS: Answers = {
   op_hours:           '10',
   op_days:            '290',
   n_trucks:           '10',
-  mixer_capacity:     '7',
   deliveries_day:     '42',
-  turnaround:         '95',
+  turnaround:         '100 to 125 minutes — slow',
   reject_pct:         '3.8',
+  delivery_radius:    'Most deliveries 12 to 20 km — suburban / outer city',
   dispatch_tool:      'Spreadsheet combined with WhatsApp',
   order_to_dispatch:  '25 to 40 minutes — slow',
   prod_data_source:   'System records — read from batch computer or dispatch system',
   biggest_pain:       'Trucks are always late returning and we lose orders in the afternoons.',
+  demand_sufficient:  'Operations — we have more demand than we can currently produce or deliver',
 }
 
 // Full dataset — the above + everything gathered during the on-site visit
@@ -61,9 +65,9 @@ const ONSITE_ANSWERS: Answers = {
   // Fleet depth
   truck_availability: '8',
   qualified_drivers:  '8',
-  delivery_radius:    '10',
+  delivery_radius:    'Most deliveries 12 to 20 km — suburban / outer city',
   partial_load_size:  '6.5',
-  site_wait_time:     '55',
+  site_wait_time:     '62',
   washout_time:       '10 to 20 minutes — standard',
 
   // Production depth
@@ -103,29 +107,29 @@ const ONSITE_ANSWERS: Answers = {
 // Report — only available after on-site visit
 const ONSITE_REPORT = {
   executive:
-`Al-Noor RMX scores 75/100. The plant's 10-truck fleet is producing 6,400 m³ per month at 89% utilisation against a 92% target. Fleet turnaround time is the primary financial constraint at 95 minutes — 20 minutes above the 75-minute benchmark for a 10 km delivery radius — costing an estimated $62,000 per month in lost delivery capacity. Rejection losses add a further $18,000/month. Total recoverable margin is approximately $80,000 per month from operational improvements alone, without capital investment.`,
+`Al-Noor RMX scores 68/100. Fleet turnaround time is the primary financial constraint at 112 minutes — 28 minutes above the 84-minute benchmark for a suburban delivery radius — placing the plant in the bottom 25% of GCC operators. This alone costs an estimated $49,000 per month in lost delivery capacity. Rejection losses add a further $14,000/month. Total recoverable margin is approximately $63,000 per month from operational changes alone, without capital investment.`,
 
   diagnosis:
-`Fleet (primary financial driver): The 95-minute turnaround is 20 minutes above the 75-minute benchmark for a 10 km delivery radius. Site wait time of 55 minutes is the single largest component — above the 40-minute industry benchmark — and the plant has no enforced demurrage clause despite one existing in contracts. Each excess minute of turnaround costs approximately $3,100/month. Bringing turnaround to 80 minutes — a realistic 90-day target — would recover an estimated $46,000/month.
+`Fleet (primary financial driver): Turnaround at 112 minutes is 28 minutes above the 84-minute benchmark for a 12–20 km suburban delivery radius. Site wait time of 62 minutes is the single largest component — more than 20 minutes above the 40-minute industry standard — driven by uncoordinated site handover and no demurrage enforcement despite a clause existing in contracts. Each excess minute of turnaround costs approximately $1,750/month in lost contribution. Bringing turnaround to 84 minutes — a realistic 90-day target — would recover the full $49,000/month.
 
-Dispatch (lowest score at 52/100): Order-to-dispatch averaging 32 minutes against a 15-minute target is the most visible gap. Deliveries are routed ad hoc with no zone system, and dispatch runs on WhatsApp and spreadsheet with no real-time tracking.
+Dispatch (lowest score — 48/100): Order-to-dispatch averaging 32 minutes against a 15-minute target. Deliveries are clustered ad hoc by the dispatcher with no zone system, and the operation runs on WhatsApp and spreadsheet with no real-time visibility. At 32 minutes, the plant is in the bottom 25% of GCC operators on this metric.
 
-Quality: A 3.8% rejection rate at $68/m³ with the plant absorbing 100% of write-off costs amounts to approximately $18,000/month. The dominant cause is heat-related stiffening during transit — expected in GCC summer — but the plant has only partial cooling measures (cold tap water and shaded aggregate storage).
+Quality: A 3.8% rejection rate at $68/m³ with the plant absorbing 100% of write-off costs amounts to approximately $14,000/month. The dominant cause is heat-related stiffening during the extended 112-minute cycle — a problem that will partially resolve as turnaround improves. The plant has only partial cooling measures in place.
 
-Production: Utilisation at 89% is close to the 92% target but constrained downstream by the turnaround bottleneck. Three truck breakdowns last month on an informally maintained fleet, combined with 20% fleet unavailability (2 trucks regularly off-road), suggest reactive rather than preventive maintenance.`,
+Production: Utilisation at 86% is constrained downstream by the turnaround bottleneck — the fleet cannot complete enough cycles to consistently load the plant. Three truck breakdowns last month on an informally maintained 10-truck fleet indicates reactive rather than preventive maintenance.`,
 
   actions:
-`1. Demurrage enforcement (Week 1): Formalise the existing contract clause. Set a 45-minute site limit with a $25/15-min charge. A firm conversation with the top 3 contractors recovers this within 30 days.
+`1. Demurrage enforcement (Week 1): Formalise the existing contract clause. A firm 45-minute site limit with a $25/15-min charge, communicated to the top 3 contractors, recovers 15–20 minutes of site wait within 30 days. No capital required.
 
-2. Dispatch SOP — order-to-dispatch under 20 minutes (Week 1–2): Pre-load 3 trucks before first orders are confirmed. Assign a dedicated dispatcher. Target: under 20 minutes by Week 4.
+2. Turnaround audit (Week 1–2): Time-stamp 5 full truck cycles with the plant manager present. Map where the 112 minutes goes — site wait, transit, weighbridge queue, washout. Identify the top 2 recoverable components before committing to an action sequence.
 
-3. Turnaround audit (Week 1–2): Time-stamp 3 full truck cycles. Identify where the 95 minutes goes — typically 8–12 minutes are recoverable at weighbridge queuing and washout handover. Target: under 82 minutes within 30 days.
+3. Dispatch SOP — order-to-dispatch under 20 minutes (Week 2–3): Pre-load 3 trucks before first orders of the day. Assign a dedicated dispatcher. Introduce a simple zone map for the 12–20 km delivery area — cluster morning and afternoon runs by quadrant. Target: under 20 minutes by Week 5.
 
-4. Zone-based dispatch routing (Week 3–4): Cluster consecutive deliveries by area. Reduces transit per cycle by an estimated 8–12 minutes.
+4. Zone-based routing (Week 3–4): Systematic area clustering reduces transit per cycle by an estimated 10–14 minutes for the suburban delivery pattern — the single largest operational lever after site wait.
 
-5. Preventive maintenance schedule (Week 2): Create a 4-week rotating service schedule. Three breakdowns per month on an 8-operative fleet is 37.5% above the 2-per-month benchmark.
+5. Preventive maintenance schedule (Week 2): Create a 4-week rotating service schedule. Three breakdowns per month on an 8-operative fleet is 37.5% above the 2-per-month benchmark and keeps 20% of fleet capacity off-road at any given time.
 
-6. Activate 90-day tracking: Baselines established — turnaround 95 min, rejection rate 3.8%, dispatch time 32 min. Weekly logging takes 5 minutes and creates the before/after case study.`,
+6. Activate 90-day tracking: Baselines set — turnaround 112 min, rejection rate 3.8%, dispatch time 32 min. Weekly logging takes 5 minutes and creates the before/after case study.`,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

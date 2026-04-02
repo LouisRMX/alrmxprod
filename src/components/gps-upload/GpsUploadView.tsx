@@ -10,6 +10,7 @@ import type { CanonicalField, FieldMatch } from '@/lib/gps/autoMapper'
 interface GpsUploadViewProps {
   assessmentId: string
   isAdmin?: boolean
+  onUploadComplete?: () => void
 }
 
 interface ExistingUpload {
@@ -17,16 +18,34 @@ interface ExistingUpload {
   original_filename: string
   processing_status: string
   analysis_confidence_score: number | null
+  detected_format_type: string | null
+  mapping_template_id: string | null
+  parse_error_log: Record<string, unknown> | null
 }
 
 interface AnalysisResult {
   trips_analyzed: number | null
   trucks_analyzed: number | null
   avg_turnaround_minutes: number | null
+  median_turnaround_minutes: number | null
+  p90_turnaround_minutes: number | null
   target_ta_minutes: number | null
+  delivery_radius_km: number | null
   avg_waiting_time_minutes: number | null
   confidence_score: number | null
+  calculation_notes: string | null
+  rows_parsed_pct: number | null
   generated_section_text: string | null
+}
+
+interface NormalizedSampleRow {
+  truck_id: string | null
+  event_timestamp: string | null
+  stop_start_time: string | null
+  stop_end_time: string | null
+  location_name: string | null
+  inferred_location_type: string
+  raw_row_reference: number | null
 }
 
 interface MappingState {
@@ -37,7 +56,7 @@ interface MappingState {
   uploadId: string
 }
 
-export default function GpsUploadView({ assessmentId, isAdmin }: GpsUploadViewProps) {
+export default function GpsUploadView({ assessmentId, isAdmin, onUploadComplete }: GpsUploadViewProps) {
   const supabase = createClient()
   const [status, setStatus] = useState<GpsStatus>('idle')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -45,6 +64,7 @@ export default function GpsUploadView({ assessmentId, isAdmin }: GpsUploadViewPr
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null)
   const [mappingState, setMappingState] = useState<MappingState | null>(null)
   const [skipped, setSkipped] = useState(false)
+  const [sampleRows, setSampleRows] = useState<NormalizedSampleRow[] | null>(null)
 
   // ── Load existing upload on mount ────────────────────────
   useEffect(() => {
@@ -53,7 +73,7 @@ export default function GpsUploadView({ assessmentId, isAdmin }: GpsUploadViewPr
     async function load() {
       const { data: upload } = await supabase
         .from('uploaded_gps_files')
-        .select('id, original_filename, processing_status, analysis_confidence_score')
+        .select('id, original_filename, processing_status, analysis_confidence_score, detected_format_type, mapping_template_id, parse_error_log')
         .eq('assessment_id', assessmentId)
         .eq('archived', false)
         .order('created_at', { ascending: false })
@@ -78,7 +98,7 @@ export default function GpsUploadView({ assessmentId, isAdmin }: GpsUploadViewPr
           // Load analysis result
           const { data: result } = await supabase
             .from('logistics_analysis_results')
-            .select('trips_analyzed, trucks_analyzed, avg_turnaround_minutes, target_ta_minutes, avg_waiting_time_minutes, confidence_score, generated_section_text')
+            .select('trips_analyzed, trucks_analyzed, avg_turnaround_minutes, median_turnaround_minutes, p90_turnaround_minutes, target_ta_minutes, delivery_radius_km, avg_waiting_time_minutes, confidence_score, calculation_notes, rows_parsed_pct, generated_section_text')
             .eq('assessment_id', assessmentId)
             .eq('archived', false)
             .order('created_at', { ascending: false })
@@ -86,6 +106,16 @@ export default function GpsUploadView({ assessmentId, isAdmin }: GpsUploadViewPr
             .maybeSingle()
 
           if (result) setAnalysisResult(result)
+
+          // Load normalized sample rows (admin debug)
+          const { data: rows } = await supabase
+            .from('normalized_gps_events')
+            .select('truck_id, event_timestamp, stop_start_time, stop_end_time, location_name, inferred_location_type, raw_row_reference')
+            .eq('upload_id', upload.id)
+            .order('raw_row_reference', { ascending: true })
+            .limit(10)
+
+          if (rows) setSampleRows(rows)
         }
       }
     }
@@ -116,7 +146,7 @@ export default function GpsUploadView({ assessmentId, isAdmin }: GpsUploadViewPr
         return
       }
       uploadId = data.uploadId
-      setExistingUpload({ id: uploadId, original_filename: file.name, processing_status: 'uploaded', analysis_confidence_score: null })
+      setExistingUpload({ id: uploadId, original_filename: file.name, processing_status: 'uploaded', analysis_confidence_score: null, detected_format_type: null, mapping_template_id: null, parse_error_log: null })
     } catch {
       setStatus('failed')
       setErrorMessage('Network error during upload. Please try again.')
@@ -160,20 +190,26 @@ export default function GpsUploadView({ assessmentId, isAdmin }: GpsUploadViewPr
       }
 
       setStatus('complete')
+      onUploadComplete?.()
       setAnalysisResult({
         trips_analyzed: data.tripsAnalyzed,
         trucks_analyzed: data.trucksAnalyzed,
         avg_turnaround_minutes: data.turnaroundAvg,
+        median_turnaround_minutes: null,
+        p90_turnaround_minutes: null,
         target_ta_minutes: data.targetTa,
+        delivery_radius_km: null,
         avg_waiting_time_minutes: data.siteWaitAvg,
         confidence_score: data.confidenceScore,
+        calculation_notes: null,
+        rows_parsed_pct: null,
         generated_section_text: null,
       })
     } catch {
       setStatus('failed')
       setErrorMessage('Analysis failed. Please try again.')
     }
-  }, [assessmentId])
+  }, [assessmentId, onUploadComplete])
 
   // ── Handle manual mapping confirmation ───────────────────
   const handleMappingConfirm = useCallback(async (mapping: Record<CanonicalField, string | null>) => {
@@ -200,20 +236,26 @@ export default function GpsUploadView({ assessmentId, isAdmin }: GpsUploadViewPr
       }
 
       setStatus('complete')
+      onUploadComplete?.()
       setAnalysisResult({
         trips_analyzed: data.tripsAnalyzed,
         trucks_analyzed: data.trucksAnalyzed,
         avg_turnaround_minutes: data.turnaroundAvg,
+        median_turnaround_minutes: null,
+        p90_turnaround_minutes: null,
         target_ta_minutes: data.targetTa,
+        delivery_radius_km: null,
         avg_waiting_time_minutes: data.siteWaitAvg,
         confidence_score: data.confidenceScore,
+        calculation_notes: null,
+        rows_parsed_pct: null,
         generated_section_text: null,
       })
     } catch {
       setStatus('failed')
       setErrorMessage('Analysis failed. Please try again.')
     }
-  }, [assessmentId, mappingState])
+  }, [assessmentId, mappingState, onUploadComplete])
 
   // ── Skipped state ────────────────────────────────────────
   if (skipped) {
@@ -348,18 +390,116 @@ export default function GpsUploadView({ assessmentId, isAdmin }: GpsUploadViewPr
               marginTop: '10px', padding: '12px', borderRadius: '8px',
               background: 'var(--gray-50)', border: '1px solid var(--border)',
               fontSize: '11px', fontFamily: 'var(--mono)', color: 'var(--gray-600)',
-              lineHeight: '1.7',
+              lineHeight: '1.8', display: 'flex', flexDirection: 'column', gap: '12px',
             }}>
-              <div>Upload ID: {existingUpload.id}</div>
-              <div>Status: {existingUpload.processing_status}</div>
-              <div>Confidence: {existingUpload.analysis_confidence_score ?? 'N/A'}</div>
+
+              {/* Upload record */}
+              <div>
+                <div style={{ fontWeight: 700, color: 'var(--gray-800)', marginBottom: '2px' }}>UPLOAD</div>
+                <div>ID: {existingUpload.id}</div>
+                <div>Status: {existingUpload.processing_status}</div>
+                <div>Format detected: {existingUpload.detected_format_type ?? 'N/A'}</div>
+                <div>Template applied: {existingUpload.mapping_template_id ?? 'none (auto-mapped)'}</div>
+                <div>Analysis confidence: {existingUpload.analysis_confidence_score ?? 'N/A'}</div>
+              </div>
+
+              {/* Column mapping */}
+              {(() => {
+                const debug = (existingUpload.parse_error_log as Record<string, unknown> | null)?.debug as Record<string, unknown> | undefined
+                if (!debug) return null
+                const headers = debug.headers as string[] | undefined
+                const fieldMatches = debug.fieldMatches as Array<{ canonical: string; mappedColumn: string | null; confidence: number }> | undefined
+                const mapConf = debug.overallMappingConfidence as number | undefined
+                return (
+                  <div>
+                    <div style={{ fontWeight: 700, color: 'var(--gray-800)', marginBottom: '2px' }}>COLUMN MAPPING</div>
+                    <div>Overall mapping confidence: {mapConf != null ? `${Math.round(mapConf * 100)}%` : 'N/A'}</div>
+                    <div>Manual mapping used: {String(debug.usedManualMapping ?? false)}</div>
+                    {headers && <div>Headers ({headers.length}): {headers.join(', ')}</div>}
+                    {fieldMatches && fieldMatches.length > 0 && (
+                      <div style={{ marginTop: '4px' }}>
+                        {fieldMatches.filter(f => f.mappedColumn).map(f => (
+                          <div key={f.canonical}>
+                            {f.canonical} → {f.mappedColumn} ({Math.round(f.confidence * 100)}%)
+                          </div>
+                        ))}
+                        {fieldMatches.filter(f => !f.mappedColumn).map(f => (
+                          <div key={f.canonical} style={{ color: 'var(--gray-400)' }}>
+                            {f.canonical} → unmapped
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div>Rows parsed: {String(debug.rowsParsed ?? 'N/A')} / {String(debug.rowsTotal ?? 'N/A')}</div>
+                  </div>
+                )
+              })()}
+
+              {/* Analysis result */}
               {analysisResult && (
-                <>
-                  <div>Trips: {analysisResult.trips_analyzed}</div>
-                  <div>Trucks: {analysisResult.trucks_analyzed}</div>
-                  <div>Target TA: {analysisResult.target_ta_minutes} min</div>
-                </>
+                <div>
+                  <div style={{ fontWeight: 700, color: 'var(--gray-800)', marginBottom: '2px' }}>METRICS</div>
+                  <div>Trips analyzed: {analysisResult.trips_analyzed ?? 'N/A'}</div>
+                  <div>Trucks analyzed: {analysisResult.trucks_analyzed ?? 'N/A'}</div>
+                  <div>Rows parsed: {analysisResult.rows_parsed_pct != null ? `${analysisResult.rows_parsed_pct}%` : 'N/A'}</div>
+                  <div>Delivery radius: {analysisResult.delivery_radius_km ?? 'N/A'} km</div>
+                  <div>Target TA: {analysisResult.target_ta_minutes ?? 'N/A'} min</div>
+                  <div>Avg TA: {analysisResult.avg_turnaround_minutes ?? 'N/A'} min</div>
+                  <div>Median TA: {analysisResult.median_turnaround_minutes ?? 'N/A'} min</div>
+                  <div>P90 TA: {analysisResult.p90_turnaround_minutes ?? 'N/A'} min</div>
+                  <div>Avg site wait: {analysisResult.avg_waiting_time_minutes ?? 'N/A'} min</div>
+                  {analysisResult.calculation_notes && (
+                    <div>Notes: {analysisResult.calculation_notes}</div>
+                  )}
+                </div>
               )}
+
+              {/* Parse errors */}
+              {(() => {
+                const log = existingUpload.parse_error_log as Record<string, unknown> | null
+                const errors = log?.errors as Array<{ error: string }> | undefined
+                if (!errors?.length) return null
+                return (
+                  <div>
+                    <div style={{ fontWeight: 700, color: 'var(--red)', marginBottom: '2px' }}>PARSE ERRORS</div>
+                    {errors.map((e, i) => <div key={i} style={{ color: 'var(--red)' }}>{e.error}</div>)}
+                  </div>
+                )
+              })()}
+
+              {/* Normalized sample rows */}
+              {sampleRows && sampleRows.length > 0 && (
+                <div>
+                  <div style={{ fontWeight: 700, color: 'var(--gray-800)', marginBottom: '4px' }}>
+                    NORMALIZED EVENTS (first {sampleRows.length})
+                  </div>
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ borderCollapse: 'collapse', fontSize: '10px', width: '100%' }}>
+                      <thead>
+                        <tr style={{ background: 'var(--gray-100)' }}>
+                          {['row', 'truck', 'event_ts', 'stop_start', 'stop_end', 'location', 'type'].map(h => (
+                            <th key={h} style={{ padding: '2px 6px', border: '1px solid var(--border)', textAlign: 'left', whiteSpace: 'nowrap' }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sampleRows.map((row, i) => (
+                          <tr key={i}>
+                            <td style={{ padding: '2px 6px', border: '1px solid var(--border)' }}>{row.raw_row_reference ?? i}</td>
+                            <td style={{ padding: '2px 6px', border: '1px solid var(--border)' }}>{row.truck_id ?? '—'}</td>
+                            <td style={{ padding: '2px 6px', border: '1px solid var(--border)', whiteSpace: 'nowrap' }}>{row.event_timestamp ? row.event_timestamp.slice(0, 16) : '—'}</td>
+                            <td style={{ padding: '2px 6px', border: '1px solid var(--border)', whiteSpace: 'nowrap' }}>{row.stop_start_time ? row.stop_start_time.slice(0, 16) : '—'}</td>
+                            <td style={{ padding: '2px 6px', border: '1px solid var(--border)', whiteSpace: 'nowrap' }}>{row.stop_end_time ? row.stop_end_time.slice(0, 16) : '—'}</td>
+                            <td style={{ padding: '2px 6px', border: '1px solid var(--border)' }}>{row.location_name ?? '—'}</td>
+                            <td style={{ padding: '2px 6px', border: '1px solid var(--border)' }}>{row.inferred_location_type}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
             </div>
           </details>
         )}

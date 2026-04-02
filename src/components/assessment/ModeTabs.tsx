@@ -1,6 +1,6 @@
 'use client'
 
-export type AssessmentMode = 'questions' | 'report' | 'simulator' | 'track' | 'gps'
+export type AssessmentMode = 'questions' | 'report' | 'simulator' | 'track' | 'gps' | 'submit'
 
 interface ModeTabsProps {
   activeMode: AssessmentMode

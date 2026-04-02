@@ -42,6 +42,7 @@ export default function AssessmentTool({
   const [deleting, setDeleting] = useState(false)
   const [lastSaved, setLastSaved] = useState<string | null>(null)
   const [phase, setPhase] = useState(assessment.phase || 'workshop')
+  const [requestedMode, setRequestedMode] = useState<string | undefined>()
   const savingRef = useRef(false)
   const pendingSaveRef = useRef<Parameters<typeof handleSave>[0] | null>(null)
 
@@ -229,21 +230,38 @@ export default function AssessmentTool({
       {isAdmin && phase === 'workshop_complete' && (
         <div style={{
           padding: '12px 16px', background: 'var(--info-bg)', borderBottom: '1px solid var(--info-border)',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px',
         }}>
-          <span style={{ fontSize: '13px', color: 'var(--phase-workshop)' }}>
-            Pre-assessment completed by customer. Ready for on-site diagnostic.
-          </span>
-          <button
-            onClick={() => transitionPhase('onsite')}
-            style={{
-              padding: '8px 20px', background: 'var(--green)', color: 'white', border: 'none',
-              borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer',
-              fontFamily: 'var(--font)'
-            }}
-          >
-            Start on-site diagnostic
-          </button>
+          <div>
+            <div style={{ fontSize: '13px', color: 'var(--phase-workshop)', fontWeight: 500 }}>
+              Pre-assessment completed by customer.
+            </div>
+            <div style={{ fontSize: '11px', color: 'var(--gray-500)', marginTop: '2px' }}>
+              Set up 90-day tracking now so the customer starts logging baseline data before the on-site visit.
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
+            <button
+              onClick={() => setRequestedMode('track')}
+              style={{
+                padding: '8px 16px', background: 'var(--white)', color: 'var(--phase-workshop)',
+                border: '1px solid var(--info-border)', borderRadius: '8px',
+                fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font)',
+              }}
+            >
+              Set up tracking →
+            </button>
+            <button
+              onClick={() => transitionPhase('onsite')}
+              style={{
+                padding: '8px 20px', background: 'var(--green)', color: 'white', border: 'none',
+                borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer',
+                fontFamily: 'var(--font)',
+              }}
+            >
+              Start on-site diagnostic
+            </button>
+          </div>
         </div>
       )}
 
@@ -301,6 +319,7 @@ export default function AssessmentTool({
           reportReleased={reportReleased}
           isAdmin={isAdmin}
           onSave={handleSave}
+          requestMode={requestedMode as import('@/components/assessment/ModeTabs').AssessmentMode | undefined}
         />
       )}
 

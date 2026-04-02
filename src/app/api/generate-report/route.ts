@@ -59,7 +59,7 @@ At a 78-minute turnaround, the existing 8-operative fleet can support 54 deliver
 
       diagnosis: `Performance Scores
 Production: 82/100
-What this means: The plant is producing 6,400 m³/month at 89% of rated capacity — close to the 92% best-practice target, but this figure is misleading. Utilisation appears healthy because the constraint is downstream in the fleet, not at the batch plant.
+What this means: The plant is producing 6,400 m³/month at 89% of rated capacity — close to the 85% best-practice target, but this figure is misleading. Utilisation appears healthy because the constraint is downstream in the fleet, not at the batch plant.
 
 Dispatch: 52/100
 What this means: Order-to-dispatch averaging 32 minutes against a 15-minute target is the largest controllable gap in the operation. No zone system, no pre-loading protocol, no real-time tracking. The dispatcher is reacting to orders rather than anticipating them.
@@ -193,6 +193,34 @@ function buildExecutivePrompt(ctx: Record<string, unknown>) {
     .map(i => `- ${i.t}: $${i.loss.toLocaleString()}/month`)
     .join('\n')
 
+  if (ctx.performingWell) {
+    return `IMPORTANT: Write in plain text only. No markdown, no asterisks, no headings with #, no bullet dashes.
+
+You are writing the Executive Summary of a Plant Intelligence Report for a well-performing ready-mix concrete plant. The assessment found no significant operational losses. This report confirms strong performance and identifies incremental opportunities.
+
+PLANT DATA:
+Plant: ${ctx.plant}, ${ctx.country}
+Assessment date: ${ctx.date}
+Overall score: ${ctx.overall}/100
+Utilisation: ${ctx.utilPct}% (best-practice target: 85%)
+Truck turnaround: ${ctx.turnaround} min (target: ${ctx.targetTA} min)
+Hidden revenue headroom: $${ctx.hiddenRevMonthly}/month (if demand supports it)
+
+WRITE THREE THINGS IN ORDER — no headings, no labels:
+
+1. OPENING — one sentence acknowledging the strong operational position. Be specific to the actual scores and metrics, not generic praise.
+
+2. PLANT SNAPSHOT — 2 to 3 sentences. What is this plant doing well and why? What in the data supports this conclusion? Be precise — reference actual numbers.
+
+3. WHAT TO WATCH — heading on its own line: "What To Watch"
+Even well-run plants have incremental opportunities. Identify 2–3 areas worth monitoring or improving, based on the scores and metrics above. If hidden revenue headroom exists, note it and what it would require to capture.
+
+RULES:
+- Short sentences. One idea per sentence.
+- Do not invent problems that aren't in the data.
+- Do not use: optimize, leverage, streamline, robust, synergy, utilize, actionable.`
+  }
+
   return `IMPORTANT: Write in plain text only. Do not use markdown. No asterisks, no bold (**text**), no italic (*text*), no headings with #, no bullet dashes (- item). Use plain sentences and blank lines between sections.
 
 IMPORTANT: All financial figures (monthly losses, revenue opportunities, annual equivalents) are POTENTIAL figures — they are contingent on the plant having sufficient customer demand to absorb recovered capacity. Always frame dollar amounts as potential or recoverable, not as guaranteed losses. Example: "a potential $X/month" or "up to $X/month could be recovered" — never "the plant is losing $X".
@@ -239,6 +267,43 @@ function buildDiagnosisPrompt(ctx: Record<string, unknown>) {
   const scores = ctx.scores as any
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const issues = ctx.issues as any[]
+
+  if (ctx.performingWell) {
+    return `IMPORTANT: Write in plain text only. No markdown, no asterisks, no headings with #, no bullet dashes.
+
+You are writing the Operational Diagnosis section for a well-performing ready-mix concrete plant. The assessment found no significant financial losses. Your job is to explain what is working well and what to monitor.
+
+SCORES:
+Production: ${scores?.prod ?? '—'}/100
+Dispatch: ${scores?.dispatch ?? '—'}/100
+Fleet: ${scores?.logistics ?? '—'}/100
+Quality: ${scores?.quality ?? '—'}/100
+Overall: ${ctx.overall}/100
+
+KEY METRICS:
+Utilisation: ${ctx.utilPct}% — target: 85%
+Turnaround: ${ctx.turnaround} min — target: ${ctx.targetTA} min
+Fleet: ${ctx.trucks} trucks
+
+WRITE TWO THINGS:
+
+1. PERFORMANCE SCORES — heading on its own line: "Performance Scores"
+For each dimension write:
+[Dimension]: [Score]/100
+What this means: [One sentence specific to what this score says about this plant's operations.]
+
+Overall: ${ctx.overall}/100
+[One sentence on what this overall score means.]
+
+2. WHAT IS WORKING — heading on its own line: "What Is Working"
+3 to 4 sentences describing the operational strengths this data reveals. Be specific. Reference actual numbers. Identify anything that could slip if not actively maintained.
+
+RULES:
+- Do not invent problems. Only note genuine observations from the data.
+- Short sentences. One idea per sentence.
+- Do not use: optimize, leverage, streamline, robust, synergy, utilize, actionable.`
+  }
+
   const topIssues = issues
     .filter(i => i.loss > 0)
     .slice(0, 4)
@@ -314,6 +379,36 @@ RULES:
 function buildActionsPrompt(ctx: Record<string, unknown>) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const issues = ctx.issues as any[]
+
+  if (ctx.performingWell) {
+    return `IMPORTANT: Write in plain text only. No markdown, no asterisks, no headings with #, no bullet dashes.
+
+You are writing the Next Step section of a Plant Intelligence Report for a well-performing ready-mix concrete plant. No significant losses were found. Your job is to frame what this means and what sensible next steps look like for a plant that is already performing well.
+
+CONTEXT:
+Plant: ${ctx.plant}, ${ctx.country}
+Overall score: ${ctx.overall}/100
+Utilisation: ${ctx.utilPct}% — target: 85%
+Turnaround: ${ctx.turnaround} min — target: ${ctx.targetTA} min
+Hidden revenue headroom: $${ctx.hiddenRevMonthly}/month
+
+WRITE TWO THINGS:
+
+1. SYNTHESIS — one sentence, no heading:
+Name what the data confirms about this operation. What does the absence of major issues tell us? Be specific to the numbers.
+
+2. NEXT STEP — heading on its own line: "Next Step"
+Exactly 3 sentences:
+Sentence 1: What this assessment has confirmed.
+Sentence 2: What an on-site visit would verify or add — not what it would fix, because there is nothing obviously broken.
+Sentence 3: A concrete suggestion for maintaining this performance level — could be a monitoring discipline, a periodic review, or a specific area to develop further.
+
+RULES:
+- Do not manufacture urgency that does not exist.
+- Short sentences. One idea per sentence.
+- Do not use: optimize, leverage, streamline, robust, synergy, utilize, actionable.`
+  }
+
   const topFindings = issues
     .filter(i => i.loss > 0)
     .slice(0, 3)

@@ -34,15 +34,21 @@ interface AssessmentShellProps {
     hiddenRevMonthly: number
   }) => void
   baseline?: Answers
+  requestMode?: AssessmentMode
 }
 
-export default function AssessmentShell({ initialAnswers, phase, season, country, plant, date, assessmentId, report, reportReleased, isAdmin, onSave, baseline }: AssessmentShellProps) {
+export default function AssessmentShell({ initialAnswers, phase, season, country, plant, date, assessmentId, report, reportReleased, isAdmin, onSave, baseline, requestMode }: AssessmentShellProps) {
   const [answers, setAnswers] = useState<Answers>(initialAnswers)
   const [currentSection, setCurrentSection] = useState(0)
   const [mode, setMode] = useState<AssessmentMode>('questions')
   const [guidedMode, setGuidedMode] = useState(phase === 'onsite' && Object.keys(initialAnswers).length < 20)
   const [overrides, setOverrides] = useState<CalcOverrides>({})
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Allow parent to imperatively switch tabs (e.g. "Set up tracking" CTA)
+  useEffect(() => {
+    if (requestMode) setMode(requestMode)
+  }, [requestMode])
 
   const meta = useMemo(() => ({ season }), [season])
   const calcResult: CalcResult = useMemo(() => calc(answers, meta, overrides), [answers, meta, overrides])
@@ -93,6 +99,7 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
     window.scrollTo(0, 0)
   }, [])
 
+
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
       <ModeTabs activeMode={mode} onSwitch={setMode} />
@@ -108,38 +115,83 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
         />
       )}
 
-      {mode === 'questions' && !guidedMode && (
+      {(mode === 'questions' || mode === 'gps') && !guidedMode && (
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
           {/* Sidebar */}
-          <Sidebar
-            currentSection={currentSection}
-            onSelect={setCurrentSection}
-            answers={answers}
-            phase={phase}
-          />
+          <div style={{ width: '220px', flexShrink: 0, borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', background: 'var(--white)' }}>
+            <Sidebar
+              currentSection={currentSection}
+              onSelect={(i) => { setCurrentSection(i); setMode('questions') }}
+              answers={answers}
+              phase={phase}
+            />
+            {phase === 'workshop' && (
+              <div style={{ borderTop: '1px solid var(--border)', padding: '8px 0', background: 'var(--white)' }}>
+                <button
+                  type="button"
+                  onClick={() => setMode('gps')}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '8px',
+                    width: '100%', padding: '8px 16px',
+                    background: mode === 'gps' ? 'var(--info-bg)' : 'transparent',
+                    border: 'none',
+                    borderLeft: mode === 'gps' ? '3px solid var(--phase-workshop)' : '3px solid transparent',
+                    cursor: 'pointer', fontFamily: 'var(--font)', fontSize: '12px',
+                    color: mode === 'gps' ? 'var(--phase-workshop)' : 'var(--gray-500)',
+                    fontWeight: mode === 'gps' ? 500 : 400,
+                    textAlign: 'left',
+                  }}
+                >
+                  <span style={{
+                    width: '16px', height: '16px', borderRadius: '50%', flexShrink: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px',
+                    background: mode === 'gps' ? 'var(--phase-workshop)' : 'var(--gray-100)',
+                    color: mode === 'gps' ? 'white' : 'var(--gray-400)',
+                  }}>⊕</span>
+                  <span style={{ flex: 1, lineHeight: 1.3 }}>GPS Fleet Data</span>
+                  <span style={{
+                    fontSize: '9px', padding: '1px 5px', borderRadius: '3px',
+                    background: 'var(--info-bg)', border: '1px solid var(--info-border)',
+                    color: 'var(--phase-workshop)', fontWeight: 500,
+                  }}>opt</span>
+                </button>
+              </div>
+            )}
+          </div>
 
           {/* Main content area */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            {/* Live scores */}
-            <div style={{ padding: '12px 20px 0' }}>
-              <ScoreLivePanel
-                scores={calcResult.scores}
-                overall={calcResult.overall}
-                bottleneck={calcResult.bottleneck}
-              />
-            </div>
+            {mode === 'questions' && (
+              <>
+                {/* Live scores */}
+                <div style={{ padding: '12px 20px 0' }}>
+                  <ScoreLivePanel
+                    scores={calcResult.scores}
+                    overall={calcResult.overall}
+                    bottleneck={calcResult.bottleneck}
+                  />
+                </div>
 
-            <SectionView
-              sectionIndex={currentSection}
-              answers={answers}
-              phase={phase}
-              onAnswer={handleAnswer}
-              onNext={handleNextSection}
-              onBack={handleBackSection}
-              onViewResults={() => setMode('report')}
-              calcResult={calcResult}
-              baseline={baseline}
-            />
+                <SectionView
+                  sectionIndex={currentSection}
+                  answers={answers}
+                  phase={phase}
+                  onAnswer={handleAnswer}
+                  onNext={handleNextSection}
+                  onBack={handleBackSection}
+                  onViewResults={() => setMode('report')}
+                  calcResult={calcResult}
+                  baseline={baseline}
+                />
+              </>
+            )}
+
+            {mode === 'gps' && (
+              <GpsUploadView
+                assessmentId={assessmentId}
+                isAdmin={isAdmin}
+              />
+            )}
           </div>
         </div>
       )}
@@ -155,6 +207,8 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
           isAdmin={isAdmin}
           overrides={overrides}
           onOverrideChange={setOverrides}
+          phase={phase}
+          onSwitchToTracking={() => setMode('track')}
         />
       )}
 
@@ -173,14 +227,18 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
         const baselineDispatchMin = DISPATCH_MAP[answers.order_to_dispatch as string] ?? null
 
         // Financial coefficients: $/month per 1-unit improvement
+        // Use cost-only turnaround figure when plant is demand-constrained
+        const taLeak = calcResult.demandSufficient === false
+          ? calcResult.turnaroundLeakMonthlyCostOnly
+          : calcResult.turnaroundLeakMonthly
         const coeffTurnaround = calcResult.excessMin > 0
-          ? Math.round(calcResult.turnaroundLeakMonthly / calcResult.excessMin)
+          ? Math.round(taLeak / calcResult.excessMin)
           : 0
         const coeffReject = calcResult.rejectPct > 0
           ? Math.round(calcResult.rejectLeakMonthly / calcResult.rejectPct)
           : 0
         const coeffDispatch = calcResult.dispatchMin != null && calcResult.dispatchMin > 15
-          ? Math.round(calcResult.turnaroundLeakMonthly * 0.22)
+          ? Math.round(taLeak * 0.22)
           : 800
 
         // Baseline monthly loss from issues engine
@@ -193,7 +251,16 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
           <TrackingTab
             assessmentId={assessmentId}
             isAdmin={isAdmin ?? false}
-            baselineTurnaround={answers.turnaround ? Number(answers.turnaround) : null}
+            baselineTurnaround={(() => {
+              const TURNAROUND_MAP: Record<string, number> = {
+                'Under 80 minutes — benchmark performance': 72,
+                '80 to 100 minutes — acceptable':           90,
+                '100 to 125 minutes — slow':                112,
+                'Over 125 minutes — critical bottleneck':   140,
+              }
+              const raw = answers.turnaround as string
+              return raw ? (TURNAROUND_MAP[raw] ?? (Number(raw) || null)) : null
+            })()}
             baselineRejectPct={answers.reject_pct ? Number(answers.reject_pct) : null}
             baselineDispatchMin={baselineDispatchMin}
             coeffTurnaround={coeffTurnaround}
@@ -205,12 +272,6 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
         )
       })()}
 
-      {mode === 'gps' && (
-        <GpsUploadView
-          assessmentId={assessmentId}
-          isAdmin={isAdmin}
-        />
-      )}
     </div>
   )
 }

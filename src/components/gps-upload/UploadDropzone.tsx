@@ -113,6 +113,9 @@ export default function UploadDropzone({
         <div style={{ fontSize: '12px', color: 'var(--gray-400)' }}>
           Upload a GPS or fleet export for the last 30 days · CSV only
         </div>
+        <div style={{ fontSize: '11px', color: 'var(--gray-400)', marginTop: '4px' }}>
+          Column headers must be in English — Arabic column names are not supported in this version
+        </div>
         {hasExistingUpload && existingFilename && (
           <div style={{
             marginTop: '12px', fontSize: '11px', color: 'var(--phase-complete)',

@@ -40,14 +40,14 @@ const SCORE_EXPLANATIONS = [
     label: 'Production',
     color: '#0F6E56',
     subtitle: 'How well the plant uses its capacity',
-    body: 'Measures how close your plant is to its optimal operating rate of 92%. That 8% headroom is intentional — it allows for scheduling flexibility without overloading. A score of 100 means you are running at 92% of rated capacity. Scores are also reduced if the batch plant cycle is slow or if unplanned stops are frequent, and discounted if the production data is estimated rather than read from records.',
+    body: 'Measures how close your plant is to its optimal operating rate of 85%. That 15% headroom is intentional — it allows for scheduling flexibility, maintenance windows, and demand variability without overloading. A score of 100 means you are running at 85% of rated capacity or above. Scores are also reduced if the batch plant cycle is slow or if unplanned stops are frequent, and discounted if the production data is estimated rather than read from records.',
     factors: [
       { name: 'Utilisation rate (actual m³ ÷ capacity × hours)', weight: 'Base score' },
       { name: 'Batch cycle time penalty (slow >7 min = up to −22 pts)', weight: 'Deduction' },
       { name: 'Unplanned stops penalty (frequent = up to −20 pts)', weight: 'Deduction' },
       { name: 'Data confidence (estimates discounted to 55–95%)', weight: 'Multiplier' },
     ],
-    benchmark: '92% utilisation, fast batch cycle, no stops = green zone',
+    benchmark: '85% utilisation, fast batch cycle, no stops = green zone',
   },
   {
     label: 'Dispatch',

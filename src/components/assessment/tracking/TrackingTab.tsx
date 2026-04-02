@@ -612,6 +612,24 @@ function SetupForm({
           Set targets for the 2 KPIs. The plant logs weekly numbers — you see actual vs predicted in real time.
         </div>
       </div>
+
+      {/* Early-start callout */}
+      <div style={{
+        background: 'var(--info-bg)', border: '1px solid var(--info-border)',
+        borderRadius: 'var(--radius)', padding: '12px 16px', marginBottom: '20px',
+        display: 'flex', gap: '10px', alignItems: 'flex-start',
+      }}>
+        <span style={{ fontSize: '16px', flexShrink: 0 }}>⏱</span>
+        <div>
+          <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--phase-workshop)', marginBottom: '2px' }}>
+            Start now — before the on-site visit
+          </div>
+          <div style={{ fontSize: '11px', color: 'var(--gray-600)', lineHeight: 1.55 }}>
+            Logging starts immediately so the plant records baseline weeks before interventions begin.
+            By the time of the on-site visit you already have 2–4 weeks of real data — making the before/after comparison far stronger.
+          </div>
+        </div>
+      </div>
       <div style={{ background: 'var(--white)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '0 20px', marginBottom: '20px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '160px 120px 1fr', gap: '12px', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
           {['Metric', 'Baseline', '90-day target'].map(h => (
@@ -854,13 +872,13 @@ export default function TrackingTab(props: TrackingProps) {
       }
       const now = Date.now()
       const mockEntries: TrackingEntry[] = [
-        { id: 'e1', config_id: 'demo-cfg', week_number: 1, logged_at: new Date(now - 42 * 86_400_000).toISOString(), turnaround_min: 93, reject_pct: null, dispatch_min: 30, notes: null },
-        { id: 'e2', config_id: 'demo-cfg', week_number: 2, logged_at: new Date(now - 35 * 86_400_000).toISOString(), turnaround_min: 91, reject_pct: null, dispatch_min: 28, notes: null },
-        { id: 'e3', config_id: 'demo-cfg', week_number: 3, logged_at: new Date(now - 28 * 86_400_000).toISOString(), turnaround_min: 89, reject_pct: null, dispatch_min: 26, notes: null },
-        { id: 'e4', config_id: 'demo-cfg', week_number: 4, logged_at: new Date(now - 21 * 86_400_000).toISOString(), turnaround_min: 87, reject_pct: null, dispatch_min: 24, notes: 'Demurrage clause enforced with top 3 contractors' },
-        { id: 'e5', config_id: 'demo-cfg', week_number: 5, logged_at: new Date(now - 14 * 86_400_000).toISOString(), turnaround_min: 85, reject_pct: null, dispatch_min: 22, notes: null },
-        { id: 'e6', config_id: 'demo-cfg', week_number: 6, logged_at: new Date(now - 7 * 86_400_000).toISOString(), turnaround_min: 82, reject_pct: null, dispatch_min: 20, notes: 'Zone routing implemented' },
-        { id: 'e7', config_id: 'demo-cfg', week_number: 7, logged_at: new Date(now - 1 * 86_400_000).toISOString(), turnaround_min: 80, reject_pct: null, dispatch_min: 18, notes: null },
+        { id: 'e1', config_id: 'demo-cfg', week_number: 1, logged_at: new Date(now - 42 * 86_400_000).toISOString(), turnaround_min: 112, reject_pct: null, dispatch_min: 32, notes: null },
+        { id: 'e2', config_id: 'demo-cfg', week_number: 2, logged_at: new Date(now - 35 * 86_400_000).toISOString(), turnaround_min: 108, reject_pct: null, dispatch_min: 29, notes: 'Demurrage clause enforced with top 3 contractors' },
+        { id: 'e3', config_id: 'demo-cfg', week_number: 3, logged_at: new Date(now - 28 * 86_400_000).toISOString(), turnaround_min: 105, reject_pct: null, dispatch_min: 26, notes: null },
+        { id: 'e4', config_id: 'demo-cfg', week_number: 4, logged_at: new Date(now - 21 * 86_400_000).toISOString(), turnaround_min: 101, reject_pct: null, dispatch_min: 24, notes: 'Dispatch SOP implemented — dedicated dispatcher' },
+        { id: 'e5', config_id: 'demo-cfg', week_number: 5, logged_at: new Date(now - 14 * 86_400_000).toISOString(), turnaround_min: 97, reject_pct: null, dispatch_min: 21, notes: null },
+        { id: 'e6', config_id: 'demo-cfg', week_number: 6, logged_at: new Date(now - 7 * 86_400_000).toISOString(), turnaround_min: 93, reject_pct: null, dispatch_min: 19, notes: 'Zone routing implemented — 4 delivery quadrants' },
+        { id: 'e7', config_id: 'demo-cfg', week_number: 7, logged_at: new Date(now - 1 * 86_400_000).toISOString(), turnaround_min: 89, reject_pct: null, dispatch_min: 17, notes: null },
       ]
       setConfig(mockConfig)
       setEntries(mockEntries)

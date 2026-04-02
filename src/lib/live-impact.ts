@@ -18,25 +18,27 @@ export function getLiveImpact(questionId: string, r: CalcResult, a: Answers): st
       if (r.monthlyM3 <= 0 || r.cap <= 0) return null
       const utilPct = Math.round(r.util * 100)
       const avgLine = `Average output: ${r.actual.toFixed(1)} m³/hr (${r.monthlyM3.toLocaleString()} m³ ÷ ${Math.round(r.opH * (r.opD / 12))} hours/month)`
-      if (r.util < 0.92) {
-        const gapPts = Math.round((0.92 - r.util) * 100)
+      if (r.util < 0.85) {
+        const gapPts = Math.round((0.85 - r.util) * 100)
         const dollarLine = r.capLeakMonthly > 0
           ? `Capacity gap costs ${fmt(r.capLeakMonthly)}/month in lost contribution margin`
           : 'Enter economics data to calculate dollar impact'
-        return [avgLine, `Utilization: ${utilPct}% — ${gapPts} points below 92% target`, dollarLine]
+        return [avgLine, `Utilization: ${utilPct}% — ${gapPts} points below 85% target`, dollarLine]
       }
-      return [avgLine, `Utilization: ${utilPct}% — at or above 92% target`, 'Production is not the primary constraint at this plant']
+      return [avgLine, `Utilization: ${utilPct}% — at or above 85% target`, 'Production is not the primary constraint at this plant']
     }
 
     case 'turnaround': {
       if (r.ta <= 0) return null
       if (r.excessMin > 0) {
-        const perMin = r.turnaroundLeakMonthly > 0
-          ? `Each extra minute costs ${fmt(Math.round(r.turnaroundLeakMonthly / r.excessMin))}/month`
+        const taLeak = r.demandSufficient === false ? r.turnaroundLeakMonthlyCostOnly : r.turnaroundLeakMonthly
+        const taLabel = r.demandSufficient === false ? 'Operational cost saving' : 'Lost delivery capacity'
+        const perMin = taLeak > 0
+          ? `Each extra minute costs ${fmt(Math.round(taLeak / r.excessMin))}/month`
           : 'Enter economics data for dollar estimate'
         return [
           `+${r.excessMin} min above ${r.TARGET_TA}-min regional target`,
-          r.turnaroundLeakMonthly > 0 ? `Lost delivery capacity: ${fmt(r.turnaroundLeakMonthly)}/month` : 'Enter economics data for dollar estimate',
+          taLeak > 0 ? `${taLabel}: ${fmt(taLeak)}/month` : 'Enter economics data for dollar estimate',
           perMin,
         ]
       }
@@ -75,6 +77,12 @@ export function getLiveImpact(questionId: string, r: CalcResult, a: Answers): st
     case 'aggregate_cost':
     case 'admix_cost': {
       if (r.price <= 0) return null
+      if (r.contribNegative) {
+        return [
+          `Material costs exceed selling price — contribution margin is negative.`,
+          `Check that selling price and material costs are all entered in the same currency ($/m³).`,
+        ]
+      }
       const lines = [`Contribution margin: ${fmt(r.contrib)}/m³ (${Math.round(r.marginRatio * 100)}% of selling price)`]
       if (r.marginRatio >= 0.95) {
         // No meaningful costs entered yet — margin is just the selling price

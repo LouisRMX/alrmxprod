@@ -25,6 +25,7 @@ export interface CalcResult {
   contribFuelAdj: number
   marginRatio: number
   marginIncomplete: boolean
+  contribNegative: boolean   // true when entered costs exceed selling price
   mixWeightedContrib: number
   mixMarginLift: number
   hsPremium: number
@@ -51,7 +52,8 @@ export interface CalcResult {
   effectiveUnits: number
   driverConstrained: boolean
   delDay: number
-  mixCap: number
+  mixCap: number         // truck nameplate capacity (m³) — used for partial load comparison
+  effectiveMixCap: number // avg m³ actually delivered per trip (derived or fallback to mixCap)
   radius: number
   TARGET_TA: number
   maxDelDay: number
@@ -62,6 +64,8 @@ export interface CalcResult {
   hiddenSuspect: boolean
   hiddenConfidence: 'high' | 'low'
   turnaroundLeakMonthly: number
+  turnaroundLeakMonthlyCostOnly: number  // demand-constrained: fuel + variable cost savings only (no contrib margin)
+  perMinTACoeff: number   // $/minute of excess turnaround — used by GPS section dollar calc
 
   // Turnaround breakdown (derived from washout_time + site_wait_time + radius)
   siteWait: number
@@ -111,7 +115,7 @@ export interface CalcResult {
   demandSufficient: boolean | null  // true = operations-limited, false = demand-limited, null = unknown
 
   // Override-aware targets
-  utilisationTarget: number  // 0–100, default 92
+  utilisationTarget: number  // 0–100, default 85
   fleetUtilFactor: number    // 0–100, default 85
 
   // Scores
@@ -166,7 +170,7 @@ export interface SimResult {
 // ── Overrides ────────────────────────────────────────────────────────────────
 
 export interface CalcOverrides {
-  utilisationTarget?: number  // 0–100, default 92
+  utilisationTarget?: number  // 0–100, default 85
   fleetUtilFactor?: number    // 0–100, default 85
 }
 
@@ -303,7 +307,7 @@ function weightedAvg(items: { v: number | null | undefined; w: number }[]): numb
 
 export function calc(answers: Answers, meta?: { season?: string }, overrides?: CalcOverrides): CalcResult {
   const a = answers
-  const utilisationTargetPct = overrides?.utilisationTarget ?? 92
+  const utilisationTargetPct = overrides?.utilisationTarget ?? 85
   const fleetUtilFactorPct = overrides?.fleetUtilFactor ?? 85
   const utilisationTargetFrac = utilisationTargetPct / 100
   const fleetUtilFactorFrac = fleetUtilFactorPct / 100
@@ -316,6 +320,7 @@ export function calc(answers: Answers, meta?: { season?: string }, overrides?: C
   const marginIncomplete = price > 0 && cement > 0 &&
     (+(a.aggregate_cost ?? 0) === 0 || a.aggregate_cost === undefined || a.aggregate_cost === '') &&
     (+(a.admix_cost ?? 0) === 0 || a.admix_cost === undefined || a.admix_cost === '')
+  const contribNegative = price > 0 && (cement + agg + admix) > price
   const contrib = Math.max(0, price - cement - agg - admix)
   const marginRatio = price > 0 ? contrib / price : 0.35
   // contribSafe: used for all loss calculations.
@@ -369,10 +374,33 @@ export function calc(answers: Answers, meta?: { season?: string }, overrides?: C
 
   // Fleet
   const trucks = +(a.n_trucks ?? 0) || 0
-  const ta = +(a.turnaround ?? 0) || 0
+  const TURNAROUND_MAP: Record<string, number> = {
+    'Under 80 minutes — benchmark performance': 72,
+    '80 to 100 minutes — acceptable':           90,
+    '100 to 125 minutes — slow':                112,
+    'Over 125 minutes — critical bottleneck':   140,
+  }
+  const taRaw = a.turnaround as string
+  const ta = TURNAROUND_MAP[taRaw] ?? (+(taRaw ?? 0) || 0) // legacy numeric answers still work
   const mixCap = +(a.mixer_capacity ?? 0) || 7
   const delDay = +(a.deliveries_day ?? 0) || 0
-  const radius = +(a.delivery_radius ?? 0) || 0
+
+  // Derive effective load per trip from actual production ÷ actual monthly deliveries.
+  // Captures partial loads and mixed-fleet averaging automatically.
+  // Falls back to mixer_capacity (or default 7 m³) if data is unavailable.
+  const monthlyDels = delDay > 0 ? delDay * workingDaysMonth : 0
+  const derivedMixCap = monthlyDels > 0 && monthlyM3 > 0
+    ? Math.min(12, Math.max(3, monthlyM3 / monthlyDels))
+    : 0
+  const effectiveMixCap = derivedMixCap > 0 ? derivedMixCap : mixCap
+  const DELIVERY_RADIUS_MAP: Record<string, number> = {
+    'Most deliveries under 5 km — dense urban core':       4,
+    'Most deliveries 5 to 12 km — city radius':            8.5,
+    'Most deliveries 12 to 20 km — suburban / outer city': 16,
+    'Many deliveries over 20 km — regional':               25,
+  }
+  const radiusRaw = a.delivery_radius as string
+  const radius = DELIVERY_RADIUS_MAP[radiusRaw] ?? (+(radiusRaw ?? 0) || 0) // fallback for legacy numeric
   const TARGET_TA = calcTargetTA(radius)
 
   const truckAvail = +(a.truck_availability ?? 0) || 0
@@ -388,15 +416,30 @@ export function calc(answers: Answers, meta?: { season?: string }, overrides?: C
   const hiddenSuspect = operativeTrucks > 0 && rawHidden > operativeTrucks * 3
   const hiddenDel = rawHidden
   const hiddenConfidence: 'high' | 'low' = hiddenSuspect ? 'low' : 'high'
-  const hiddenRevMonthly = Math.round(hiddenDel * mixCap * contribSafe * (opD / 12))
+  const hiddenRevMonthly = Math.round(hiddenDel * effectiveMixCap * contribSafe * (opD / 12))
   const excessMin = Math.max(0, ta - TARGET_TA)
   const turnaroundLeakMonthly = ta > 0 && effectiveUnits > 0
-    ? Math.round(excessMin / ta * realisticMaxDel * mixCap * contribSafe * (opD / 12) * seasonalFactor)
+    ? Math.round(excessMin / ta * realisticMaxDel * effectiveMixCap * contribSafe * (opD / 12) * seasonalFactor)
     : 0
 
-  // Fuel
+  // Fuel (needed before turnaroundLeakMonthlyCostOnly)
   const fuelPerDel = +(a.fuel_per_delivery ?? 0) || 0
-  const fuelPerM3 = fuelPerDel > 0 && mixCap > 0 ? fuelPerDel / mixCap : 0
+
+  // Cost-only version of turnaround leak — used when plant is demand-constrained.
+  // Improving turnaround won't fill extra delivery slots (no demand), so the saving
+  // is operational only: fuel not burned idling on site + a variable overhead allowance.
+  // Uses max(fuelPerDel, 15% of contribSafe) as a conservative per-delivery variable cost.
+  const variableCostPerDel = Math.max(fuelPerDel || 0, contribSafe * 0.15)
+  const turnaroundLeakMonthlyCostOnly = ta > 0 && effectiveUnits > 0
+    ? Math.round(excessMin / ta * realisticMaxDel * variableCostPerDel * (opD / 12) * seasonalFactor)
+    : 0
+
+  // Per-minute coefficient: cost of each excess turnaround minute, independent of excessMin
+  // Used by GPS section to compute dollar impact from GPS-measured turnaround
+  const perMinTACoeff = ta > 0 && realisticMaxDel > 0
+    ? Math.round(realisticMaxDel * effectiveMixCap * contribSafe * (opD / 12) * seasonalFactor / ta)
+    : 0
+  const fuelPerM3 = fuelPerDel > 0 && effectiveMixCap > 0 ? fuelPerDel / effectiveMixCap : 0
   const fuelMonthly = fuelPerDel > 0 && delDay > 0 ? Math.round(fuelPerDel * delDay * (opD / 12)) : 0
   const fuelMarginImpact = fuelPerM3 > 0 && contrib > 0 ? fuelPerM3 / contrib : 0
 
@@ -462,31 +505,31 @@ export function calc(answers: Answers, meta?: { season?: string }, overrides?: C
   const washoutExcess  = taWashoutMin !== null  ? Math.max(0, taWashoutMin  - WASHOUT_BENCHMARK)   : 0
 
   // Reject leak — adjusted by return_liability
-  const rejectPct = +(a.reject_pct ?? 0) || 0
+  const rejectPct = Math.min(100, Math.max(0, +(a.reject_pct ?? 0) || 0))
   const liab = LIABILITY_MAP[a.return_liability as string] || { factor: 1, base: 'price' }
   // When base === 'materials', use actual material cost; fall back to contribSafe (price×35%) if not entered
   // This prevents rejectBase = 0 when plant absorbs cost but material costs were not entered
   const rejectBase = liab.base === 'materials'
     ? (cement + agg + admix > 0 ? cement + agg + admix : contribSafe)
     : price
-  const rejectLeakMonthly = Math.round(rejectPct / 100 * delDay * mixCap * rejectBase * liab.factor * (opD / 12))
+  const rejectLeakMonthly = Math.round(rejectPct / 100 * delDay * effectiveMixCap * rejectBase * liab.factor * (opD / 12))
 
   // Demurrage opportunity
   const demurrageOpportunity = (siteWait > 45 && (
     a.demurrage_policy === 'Clause exists but rarely enforced' ||
     a.demurrage_policy === 'No demurrage charge in contracts' ||
     a.demurrage_policy === 'Not sure'
-  )) && ta > 0 ? Math.round(Math.max(0, siteWait - 40) / ta * realisticMaxDel * mixCap * contribSafe * (opD / 12)) : 0
+  )) && ta > 0 ? Math.round(Math.max(0, siteWait - 40) / ta * realisticMaxDel * effectiveMixCap * contribSafe * (opD / 12)) : 0
 
   // Truck breakdown cost estimate
   const truckBreakdowns = +(a.truck_breakdowns ?? 0) || 0
   // Each breakdown takes ~half a day → loses 0.5 × (deliveries per truck per day) deliveries
   const breakdownCostMonthly = truckBreakdowns > 0 && operativeTrucks > 0
-    ? Math.round(truckBreakdowns * 0.5 * (delDay / operativeTrucks) * mixCap * contribSafe) : 0
+    ? Math.round(truckBreakdowns * 0.5 * (delDay / operativeTrucks) * effectiveMixCap * contribSafe) : 0
 
   // Customer concentration risk
   const topCustPct = +(a.top_customer_pct ?? 0) || 0
-  const concentrationRisk = topCustPct > 0 ? Math.round(topCustPct / 100 * delDay * mixCap * price * (opD / 12)) : 0
+  const concentrationRisk = topCustPct > 0 ? Math.round(topCustPct / 100 * delDay * effectiveMixCap * price * (opD / 12)) : 0
 
   // Cement optimisation opportunity
   const cementOptOpp = (
@@ -617,7 +660,7 @@ export function calc(answers: Answers, meta?: { season?: string }, overrides?: C
 
   return {
     // Economics
-    contrib, contribSafe, materialCostPerM3, contribFuelAdj, marginRatio, marginIncomplete,
+    contrib, contribSafe, materialCostPerM3, contribFuelAdj, marginRatio, marginIncomplete, contribNegative,
     // Demand context
     demandSufficient,
     // Override-aware targets (exposed for display in assumptions panel)
@@ -628,8 +671,8 @@ export function calc(answers: Answers, meta?: { season?: string }, overrides?: C
     util, unusedCapAnnual, capLeakMonthly, actual, monthlyM3, cap, opH, opD, workingDaysMonth,
     // Fleet
     ta, trucks, operativeTrucks, availRate, qualifiedDrivers, effectiveUnits, driverConstrained,
-    delDay, mixCap, radius, TARGET_TA, maxDelDay, realisticMaxDel, excessMin,
-    hiddenDel, hiddenRevMonthly, hiddenSuspect, hiddenConfidence, turnaroundLeakMonthly,
+    delDay, mixCap, effectiveMixCap, radius, TARGET_TA, maxDelDay, realisticMaxDel, excessMin,
+    hiddenDel, hiddenRevMonthly, hiddenSuspect, hiddenConfidence, turnaroundLeakMonthly, turnaroundLeakMonthlyCostOnly, perMinTACoeff,
     // Turnaround breakdown (legacy fields)
     siteWait, washoutMin, transitEst, taUnexplained,
     // Turnaround breakdown (detailed — from breakdown questions)
