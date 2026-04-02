@@ -890,14 +890,14 @@ function ImpactHook({ totalLoss, dailyLoss, calcResult, issues, financialBottlen
   const driverMetric = (() => {
     switch (financialBottleneck) {
       case 'Fleet':
-        return calcResult.ta > 0 ? `${calcResult.ta} min → ${calcResult.TARGET_TA} min target` : null
+        return calcResult.ta > 0 ? `${calcResult.ta} min vs ${calcResult.TARGET_TA} min target` : null
       case 'Dispatch':
-        return calcResult.dispatchMin ? `${calcResult.dispatchMin} min → 15 min target` : null
+        return calcResult.dispatchMin ? `${calcResult.dispatchMin} min vs 15 min target` : null
       case 'Quality':
-        return calcResult.rejectPct > 0 ? `${calcResult.rejectPct}% → 1.5% target` : null
+        return calcResult.rejectPct > 0 ? `${calcResult.rejectPct}% vs 1.5% target` : null
       case 'Production': {
         const up = Math.round(calcResult.util * 100)
-        return up > 0 ? `${up}% → ${calcResult.utilisationTarget}% target` : null
+        return up > 0 ? `${up}% vs ${calcResult.utilisationTarget}% target` : null
       }
       default: return null
     }
