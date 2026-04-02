@@ -961,7 +961,7 @@ function ImpactHook({ bnLoss, bnDailyLoss, calcResult, issues, financialBottlene
               </div>
             )}
             <div style={{ fontSize: '13px', fontWeight: 600, color: '#1a6644', marginBottom: '20px' }}>
-              Recovers up to {fmtK(bnLoss)} / month
+              Up to {fmtK(bnLoss)} / month recoverable
             </div>
             <div style={{ fontSize: '11px', color: '#5aaa82', marginBottom: '6px' }}>
               + Additional upside discovered in other operational areas
@@ -2578,7 +2578,7 @@ function ScoreGrid({ calcResult, financialBottleneck, issues, onSwitchToTracking
               <div style={{ marginBottom: '20px' }}>
                 <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#c09090', marginBottom: '8px' }}>Expected outcome</div>
                 <div style={{ fontSize: '14px', color: '#333', marginBottom: '3px' }}>{bnDetail.outcome[0]}</div>
-                <div style={{ fontSize: '14px', fontWeight: 600, color: '#cc3333' }}>Recovers up to {fmtK(bnLoss)} / month</div>
+                <div style={{ fontSize: '14px', fontWeight: 600, color: '#cc3333' }}>Up to {fmtK(bnLoss)} / month recoverable</div>
               </div>
 
               {/* CTA */}
