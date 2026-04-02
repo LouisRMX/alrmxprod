@@ -84,7 +84,9 @@ export interface CalcResult {
 
   // Reject & quality
   rejectPct: number
-  rejectLeakMonthly: number
+  rejectLeakMonthly: number      // total: material loss + opportunity cost (demand-gated)
+  rejectMaterialLoss: number     // materials wasted only (always applies)
+  rejectOpportunityCost: number  // wasted truck cycle contrib — only when demandSufficient
 
   // Financial leaks
   partialLoad: number
@@ -504,15 +506,29 @@ export function calc(answers: Answers, meta?: { season?: string }, overrides?: C
   const siteWaitExcess = taSiteWaitMin !== null ? Math.max(0, taSiteWaitMin - SITE_WAIT_BENCHMARK) : 0
   const washoutExcess  = taWashoutMin !== null  ? Math.max(0, taWashoutMin  - WASHOUT_BENCHMARK)   : 0
 
-  // Reject leak — adjusted by return_liability
+  // Demand context — must be computed before reject leak (gates opportunity cost)
+  const dsAnswer = a.demand_sufficient as string | undefined
+  const demandSufficient: boolean | null =
+    dsAnswer === 'Operations — we have more demand than we can currently produce or deliver' ||
+    dsAnswer === 'Both — we could sell more, and operations are also holding us back' ? true :
+    dsAnswer === 'Demand — our volume reflects available orders, not operational limits' ? false :
+    null
+
+  // Reject leak — two components:
+  // 1. Material loss: cement + aggregates + admixtures wasted on every rejected load (adjusted by liability)
+  // 2. Opportunity cost: each rejected load is a wasted truck cycle — if demand is sufficient,
+  //    that cycle could have generated contribution margin. Not applied when demand-constrained.
   const rejectPct = Math.min(100, Math.max(0, +(a.reject_pct ?? 0) || 0))
   const liab = LIABILITY_MAP[a.return_liability as string] || { factor: 1, base: 'price' }
-  // When base === 'materials', use actual material cost; fall back to contribSafe (price×35%) if not entered
-  // This prevents rejectBase = 0 when plant absorbs cost but material costs were not entered
+  // When base === 'materials', use actual material cost; fall back to contribSafe if not entered
   const rejectBase = liab.base === 'materials'
     ? (cement + agg + admix > 0 ? cement + agg + admix : contribSafe)
     : price
-  const rejectLeakMonthly = Math.round(rejectPct / 100 * delDay * effectiveMixCap * rejectBase * liab.factor * (opD / 12))
+  const rejectMaterialLoss = Math.round(rejectPct / 100 * delDay * effectiveMixCap * rejectBase * liab.factor * (opD / 12))
+  const rejectOpportunityCost = demandSufficient === true
+    ? Math.round(rejectPct / 100 * delDay * effectiveMixCap * contribSafe * (opD / 12))
+    : 0
+  const rejectLeakMonthly = rejectMaterialLoss + rejectOpportunityCost
 
   // Demurrage opportunity
   const demurrageOpportunity = (siteWait > 45 && (
@@ -537,14 +553,6 @@ export function calc(answers: Answers, meta?: { season?: string }, overrides?: C
     (a.admix_strategy === 'Workability only — admixtures used to improve flow and placement' || a.admix_strategy === 'Admixtures not used') &&
     (+(a.cement_cost ?? 0) || 0) > 0 && monthlyM3 > 0
   ) ? Math.round(+(a.cement_cost ?? 0) * 0.08 * monthlyM3) : 0
-
-  // Demand context
-  const dsAnswer = a.demand_sufficient as string | undefined
-  const demandSufficient: boolean | null =
-    dsAnswer === 'Operations — we have more demand than we can currently produce or deliver' ||
-    dsAnswer === 'Both — we could sell more, and operations are also holding us back' ? true :
-    dsAnswer === 'Demand — our volume reflects available orders, not operational limits' ? false :
-    null
 
   // ── Scores ─────────────────────────────────────────────────────────────────
 
@@ -679,7 +687,7 @@ export function calc(answers: Answers, meta?: { season?: string }, overrides?: C
     taTransitMin, taSiteWaitMin, taUnloadMin, taWashoutMin,
     taBreakdownSum, taBreakdownEntered, siteWaitExcess, washoutExcess,
     // Reject & quality
-    rejectPct, rejectLeakMonthly,
+    rejectPct, rejectLeakMonthly, rejectMaterialLoss, rejectOpportunityCost,
     // Financial leaks
     partialLoad, partialRatio, partialLeakMonthly,
     surplusMid, surplusLeakMonthly,
