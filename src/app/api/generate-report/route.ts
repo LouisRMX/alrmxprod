@@ -204,7 +204,8 @@ function buildExecutivePrompt(ctx: Record<string, unknown>) {
 - Do NOT repeat revenue figures, scores, or bullet metrics — those are already shown above this text in the UI.
 - No jargon. Banned: optimize, leverage, streamline, robust, synergy, utilize, actionable, deep dive.
 - Short sentences. One idea per sentence.
-- If this text could apply to any ready-mix plant, it is too generic. Rewrite until it is specific to this plant.`
+- If this text could apply to any ready-mix plant, it is too generic. Rewrite until it is specific to this plant.
+- All analysis is based on reported input data. Do not present conclusions as absolute facts. Frame insights as data-consistent interpretations of the reported metrics.`
 
   if (ctx.performingWell) {
     return `${RULES}
@@ -271,7 +272,8 @@ function buildDiagnosisPrompt(ctx: Record<string, unknown>) {
 - All financial figures are POTENTIAL — frame as "up to $X" or "recoverable", never as confirmed losses.
 - No jargon. Banned: optimize, leverage, streamline, robust, synergy, utilize, actionable, deep dive.
 - Short sentences. One idea per sentence.
-- Write for a plant owner who is intelligent and has no patience for consultants who talk around things.`
+- Write for a plant owner who is intelligent and has no patience for consultants who talk around things.
+- All analysis is based on reported input data. Do not present conclusions as absolute facts. Frame insights as data-consistent interpretations of the reported metrics.`
 
   if (ctx.performingWell) {
     return `${RULES}
@@ -415,7 +417,8 @@ Sentence 3: A concrete suggestion for maintaining this performance — a monitor
 - No jargon. Banned: optimize, leverage, streamline, robust, synergy, utilize, actionable.
 - Short sentences. One idea per sentence.
 - Do not use sales pitch language: propose, recommend, our team, we would like to.
-- Warm, direct, experienced. The consultant has seen this pattern before.`
+- Warm, direct, experienced. The consultant has seen this pattern before.
+- All analysis is based on reported input data. Do not present conclusions as absolute facts. Frame insights as data-consistent interpretations of the reported metrics.`
 
   const topIssues = issues
     .filter(i => i.loss > 0)
