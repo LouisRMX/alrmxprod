@@ -929,7 +929,7 @@ function ImpactHook({ totalLoss, dailyLoss, calcResult, issues, financialBottlen
       display: 'grid', gridTemplateColumns: '3fr 2fr',
     }}>
       {/* Left — Estimated revenue leakage */}
-      <div style={{ padding: '24px', background: '#ffeded', borderRight: '1px solid #f5c6c6' }}>
+      <div style={{ padding: '24px', background: '#ffe0e0', borderRight: '1px solid #f5c6c6' }}>
         <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.4px', textTransform: 'uppercase', color: '#c0a0a0', marginBottom: '8px' }}>
           {calcResult.demandSufficient === false ? 'Margin improvement potential' : 'Estimated revenue leakage'}
         </div>
@@ -956,8 +956,8 @@ function ImpactHook({ totalLoss, dailyLoss, calcResult, issues, financialBottlen
         </div>
         {totalMaxRecoverable > 0 ? (
           <>
-            <div style={{ fontSize: '48px', fontWeight: 800, color: '#1a6644', lineHeight: 1, letterSpacing: '-1px', marginBottom: '4px' }}>
-              {fmt(totalMaxRecoverable)}<span style={{ fontSize: '20px', fontWeight: 500, color: '#5aaa82', marginLeft: '8px' }}>/ month</span>
+            <div style={{ fontSize: '40px', fontWeight: 800, color: '#1a6644', lineHeight: 1, letterSpacing: '-1px', marginBottom: '4px' }}>
+              {fmt(totalMaxRecoverable)}<span style={{ fontSize: '17px', fontWeight: 500, color: '#5aaa82', marginLeft: '8px' }}>/ month</span>
             </div>
             <div style={{ fontSize: '13px', color: '#7ab89a', marginBottom: '16px' }}>
               ≈ {fmt(dailyRecoverable)} per day
