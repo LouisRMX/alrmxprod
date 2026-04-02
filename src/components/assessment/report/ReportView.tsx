@@ -847,6 +847,91 @@ function FinancialHeadline({ totalLoss, dailyLoss, calcResult }: {
   )
 }
 
+// ── Impact Hook ────────────────────────────────────────────────────────────
+function ImpactHook({ totalLoss, dailyLoss, calcResult, issues, financialBottleneck }: {
+  totalLoss: number
+  dailyLoss: number
+  calcResult: CalcResult
+  issues: Issue[]
+  financialBottleneck: string | null
+}) {
+  if (calcResult.overall === null) {
+    return (
+      <div style={{
+        border: '1px dashed var(--gray-200)', borderRadius: '10px',
+        padding: '36px 24px', textAlign: 'center',
+        color: '#9b9b9b', fontSize: '13px', marginBottom: '10px',
+      }}>
+        Answer the questions above to generate your performance analysis
+      </div>
+    )
+  }
+
+  if (totalLoss === 0) {
+    return (
+      <div style={{
+        background: 'linear-gradient(135deg, #f0faf6 0%, #fff 60%)',
+        border: '1.5px solid #b5dfc9', borderRadius: '10px',
+        padding: '24px 28px', marginBottom: '10px',
+        display: 'flex', alignItems: 'center', gap: '16px',
+      }}>
+        <span style={{ fontSize: '28px', lineHeight: 1 }}>✓</span>
+        <div>
+          <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#9b9b9b', marginBottom: '4px' }}>Plant status</div>
+          <div style={{ fontSize: '24px', fontWeight: 800, color: '#1f8a5e', lineHeight: 1, marginBottom: '4px' }}>Performing at benchmark</div>
+          <div style={{ fontSize: '11px', color: '#9b9b9b' }}>No operational losses identified — all primary metrics at or above target</div>
+        </div>
+      </div>
+    )
+  }
+
+  // Biggest contributor description
+  const topIssue = [...issues].filter(i => i.loss > 0).sort((a, b) => b.loss - a.loss)[0]
+  let contributorDesc = ''
+  if (topIssue) {
+    const dim = topIssue.dimension || financialBottleneck || ''
+    const excessMin = Math.round(calcResult.ta - calcResult.TARGET_TA)
+    if ((dim === 'Fleet' || dim === 'Logistics') && excessMin > 0) {
+      contributorDesc = `Turnaround time (+${excessMin} min over ${calcResult.TARGET_TA} min target)`
+    } else if (dim === 'Dispatch' && (calcResult.dispatchMin ?? 0) > 15) {
+      contributorDesc = `Dispatch time (${calcResult.dispatchMin} min vs 15 min target)`
+    } else if (dim === 'Quality' && calcResult.rejectPct > 1.5) {
+      contributorDesc = `Rejection rate (${calcResult.rejectPct}% vs 1.5% target)`
+    } else if (dim === 'Production') {
+      contributorDesc = `Plant utilisation (${Math.round(calcResult.util * 100)}%)`
+    } else {
+      contributorDesc = topIssue.t
+    }
+  }
+
+  return (
+    <div style={{
+      background: 'linear-gradient(135deg, #fff8f8 0%, #fff 60%)',
+      border: '1.5px solid #f5c6c6', borderRadius: '10px',
+      padding: '24px 28px', marginBottom: '10px',
+    }}>
+      <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#9b9b9b', marginBottom: '8px' }}>
+        {calcResult.demandSufficient === false ? 'Margin improvement potential' : 'You are losing'}
+      </div>
+      <div style={{ fontSize: '36px', fontWeight: 800, color: '#cc3333', lineHeight: 1, marginBottom: '10px' }}>
+        {fmt(totalLoss)}<span style={{ fontSize: '18px', fontWeight: 500, color: '#e88', marginLeft: '6px' }}>/ month</span>
+      </div>
+      <div style={{ display: 'flex', gap: '28px', flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ fontSize: '13px', color: '#666' }}>
+          <span style={{ fontWeight: 700, color: '#cc3333' }}>{fmt(dailyLoss)}</span>
+          <span style={{ color: '#9b9b9b', marginLeft: '4px' }}>every working day</span>
+        </div>
+        {contributorDesc && (
+          <div style={{ fontSize: '13px', color: '#666' }}>
+            Biggest contributor:{' '}
+            <span style={{ fontWeight: 600, color: '#1a1a1a' }}>{contributorDesc}</span>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── Score Overview ─────────────────────────────────────────────────────────
 function ScoreOverview({ calcResult, meta, phase }: {
   calcResult: CalcResult
@@ -1178,6 +1263,321 @@ function StartTrackingCard({ calcResult, issues, totalLoss, financialBottleneck,
   )
 }
 
+// ── Start Here Card ────────────────────────────────────────────────────────
+function StartHereCard({ calcResult, issues, totalLoss, financialBottleneck, onSwitchToTracking }: {
+  calcResult: CalcResult
+  issues: Issue[]
+  totalLoss: number
+  financialBottleneck: string | null
+  onSwitchToTracking?: () => void
+}) {
+  if (totalLoss === 0 || calcResult.overall === null) return null
+  const topIssue = [...issues].filter(i => i.loss > 0).sort((a, b) => b.loss - a.loss)[0]
+  if (!topIssue) return null
+
+  const dim = topIssue.dimension || financialBottleneck || ''
+  const sevenDay = (() => {
+    switch (dim) {
+      case 'Fleet':      return 'Site wait time starts falling — first measurable reduction in turnaround'
+      case 'Dispatch':   return 'Order-to-dispatch time drops below 20 min on first attempt'
+      case 'Quality':    return 'Rejection pattern identified — dominant cause confirmed'
+      case 'Production': return 'Hourly utilisation baseline established'
+      default:           return 'First weekly data point captured and logged'
+    }
+  })()
+
+  return (
+    <div style={{
+      background: '#fff', border: '1.5px solid #1a1a1a',
+      borderRadius: '10px', overflow: 'hidden', marginBottom: '10px',
+    }}>
+      {/* Black eyebrow */}
+      <div style={{
+        padding: '10px 24px', background: '#1a1a1a',
+        fontSize: '9px', fontWeight: 700, letterSpacing: '1.6px',
+        textTransform: 'uppercase', color: '#fff',
+      }}>
+        Start here
+      </div>
+
+      {/* Body */}
+      <div style={{ padding: '20px 24px' }}>
+        <div style={{ fontSize: '17px', fontWeight: 700, color: '#1a1a1a', marginBottom: '6px' }}>
+          {topIssue.t}
+        </div>
+        <div style={{ fontSize: '13px', color: '#666', marginBottom: '20px', lineHeight: 1.5 }}>
+          Costs <span style={{ fontWeight: 600, color: '#cc3333' }}>{fmt(topIssue.loss)}/month</span>
+          {topIssue.rec ? ` — ${topIssue.rec}` : ''}
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          {topIssue.action && (
+            <div>
+              <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase', color: '#9b9b9b', marginBottom: '5px' }}>
+                This week
+              </div>
+              <div style={{ fontSize: '13px', color: '#1a1a1a', lineHeight: 1.5 }}>{topIssue.action}</div>
+            </div>
+          )}
+          <div>
+            <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase', color: '#9b9b9b', marginBottom: '5px' }}>
+              Expected in 7 days
+            </div>
+            <div style={{ fontSize: '13px', color: '#1a1a1a', lineHeight: 1.5 }}>{sevenDay}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Footer CTA */}
+      <div style={{
+        padding: '14px 24px', background: '#fafaf9', borderTop: '1px solid #e8e8e6',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px',
+      }}>
+        <span style={{ fontSize: '11px', color: '#9b9b9b', lineHeight: 1.5 }}>
+          Track your improvement week-by-week and prove the ROI
+        </span>
+        <button
+          type="button"
+          onClick={onSwitchToTracking}
+          style={{
+            background: '#1a1a1a', color: '#fff', border: 'none', borderRadius: '8px',
+            padding: '11px 20px', fontSize: '13px', fontWeight: 600,
+            cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, fontFamily: 'var(--font)',
+          }}
+        >
+          Activate 90-day tracking →
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ── Recovery Breakdown ─────────────────────────────────────────────────────
+function RecoveryBreakdown({ calcResult }: { calcResult: CalcResult }) {
+  if (calcResult.overall === null) return null
+
+  const taLeak = calcResult.demandSufficient === false
+    ? calcResult.turnaroundLeakMonthlyCostOnly
+    : calcResult.turnaroundLeakMonthly
+
+  const turnaroundLoss = calcResult.ta > calcResult.TARGET_TA ? Math.round(taLeak) : 0
+  const dispatchCoeff = Math.max(100, Math.round(taLeak * 0.22))
+  const excessDispatch = Math.max(0, (calcResult.dispatchMin ?? 0) - 15)
+  const dispatchLoss = excessDispatch > 0 ? Math.round(excessDispatch * dispatchCoeff) : 0
+  const rejectionLoss = Math.round(calcResult.rejectLeakMonthly || 0)
+
+  const items = [
+    {
+      label: 'Turnaround time',
+      subLabel: calcResult.ta > calcResult.TARGET_TA
+        ? `${calcResult.ta} min → ${calcResult.TARGET_TA} min target`
+        : 'At benchmark',
+      loss: turnaroundLoss,
+      show: turnaroundLoss > 0,
+    },
+    {
+      label: 'Dispatch time',
+      subLabel: excessDispatch > 0
+        ? `${calcResult.dispatchMin} min → 15 min target`
+        : 'At benchmark',
+      loss: dispatchLoss,
+      show: dispatchLoss > 0,
+    },
+    {
+      label: 'Rejection rate',
+      subLabel: calcResult.rejectPct > 1.5
+        ? `${calcResult.rejectPct}% → 1.5% target`
+        : 'At benchmark',
+      loss: rejectionLoss,
+      show: rejectionLoss > 0,
+    },
+  ].filter(i => i.show)
+
+  if (items.length === 0) return null
+  const maxLoss = Math.max(...items.map(i => i.loss))
+
+  return (
+    <div style={{
+      background: '#fff', border: '1px solid #e8e8e6',
+      borderRadius: '10px', padding: '20px 24px', marginBottom: '10px',
+    }}>
+      <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#9b9b9b', marginBottom: '16px' }}>
+        Recovery breakdown
+      </div>
+      {items.map((item, i) => (
+        <div key={i} style={{ marginBottom: i < items.length - 1 ? '16px' : 0 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '6px' }}>
+            <div>
+              <span style={{ fontSize: '13px', fontWeight: 600, color: '#1a1a1a' }}>{item.label}</span>
+              <span style={{ fontSize: '11px', color: '#9b9b9b', marginLeft: '8px' }}>{item.subLabel}</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '3px', flexShrink: 0 }}>
+              <span style={{ fontSize: '15px', fontWeight: 700, color: '#1a6644' }}>{fmt(item.loss)}</span>
+              <span style={{ fontSize: '10px', color: '#9b9b9b' }}>/mo</span>
+            </div>
+          </div>
+          <div style={{ height: '4px', background: '#f0f0ee', borderRadius: '2px', overflow: 'hidden' }}>
+            <div style={{
+              height: '4px',
+              width: `${Math.round((item.loss / maxLoss) * 100)}%`,
+              background: '#2a9d6e', borderRadius: '2px',
+            }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ── Metrics Snapshot ───────────────────────────────────────────────────────
+function MetricsSnapshot({ calcResult, answers }: { calcResult: CalcResult; answers: Answers }) {
+  if (calcResult.overall === null) return null
+
+  const dispTimeMap: Record<string, number> = {
+    'Under 15 minutes — fast response': 12,
+    '15 to 25 minutes — acceptable': 20,
+    '25 to 40 minutes — slow': 32,
+    'Over 40 minutes — critical bottleneck': 45,
+  }
+  const dispTime = dispTimeMap[answers.order_to_dispatch as string] ?? null
+  const utilPct = Math.round(calcResult.util * 100)
+
+  type Status = 'ok' | 'caution' | 'warn'
+  const metrics: { label: string; value: string; target: string; status: Status }[] = [
+    {
+      label: 'Turnaround',
+      value: calcResult.ta > 0 ? `${calcResult.ta} min` : '—',
+      target: `Target ${calcResult.TARGET_TA} min`,
+      status: calcResult.ta > calcResult.TARGET_TA ? 'warn' : 'ok',
+    },
+    {
+      label: 'Dispatch',
+      value: dispTime !== null ? `${dispTime} min` : '—',
+      target: 'Target 15 min',
+      status: dispTime === null ? 'ok' : dispTime > 25 ? 'warn' : dispTime > 15 ? 'caution' : 'ok',
+    },
+    {
+      label: 'Rejection',
+      value: calcResult.rejectPct > 0 ? `${calcResult.rejectPct}%` : '—',
+      target: 'Target 1.5%',
+      status: calcResult.rejectPct > 3 ? 'warn' : calcResult.rejectPct > 1.5 ? 'caution' : 'ok',
+    },
+    {
+      label: 'Utilisation',
+      value: utilPct > 0 ? `${utilPct}%` : '—',
+      target: `Target ${calcResult.utilisationTarget}%`,
+      status: utilPct > 0 && utilPct < 80 ? 'warn' : utilPct > 0 && utilPct < calcResult.utilisationTarget ? 'caution' : 'ok',
+    },
+  ]
+
+  function metricStyle(status: Status) {
+    if (status === 'warn')    return { bg: '#fff8f8', border: '#f5c6c6', valueColor: '#cc3333' }
+    if (status === 'caution') return { bg: '#fffaf2', border: '#f5ddb5', valueColor: '#c96a00' }
+    return                           { bg: '#f9faf9', border: '#e8e8e6', valueColor: '#1a1a1a' }
+  }
+
+  return (
+    <div style={{ marginBottom: '10px' }}>
+      <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#9b9b9b', marginBottom: '8px', paddingLeft: '2px' }}>
+        Metrics snapshot
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
+        {metrics.map(m => {
+          const s = metricStyle(m.status)
+          return (
+            <div key={m.label} style={{
+              background: s.bg, border: `1px solid ${s.border}`,
+              borderRadius: '8px', padding: '12px 14px',
+            }}>
+              <div style={{ fontSize: '9px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.4px', color: '#9b9b9b', marginBottom: '4px' }}>
+                {m.label}
+              </div>
+              <div style={{ fontSize: '18px', fontWeight: 700, color: s.valueColor, lineHeight: 1, marginBottom: '3px' }}>
+                {m.value}
+              </div>
+              <div style={{ fontSize: '9px', color: '#9b9b9b' }}>{m.target}</div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ── Next Improvements (collapsed by default) ───────────────────────────────
+function NextImprovements({ issues }: { issues: Issue[] }) {
+  const [expanded, setExpanded] = useState(false)
+
+  const actionIssues = [...issues]
+    .filter(i => i.loss > 0)
+    .sort((a, b) => b.loss - a.loss)
+
+  if (actionIssues.length === 0) return null
+
+  function ActionRow({ issue, num, isLast }: { issue: Issue; num: number; isLast: boolean }) {
+    const isUrgent = num <= 2
+    const isNear = num === 3
+    return (
+      <div style={{
+        display: 'flex', alignItems: 'flex-start', gap: '14px',
+        padding: '14px 20px',
+        borderBottom: isLast ? 'none' : '1px solid #f0f0ee',
+      }}>
+        <div style={{
+          width: '22px', height: '22px', borderRadius: '50%', flexShrink: 0, marginTop: '1px',
+          background: isUrgent ? '#fff0f0' : isNear ? '#fff7ed' : '#f5f5f3',
+          border: `1.5px solid ${isUrgent ? '#f5c6c6' : isNear ? '#fdd8a0' : '#e8e8e6'}`,
+          color: isUrgent ? '#cc3333' : isNear ? '#c96a00' : '#666',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: '11px', fontWeight: 700,
+        }}>
+          {num}
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: '13px', fontWeight: 600, color: '#1a1a1a', marginBottom: issue.action ? '2px' : 0 }}>
+            {issue.t}
+          </div>
+          {issue.action && (
+            <div style={{ fontSize: '12px', color: '#666' }}>{issue.action}</div>
+          )}
+        </div>
+        {issue.loss > 0 && (
+          <div style={{
+            fontSize: '11px', fontWeight: 600, color: '#2a9d6e',
+            background: '#f0faf6', border: '1px solid #b5dfc9',
+            borderRadius: '20px', padding: '1px 8px', flexShrink: 0, whiteSpace: 'nowrap',
+          }}>
+            → {fmt(Math.round(issue.loss / 1000))}k/mo
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ marginBottom: '10px', background: '#fff', border: '1px solid #e8e8e6', borderRadius: '10px', overflow: 'hidden' }}>
+      <button
+        type="button"
+        onClick={() => setExpanded(v => !v)}
+        style={{
+          width: '100%', padding: '14px 20px',
+          background: '#fafaf9', border: 'none',
+          borderBottom: expanded ? '1px solid #f0f0ee' : 'none',
+          fontSize: '12px', fontWeight: 600, color: '#1a1a1a',
+          cursor: 'pointer', fontFamily: 'var(--font)',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        }}
+      >
+        <span>Improvement opportunities ({actionIssues.length})</span>
+        <span style={{ fontSize: '10px', color: '#9b9b9b' }}>{expanded ? '↑ Collapse' : '↓ Expand'}</span>
+      </button>
+      {expanded && actionIssues.map((issue, i) => (
+        <ActionRow key={i} issue={issue} num={i + 1} isLast={i === actionIssues.length - 1} />
+      ))}
+    </div>
+  )
+}
+
 // ── Actions Panel ──────────────────────────────────────────────────────────
 function ActionsPanel({ issues }: { issues: Issue[] }) {
   const [laterExpanded, setLaterExpanded] = useState(false)
@@ -1286,6 +1686,8 @@ interface FullReportDrawerProps {
   gpsAvgTA: number | null
   totalLoss: number
   isAdmin?: boolean
+  phase?: Phase
+  financialBottleneck: string | null
 }
 
 function FullReportDrawer({
@@ -1294,7 +1696,7 @@ function FullReportDrawer({
   calcResult, answers, meta, assessmentId,
   issues, primaryBottleneckLoss,
   logisticsText, gpsAvgTA,
-  totalLoss, isAdmin,
+  totalLoss, isAdmin, phase, financialBottleneck,
 }: FullReportDrawerProps) {
   const plantName = meta?.plant || 'Full Report'
   const dateStr = meta?.date || ''
@@ -1380,6 +1782,30 @@ function FullReportDrawer({
             </div>
           )}
 
+          {/* Score Overview at top of drawer */}
+          <ScoreOverview calcResult={calcResult} meta={meta} phase={phase} />
+
+          {/* Findings */}
+          {issues.filter(i => i.loss > 0 || i.category === 'bottleneck').length > 0 && (
+            <div style={{ marginBottom: '24px' }}>
+              <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#9b9b9b', marginBottom: '10px', paddingLeft: '2px' }}>
+                Findings ({issues.filter(i => i.loss > 0 || i.category === 'bottleneck').length})
+              </div>
+              {issues
+                .filter(issue => issue.loss > 0 || issue.category === 'bottleneck')
+                .map((issue, i) => (
+                  <FindingCard
+                    key={i}
+                    issue={issue}
+                    index={i}
+                    isOverlap={issue.category === 'bottleneck' && issue.loss > 0 && issue.loss < primaryBottleneckLoss}
+                  />
+                ))}
+            </div>
+          )}
+
+          <Divider />
+
           <AISection
             title="Executive Summary"
             text={texts.executive}
@@ -1397,24 +1823,6 @@ function FullReportDrawer({
             onSave={t => onSave('diagnosis', t)}
             minHeight={120}
           />
-          <Divider />
-
-          {/* Findings (no inline slider in drawer) */}
-          <div style={{ marginBottom: '24px' }}>
-            <h3 style={{ fontSize: '13px', fontWeight: 600, color: 'var(--gray-900)', margin: '0 0 10px', textTransform: 'uppercase', letterSpacing: '.4px' }}>
-              Findings ({issues.filter(i => i.loss > 0 || i.category === 'bottleneck').length})
-            </h3>
-            {issues
-              .filter(issue => issue.loss > 0 || issue.category === 'bottleneck')
-              .map((issue, i) => (
-                <FindingCard
-                  key={i}
-                  issue={issue}
-                  index={i}
-                  isOverlap={issue.category === 'bottleneck' && issue.loss > 0 && issue.loss < primaryBottleneckLoss}
-                />
-              ))}
-          </div>
           <Divider />
 
           <AISection
@@ -2016,13 +2424,37 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
         </div>
       )}
 
-      {/* ── Financial Headline ────────────────────────────────────────────── */}
-      <FinancialHeadline totalLoss={totalLoss} dailyLoss={dailyLoss} calcResult={calcResult} />
+      {/* 1. IMPACT / HOOK ────────────────────────────────────────────────── */}
+      <ImpactHook
+        totalLoss={totalLoss}
+        dailyLoss={dailyLoss}
+        calcResult={calcResult}
+        issues={issues}
+        financialBottleneck={financialBottleneck}
+      />
 
-      {/* ── Score Overview (circle + dimension chips) ─────────────────────── */}
-      <ScoreOverview calcResult={calcResult} meta={meta} phase={phase} />
+      {/* 2. START HERE ───────────────────────────────────────────────────── */}
+      <StartHereCard
+        calcResult={calcResult}
+        issues={issues}
+        totalLoss={totalLoss}
+        financialBottleneck={financialBottleneck}
+        onSwitchToTracking={onSwitchToTracking}
+      />
 
-      {/* ── Pre-assessment: Benchmark Positioning + Quick Wins + On-site Preview ── */}
+      {/* 3. RECOVERY BREAKDOWN (compact numbers + bars) ─────────────────── */}
+      <RecoveryBreakdown calcResult={calcResult} />
+
+      {/* 4. RECOVERY PANEL (interactive sliders) ────────────────────────── */}
+      <RecoveryPanel calcResult={calcResult} />
+
+      {/* 5. NEXT IMPROVEMENTS (collapsed by default) ────────────────────── */}
+      <NextImprovements issues={issues} />
+
+      {/* 6. METRICS SNAPSHOT ─────────────────────────────────────────────── */}
+      <MetricsSnapshot calcResult={calcResult} answers={answers} />
+
+      {/* Pre-assessment: Benchmark Positioning + Quick Wins + On-site Preview */}
       {phase === 'workshop' && totalLoss > 0 && (
         <>
           <BenchmarkPositioning calcResult={calcResult} answers={answers} />
@@ -2031,66 +2463,10 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
         </>
       )}
 
-      {/* ── Assumptions Panel (admin) ─────────────────────────────────────── */}
+      {/* Assumptions Panel (admin) */}
       {isAdmin && onOverrideChange && (
         <AssumptionsPanel overrides={overrides ?? {}} onChange={onOverrideChange} />
       )}
-
-      {/* ── Findings ─────────────────────────────────────────────────────── */}
-      {issues.length > 0 && (
-        <div style={{ marginBottom: '10px' }}>
-          <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#9b9b9b', marginBottom: '10px', paddingLeft: '2px' }}>
-            Findings
-          </div>
-          {issues
-            .filter(issue => issue.loss > 0 || issue.category === 'bottleneck')
-            .map((issue, i) => (
-              <FindingCard
-                key={i}
-                issue={issue}
-                index={i}
-                isOverlap={issue.category === 'bottleneck' && issue.loss > 0 && issue.loss < primaryBottleneckLoss}
-              />
-            ))}
-        </div>
-      )}
-
-      {calcResult.overall !== null && issues.length === 0 && (
-        <div style={{ padding: '24px', textAlign: 'center', color: 'var(--gray-500)', fontSize: '13px', marginBottom: '24px' }}>
-          No operational issues identified — this plant is performing at or above benchmark on all primary metrics.
-        </div>
-      )}
-
-      {calcResult.overall === null && (
-        <div style={{ padding: '24px', textAlign: 'center', color: 'var(--gray-500)', fontSize: '13px', marginBottom: '24px' }}>
-          Answer the questions above to generate operational findings.
-        </div>
-      )}
-
-      {/* ── Recovery Simulator (3 sliders) ──────────────────────────────── */}
-      {(getSliderConfig(calcResult, 'Fleet') || getSliderConfig(calcResult, 'Quality') || (calcResult.dispatchMin ?? 0) > 15) && (
-        <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#9b9b9b', marginBottom: '10px', paddingLeft: '2px' }}>
-          Recovery potential
-        </div>
-      )}
-      <RecoveryPanel calcResult={calcResult} />
-
-      {/* ── Start Tracking Card ──────────────────────────────────────────── */}
-      <StartTrackingCard
-        calcResult={calcResult}
-        issues={issues}
-        totalLoss={totalLoss}
-        financialBottleneck={financialBottleneck}
-        onSwitchToTracking={onSwitchToTracking}
-      />
-
-      {/* ── Action Plan ──────────────────────────────────────────────────── */}
-      {issues.filter(i => i.loss > 0).length > 0 && (
-        <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#9b9b9b', marginBottom: '10px', paddingLeft: '2px' }}>
-          Actions
-        </div>
-      )}
-      <ActionsPanel issues={issues} />
 
       {/* ── Full Report Drawer (always in DOM) ───────────────────────────── */}
       <FullReportDrawer
@@ -2114,6 +2490,8 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
         gpsAvgTA={gpsAvgTA}
         totalLoss={totalLoss}
         isAdmin={isAdmin}
+        phase={phase}
+        financialBottleneck={financialBottleneck}
       />
 
     </div>
