@@ -41,11 +41,11 @@ export async function POST(req: NextRequest) {
   // Demo mode: return fixed pre-written report text, no database access needed
   if (assessmentId === 'demo') {
     const DEMO_TEXTS: Record<string, string> = {
-      executive: `The dispatch sequence is reactive: orders are processed individually as they arrive, with no pre-loading or zone anticipation, which causes a 17-minute structural delay on every departure.
+      executive: `At 32 minutes, order-to-dispatch is more than double the 15-minute target — a gap of this size indicates the dispatch sequence is likely reactive rather than pre-planned, with trucks prepared after orders arrive rather than before.
 
-Each delayed departure compresses the remaining shift: on a 95-minute cycle, a truck leaving 17 minutes late completes one fewer delivery by end of day, reducing effective fleet output without any truck being unavailable.
+A 17-minute excess on every departure compounds across the shift: combined with a 95-minute turnaround, each late departure delays the return and reload, reducing the number of cycles the fleet can complete without any truck being unavailable.
 
-Dispatch is the binding constraint because production capacity is underutilised and the fleet is physically capable of more cycles — the limit is not output or vehicle count, it is departure rate.`,
+Dispatch is the binding constraint because utilisation is already below the 85% target and the turnaround gap is driven by departure timing, not by distance or site conditions — production capacity exists, but the dispatch rhythm is preventing it from reaching customers.`,
 
       diagnosis: `Performance Scores
 Production: 82/100
@@ -252,11 +252,11 @@ COMPRESSION RULES — strictly enforced:
 - Prefer direct statements over explanations.
 - Write the conclusion first in each paragraph, then support it briefly.
 
-Paragraph 1: State what is structurally broken in the operational flow. One cause, one effect. No elaboration.
+Paragraph 1: State the measured gap as a fact (use the actual metric vs target). Then state the most likely operational cause — framed as inference, not assertion. Use language like "indicates", "suggests", "points to". Do not claim to know what the plant does or does not have.
 
-Paragraph 2: State the downstream consequence. What cannot happen because of the failure in paragraph 1. Direct causal chain only.
+Paragraph 2: State the downstream consequence that follows directly from the gap in paragraph 1. Use only what the data confirms — turnaround time, cycle count, utilisation. Do not introduce specifics (shift length, number of deliveries) unless they appear in the plant data above.
 
-Paragraph 3: State why this is the binding constraint and not another dimension. One reason. One sentence of supporting logic. Stop.`
+Paragraph 3: State why this dimension is the binding constraint. Support it with two data points from the plant data: one showing another dimension is not the limit, one showing this one is. Stop there.`
 }
 
 function buildDiagnosisPrompt(ctx: Record<string, unknown>) {
