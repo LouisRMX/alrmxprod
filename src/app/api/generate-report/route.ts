@@ -47,52 +47,13 @@ A 17-minute excess on every departure compounds across the shift: combined with 
 
 Dispatch is the binding constraint because it directly gates how many cycles the fleet completes, regardless of other improvements. The 3.8% rejection rate is a real cost but affects a fraction of loads and does not limit throughput. Utilisation appears close to target but is inflated by the dispatch delay itself — the plant is producing to fill waiting trucks, not to fill demand. Fixing dispatch unlocks throughput across the entire fleet; fixing quality or utilisation alone does not.`,
 
-      diagnosis: `Performance Scores
-Production: 82/100
-What this means: The plant is running at 89% utilisation — close to the 85% target, but this figure is misleading. Apparent capacity use is high because the constraint is downstream in dispatch and fleet, not at the batch plant itself.
+      diagnosis: `The dispatch constraint reduces the number of productive cycles the fleet can complete each shift — not because trucks are unavailable, but because each departure starts late and the delay carries through every subsequent cycle. At 10 trucks on a 95-minute cycle, a 17-minute departure excess represents roughly 1.5 fewer completed deliveries per truck per day, compressing output without any reduction in fleet size or plant capacity.
 
-Dispatch: 52/100
-What this means: At 32 minutes average order-to-dispatch, the plant is more than double the 15-minute target. This is the single largest controllable gap in the operation and the primary financial driver.
+Fleet turnaround at 95 minutes is 20 minutes above the 75-minute benchmark, but this is a consequence of the dispatch gap, not an independent failure. Turnaround cannot improve meaningfully until departures are on time — a truck leaving late arrives late and returns late, regardless of what happens at the site. Quality at 71/100 and a 3.8% rejection rate are real costs, but they affect a fraction of loads and do not limit how many deliveries the fleet can attempt. Production at 82/100 appears constrained, but utilisation is high precisely because the plant is producing to fill a queue that dispatch has already delayed.
 
-Fleet: 61/100
-What this means: A 95-minute turnaround on a 10 km delivery radius is 20 minutes above the 75-minute benchmark. Each excess minute represents capacity the fleet cannot convert into deliveries.
+If the dispatch gap closes to 15 minutes, the fleet recovers the cycle capacity to complete its target delivery volume within the existing shift. Turnaround would likely improve as a secondary effect, since trucks departing on schedule face less site-wait pressure and return within expected windows. No additional trucks or plant capacity are required — the throughput is already latent in the existing fleet.
 
-Quality: 71/100
-What this means: A 3.8% rejection rate is 0.8 percentage points above the 3% benchmark. At full plant liability for returned loads, this represents $18,400/month in write-offs — real but secondary to the dispatch and turnaround problem.
-
-Overall: 75/100
-The plant has the infrastructure to perform significantly above its current level. The constraint is operational rhythm, not installed capacity.
-
-Primary constraint: Dispatch
-The 32-minute order-to-dispatch cycle is preventing the fleet from maintaining the delivery cadence needed to fill available capacity. Every delayed departure cascades into a longer afternoon queue and fewer completed cycles per shift.
-
-Dispatch — Primary Constraint
-Order-to-dispatch averages 32 minutes against a 15-minute target — a 17-minute gap on every order. There is no pre-loading protocol, no zone routing, and no real-time tracking: the dispatcher reacts to each order individually rather than anticipating the next. This creates a compounding delay through the shift: trucks queue at departure rather than at delivery sites, which is the more expensive place to wait. The financial consequence is up to $71,000/month in recoverable margin — driven entirely by the time between order confirmation and truck departure.
-
-Findings
-Finding: Order-to-dispatch averaging 32 minutes against a 15-minute target — the longest controllable gap in the dispatch chain.
-Benchmark: Well-run plants dispatch within 10–15 minutes of order confirmation using pre-loading and zone sequencing.
-Gap: 17 minutes excess per order × 42 deliveries/day × 22 operating days.
-Impact: up to $71,000/month
-Action: Pre-load 3 trucks before the morning peak. Assign one dispatcher whose only metric is order-to-dispatch time, logged daily on a whiteboard visible to the shift supervisor.
-
-Finding: Truck turnaround 95 minutes against a 75-minute benchmark for a 10 km delivery radius.
-Benchmark: Well-run plants on a 10 km radius achieve 75–82 minute round trips through site-readiness protocols and enforced demurrage.
-Gap: 20 minutes excess per cycle × 42 deliveries/day × 22 days.
-Impact: up to $46,200/month (partially overlapping with dispatch finding)
-Action: Require site-readiness confirmation before dispatch. No truck leaves until the pump crew and foreman confirm ready — logged by the dispatcher with a timestamp.
-
-Finding: 3.8% rejection rate with plant absorbing 100% of material costs.
-Benchmark: Well-run plants hold rejections below 3% and include material cost recovery clauses in standard contracts.
-Gap: 0.8 percentage points above benchmark × 42 deliveries × 7 m³ × $68/m³ plant cost.
-Impact: up to $18,400/month
-Action: Enforce retarder dosage protocol on all loads with transit time over 35 minutes. Add a material cost clause to the next three contract renewals.
-
-Finding: Average load 6.5 m³ on 7 m³ trucks — 7% of mixer capacity unused per trip.
-Benchmark: Well-run plants achieve above 6.8 m³ average through minimum batch policies or small-load surcharges.
-Gap: 0.5 m³ × 42 deliveries/day × 22 days = 462 m³/month unbilled.
-Impact: up to $9,100/month
-Action: Set a minimum batch size of 6.8 m³ or introduce a below-threshold surcharge. Implement in the next contract renewal cycle.`,
+Fleet score of 61/100 is the dimension most likely to become the next constraint once dispatch is resolved. A 95-minute turnaround still contains a site-wait component that is independent of departure timing, and without a site-readiness protocol, that component will remain once the dispatch delay is removed.`,
 
       actions: `Immediate — this week
 1. Dispatch pre-loading protocol: Before the morning shift starts, pre-load 3 trucks with the most likely first orders of the day. The dispatcher confirms which three before the first order arrives. Done when the morning queue time drops below 20 minutes.
@@ -304,79 +265,58 @@ What Is Working — heading on its own line
 3 to 4 sentences describing the operational strengths. Be specific. Reference actual numbers. Identify anything that could slip if not actively maintained.`
   }
 
-  const topIssues = issues
-    .filter(i => i.loss > 0)
-    .slice(0, 4)
-
-  const findingsJson = topIssues.map(i => ({
-    title: i.t,
-    dimension: i.dimension,
-    action: i.action,
-    detail: i.rec,
-    monthlyLoss: i.loss,
-    severity: i.sev,
-  }))
-
-  // Identify non-bottleneck dimensions for brief coverage
   const bottleneck = ctx.bottleneck as string
-  const dimOrder = ['Dispatch', 'Fleet', 'Logistics', 'Quality', 'Production'].filter(d => d !== bottleneck)
+  const secondaryDims = ['Dispatch', 'Fleet', 'Quality', 'Production']
+    .filter(d => d !== bottleneck)
+    .map(d => {
+      const scoreMap: Record<string, number | null> = {
+        Dispatch: scores?.dispatch ?? null,
+        Fleet: scores?.logistics ?? null,
+        Quality: scores?.quality ?? null,
+        Production: scores?.prod ?? null,
+      }
+      return `${d}: ${scoreMap[d] ?? '—'}/100`
+    })
+    .join(' · ')
 
   return `${RULES}
 
-You are writing the Operational Diagnosis section of a Plant Intelligence Report for ${ctx.plant} in ${ctx.country}.
+You are writing the Constraint Analysis section of a Plant Intelligence Report for ${ctx.plant} in ${ctx.country}.
 
-SCORES:
-Production: ${scores?.prod ?? '—'}/100
-Dispatch: ${scores?.dispatch ?? '—'}/100
-Fleet: ${scores?.logistics ?? '—'}/100
-Quality: ${scores?.quality ?? '—'}/100
-Overall: ${ctx.overall}/100
-Primary bottleneck: ${bottleneck}
+IMPORTANT: The reader has already read "Why the operation is constrained" — they know what the bottleneck is and how it occurs at the point of failure. Do NOT re-explain the bottleneck mechanism. Start from its consequences for the system as a whole.
 
-KEY METRICS:
-Utilisation: ${ctx.utilPct}% — target: 85%
-Turnaround: ${ctx.turnaround} min — target: ${ctx.targetTA} min
-Dispatch time: ${ctx.dispatchMin ?? '—'} min — target: 15 min
-Rejection rate: ${ctx.rejectPct ?? '—'}% — target: <3%
-Fleet size: ${ctx.trucks} trucks
-Bottleneck loss: up to $${ctx.bnLossMonthly}/month ($${ctx.bnDailyLoss}/day)
-Total recoverable: up to $${ctx.totalLossMonthly}/month
-
-FINDINGS DATA (use these numbers exactly, do not invent):
-${JSON.stringify(findingsJson, null, 2)}
-
-WRITE EXACTLY THREE SECTIONS:
-
-Section 1 — heading "Performance Scores" on its own line
-For each of the four dimensions (Production, Dispatch, Fleet, Quality), write:
-[Dimension]: [Score]/100
-What this means: [One sentence — specific to THIS plant's actual metric. Reference the number. Not a generic definition.]
-
-Then:
-Overall: ${ctx.overall}/100
-[One sentence on what this means for the plant as a whole.]
-
+PLANT DATA:
 Primary constraint: ${bottleneck}
-[One sentence on what this constraint is preventing operationally — cause and effect, plain language.]
+Bottleneck loss: up to $${ctx.bnLossMonthly}/month ($${ctx.bnDailyLoss}/day)
+Total recoverable (all areas): up to $${ctx.totalLossMonthly}/month
+Turnaround: ${ctx.turnaround} min (target: ${ctx.targetTA} min)
+Dispatch time: ${ctx.dispatchMin ?? '—'} min (target: 15 min)
+Rejection rate: ${ctx.rejectPct ?? '—'}% (target: <3%)
+Utilisation: ${ctx.utilPct}% (target: 85%)
+Fleet: ${ctx.trucks} trucks
+Scores — constraint: ${bottleneck} ${scores?.[bottleneck.toLowerCase() as keyof typeof scores] ?? (bottleneck === 'Fleet' ? scores?.logistics : null) ?? '—'}/100 | secondary: ${secondaryDims}
 
-Section 2 — heading "${bottleneck} — Primary Constraint" on its own line
-This is the bottleneck deep dive. Write 3–4 sentences covering:
-- What is wrong (the specific metric and how far it is from target)
-- Why it limits the system downstream (what cannot happen because of this)
-- The financial consequence (use the bnLossMonthly and bnDailyLoss figures above)
-Be direct. This is the section the owner will remember.
+WRITE 3–4 PARAGRAPHS. No headings. No bullet points. No findings. No metric listings.
 
-Section 3 — heading "Findings" on its own line
-Write maximum 4 findings ordered by monthly financial impact, highest first.
-Use these findings from the data above. Each finding MUST follow this exact format:
+Paragraph 1 — System consequence:
+State what happens to overall throughput and fleet utilisation as a result of the constraint.
+Not what the constraint is — what it does to the system as a whole.
+One core idea. One cause-effect chain. Max 3 sentences.
 
-Finding: [What is happening as a fact. Use the actual number from the data. Specific to this plant, not generic.]
-Benchmark: [What well-run plants achieve — frame as "well-run plants", not "the industry average"]
-Gap: [The difference in real units: minutes, percentage points, loads/day, m³/month]
-Impact: up to $[X]/month
-Action: [One specific, implementable action. No jargon. No software references. Something a plant manager can do this week.]
+Paragraph 2 — Why other dimensions are secondary:
+For each underperforming dimension that is NOT the constraint, state in one sentence why fixing it first would not unlock system throughput.
+Base this on the actual scores and metrics above.
+Be direct: name each dimension and give a specific operational reason it is secondary.
+Do not list them as bullets — weave them into prose.
 
-Other dimensions covered briefly: ${dimOrder.slice(0, 3).join(', ')} — mention each once within the findings where the data supports it, without separate section headings.`
+Paragraph 3 — What resolving the constraint enables:
+If the constraint is fixed, what becomes operationally possible?
+Do not state financial figures — focus on capacity, delivery cadence, and fleet utilisation.
+Max 3 sentences. Conclusion first, then one supporting observation.
+
+Paragraph 4 (include only if data supports it) — Next constraint:
+If another dimension is close to becoming the binding limit once the primary is resolved, name it and explain why in 1–2 sentences.
+Only include this paragraph if a secondary score is below 65 or a metric is meaningfully off-target.`
 }
 
 function buildActionsPrompt(ctx: Record<string, unknown>) {
