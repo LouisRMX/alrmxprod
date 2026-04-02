@@ -249,6 +249,8 @@ COMPRESSION RULES — strictly enforced:
 - No examples. No illustrative scenarios. No storytelling.
 - No throat-clearing. Start with the operational fact.
 - If a sentence does not add a new idea or new causal link, cut it.
+- Prefer direct statements over explanations.
+- Write the conclusion first in each paragraph, then support it briefly.
 
 Paragraph 1: State what is structurally broken in the operational flow. One cause, one effect. No elaboration.
 
