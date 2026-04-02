@@ -970,15 +970,23 @@ function ImpactHook({ totalLoss, dailyLoss, calcResult, issues, financialBottlen
               ≈ {fmtK(dailyRecoverable)} per day
             </div>
             {driverLabel && (
-              <div style={{ fontSize: '13px', color: '#2a6644', marginBottom: '8px' }}>
-                Achievable by improving {driverLabel.toLowerCase()} performance
+              <div style={{ marginBottom: '12px' }}>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: '#1a6644', marginBottom: '2px' }}>
+                  Driven by {driverLabel.toLowerCase()} improvement
+                </div>
+                {driverMetric && (
+                  <div style={{ fontSize: '12px', color: '#7ab89a' }}>{driverMetric}</div>
+                )}
               </div>
             )}
+            <div style={{ fontSize: '13px', fontWeight: 600, color: '#1a6644', marginBottom: '12px' }}>
+              Recovers 100% of current leakage
+            </div>
             <div style={{ fontSize: '11px', color: '#5aaa82', marginBottom: '4px' }}>
               + Additional upside discovered in other operational areas
             </div>
             <div style={{ fontSize: '11px', color: '#b0b0b0' }}>
-              Based on current operational data
+              (Based on current operational data)
             </div>
           </>
         ) : (
