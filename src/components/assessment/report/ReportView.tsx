@@ -2836,8 +2836,6 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
         financialBottleneck={financialBottleneck}
       />
 
-      {/* 2. TOTAL RECOVERABLE VALUE */}
-      <RecoverableValueCard totalLoss={totalLoss} financialBottleneck={financialBottleneck} />
 
       {/* 3. SCORE GRID */}
       <ScoreGrid calcResult={calcResult} financialBottleneck={financialBottleneck} />
