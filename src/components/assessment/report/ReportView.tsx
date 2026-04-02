@@ -966,12 +966,12 @@ function ImpactHook({ totalLoss, dailyLoss, calcResult, issues, financialBottlen
             <div style={{ fontSize: '40px', fontWeight: 800, color: '#1a6644', lineHeight: 1, letterSpacing: '-1px', marginBottom: '4px' }}>
               {fmtK(totalMaxRecoverable)}<span style={{ fontSize: '17px', fontWeight: 500, color: '#5aaa82', marginLeft: '8px' }}>/ month</span>
             </div>
-            <div style={{ fontSize: '13px', color: '#7ab89a', marginBottom: '16px' }}>
+            <div style={{ fontSize: '13px', color: '#7ab89a', marginBottom: '20px' }}>
               ≈ {fmtK(dailyRecoverable)} per day
             </div>
             {driverLabel && (
-              <div style={{ marginBottom: '12px' }}>
-                <div style={{ fontSize: '13px', fontWeight: 600, color: '#1a6644', marginBottom: '2px' }}>
+              <div style={{ marginBottom: '20px' }}>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: '#1a6644', marginBottom: '4px' }}>
                   Driven by {driverLabel.toLowerCase()} improvement
                 </div>
                 {driverMetric && (
@@ -979,10 +979,10 @@ function ImpactHook({ totalLoss, dailyLoss, calcResult, issues, financialBottlen
                 )}
               </div>
             )}
-            <div style={{ fontSize: '13px', fontWeight: 600, color: '#1a6644', marginBottom: '12px' }}>
+            <div style={{ fontSize: '13px', fontWeight: 600, color: '#1a6644', marginBottom: '20px' }}>
               Recovers 100% of current leakage
             </div>
-            <div style={{ fontSize: '11px', color: '#5aaa82', marginBottom: '4px' }}>
+            <div style={{ fontSize: '11px', color: '#5aaa82', marginBottom: '6px' }}>
               + Additional upside discovered in other operational areas
             </div>
             <div style={{ fontSize: '11px', color: '#b0b0b0' }}>
