@@ -2005,7 +2005,7 @@ function FullReportDrawer({
 
           {/* 2. EXECUTIVE EXPLANATION — why the bottleneck occurs */}
           <AISection
-            title="Executive Explanation"
+            title="Why the operation is constrained"
             text={texts.executive}
             generating={generating === 'executive'}
             onGenerate={() => onGenerate('executive')}
