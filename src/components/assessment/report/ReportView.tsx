@@ -853,10 +853,11 @@ function FinancialHeadline({ totalLoss, dailyLoss, calcResult }: {
 }
 
 // ── Impact Hook ────────────────────────────────────────────────────────────
-function TopSummary({ bnLoss, totalLoss, calcResult, financialBottleneck }: {
+function ImpactHook({ bnLoss, bnDailyLoss, calcResult, issues, financialBottleneck }: {
   bnLoss: number
-  totalLoss: number
+  bnDailyLoss: number
   calcResult: CalcResult
+  issues: Issue[]
   financialBottleneck: string | null
 }) {
   if (calcResult.overall === null) {
@@ -864,19 +865,19 @@ function TopSummary({ bnLoss, totalLoss, calcResult, financialBottleneck }: {
       <div style={{
         border: '1px dashed var(--gray-200)', borderRadius: '10px',
         padding: '36px 24px', textAlign: 'center',
-        color: '#9b9b9b', fontSize: '13px', marginBottom: '16px',
+        color: '#9b9b9b', fontSize: '13px', marginBottom: '10px',
       }}>
         Answer the questions above to generate your performance analysis
       </div>
     )
   }
 
-  if (totalLoss === 0) {
+  if (bnLoss === 0) {
     return (
       <div style={{
         background: 'linear-gradient(135deg, #f0faf6 0%, #fff 60%)',
         border: '1.5px solid #b5dfc9', borderRadius: '10px',
-        padding: '24px 28px', marginBottom: '16px',
+        padding: '24px 28px', marginBottom: '10px',
         display: 'flex', alignItems: 'center', gap: '16px',
       }}>
         <span style={{ fontSize: '28px', lineHeight: 1 }}>✓</span>
@@ -889,90 +890,92 @@ function TopSummary({ bnLoss, totalLoss, calcResult, financialBottleneck }: {
     )
   }
 
-  const score = calcResult.overall ?? 0
-  const bottleneckLabel = financialBottleneck === 'Fleet' ? 'Logistics' : (financialBottleneck ?? '—')
+  // Primary driver label + metric
+  const driverLabel = financialBottleneck === 'Fleet' ? 'Logistics' : financialBottleneck
+  const driverMetric = (() => {
+    switch (financialBottleneck) {
+      case 'Fleet':
+        return calcResult.ta > 0 ? `${calcResult.ta} min vs ${calcResult.TARGET_TA} min target` : null
+      case 'Dispatch':
+        return calcResult.dispatchMin ? `${calcResult.dispatchMin} min vs 15 min target` : null
+      case 'Quality':
+        return calcResult.rejectPct > 0 ? `${Math.round(calcResult.rejectPct)}% vs 1.5% target` : null
+      case 'Production': {
+        const up = Math.round(calcResult.util * 100)
+        return up > 0 ? `${up}% vs ${calcResult.utilisationTarget}% target` : null
+      }
+      default: return null
+    }
+  })()
 
-  // Snapshot bullets — up to 3 most relevant off-target metrics
-  const bullets: string[] = []
-  if (calcResult.dispatchMin && calcResult.dispatchMin > 15)
-    bullets.push(`Dispatch cycle: ${calcResult.dispatchMin} min vs 15 min target`)
-  if (calcResult.ta > 0 && calcResult.TARGET_TA > 0 && calcResult.ta > calcResult.TARGET_TA)
-    bullets.push(`Turnaround: ${calcResult.ta} min vs ${calcResult.TARGET_TA} min target`)
-  if (calcResult.rejectPct > 3)
-    bullets.push(`Reject rate: ${Math.round(calcResult.rejectPct * 10) / 10}%`)
-  if (bullets.length < 3 && Math.round(calcResult.util * 100) < 80)
-    bullets.push(`Utilisation: ${Math.round(calcResult.util * 100)}% vs ${calcResult.utilisationTarget}% target`)
+  // Right side mirrors left — bnLoss is both the leakage and the recoverable for this dimension
 
   return (
-    <div style={{ marginBottom: '16px' }}>
-      {/* 3-column metric row */}
-      <div style={{
-        display: 'grid', gridTemplateColumns: '1fr 1fr 1fr',
-        border: '1.5px solid #e8e8e6', borderRadius: '12px',
-        overflow: 'hidden', marginBottom: '0',
-      }}>
-        {/* LEFT — Operational Score */}
-        <div style={{
-          padding: '20px 24px',
-          background: '#f6fbf8',
-          borderRight: '1px solid #e8e8e6',
-        }}>
-          <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.4px', textTransform: 'uppercase', color: '#7ab89a', marginBottom: '6px' }}>
-            Operational Score
-          </div>
-          <div style={{ fontSize: '44px', fontWeight: 800, color: '#1a6644', lineHeight: 1, letterSpacing: '-1px' }}>
-            {score}
-          </div>
-          <div style={{ fontSize: '11px', color: '#9b9b9b', marginTop: '4px' }}>out of 100</div>
+    <div style={{
+      border: '1.5px solid #f0f0ee', borderRadius: '12px',
+      overflow: 'hidden', marginBottom: '16px',
+      display: 'grid', gridTemplateColumns: '3fr 2fr',
+    }}>
+      {/* Left — Estimated revenue leakage */}
+      <div style={{ padding: '24px', background: '#ffe0e0', borderRight: '1px solid #f5c6c6' }}>
+        <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.4px', textTransform: 'uppercase', color: '#c0a0a0', marginBottom: '8px' }}>
+          {calcResult.demandSufficient === false ? 'Margin improvement potential' : 'Estimated revenue leakage'}
         </div>
-
-        {/* MIDDLE — Total recoverable */}
-        <div style={{
-          padding: '20px 24px',
-          background: '#fff5f5',
-          borderRight: '1px solid #e8e8e6',
-        }}>
-          <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.4px', textTransform: 'uppercase', color: '#c0a0a0', marginBottom: '6px' }}>
-            Total recoverable revenue
-          </div>
-          <div style={{ fontSize: '36px', fontWeight: 800, color: '#cc3333', lineHeight: 1, letterSpacing: '-1px' }}>
-            {fmtK(totalLoss)}
-          </div>
-          <div style={{ fontSize: '11px', color: '#c09090', marginTop: '4px' }}>per month</div>
+        <div style={{ fontSize: '48px', fontWeight: 800, color: '#cc3333', lineHeight: 1, letterSpacing: '-1px', marginBottom: '4px' }}>
+          {fmtK(bnLoss)}<span style={{ fontSize: '20px', fontWeight: 500, color: '#e88', marginLeft: '8px' }}>/ month</span>
         </div>
-
-        {/* RIGHT — Primary constraint */}
-        <div style={{
-          padding: '20px 24px',
-          background: '#fafafa',
-        }}>
-          <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.4px', textTransform: 'uppercase', color: '#aaa', marginBottom: '6px' }}>
-            Primary constraint
-          </div>
-          <div style={{ fontSize: '28px', fontWeight: 800, color: '#111', lineHeight: 1, letterSpacing: '-0.5px' }}>
-            {bottleneckLabel}
-          </div>
-          <div style={{ fontSize: '11px', color: '#aaa', marginTop: '4px' }}>main bottleneck</div>
+        <div style={{ fontSize: '13px', color: '#c09090', marginBottom: '16px' }}>
+          ≈ {fmtK(bnDailyLoss)} per day
         </div>
+        {driverLabel && (
+          <div style={{ fontSize: '13px', color: '#666', marginBottom: '3px' }}>
+            Primary driver: <strong style={{ color: '#cc3333' }}>{driverLabel}</strong>
+          </div>
+        )}
+        {driverMetric && (
+          <div style={{ fontSize: '12px', color: '#aaa' }}>{driverMetric}</div>
+        )}
       </div>
 
-      {/* Snapshot bullets */}
-      {bullets.length > 0 && (
-        <div style={{
-          border: '1px solid #e8e8e6', borderTop: 'none',
-          borderRadius: '0 0 12px 12px',
-          padding: '12px 24px',
-          background: '#fff',
-          display: 'flex', gap: '24px', flexWrap: 'wrap',
-        }}>
-          {bullets.slice(0, 3).map((b, i) => (
-            <div key={i} style={{ fontSize: '12px', color: '#555', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#cc3333', flexShrink: 0, display: 'inline-block' }} />
-              {b}
-            </div>
-          ))}
+      {/* Right — Recoverable revenue */}
+      <div style={{ padding: '24px', background: '#f6fbf8' }}>
+        <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.4px', textTransform: 'uppercase', color: '#7ab89a', marginBottom: '8px' }}>
+          Recoverable revenue
         </div>
-      )}
+        {bnLoss > 0 ? (
+          <>
+            <div style={{ fontSize: '40px', fontWeight: 800, color: '#1a6644', lineHeight: 1, letterSpacing: '-1px', marginBottom: '4px' }}>
+              {fmtK(bnLoss)}<span style={{ fontSize: '17px', fontWeight: 500, color: '#5aaa82', marginLeft: '8px' }}>/ month</span>
+            </div>
+            <div style={{ fontSize: '13px', color: '#7ab89a', marginBottom: '20px' }}>
+              ≈ {fmtK(bnDailyLoss)} per day
+            </div>
+            {driverLabel && (
+              <div style={{ marginBottom: '20px' }}>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: '#1a6644', marginBottom: '4px' }}>
+                  Driven by {driverLabel.toLowerCase()} improvement
+                </div>
+                {driverMetric && (
+                  <div style={{ fontSize: '12px', color: '#7ab89a' }}>{driverMetric}</div>
+                )}
+              </div>
+            )}
+            <div style={{ fontSize: '13px', fontWeight: 600, color: '#1a6644', marginBottom: '20px' }}>
+              Up to {fmtK(bnLoss)} / month recoverable
+            </div>
+            <div style={{ fontSize: '11px', color: '#5aaa82', marginBottom: '6px' }}>
+              + Additional upside discovered in other operational areas
+            </div>
+            <div style={{ fontSize: '11px', color: '#b0b0b0' }}>
+              (Based on current operational data)
+            </div>
+          </>
+        ) : (
+          <div style={{ fontSize: '13px', color: '#aaa', marginTop: '8px' }}>
+            No recoverable margin identified
+          </div>
+        )}
+      </div>
     </div>
   )
 }
@@ -1939,6 +1942,67 @@ function FullReportDrawer({
             </div>
           )}
 
+          {/* Executive Snapshot — static key figures */}
+          {calcResult.overall !== null && (() => {
+            const bnLossDrawer = financialBottleneck
+              ? issues.filter(i => i.dimension === financialBottleneck).reduce((s, i) => s + (i.loss ?? 0), 0)
+              : 0
+            const bottleneckLabel = financialBottleneck === 'Fleet' ? 'Logistics' : (financialBottleneck ?? '—')
+            const bullets: { label: string; value: string }[] = []
+            if (calcResult.dispatchMin && calcResult.dispatchMin > 15)
+              bullets.push({ label: 'Dispatch cycle', value: `${calcResult.dispatchMin} min vs 15 min target` })
+            if (calcResult.ta > 0 && calcResult.TARGET_TA > 0 && calcResult.ta > calcResult.TARGET_TA)
+              bullets.push({ label: 'Turnaround', value: `${calcResult.ta} min vs ${calcResult.TARGET_TA} min target` })
+            if (calcResult.rejectPct > 3)
+              bullets.push({ label: 'Reject rate', value: `${Math.round(calcResult.rejectPct * 10) / 10}%` })
+            if (bullets.length < 3 && Math.round(calcResult.util * 100) < 80)
+              bullets.push({ label: 'Utilisation', value: `${Math.round(calcResult.util * 100)}% vs ${calcResult.utilisationTarget}% target` })
+            return (
+              <div style={{ marginBottom: '24px' }}>
+                {/* 3-col header */}
+                <div style={{
+                  display: 'grid', gridTemplateColumns: '1fr 1fr 1fr',
+                  border: '1.5px solid #e8e8e6', borderRadius: '10px 10px 0 0',
+                  overflow: 'hidden',
+                }}>
+                  <div style={{ padding: '16px 20px', background: '#f6fbf8', borderRight: '1px solid #e8e8e6' }}>
+                    <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.3px', textTransform: 'uppercase', color: '#7ab89a', marginBottom: '4px' }}>Operational Score</div>
+                    <div style={{ fontSize: '36px', fontWeight: 800, color: '#1a6644', lineHeight: 1, letterSpacing: '-1px' }}>{calcResult.overall}</div>
+                    <div style={{ fontSize: '10px', color: '#9b9b9b', marginTop: '2px' }}>out of 100</div>
+                  </div>
+                  <div style={{ padding: '16px 20px', background: '#fff5f5', borderRight: '1px solid #e8e8e6' }}>
+                    <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.3px', textTransform: 'uppercase', color: '#c0a0a0', marginBottom: '4px' }}>Total recoverable</div>
+                    <div style={{ fontSize: '28px', fontWeight: 800, color: '#cc3333', lineHeight: 1, letterSpacing: '-1px' }}>{fmtK(totalLoss)}</div>
+                    <div style={{ fontSize: '10px', color: '#c09090', marginTop: '2px' }}>per month</div>
+                  </div>
+                  <div style={{ padding: '16px 20px', background: '#fafafa' }}>
+                    <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.3px', textTransform: 'uppercase', color: '#aaa', marginBottom: '4px' }}>Primary constraint</div>
+                    <div style={{ fontSize: '22px', fontWeight: 800, color: '#111', lineHeight: 1.1, letterSpacing: '-0.3px' }}>{bottleneckLabel}</div>
+                    <div style={{ fontSize: '10px', color: '#aaa', marginTop: '2px' }}>{fmtK(bnLossDrawer)} / month</div>
+                  </div>
+                </div>
+                {/* Snapshot bullets */}
+                {bullets.length > 0 && (
+                  <div style={{
+                    border: '1px solid #e8e8e6', borderTop: 'none',
+                    borderRadius: '0 0 10px 10px',
+                    padding: '10px 20px',
+                    background: '#fff',
+                    display: 'flex', gap: '20px', flexWrap: 'wrap',
+                  }}>
+                    {bullets.slice(0, 3).map((b, i) => (
+                      <div key={i} style={{ fontSize: '12px', color: '#444', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#cc3333', flexShrink: 0, display: 'inline-block' }} />
+                        <span style={{ color: '#888', marginRight: '2px' }}>{b.label}:</span>
+                        <strong style={{ fontWeight: 600 }}>{b.value}</strong>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })()}
+
           {/* Score Overview at top of drawer */}
           <ScoreOverview calcResult={calcResult} meta={meta} phase={phase} />
 
@@ -1964,7 +2028,7 @@ function FullReportDrawer({
           <Divider />
 
           <AISection
-            title="Executive Summary"
+            title="Executive Explanation"
             text={texts.executive}
             generating={generating === 'executive'}
             onGenerate={() => onGenerate('executive')}
@@ -2979,27 +3043,14 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
         </div>
       )}
 
-      {/* 1. TOP SUMMARY — score / recoverable / bottleneck + snapshot */}
-      <TopSummary
+      {/* 1. IMPACT / HOOK */}
+      <ImpactHook
         bnLoss={bnLoss}
-        totalLoss={totalLoss}
+        bnDailyLoss={bnDailyLoss}
         calcResult={calcResult}
+        issues={issues}
         financialBottleneck={financialBottleneck}
       />
-
-      {/* 2. EXECUTIVE EXPLANATION — inline AI section */}
-      {calcResult.overall !== null && (
-        <div style={{ marginBottom: '16px' }}>
-          <AISection
-            title="Executive explanation"
-            text={texts.executive}
-            generating={generating === 'executive'}
-            onGenerate={() => generate('executive')}
-            onSave={t => saveSection('executive', t)}
-            minHeight={120}
-          />
-        </div>
-      )}
 
       {/* 3. SCORE GRID */}
       <ScoreGrid calcResult={calcResult} financialBottleneck={financialBottleneck} issues={issues} onSwitchToTracking={onSwitchToTracking} />
