@@ -14,6 +14,11 @@ import ExportPDF from './ExportPDF'
 function fmt(n: number): string {
   return '$' + n.toLocaleString('en-US')
 }
+function fmtK(n: number): string {
+  if (n >= 10000) return `$${Math.round(n / 1000)}k`
+  if (n >= 1000) return `$${(n / 1000).toFixed(1)}k`
+  return `$${n}`
+}
 
 // ── Inline info tooltip ────────────────────────────────────────────────────
 function ReportInfoTip({ title, text }: { title: string; text: string }) {
@@ -936,10 +941,10 @@ function ImpactHook({ totalLoss, dailyLoss, calcResult, issues, financialBottlen
           {calcResult.demandSufficient === false ? 'Margin improvement potential' : 'Estimated revenue leakage'}
         </div>
         <div style={{ fontSize: '48px', fontWeight: 800, color: '#cc3333', lineHeight: 1, letterSpacing: '-1px', marginBottom: '4px' }}>
-          {fmt(totalLoss)}<span style={{ fontSize: '20px', fontWeight: 500, color: '#e88', marginLeft: '8px' }}>/ month</span>
+          {fmtK(totalLoss)}<span style={{ fontSize: '20px', fontWeight: 500, color: '#e88', marginLeft: '8px' }}>/ month</span>
         </div>
         <div style={{ fontSize: '13px', color: '#c09090', marginBottom: '16px' }}>
-          ≈ {fmt(dailyLoss)} per day
+          ≈ {fmtK(dailyLoss)} per day
         </div>
         {driverLabel && (
           <div style={{ fontSize: '13px', color: '#666', marginBottom: '3px' }}>
@@ -959,10 +964,10 @@ function ImpactHook({ totalLoss, dailyLoss, calcResult, issues, financialBottlen
         {totalMaxRecoverable > 0 ? (
           <>
             <div style={{ fontSize: '40px', fontWeight: 800, color: '#1a6644', lineHeight: 1, letterSpacing: '-1px', marginBottom: '4px' }}>
-              {fmt(totalMaxRecoverable)}<span style={{ fontSize: '17px', fontWeight: 500, color: '#5aaa82', marginLeft: '8px' }}>/ month</span>
+              {fmtK(totalMaxRecoverable)}<span style={{ fontSize: '17px', fontWeight: 500, color: '#5aaa82', marginLeft: '8px' }}>/ month</span>
             </div>
             <div style={{ fontSize: '13px', color: '#7ab89a', marginBottom: '16px' }}>
-              ≈ {fmt(dailyRecoverable)} per day
+              ≈ {fmtK(dailyRecoverable)} per day
             </div>
             {driverLabel && (
               <div style={{ fontSize: '13px', color: '#2a6644', marginBottom: '8px' }}>
