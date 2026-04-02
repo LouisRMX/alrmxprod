@@ -3003,7 +3003,7 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
             }}
           >
             <span style={{ fontSize: '13px', color: '#555' }}>Want to understand the full operational picture?</span>
-            <span style={{ fontSize: '13px', fontWeight: 600, color: '#1a1a1a' }}>→ View full diagnostic report</span>
+            <span style={{ fontSize: '13px', fontWeight: 600, color: '#111', textDecoration: 'underline', textUnderlineOffset: '3px', textDecorationColor: '#bbb' }}>See full operational breakdown →</span>
           </button>
         </div>
       )}
