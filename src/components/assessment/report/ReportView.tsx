@@ -2477,13 +2477,19 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
     }
   }, [generate])
 
+  // Show sliders in right column only when there's something to slide
+  const hasSliders = !!(
+    getSliderConfig(calcResult, 'Fleet') ||
+    getSliderConfig(calcResult, 'Quality') ||
+    (calcResult.dispatchMin ?? 0) > 15
+  )
+
   return (
     <div style={{ flex: 1, overflowY: 'auto', padding: '20px', paddingBottom: '60px' }}>
 
       {/* Top bar: "View full report" + admin controls */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          {/* Draft/release status */}
           {isAdmin && !reportReleased && (
             <span style={{ fontSize: '11px', color: 'var(--warning-dark)', background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', borderRadius: '4px', padding: '3px 8px', fontWeight: 500 }}>
               🔒 Draft
@@ -2505,7 +2511,7 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
         </button>
       </div>
 
-      {/* Error banner */}
+      {/* Banners (full-width, above the grid) */}
       {genError && (
         <div style={{
           background: 'var(--error-bg)', border: '1px solid var(--error-border)', borderRadius: '8px',
@@ -2514,15 +2520,11 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
           ⚠ {genError}
         </div>
       )}
-
-      {/* Incomplete margin — admin footnote only */}
       {isAdmin && calcResult.marginIncomplete && (
         <div style={{ fontSize: '11px', color: 'var(--gray-400)', marginBottom: '10px', fontStyle: 'italic' }}>
           Note: aggregate/admixture costs not entered — margin estimated at 35%. Enter material costs for precise figures.
         </div>
       )}
-
-      {/* Data warnings */}
       {calcResult.warnings && calcResult.warnings.length > 0 && (
         <div style={{
           background: 'var(--warning-bg)', border: '1px solid var(--warning-border)',
@@ -2539,49 +2541,54 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
         </div>
       )}
 
-      {/* 1. IMPACT / HOOK ────────────────────────────────────────────────── */}
-      <ImpactHook
-        totalLoss={totalLoss}
-        dailyLoss={dailyLoss}
-        calcResult={calcResult}
-        issues={issues}
-        financialBottleneck={financialBottleneck}
-      />
+      {/* ── Two-column layout ─────────────────────────────────────────────── */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: hasSliders ? '1fr 360px' : '1fr',
+        gap: '16px',
+        alignItems: 'start',
+      }}>
 
-      {/* 2. SCORE OVERVIEW ───────────────────────────────────────────────── */}
-      <ScoreOverview calcResult={calcResult} meta={meta} phase={phase} />
+        {/* LEFT — narrative content */}
+        <div>
+          <ImpactHook
+            totalLoss={totalLoss}
+            dailyLoss={dailyLoss}
+            calcResult={calcResult}
+            issues={issues}
+            financialBottleneck={financialBottleneck}
+          />
+          <ScoreOverview calcResult={calcResult} meta={meta} phase={phase} />
+          <DimensionSummary calcResult={calcResult} issues={issues} answers={answers} />
+          <StartHereCard
+            calcResult={calcResult}
+            issues={issues}
+            totalLoss={totalLoss}
+            financialBottleneck={financialBottleneck}
+            onSwitchToTracking={onSwitchToTracking}
+          />
+          <NextImprovements issues={issues} />
 
-      {/* 3. OPERATIONAL DIAGNOSIS (auto-generated dimension bullets) ─────── */}
-      <DimensionSummary calcResult={calcResult} issues={issues} answers={answers} />
+          {phase === 'workshop' && totalLoss > 0 && (
+            <>
+              <BenchmarkPositioning calcResult={calcResult} answers={answers} />
+              <StartThisWeek calcResult={calcResult} answers={answers} />
+              <WhatWeWillMeasure calcResult={calcResult} answers={answers} />
+            </>
+          )}
+          {isAdmin && onOverrideChange && (
+            <AssumptionsPanel overrides={overrides ?? {}} onChange={onOverrideChange} />
+          )}
+        </div>
 
-      {/* 4. RECOVERY PANEL (interactive sliders) ────────────────────────── */}
-      <RecoveryPanel calcResult={calcResult} />
+        {/* RIGHT — sticky simulator */}
+        {hasSliders && (
+          <div style={{ position: 'sticky', top: '20px' }}>
+            <RecoveryPanel calcResult={calcResult} />
+          </div>
+        )}
 
-      {/* 5. START HERE ───────────────────────────────────────────────────── */}
-      <StartHereCard
-        calcResult={calcResult}
-        issues={issues}
-        totalLoss={totalLoss}
-        financialBottleneck={financialBottleneck}
-        onSwitchToTracking={onSwitchToTracking}
-      />
-
-      {/* 6. NEXT IMPROVEMENTS (collapsed by default) ────────────────────── */}
-      <NextImprovements issues={issues} />
-
-      {/* Pre-assessment: Benchmark Positioning + Quick Wins + On-site Preview */}
-      {phase === 'workshop' && totalLoss > 0 && (
-        <>
-          <BenchmarkPositioning calcResult={calcResult} answers={answers} />
-          <StartThisWeek calcResult={calcResult} answers={answers} />
-          <WhatWeWillMeasure calcResult={calcResult} answers={answers} />
-        </>
-      )}
-
-      {/* Assumptions Panel (admin) */}
-      {isAdmin && onOverrideChange && (
-        <AssumptionsPanel overrides={overrides ?? {}} onChange={onOverrideChange} />
-      )}
+      </div>
 
       {/* ── Full Report Drawer (always in DOM) ───────────────────────────── */}
       <FullReportDrawer
