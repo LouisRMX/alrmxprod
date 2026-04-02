@@ -12,7 +12,7 @@ import FindingCard from './FindingCard'
 import ExportPDF from './ExportPDF'
 
 function fmt(n: number): string {
-  return '$' + n.toLocaleString()
+  return '$' + n.toLocaleString('en-US')
 }
 
 // ── Inline info tooltip ────────────────────────────────────────────────────
@@ -804,48 +804,113 @@ function FinancialHeadline({ totalLoss, dailyLoss, calcResult }: {
   if (totalLoss === 0) {
     return (
       <div style={{
-        background: '#f0fdf4', border: '1px solid #bbf7d0',
-        borderRadius: 'var(--radius)', padding: '16px 20px', marginBottom: '20px',
-        display: 'flex', alignItems: 'center', gap: '12px',
+        background: 'linear-gradient(135deg, #f0faf6 0%, #fff 60%)',
+        border: '1.5px solid #b5dfc9',
+        borderRadius: '10px', padding: '20px 24px', marginBottom: '10px',
+        display: 'flex', alignItems: 'center', gap: '16px',
       }}>
-        <span style={{ fontSize: '20px' }}>✓</span>
+        <span style={{ fontSize: '24px', lineHeight: 1 }}>✓</span>
         <div>
-          <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--green)' }}>Performing at benchmark on all metrics</div>
-          <div style={{ fontSize: '12px', color: 'var(--gray-500)', marginTop: '2px' }}>
-            No operational issues detected — this plant is at or above GCC industry benchmarks.
-          </div>
+          <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#9b9b9b', marginBottom: '4px' }}>Plant status</div>
+          <div style={{ fontSize: '24px', fontWeight: 800, color: '#1f8a5e', lineHeight: 1, marginBottom: '4px' }}>Performing at benchmark</div>
+          <div style={{ fontSize: '11px', color: '#9b9b9b' }}>No operational losses identified — all primary metrics at or above target</div>
         </div>
       </div>
     )
   }
-  const lossRange = calcLossRange(totalLoss)
   return (
     <div style={{
-      background: 'var(--error-bg)', border: '1px solid var(--error-border)',
-      borderRadius: 'var(--radius)', padding: '16px 20px', marginBottom: '20px',
-      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+      background: 'linear-gradient(135deg, #fff8f8 0%, #fff 60%)',
+      border: '1.5px solid #f5c6c6',
+      borderRadius: '10px', padding: '20px 24px', marginBottom: '10px',
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '24px',
     }}>
       <div>
-        <div style={{ fontSize: '9px', fontWeight: 600, color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '4px' }}>
-          {calcResult.demandSufficient === false ? 'Margin Improvement Potential' : 'Estimated Monthly Loss'}
+        <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#9b9b9b', marginBottom: '4px' }}>
+          {calcResult.demandSufficient === false ? 'Margin improvement potential' : 'Potential monthly loss'}
         </div>
-        <div style={{ fontSize: '28px', fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--red)', lineHeight: 1.1 }}>
-          {fmt(lossRange.low)}–{fmt(lossRange.high)}
-          <span style={{ fontSize: '13px', fontWeight: 400, color: 'var(--gray-400)', marginLeft: '4px' }}>/month</span>
+        <div style={{ fontSize: '30px', fontWeight: 800, color: '#cc3333', lineHeight: 1 }}>
+          {fmt(totalLoss)}{' '}
+          <span style={{ fontSize: '16px', fontWeight: 500, color: '#e88' }}>/ month</span>
         </div>
-        <div style={{ fontSize: '11px', color: 'var(--gray-500)', marginTop: '4px' }}>
+        <div style={{ fontSize: '11px', color: '#9b9b9b', marginTop: '6px' }}>
           {calcResult.demandSufficient === false
             ? 'demand-constrained — operational cost saving only'
-            : `${fmt(Math.round(totalLoss * 12 * 0.7))}–${fmt(Math.round(totalLoss * 12 * 1.3))}/year`}
+            : `${fmt(dailyLoss)} every working day — based on current operational data`}
         </div>
       </div>
-      <div style={{ textAlign: 'right', paddingLeft: '20px', borderLeft: '1px solid var(--error-border)' }}>
-        <div style={{ fontSize: '9px', fontWeight: 600, color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '4px' }}>Per Working Day</div>
-        <div style={{ fontSize: '22px', fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--red)', lineHeight: 1.1 }}>
-          {fmt(Math.round(dailyLoss * 0.7))}–{fmt(Math.round(dailyLoss * 1.3))}
+      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+        <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase', color: '#9b9b9b', marginBottom: '4px' }}>Per working day</div>
+        <div style={{ fontSize: '20px', fontWeight: 700, color: '#cc3333' }}>{fmt(dailyLoss)}</div>
+      </div>
+    </div>
+  )
+}
+
+// ── Score Overview ─────────────────────────────────────────────────────────
+function ScoreOverview({ calcResult, meta, phase }: {
+  calcResult: CalcResult
+  meta?: { country?: string; plant?: string; date?: string }
+  phase?: Phase
+}) {
+  if (calcResult.overall === null) return null
+  const overall = Math.round(calcResult.overall)
+
+  const dims = [
+    { label: 'Production', score: calcResult.scores?.prod   ?? null },
+    { label: 'Fleet',      score: calcResult.scores?.fleet  ?? null },
+    { label: 'Dispatch',   score: calcResult.scores?.dispatch ?? null },
+    { label: 'Quality',    score: calcResult.scores?.quality  ?? null },
+  ].filter(d => d.score !== null) as { label: string; score: number }[]
+
+  const belowBenchmark = dims.filter(d => Math.round(d.score) < 75).length
+  const plantName = meta?.plant || 'Plant'
+  const phaseLabel = phase === 'workshop' ? 'Pre-assessment' : phase === 'onsite' ? 'On-site Assessment' : 'Assessment'
+
+  function chipStyle(score: number): React.CSSProperties {
+    const s = Math.round(score)
+    if (s < 60)  return { color: '#cc3333', borderColor: '#f5c6c6', background: '#fff8f8' }
+    if (s < 75)  return { color: '#c96a00', borderColor: '#f5ddb5', background: '#fffaf2' }
+    return               { color: '#1f8a5e', borderColor: '#b5dfc9', background: '#f0faf6' }
+  }
+  const overallStyle = chipStyle(overall)
+
+  return (
+    <div style={{
+      background: '#fff', border: '1px solid #e8e8e6',
+      borderRadius: '10px', padding: '24px', marginBottom: '10px',
+      display: 'flex', alignItems: 'center', gap: '32px',
+    }}>
+      {/* Score circle */}
+      <div style={{
+        width: '80px', height: '80px', borderRadius: '50%',
+        border: `4px solid ${overallStyle.color}`,
+        display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+      }}>
+        <span style={{ fontSize: '28px', fontWeight: 700, color: overallStyle.color, lineHeight: 1 }}>{overall}</span>
+        <span style={{ fontSize: '11px', color: '#9b9b9b' }}>/100</span>
+      </div>
+      {/* Right side */}
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: '17px', fontWeight: 700, color: '#1a1a1a', marginBottom: '4px' }}>
+          {plantName} — {phaseLabel}
         </div>
-        <div style={{ fontSize: '11px', color: 'var(--gray-500)', marginTop: '4px' }}>
-          based on {calcResult.workingDaysMonth || 22} working days/mo
+        <div style={{ fontSize: '12px', color: '#666', marginBottom: '14px' }}>
+          {belowBenchmark > 0
+            ? `Performance below benchmark on ${belowBenchmark} of ${dims.length} dimension${dims.length !== 1 ? 's' : ''}`
+            : 'All dimensions at or above benchmark'}
+        </div>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          {dims.map(d => (
+            <span key={d.label} style={{
+              fontSize: '11px', padding: '4px 10px', borderRadius: '20px',
+              fontWeight: 600, border: '1.5px solid',
+              ...chipStyle(d.score),
+            }}>
+              {d.label} {Math.round(d.score)}
+            </span>
+          ))}
         </div>
       </div>
     </div>
@@ -865,11 +930,17 @@ function RecoverySliderRow({ config, value, onChange }: {
 
   return (
     <div style={{ marginBottom: '14px' }}>
-      <div style={{ fontSize: '11px', fontWeight: 500, color: 'var(--gray-600)', marginBottom: '6px' }}>{label}</div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
-        <span style={{ fontSize: '10px', color: 'var(--gray-500)', minWidth: '52px' }}>
-          Now: {currentVal.toFixed(decimals)}{unit}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '6px' }}>
+        <span style={{ fontSize: '12px', fontWeight: 600, color: '#1a6644' }}>{label}</span>
+        <span style={{ fontSize: '13px', fontWeight: 700, color: savings > 0 ? '#1a6644' : '#9b9b9b' }}>
+          {atCurrent ? '' : savings > 0 ? `${fmt(savings)} / mo` : ''}
         </span>
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#5aaa82', marginBottom: '4px' }}>
+        <span>Target: {targetVal.toFixed(decimals)}{unit}</span>
+        <span id={`slider-cur-${label}`}>{currentVal.toFixed(decimals)}{unit} (baseline)</span>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
         <input
           type="range"
           min={direction === 'down' ? targetVal : currentVal}
@@ -877,22 +948,19 @@ function RecoverySliderRow({ config, value, onChange }: {
           step={step}
           value={value}
           onChange={e => onChange(Number(e.target.value))}
-          style={{ flex: 1, accentColor: 'var(--green)', cursor: 'pointer' }}
+          style={{ flex: 1, accentColor: '#2a9d6e', cursor: 'pointer', height: '6px' }}
         />
-        <span style={{ fontSize: '10px', color: 'var(--gray-500)', minWidth: '56px', textAlign: 'right' }}>
-          Target: {targetVal.toFixed(decimals)}{unit}
-        </span>
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
         <span style={{
-          fontSize: '14px', fontWeight: 700, fontFamily: 'var(--mono)',
-          color: savings > 0 ? 'var(--green)' : 'var(--gray-300)',
+          fontSize: '13px', fontWeight: 700,
+          color: savings > 0 ? '#1a6644' : '#9b9b9b',
         }}>
-          {atCurrent ? 'move slider →' : savings > 0 ? `+${fmt(savings)}/mo` : '$0/mo'}
+          {atCurrent ? 'Move slider to explore savings' : savings > 0 ? `${fmt(savings)} / mo` : '$0 / mo'}
         </span>
         {!atCurrent && improvement > 0 && (
-          <span style={{ fontSize: '10px', color: 'var(--gray-500)' }}>
-            at {value.toFixed(decimals)}{unit} · ${coefficient.toLocaleString()}/mo per {unit}
+          <span style={{ fontSize: '10px', color: '#5aaa82' }}>
+            at {value.toFixed(decimals)}{unit}
           </span>
         )}
       </div>
@@ -933,41 +1001,82 @@ function RecoveryPanel({ calcResult }: { calcResult: CalcResult }) {
     const imp = cfg.direction === 'down' ? cfg.currentVal - val : val - cfg.currentVal
     return Math.max(0, Math.round(imp * cfg.coefficient))
   }
+  const maxSavings = (cfg: SliderConfig | null): number => {
+    if (!cfg) return 0
+    const imp = cfg.direction === 'down' ? cfg.currentVal - cfg.targetVal : cfg.targetVal - cfg.currentVal
+    return Math.max(0, Math.round(imp * cfg.coefficient))
+  }
+  const totalMaxRecoverable = maxSavings(fleetConfig) + maxSavings(dispatchConfig) + maxSavings(qualityConfig)
   const totalSavings =
     calcSavings(fleetConfig, fleetVal) +
     calcSavings(dispatchConfig, dispatchVal) +
     calcSavings(qualityConfig, qualityVal)
 
+  // Baselines for header
+  const baselines: string[] = []
+  if (fleetConfig) baselines.push(`Turnaround: ${fleetConfig.currentVal} min`)
+  if (dispatchConfig) baselines.push(`Dispatch: ${dispatchConfig.currentVal} min`)
+  if (qualityConfig) baselines.push(`Rejection: ${qualityConfig.currentVal}%`)
+
   return (
     <div style={{
-      marginBottom: '24px',
-      background: '#f0faf6', border: '1px solid #a8dcc8',
-      borderRadius: 'var(--radius)', padding: '18px 20px',
-      borderLeft: '3px solid var(--green)',
+      marginBottom: '10px',
+      background: 'linear-gradient(135deg, #f0faf6 0%, #e8f6f1 100%)',
+      border: '1.5px solid #a8dcc8',
+      borderRadius: '10px', overflow: 'hidden',
     }}>
-      <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--green)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '16px' }}>
-        Recovery Simulator
-      </div>
-      {fleetConfig && (
-        <RecoverySliderRow config={fleetConfig} value={fleetVal} onChange={setFleetVal} />
-      )}
-      {dispatchConfig && (
-        <RecoverySliderRow config={dispatchConfig} value={dispatchVal} onChange={setDispatchVal} />
-      )}
-      {qualityConfig && (
-        <RecoverySliderRow config={qualityConfig} value={qualityVal} onChange={setQualityVal} />
-      )}
+      {/* Header */}
       <div style={{
-        borderTop: '1px solid #a8dcc8', paddingTop: '12px', marginTop: '8px',
-        display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+        padding: '20px 24px 16px',
+        borderBottom: '1px solid #c8e8da',
+        display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
       }}>
-        <span style={{ fontSize: '11px', color: 'var(--gray-500)' }}>Combined recovery at these settings</span>
-        <span style={{
-          fontSize: '22px', fontWeight: 700, fontFamily: 'var(--mono)',
-          color: totalSavings > 0 ? 'var(--green)' : 'var(--gray-300)',
-        }}>
-          {totalSavings > 0 ? `+${fmt(totalSavings)}/mo` : 'Move sliders'}
-        </span>
+        <div>
+          <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#2a9d6e', marginBottom: '4px' }}>
+            Total recoverable
+          </div>
+          <div style={{ fontSize: '32px', fontWeight: 800, color: '#1a6644', lineHeight: 1 }}>
+            {fmt(totalMaxRecoverable)}
+          </div>
+          <div style={{ fontSize: '12px', color: '#3d9970', marginTop: '2px' }}>per month — no capital investment required</div>
+        </div>
+        {baselines.length > 0 && (
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: '10px', color: '#5aaa82', marginBottom: '4px' }}>Locked baselines</div>
+            {baselines.map(b => (
+              <div key={b} style={{ fontSize: '12px', color: '#2a6644', fontWeight: 500 }}>{b}</div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Sliders */}
+      <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        {fleetConfig && (
+          <RecoverySliderRow config={fleetConfig} value={fleetVal} onChange={setFleetVal} />
+        )}
+        {dispatchConfig && (
+          <RecoverySliderRow config={dispatchConfig} value={dispatchVal} onChange={setDispatchVal} />
+        )}
+        {qualityConfig && (
+          <RecoverySliderRow config={qualityConfig} value={qualityVal} onChange={setQualityVal} />
+        )}
+      </div>
+
+      {/* Footer */}
+      <div style={{
+        padding: '14px 24px',
+        background: 'rgba(42,157,110,.08)',
+        borderTop: '1px solid #c8e8da',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      }}>
+        <div>
+          <div style={{ fontSize: '12px', color: '#2a6644' }}>Combined monthly saving</div>
+          <div style={{ fontSize: '10px', color: '#5aaa82', marginTop: '2px' }}>at selected improvement levels</div>
+        </div>
+        <div style={{ fontSize: '20px', fontWeight: 800, color: totalSavings > 0 ? '#1a6644' : '#9b9b9b' }}>
+          {totalSavings > 0 ? `${fmt(totalSavings)} / mo` : '$0 / mo'}
+        </div>
       </div>
     </div>
   )
@@ -988,52 +1097,83 @@ function StartTrackingCard({ calcResult, issues, totalLoss, financialBottleneck,
   const dim = topIssue.dimension || financialBottleneck || ''
   const sevenDay = (() => {
     switch (dim) {
-      case 'Fleet':      return 'First turnaround timestamps logged'
-      case 'Dispatch':   return 'Average dispatch time captured'
-      case 'Quality':    return 'Rejection reason codes logged'
-      case 'Production': return 'Hourly utilisation baseline set'
-      default:           return 'First weekly data point captured'
+      case 'Fleet':      return 'Site wait time starts falling — first measurable reduction in turnaround'
+      case 'Dispatch':   return 'Order-to-dispatch time drops below 20 min on first attempt'
+      case 'Quality':    return 'Rejection pattern identified — dominant cause confirmed'
+      case 'Production': return 'Hourly utilisation baseline established'
+      default:           return 'First weekly data point captured and logged'
     }
   })()
 
+  // Locked baselines for footer
+  const baselines: string[] = []
+  if (calcResult.ta > 0) baselines.push(`Turnaround ${calcResult.ta} min`)
+  if (calcResult.dispatchMin) baselines.push(`Dispatch ${calcResult.dispatchMin} min`)
+  if (calcResult.rejectPct > 0) baselines.push(`Rejection ${calcResult.rejectPct}%`)
+
+  const rows = [
+    { label: 'Biggest loss',       value: topIssue.t, bold: true },
+    { label: 'Value at stake',     value: `${fmt(topIssue.loss)} / month`, bold: true },
+    { label: 'First action',       value: topIssue.action || 'See action plan below', bold: false },
+    { label: 'Expected in 7 days', value: sevenDay, bold: false },
+  ]
+
   return (
     <div style={{
-      marginBottom: '24px',
-      background: '#0f172a', borderRadius: 'var(--radius)',
-      padding: '20px 24px',
+      marginBottom: '10px',
+      background: '#fff',
+      border: '1.5px solid #1a1a1a',
+      borderRadius: '10px', overflow: 'hidden',
     }}>
-      <div style={{ fontSize: '9px', fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '.8px', marginBottom: '14px' }}>
-        START TRACKING YOUR IMPROVEMENTS NOW
+      {/* Black eyebrow */}
+      <div style={{
+        padding: '10px 24px',
+        background: '#1a1a1a',
+        fontSize: '9px', fontWeight: 700, letterSpacing: '1.4px',
+        textTransform: 'uppercase', color: '#fff',
+      }}>
+        Start tracking your improvements now
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '18px' }}>
-        {[
-          { label: 'Biggest loss',       value: topIssue.t },
-          { label: 'Monthly value',      value: `${fmt(topIssue.loss)}/mo recoverable` },
-          { label: 'First action',       value: topIssue.action || 'See action plan below' },
-          { label: 'Expected in 7 days', value: sevenDay },
-        ].map(row => (
-          <div key={row.label} style={{ display: 'flex', gap: '12px', alignItems: 'baseline' }}>
-            <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', minWidth: '130px', flexShrink: 0 }}>{row.label}</div>
-            <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.85)', lineHeight: 1.4 }}>{row.value}</div>
+
+      {/* Rows */}
+      <div>
+        {rows.map((row, i) => (
+          <div key={row.label}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '0', padding: '14px 24px' }}>
+              <div style={{ width: '160px', flexShrink: 0, fontSize: '11px', fontWeight: 600, color: '#9b9b9b', textTransform: 'uppercase', letterSpacing: '.5px' }}>
+                {row.label}
+              </div>
+              <div style={{ flex: 1, fontSize: row.bold ? '15px' : '14px', fontWeight: row.bold ? 700 : 400, color: '#1a1a1a', lineHeight: 1.4 }}>
+                {row.value}
+              </div>
+            </div>
+            {i < rows.length - 1 && <div style={{ height: '1px', background: '#f0f0ee', margin: '0 24px' }} />}
           </div>
         ))}
       </div>
-      <button
-        type="button"
-        onClick={onSwitchToTracking}
-        disabled={!onSwitchToTracking}
-        style={{
-          padding: '10px 20px',
-          background: 'var(--green)', color: '#fff',
-          border: 'none', borderRadius: '8px',
-          fontSize: '13px', fontWeight: 600,
-          cursor: onSwitchToTracking ? 'pointer' : 'default',
-          fontFamily: 'var(--font)',
-          opacity: onSwitchToTracking ? 1 : 0.6,
-        }}
-      >
-        Start 90-day tracking →
-      </button>
+
+      {/* Footer */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '20px',
+        padding: '16px 24px', background: '#fafaf9', borderTop: '1px solid #e8e8e6',
+      }}>
+        <span style={{ fontSize: '11px', color: '#9b9b9b', lineHeight: 1.5 }}>
+          Lock in baselines and track recovery{baselines.length > 0 ? ` — ${baselines.join(' · ')}` : ''}
+        </span>
+        <button
+          type="button"
+          onClick={onSwitchToTracking}
+          style={{
+            background: '#1a1a1a', color: '#fff',
+            border: 'none', borderRadius: '8px',
+            padding: '11px 20px', fontSize: '13px', fontWeight: 600,
+            cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
+            fontFamily: 'var(--font)',
+          }}
+        >
+          Activate 90-day tracking →
+        </button>
+      </div>
     </div>
   )
 }
@@ -1051,32 +1191,40 @@ function ActionsPanel({ issues }: { issues: Issue[] }) {
   const immediate = actionIssues.slice(0, 3)
   const later = actionIssues.slice(3)
 
-  function ActionRow({ issue, num }: { issue: Issue; num: number }) {
+  function ActionRow({ issue, num, isLast }: { issue: Issue; num: number; isLast: boolean }) {
+    const isUrgent = num <= 2
+    const isNear = num === 3
     return (
       <div style={{
-        display: 'flex', alignItems: 'center', gap: '10px',
-        padding: '10px 14px', background: 'var(--white)',
-        border: '1px solid var(--border)', borderRadius: '8px', marginBottom: '6px',
+        display: 'flex', alignItems: 'flex-start', gap: '14px',
+        padding: '14px 20px',
+        borderBottom: isLast ? 'none' : '1px solid #f0f0ee',
       }}>
         <div style={{
-          width: '24px', height: '24px', borderRadius: '50%', flexShrink: 0,
-          background: num <= 3 ? 'var(--green)' : 'var(--gray-200)',
-          color: num <= 3 ? '#fff' : 'var(--gray-500)',
+          width: '22px', height: '22px', borderRadius: '50%', flexShrink: 0, marginTop: '1px',
+          background: isUrgent ? '#fff0f0' : isNear ? '#fff7ed' : '#f5f5f3',
+          border: `1.5px solid ${isUrgent ? '#f5c6c6' : isNear ? '#fdd8a0' : '#e8e8e6'}`,
+          color: isUrgent ? '#cc3333' : isNear ? '#c96a00' : '#666',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontSize: '11px', fontWeight: 700,
         }}>
           {num}
         </div>
-        <div style={{ flex: 1, fontSize: '13px', fontWeight: 500, color: 'var(--gray-900)', lineHeight: 1.35 }}>
-          {issue.t}
+        <div style={{ flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
+            <span style={{ fontSize: '13px', fontWeight: 600, color: '#1a1a1a' }}>{issue.t}</span>
+          </div>
+          {issue.action && (
+            <div style={{ fontSize: '12px', color: '#666' }}>{issue.action}</div>
+          )}
         </div>
         {issue.loss > 0 && (
           <div style={{
-            fontSize: '11px', fontWeight: 600, color: 'var(--red)',
-            background: 'var(--error-bg)', border: '1px solid var(--error-border)',
-            borderRadius: '4px', padding: '2px 8px', flexShrink: 0, whiteSpace: 'nowrap',
+            fontSize: '11px', fontWeight: 600, color: '#2a9d6e',
+            background: '#f0faf6', border: '1px solid #b5dfc9',
+            borderRadius: '20px', padding: '1px 8px', flexShrink: 0, whiteSpace: 'nowrap',
           }}>
-            ${Math.round(issue.loss / 1000)}k/mo
+            → {fmt(Math.round(issue.loss / 1000))}k/mo
           </div>
         )}
       </div>
@@ -1084,12 +1232,13 @@ function ActionsPanel({ issues }: { issues: Issue[] }) {
   }
 
   return (
-    <div style={{ marginBottom: '24px' }}>
-      <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '12px' }}>
-        Action Plan
+    <div style={{ marginBottom: '10px', background: '#fff', border: '1px solid #e8e8e6', borderRadius: '10px', overflow: 'hidden' }}>
+      {/* Immediate actions group header */}
+      <div style={{ padding: '10px 20px', background: '#fff0f0', borderBottom: '1px solid #f0f0ee', fontSize: '10px', fontWeight: 700, color: '#cc3333', letterSpacing: '.8px', textTransform: 'uppercase' }}>
+        Week 1–2 — Immediate
       </div>
       {immediate.map((issue, i) => (
-        <ActionRow key={i} issue={issue} num={i + 1} />
+        <ActionRow key={i} issue={issue} num={i + 1} isLast={i === immediate.length - 1 && later.length === 0} />
       ))}
       {later.length > 0 && (
         <>
@@ -1097,17 +1246,17 @@ function ActionsPanel({ issues }: { issues: Issue[] }) {
             type="button"
             onClick={() => setLaterExpanded(v => !v)}
             style={{
-              width: '100%', padding: '8px 14px', background: 'var(--gray-50)',
-              border: '1px solid var(--border)', borderRadius: '8px',
-              fontSize: '11px', color: 'var(--gray-500)',
-              cursor: 'pointer', fontFamily: 'var(--font)',
-              marginBottom: laterExpanded ? '6px' : 0,
+              width: '100%', padding: '10px 20px',
+              background: '#fafaf9', borderTop: '1px solid #f0f0ee',
+              border: 'none', borderBottom: laterExpanded ? '1px solid #f0f0ee' : 'none',
+              fontSize: '11px', fontWeight: 600, color: '#9b9b9b',
+              cursor: 'pointer', fontFamily: 'var(--font)', textAlign: 'center',
             }}
           >
             {laterExpanded ? '↑ Collapse' : `Later actions (${later.length}) ↓`}
           </button>
           {laterExpanded && later.map((issue, i) => (
-            <ActionRow key={i + 3} issue={issue} num={i + 4} />
+            <ActionRow key={i + 3} issue={issue} num={i + 4} isLast={i === later.length - 1} />
           ))}
         </>
       )}
@@ -1870,13 +2019,8 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
       {/* ── Financial Headline ────────────────────────────────────────────── */}
       <FinancialHeadline totalLoss={totalLoss} dailyLoss={dailyLoss} calcResult={calcResult} />
 
-      {/* ── KPI Pyramid ───────────────────────────────────────────────────── */}
-      <KPIPyramid
-        calcResult={calcResult}
-        answers={answers}
-        totalLoss={totalLoss}
-        financialBottleneck={financialBottleneck}
-      />
+      {/* ── Score Overview (circle + dimension chips) ─────────────────────── */}
+      <ScoreOverview calcResult={calcResult} meta={meta} phase={phase} />
 
       {/* ── Pre-assessment: Benchmark Positioning + Quick Wins + On-site Preview ── */}
       {phase === 'workshop' && totalLoss > 0 && (
@@ -1894,10 +2038,10 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
 
       {/* ── Findings ─────────────────────────────────────────────────────── */}
       {issues.length > 0 && (
-        <div style={{ marginBottom: '24px' }}>
-          <h3 style={{ fontSize: '13px', fontWeight: 600, color: 'var(--gray-900)', margin: '0 0 10px', textTransform: 'uppercase', letterSpacing: '.4px' }}>
-            Findings ({issues.filter(i => i.loss > 0 || i.category === 'bottleneck').length})
-          </h3>
+        <div style={{ marginBottom: '10px' }}>
+          <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#9b9b9b', marginBottom: '10px', paddingLeft: '2px' }}>
+            Findings
+          </div>
           {issues
             .filter(issue => issue.loss > 0 || issue.category === 'bottleneck')
             .map((issue, i) => (
@@ -1924,6 +2068,11 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
       )}
 
       {/* ── Recovery Simulator (3 sliders) ──────────────────────────────── */}
+      {(getSliderConfig(calcResult, 'Fleet') || getSliderConfig(calcResult, 'Quality') || (calcResult.dispatchMin ?? 0) > 15) && (
+        <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#9b9b9b', marginBottom: '10px', paddingLeft: '2px' }}>
+          Recovery potential
+        </div>
+      )}
       <RecoveryPanel calcResult={calcResult} />
 
       {/* ── Start Tracking Card ──────────────────────────────────────────── */}
@@ -1936,6 +2085,11 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
       />
 
       {/* ── Action Plan ──────────────────────────────────────────────────── */}
+      {issues.filter(i => i.loss > 0).length > 0 && (
+        <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#9b9b9b', marginBottom: '10px', paddingLeft: '2px' }}>
+          Actions
+        </div>
+      )}
       <ActionsPanel issues={issues} />
 
       {/* ── Full Report Drawer (always in DOM) ───────────────────────────── */}
