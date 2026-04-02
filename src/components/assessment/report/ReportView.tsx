@@ -2991,6 +2991,23 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
       {/* 3. SCORE GRID */}
       <ScoreGrid calcResult={calcResult} financialBottleneck={financialBottleneck} issues={issues} onSwitchToTracking={onSwitchToTracking} />
 
+      {/* Full report CTA */}
+      {calcResult.overall !== null && (
+        <div style={{ marginBottom: '16px' }}>
+          <button
+            onClick={() => setDrawerOpen(true)}
+            style={{
+              background: 'none', border: '1px solid #e8e8e6', borderRadius: '10px',
+              padding: '14px 20px', width: '100%', textAlign: 'left', cursor: 'pointer',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            }}
+          >
+            <span style={{ fontSize: '13px', color: '#555' }}>Want to understand the full operational picture?</span>
+            <span style={{ fontSize: '13px', fontWeight: 600, color: '#1a1a1a' }}>→ View full diagnostic report</span>
+          </button>
+        </div>
+      )}
+
       {/* 4. WHY THIS HAPPENS + START HERE */}
       <WhyAndStartHere
         issues={issues}
