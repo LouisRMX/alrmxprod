@@ -916,10 +916,12 @@ function ImpactHook({ totalLoss, dailyLoss, calcResult, issues, financialBottlen
   const dispatchMaxSavings = excessDispatch > 0
     ? Math.round(excessDispatch * Math.max(100, Math.round(taLeak * 0.22)))
     : 0
-  const totalMaxRecoverable =
+  const totalMaxRecoverable = Math.min(
     calcMax(getSliderConfig(calcResult, 'Fleet')) +
     dispatchMaxSavings +
-    calcMax(getSliderConfig(calcResult, 'Quality'))
+    calcMax(getSliderConfig(calcResult, 'Quality')),
+    totalLoss
+  )
   const dailyRecoverable = Math.round(totalMaxRecoverable / (calcResult.workingDaysMonth || 22))
 
   return (
