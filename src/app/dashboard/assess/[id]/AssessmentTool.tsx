@@ -142,8 +142,8 @@ export default function AssessmentTool({
     if (error) {
       console.error('Assessment save error:', error)
       setSaveError(true)
-      // Retry after 3s
-      setTimeout(() => { setSaveError(false); handleSave(data) }, 3000)
+      // Show error briefly — no auto-retry to avoid infinite loops
+      setTimeout(() => setSaveError(false), 4000)
     } else {
       setLastSaved(new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }))
 
@@ -253,7 +253,7 @@ export default function AssessmentTool({
           )}
           {saveError ? (
             <span style={{ color: 'var(--red)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <span style={{ fontSize: '13px' }}>⚠</span> Save failed — retrying…
+              <span style={{ fontSize: '13px' }}>⚠</span> Save failed — please try again
             </span>
           ) : saving ? (
             <span style={{ color: 'var(--phase-onsite)', display: 'flex', alignItems: 'center', gap: '4px' }}>
