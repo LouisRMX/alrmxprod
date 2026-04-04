@@ -49,7 +49,8 @@ export default function DevRoleSwitcher({ viewAs, isOverridden }: DevRoleSwitche
   if (!mounted || !isAdmin) return null
 
   const returnUrl = encodeURIComponent(pathname)
-  const roleReturnUrl = encodeURIComponent('/dashboard')
+  // Demo stays on demo; dashboard pages go through /dashboard routing logic
+  const roleReturnUrl = encodeURIComponent(pathname.startsWith('/demo') ? pathname : '/dashboard')
 
   const content = isOverridden && viewAs ? (
     <div style={{
