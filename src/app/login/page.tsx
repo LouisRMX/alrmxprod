@@ -140,21 +140,22 @@ function LoginForm() {
         </p>
       </div>
 
-      {/* Demo button — only show when not already in demo redirect flow */}
+      {/* Demo button — navigates directly via auto-login route */}
       {redirectTo !== 'demo' && (
-        <button
-          onClick={() => router.push('/login?redirect=demo')}
+        <a
+          href="/api/demo-login"
           style={{
             padding: '12px 28px', background: 'var(--white)',
             color: 'var(--green)', border: '1px solid var(--border)',
             borderRadius: '10px', fontSize: '13px', fontWeight: '500',
             cursor: 'pointer', fontFamily: 'var(--font)',
             boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
-            transition: 'all .15s'
+            transition: 'all .15s', textDecoration: 'none',
+            display: 'inline-block',
           }}
         >
           Try demo →
-        </button>
+        </a>
       )}
     </div>
   )
