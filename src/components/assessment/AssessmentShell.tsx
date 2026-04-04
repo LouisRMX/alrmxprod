@@ -60,9 +60,11 @@ interface AssessmentShellProps {
   demoBanner?: DemoBannerProps
   // Extra tab injected before the standard tabs (e.g. "All plants" in demo)
   extraTab?: { label: string; shortLabel: string; onClick: () => void }
+  // When true, the internal ModeTabs row is not rendered (parent renders its own)
+  hideModeTabs?: boolean
 }
 
-export default function AssessmentShell({ initialAnswers, phase, season, country, plant, date, assessmentId, report, reportReleased, isAdmin, onSave, baseline, requestMode, onAnswersChange, demoBanner, extraTab }: AssessmentShellProps) {
+export default function AssessmentShell({ initialAnswers, phase, season, country, plant, date, assessmentId, report, reportReleased, isAdmin, onSave, baseline, requestMode, onAnswersChange, demoBanner, extraTab, hideModeTabs }: AssessmentShellProps) {
   const [answers, setAnswers] = useState<Answers>(initialAnswers)
   const [currentSection, setCurrentSection] = useState(0)
   const [mode, setMode] = useState<AssessmentMode>('questions')
@@ -138,7 +140,7 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-      <ModeTabs activeMode={mode} onSwitch={setMode} extraTab={extraTab} />
+      {!hideModeTabs && <ModeTabs activeMode={mode} onSwitch={setMode} extraTab={extraTab} />}
 
       {mode === 'questions' && guidedMode && (
         <GuidedMode

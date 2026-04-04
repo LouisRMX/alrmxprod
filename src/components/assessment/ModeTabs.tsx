@@ -7,7 +7,7 @@ export type AssessmentMode = 'questions' | 'report' | 'simulator' | 'track' | 'g
 interface ModeTabsProps {
   activeMode: AssessmentMode
   onSwitch: (mode: AssessmentMode) => void
-  extraTab?: { label: string; shortLabel: string; onClick: () => void }
+  extraTab?: { label: string; shortLabel: string; onClick: () => void; active?: boolean }
 }
 
 const TABS: { mode: AssessmentMode; label: string; shortLabel: string }[] = [
@@ -47,7 +47,7 @@ export default function ModeTabs({ activeMode, onSwitch, extraTab }: ModeTabsPro
         <button
           type="button"
           onClick={extraTab.onClick}
-          style={tabStyle(false)}
+          style={tabStyle(extraTab.active ?? false)}
         >
           {isMobile ? extraTab.shortLabel : extraTab.label}
         </button>
