@@ -51,7 +51,7 @@ export default async function PortfolioPage() {
   const totalEbitda = (assessments || []).reduce((s, a) => s + (a.ebitda_monthly || 0), 0)
 
   return (
-    <div style={{ padding: '24px', maxWidth: '1100px', margin: '0 auto' }}>
+    <div style={{ padding: 'clamp(12px, 3vw, 24px)', maxWidth: '1100px', margin: '0 auto', overflowX: 'hidden' }}>
 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
@@ -69,7 +69,7 @@ export default async function PortfolioPage() {
       </div>
 
       {/* KPI row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginBottom: '24px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px', marginBottom: '24px' }}>
         {[
           { label: 'Total assessments', value: total.toString() },
           { label: 'Average score', value: avgScore ? `${avgScore}/100` : '—' },
@@ -103,7 +103,7 @@ export default async function PortfolioPage() {
             </Link>
           </div>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
+          <div style={{ overflowX: 'auto', width: '100%', WebkitOverflowScrolling: 'touch' as React.CSSProperties['WebkitOverflowScrolling'] }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '700px' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--gray-50)' }}>

@@ -177,7 +177,7 @@ export default function CustomerDetail({ customer, plants, members: initialMembe
   const assessmentCount = plants.reduce((s, p) => s + (p.assessments?.[0]?.count || 0), 0)
 
   return (
-    <div style={{ padding: '24px', maxWidth: '900px', margin: '0 auto' }}>
+    <div style={{ padding: 'clamp(12px, 3vw, 24px)', maxWidth: '900px', margin: '0 auto', overflowX: 'hidden' }}>
       {/* Back link */}
       <Link href="/dashboard/customers" style={{
         fontSize: '13px', color: 'var(--gray-500)', textDecoration: 'none', marginBottom: '16px', display: 'inline-block'

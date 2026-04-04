@@ -128,7 +128,7 @@ export default function PricingPage() {
     <div style={{ minHeight: '100vh', background: 'var(--gray-50)', fontFamily: 'var(--font)' }}>
 
       {/* Nav */}
-      <div style={{ background: 'var(--white)', borderBottom: '1px solid var(--border)', padding: '16px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ background: 'var(--white)', borderBottom: '1px solid var(--border)', padding: '16px clamp(16px, 4vw, 32px)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <a href="/" style={{ fontSize: '15px', fontWeight: 700, color: 'var(--gray-900)', textDecoration: 'none', letterSpacing: '-.3px' }}>
           alRMX
         </a>
@@ -137,7 +137,7 @@ export default function PricingPage() {
         </a>
       </div>
 
-      <div style={{ maxWidth: '1040px', margin: '0 auto', padding: '60px 24px 80px' }}>
+      <div style={{ maxWidth: '1040px', margin: '0 auto', padding: 'clamp(32px, 6vw, 60px) clamp(12px, 3vw, 24px) 80px' }}>
 
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: '52px' }}>
@@ -153,7 +153,7 @@ export default function PricingPage() {
         </div>
 
         {/* Tier cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', marginBottom: '64px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))', gap: '20px', marginBottom: '64px' }}>
           {TIERS.map(tier => (
             <div
               key={tier.name}
@@ -161,7 +161,7 @@ export default function PricingPage() {
                 background: 'var(--white)',
                 border: `2px solid ${tier.highlight ? tier.accent : 'var(--border)'}`,
                 borderRadius: '14px',
-                padding: '28px 24px',
+                padding: 'clamp(20px, 3vw, 28px) clamp(16px, 3vw, 24px)',
                 position: 'relative',
                 boxShadow: tier.highlight ? '0 4px 24px rgba(0,0,0,.08)' : 'none',
                 display: 'flex', flexDirection: 'column',
