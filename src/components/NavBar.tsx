@@ -87,18 +87,10 @@ export default function NavBar({ user, profile, memberRole }: NavBarProps) {
     router.refresh()
   }
 
-  // Determine which tabs to show based on role
+  // Determine which tabs to show based on effective role.
+  // memberRole is already the effective role (with viewAs override applied),
+  // so it takes priority over the raw isAdmin check.
   const tabs = (() => {
-    if (isAdmin) {
-      return [
-        { label: 'New assessment', href: '/dashboard/assess' },
-        { label: 'Portfolio',      href: '/dashboard/portfolio' },
-        { label: 'Customers',      href: '/dashboard/customers' },
-        { label: 'Reports',        href: '/dashboard/reports' },
-        { label: 'Simulator',      href: '/dashboard/simulator' },
-      ]
-    }
-
     if (memberRole === 'owner') {
       return [
         { label: 'My Plants',  href: '/dashboard/plants' },
@@ -112,7 +104,25 @@ export default function NavBar({ user, profile, memberRole }: NavBarProps) {
       ]
     }
 
-    // manager (default for customer users)
+    if (memberRole === 'manager') {
+      return [
+        { label: 'My Plants',  href: '/dashboard/plants' },
+        { label: 'My Reports', href: '/dashboard/reports' },
+      ]
+    }
+
+    // No memberRole override — show full admin tabs
+    if (isAdmin) {
+      return [
+        { label: 'New assessment', href: '/dashboard/assess' },
+        { label: 'Portfolio',      href: '/dashboard/portfolio' },
+        { label: 'Customers',      href: '/dashboard/customers' },
+        { label: 'Reports',        href: '/dashboard/reports' },
+        { label: 'Simulator',      href: '/dashboard/simulator' },
+      ]
+    }
+
+    // Fallback: manager view
     return [
       { label: 'My Plants',  href: '/dashboard/plants' },
       { label: 'My Reports', href: '/dashboard/reports' },
