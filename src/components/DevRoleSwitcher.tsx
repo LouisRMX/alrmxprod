@@ -1,7 +1,7 @@
 'use client'
 
 import { usePathname } from 'next/navigation'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import type { MemberRole } from '@/lib/getEffectiveMemberRole'
 
@@ -16,122 +16,123 @@ const ROLES: { role: MemberRole; label: string }[] = [
   { role: 'operator', label: 'Operator' },
 ]
 
-const chipStyle = (active: boolean): React.CSSProperties => ({
-  padding: '4px 10px',
-  borderRadius: '5px',
-  fontSize: '11px',
-  fontWeight: active ? 700 : 400,
-  background: active ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.1)',
-  color: '#fff',
-  textDecoration: 'none',
-  border: '1px solid rgba(255,255,255,0.2)',
-  fontFamily: 'var(--font)',
-  whiteSpace: 'nowrap' as const,
-})
-
 export default function DevRoleSwitcher({ viewAs, isOverridden }: DevRoleSwitcherProps) {
   const pathname = usePathname()
   const [mounted, setMounted] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     setMounted(true)
-    // Fetch role client-side — bypasses any server-side isAdmin check issues
     fetch('/api/me')
       .then(r => r.json())
-      .then(d => {
-        // Show for system_admin or customer_admin (both are platform operators)
-        if (d.role === 'system_admin' || d.role === 'customer_admin') setIsAdmin(true)
-      })
+      .then(d => { if (d.role === 'system_admin' || d.role === 'customer_admin') setIsAdmin(true) })
       .catch(() => {})
   }, [])
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
 
   if (!mounted || !isAdmin) return null
 
   const returnUrl = encodeURIComponent(pathname)
-  // Demo stays on demo; dashboard pages go through /dashboard routing logic
   const roleReturnUrl = encodeURIComponent(pathname.startsWith('/demo') ? pathname : '/dashboard')
 
-  const content = isOverridden && viewAs ? (
-    <div style={{
-      position: 'fixed',
-      bottom: '80px',
-      left: '50%',
-      transform: 'translateX(-50%)',
-      zIndex: 99999,
-      background: '#C0392B',
-      color: '#fff',
-      borderRadius: '8px',
-      padding: '6px 12px',
-      boxShadow: '0 4px 20px rgba(0,0,0,0.35)',
-      display: 'flex',
-      alignItems: 'center',
-      gap: '6px',
-      flexWrap: 'wrap' as const,
-      justifyContent: 'center',
-      maxWidth: 'calc(100vw - 32px)',
-    }}>
-      <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.75)', fontFamily: 'var(--font)', whiteSpace: 'nowrap' }}>
-        View as:
-      </span>
-      {ROLES.map(({ role, label }) => (
-        <a key={role} href={`/api/dev-role?role=${role}&return=${roleReturnUrl}`} style={chipStyle(role === viewAs)}>
-          {label}
-        </a>
-      ))}
-      <a
-        href={`/api/dev-role?clear=1&return=${returnUrl}`}
+  const content = (
+    <div ref={ref} style={{ position: 'fixed', bottom: '20px', right: '16px', zIndex: 99999 }}>
+
+      {/* Dropdown menu */}
+      {open && (
+        <div style={{
+          position: 'absolute',
+          bottom: 'calc(100% + 6px)',
+          right: 0,
+          background: '#1a1a1a',
+          borderRadius: '8px',
+          padding: '6px',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.35)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '3px',
+          minWidth: '120px',
+        }}>
+          <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.35)', fontFamily: 'var(--font)', padding: '2px 6px 4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            View as
+          </div>
+          {ROLES.map(({ role, label }) => (
+            <a
+              key={role}
+              href={`/api/dev-role?role=${role}&return=${roleReturnUrl}`}
+              style={{
+                display: 'block',
+                padding: '6px 10px',
+                borderRadius: '5px',
+                fontSize: '12px',
+                fontFamily: 'var(--font)',
+                fontWeight: viewAs === role ? 600 : 400,
+                background: viewAs === role ? 'rgba(255,255,255,0.15)' : 'transparent',
+                color: viewAs === role ? '#fff' : 'rgba(255,255,255,0.65)',
+                textDecoration: 'none',
+                borderLeft: viewAs === role ? '2px solid #e74c3c' : '2px solid transparent',
+              }}
+            >
+              {label}
+            </a>
+          ))}
+          {isOverridden && (
+            <>
+              <div style={{ height: '1px', background: 'rgba(255,255,255,0.1)', margin: '3px 0' }} />
+              <a
+                href={`/api/dev-role?clear=1&return=${returnUrl}`}
+                style={{
+                  display: 'block',
+                  padding: '6px 10px',
+                  borderRadius: '5px',
+                  fontSize: '12px',
+                  fontFamily: 'var(--font)',
+                  color: 'rgba(255,255,255,0.45)',
+                  textDecoration: 'none',
+                }}
+              >
+                Exit role view
+              </a>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Trigger button */}
+      <button
+        onClick={() => setOpen(o => !o)}
         style={{
-          padding: '4px 10px',
-          borderRadius: '5px',
-          fontSize: '11px',
-          background: 'rgba(255,255,255,0.15)',
-          color: '#fff',
-          textDecoration: 'none',
-          border: '1px solid rgba(255,255,255,0.3)',
-          fontFamily: 'var(--font)',
-          whiteSpace: 'nowrap' as const,
+          background: isOverridden ? '#c0392b' : 'rgba(30,30,30,0.75)',
+          border: 'none',
+          borderRadius: '6px',
+          padding: '5px 9px',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '5px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+          backdropFilter: 'blur(4px)',
         }}
       >
-        Exit
-      </a>
-    </div>
-  ) : (
-    <div style={{
-      position: 'fixed',
-      bottom: '80px',
-      right: '16px',
-      zIndex: 99999,
-      background: 'rgba(20,20,20,0.9)',
-      borderRadius: '8px',
-      padding: '6px 10px',
-      boxShadow: '0 2px 12px rgba(0,0,0,0.3)',
-      display: 'flex',
-      alignItems: 'center',
-      gap: '5px',
-    }}>
-      <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.45)', fontFamily: 'var(--font)', marginRight: '2px', whiteSpace: 'nowrap' }}>
-        View as
-      </span>
-      {ROLES.map(({ role, label }) => (
-        <a
-          key={role}
-          href={`/api/dev-role?role=${role}&return=${roleReturnUrl}`}
-          style={{
-            padding: '3px 8px',
-            borderRadius: '5px',
-            fontSize: '10px',
-            background: 'rgba(255,255,255,0.1)',
-            color: 'rgba(255,255,255,0.8)',
-            textDecoration: 'none',
-            border: '1px solid rgba(255,255,255,0.15)',
-            fontFamily: 'var(--font)',
-            whiteSpace: 'nowrap' as const,
-          }}
-        >
-          {label}
-        </a>
-      ))}
+        <span style={{ fontSize: '10px', color: isOverridden ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.4)', fontFamily: 'var(--font)' }}>
+          {isOverridden ? viewAs : 'View as'}
+        </span>
+        <svg width="8" height="8" viewBox="0 0 8 8" style={{ opacity: 0.5, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>
+          <path d="M1 2.5L4 5.5L7 2.5" stroke="white" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
+        </svg>
+      </button>
+
     </div>
   )
 
