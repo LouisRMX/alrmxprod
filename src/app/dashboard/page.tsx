@@ -16,11 +16,19 @@ export default async function DashboardPage() {
   const profileRole = profile?.role
   const isAdmin = profileRole === 'system_admin'
 
-  if (isAdmin) {
-    redirect('/dashboard/portfolio')
+  // Check effective role — admin may have a viewAs cookie active
+  const { role: effectiveRole } = await getEffectiveMemberRole(null, isAdmin)
+
+  // Admin with active viewAs override → behave as that role
+  if (isAdmin && effectiveRole !== null) {
+    if (effectiveRole === 'operator') redirect('/dashboard/track')
+    redirect('/dashboard/plants')
   }
 
-  // Get customer member role
+  // Admin with no override → portfolio
+  if (isAdmin) redirect('/dashboard/portfolio')
+
+  // Customer roles — get real member role
   let realMemberRole: MemberRole | null = null
   const { data: member } = await supabase
     .from('customer_members')
@@ -38,14 +46,8 @@ export default async function DashboardPage() {
     realMemberRole = 'manager'
   }
 
-  const { role: effectiveRole } = await getEffectiveMemberRole(realMemberRole, false)
+  const { role: customerEffectiveRole } = await getEffectiveMemberRole(realMemberRole, false)
 
-  if (effectiveRole === 'operator') {
-    redirect('/dashboard/track')
-  } else if (effectiveRole === 'owner') {
-    redirect('/dashboard/plants')
-  } else {
-    // manager — redirect to plants overview (they need to pick an assessment)
-    redirect('/dashboard/plants')
-  }
+  if (customerEffectiveRole === 'operator') redirect('/dashboard/track')
+  redirect('/dashboard/plants')
 }

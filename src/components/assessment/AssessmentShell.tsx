@@ -69,7 +69,12 @@ interface AssessmentShellProps {
 export default function AssessmentShell({ initialAnswers, phase, season, country, plant, date, assessmentId, report, reportReleased, isAdmin, userRole, onSave, baseline, requestMode, onAnswersChange, demoBanner, extraTab, hideModeTabs }: AssessmentShellProps) {
   const [answers, setAnswers] = useState<Answers>(initialAnswers)
   const [currentSection, setCurrentSection] = useState(0)
-  const [mode, setMode] = useState<AssessmentMode>('questions')
+  // Owner starts on report (they have no questions tab)
+  // Operator starts on questions
+  // Everyone else starts on questions
+  const [mode, setMode] = useState<AssessmentMode>(
+    userRole === 'owner' ? 'report' : 'questions'
+  )
   const [guidedMode, setGuidedMode] = useState(phase === 'onsite' && Object.keys(initialAnswers).length < 20)
   const [overrides, setOverrides] = useState<CalcOverrides>({})
   const isMobile = useIsMobile()
