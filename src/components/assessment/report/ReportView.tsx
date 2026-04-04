@@ -862,9 +862,10 @@ function FinancialHeadline({ totalLoss, dailyLoss, calcResult }: {
 }
 
 // ── Impact Hook ────────────────────────────────────────────────────────────
-function ImpactHook({ bnLoss, bnDailyLoss, calcResult, issues, financialBottleneck, liveBenchmarks }: {
+function ImpactHook({ bnLoss, bnDailyLoss, totalLoss, calcResult, issues, financialBottleneck, liveBenchmarks }: {
   bnLoss: number
   bnDailyLoss: number
+  totalLoss: number
   calcResult: CalcResult
   issues: Issue[]
   financialBottleneck: string | null
@@ -964,37 +965,38 @@ function ImpactHook({ bnLoss, bnDailyLoss, calcResult, issues, financialBottlene
         })()}
       </div>
 
-      {/* Right — Recoverable revenue */}
+      {/* Right — Total recovery potential across all findings */}
       <div style={{ padding: isMobile ? '16px' : '24px', background: '#f6fbf8' }}>
         <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.4px', textTransform: 'uppercase', color: '#7ab89a', marginBottom: '8px' }}>
-          Recoverable revenue
+          Total recovery potential
         </div>
-        {bnLoss > 0 ? (
+        {totalLoss > 0 ? (
           <>
-            <div style={{ fontSize: '40px', fontWeight: 800, color: '#1a6644', lineHeight: 1, letterSpacing: '-1px', marginBottom: '4px' }}>
-              {fmtK(bnLoss)}<span style={{ fontSize: '17px', fontWeight: 500, color: '#5aaa82', marginLeft: '8px' }}>/ month</span>
+            <div style={{ fontSize: isMobile ? '32px' : '40px', fontWeight: 800, color: '#1a6644', lineHeight: 1, letterSpacing: '-1px', marginBottom: '4px' }}>
+              {fmtK(totalLoss)}<span style={{ fontSize: '17px', fontWeight: 500, color: '#5aaa82', marginLeft: '8px' }}>/ month</span>
             </div>
             <div style={{ fontSize: '13px', color: '#7ab89a', marginBottom: '20px' }}>
-              ≈ {fmtK(bnDailyLoss)} per day
+              ≈ {fmtK(Math.round(totalLoss / (calcResult.workingDaysMonth || 22)))} per day
             </div>
-            {driverLabel && (
-              <div style={{ marginBottom: '20px' }}>
-                <div style={{ fontSize: '13px', fontWeight: 600, color: '#1a6644', marginBottom: '4px' }}>
-                  Driven by {driverLabel.toLowerCase()} improvement
+
+            {/* Breakdown: primary + secondary */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
+              {bnLoss > 0 && driverLabel && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                  <span style={{ fontSize: '12px', color: '#4a9a72' }}>{driverLabel} (primary)</span>
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: '#1a6644', fontFamily: 'var(--mono)' }}>{fmtK(bnLoss)}</span>
                 </div>
-                {driverMetric && (
-                  <div style={{ fontSize: '12px', color: '#7ab89a' }}>{driverMetric}</div>
-                )}
-              </div>
-            )}
-            <div style={{ fontSize: '13px', fontWeight: 600, color: '#1a6644', marginBottom: '20px' }}>
-              Up to {fmtK(bnLoss)} / month recoverable
+              )}
+              {totalLoss > bnLoss && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                  <span style={{ fontSize: '12px', color: '#4a9a72' }}>Secondary findings</span>
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: '#1a6644', fontFamily: 'var(--mono)' }}>{fmtK(totalLoss - bnLoss)}</span>
+                </div>
+              )}
             </div>
-            <div style={{ fontSize: '11px', color: '#5aaa82', marginBottom: '6px' }}>
-              + Additional upside discovered in other operational areas
-            </div>
+
             <div style={{ fontSize: '11px', color: '#b0b0b0' }}>
-              (Based on current operational data)
+              Based on current operational data — no capital required
             </div>
           </>
         ) : (
@@ -2689,7 +2691,7 @@ function ScoreGrid({ calcResult, financialBottleneck, issues, onSwitchToTracking
       borderRadius: '12px', padding: isMobile ? '14px 16px' : '20px 24px', marginBottom: '16px',
     }}>
       <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.4px', textTransform: 'uppercase', color: '#b0b0b0', marginBottom: '16px' }}>
-        Operational scores — lowest is the constraint
+        Performance scorecard
       </div>
 
       {/* Bottleneck card — expanded, single column */}
@@ -2778,15 +2780,21 @@ function ScoreGrid({ calcResult, financialBottleneck, issues, onSwitchToTracking
       {/* Other scores — muted, capped at 2 cols on mobile */}
       {others.length > 0 && (
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : `repeat(${Math.min(others.length, 3)}, 1fr)`, gap: '8px', marginBottom: '8px' }}>
-          {others.map(d => (
-            <div key={d.key} style={{
-              background: '#f9faf9', border: '1px solid #e8e8e6', borderRadius: '12px',
-              padding: '14px 12px', textAlign: 'center',
-            }}>
-              <div style={{ fontSize: '28px', fontWeight: 700, color: '#888', lineHeight: 1, marginBottom: '4px' }}>{Math.round(d.score)}</div>
-              <div style={{ fontSize: '12px', color: '#aaa', fontWeight: 500 }}>{d.label}</div>
-            </div>
-          ))}
+          {others.map(d => {
+            const s = Math.round(d.score)
+            const status = s >= 80 ? 'On track' : s >= 60 ? 'Needs attention' : 'At risk'
+            const statusColor = s >= 80 ? '#2a9d6e' : s >= 60 ? '#c96a00' : '#cc3333'
+            return (
+              <div key={d.key} style={{
+                background: '#f9faf9', border: '1px solid #e8e8e6', borderRadius: '12px',
+                padding: '14px 12px', textAlign: 'center',
+              }}>
+                <div style={{ fontSize: '28px', fontWeight: 700, color: '#888', lineHeight: 1, marginBottom: '2px' }}>{s}</div>
+                <div style={{ fontSize: '12px', color: '#aaa', fontWeight: 500, marginBottom: '4px' }}>{d.label}</div>
+                <div style={{ fontSize: '10px', fontWeight: 600, color: statusColor }}>{status}</div>
+              </div>
+            )
+          })}
         </div>
       )}
     </div>
@@ -2839,15 +2847,23 @@ function WhyAndStartHere({ issues, totalLoss, calcResult, onSwitchToTracking }: 
         {/* Right: START HERE */}
         <div style={{ padding: isMobile ? '16px 18px' : '20px 24px', display: 'flex', flexDirection: 'column' }}>
           <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.4px', textTransform: 'uppercase', color: '#b0b0b0', marginBottom: '16px' }}>
-            Start here — next 7 days
+            Start here
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', flex: 1 }}>
-            {actionItems.slice(0, 3).map((action, i) => (
-              <div key={i} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-                <span style={{ color: '#2a9d6e', flexShrink: 0, fontSize: '15px', lineHeight: 1.3, fontWeight: 700 }}>✓</span>
-                <span style={{ fontSize: '13px', color: '#1a1a1a', lineHeight: 1.5 }}>{action}</span>
-              </div>
-            ))}
+            {actionItems.slice(0, 3).map((action, i) => {
+              const timeframe = i === 0 ? 'Week 1' : i === 1 ? 'Weeks 2–3' : 'Month 2–3'
+              return (
+                <div key={i} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+                  <span style={{
+                    fontSize: '9px', fontWeight: 700, color: '#2a9d6e',
+                    background: '#f0faf6', border: '1px solid #b5dfc9',
+                    borderRadius: '3px', padding: '2px 5px',
+                    flexShrink: 0, marginTop: '2px', whiteSpace: 'nowrap',
+                  }}>{timeframe}</span>
+                  <span style={{ fontSize: '13px', color: '#1a1a1a', lineHeight: 1.5 }}>{action}</span>
+                </div>
+              )
+            })}
           </div>
           <div style={{ marginTop: '24px' }}>
             <button
@@ -3250,6 +3266,7 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
       <ImpactHook
         bnLoss={bnLoss}
         bnDailyLoss={bnDailyLoss}
+        totalLoss={totalLoss}
         calcResult={calcResult}
         issues={issues}
         financialBottleneck={financialBottleneck}
