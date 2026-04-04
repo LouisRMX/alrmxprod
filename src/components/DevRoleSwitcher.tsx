@@ -21,14 +21,19 @@ export default function DevRoleSwitcher({ viewAs, isOverridden }: DevRoleSwitche
   const [mounted, setMounted] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
   const [open, setOpen] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     setMounted(true)
+    const checkMobile = () => setIsMobile(window.innerWidth < 640)
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
     fetch('/api/me')
       .then(r => r.json())
       .then(d => { if (d.role === 'system_admin' || d.role === 'customer_admin') setIsAdmin(true) })
       .catch(() => {})
+    return () => window.removeEventListener('resize', checkMobile)
   }, [])
 
   // Close on outside click
@@ -46,15 +51,24 @@ export default function DevRoleSwitcher({ viewAs, isOverridden }: DevRoleSwitche
   const returnUrl = encodeURIComponent(pathname)
   const roleReturnUrl = encodeURIComponent(pathname.startsWith('/demo') ? pathname : '/dashboard')
 
+  // On mobile: top-right below the nav bar (avoids bottom tab bar)
+  // On desktop: bottom-right corner
+  const triggerStyle: React.CSSProperties = isMobile
+    ? { position: 'fixed', top: '52px', right: '10px', zIndex: 99999 }
+    : { position: 'fixed', bottom: '20px', right: '16px', zIndex: 99999 }
+
+  // Dropdown opens downward on mobile (below trigger), upward on desktop
+  const dropdownStyle: React.CSSProperties = isMobile
+    ? { position: 'absolute', top: 'calc(100% + 6px)', right: 0 }
+    : { position: 'absolute', bottom: 'calc(100% + 6px)', right: 0 }
+
   const content = (
-    <div ref={ref} style={{ position: 'fixed', bottom: '20px', right: '16px', zIndex: 99999 }}>
+    <div ref={ref} style={triggerStyle}>
 
       {/* Dropdown menu */}
       {open && (
         <div style={{
-          position: 'absolute',
-          bottom: 'calc(100% + 6px)',
-          right: 0,
+          ...dropdownStyle,
           background: '#1a1a1a',
           borderRadius: '8px',
           padding: '6px',
