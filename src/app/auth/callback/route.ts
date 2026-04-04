@@ -20,5 +20,8 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.redirect(`${origin}${next}`)
+  const res = NextResponse.redirect(`${origin}${next}`)
+  // Always clear any leftover role override on login
+  res.cookies.delete('viewAs')
+  return res
 }

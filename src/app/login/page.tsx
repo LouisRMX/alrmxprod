@@ -28,8 +28,9 @@ function LoginForm() {
       return
     }
 
-    router.push(redirectTo === 'demo' ? '/demo' : '/dashboard')
-    router.refresh()
+    // Route through server to clear any leftover viewAs cookie before landing
+    const dest = redirectTo === 'demo' ? '/demo' : '/dashboard'
+    window.location.href = `/api/auth/clear-role?next=${dest}`
   }
 
   return (
