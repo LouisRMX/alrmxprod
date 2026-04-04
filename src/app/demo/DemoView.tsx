@@ -1,9 +1,11 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import AssessmentShell from '@/components/assessment/AssessmentShell'
+import ModeTabs, { type AssessmentMode } from '@/components/assessment/ModeTabs'
+import PlantOverviewView, { type PlantCardData } from '@/components/plants/PlantOverviewView'
 import type { Answers } from '@/lib/calculations'
 import type { Phase } from '@/lib/questions'
 import { useIsMobile } from '@/hooks/useIsMobile'
@@ -145,6 +147,23 @@ Production: Utilisation at 86% is constrained downstream by the turnaround bottl
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Demo plant fleet (also used by /demo/plants page)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const DEMO_PLANTS: PlantCardData[] = [
+  { id: 'dp-1', name: 'Al-Noor Dubai North', country: 'AE', assessmentHref: '/demo', assessment: { id: 'demo', phase: 'onsite', overall: 68, scores: { prod: 82, dispatch: 48, logistics: 71, fleet: 71, quality: 70 }, bottleneck: 'Dispatch', ebitda_monthly: 63000, report_released: true, trackingWeek: 7 } },
+  { id: 'dp-2', name: 'Al-Noor Dubai Industrial', country: 'AE', assessmentHref: '/demo', assessment: { id: 'demo-2', phase: 'onsite', overall: 54, scores: { prod: 68, dispatch: 34, logistics: 52, fleet: 52, quality: 61 }, bottleneck: 'Dispatch', ebitda_monthly: 89000, report_released: false, trackingWeek: null } },
+  { id: 'dp-3', name: 'Al-Noor Abu Dhabi', country: 'AE', assessmentHref: '/demo', assessment: { id: 'demo-3', phase: 'complete', overall: 83, scores: { prod: 88, dispatch: 79, logistics: 85, fleet: 85, quality: 80 }, bottleneck: null, ebitda_monthly: 12000, report_released: true, trackingWeek: 13 } },
+  { id: 'dp-4', name: 'Al-Noor Sharjah', country: 'AE', assessmentHref: '/demo', assessment: { id: 'demo-4', phase: 'onsite', overall: 61, scores: { prod: 74, dispatch: 65, logistics: 59, fleet: 59, quality: 47 }, bottleneck: 'Quality', ebitda_monthly: 47000, report_released: false, trackingWeek: 3 } },
+  { id: 'dp-5', name: 'Al-Noor Ras Al Khaimah', country: 'AE', assessmentHref: '/demo', assessment: { id: 'demo-5', phase: 'onsite', overall: 44, scores: { prod: 62, dispatch: 42, logistics: 29, fleet: 29, quality: 44 }, bottleneck: 'Fleet', ebitda_monthly: 124000, report_released: false, trackingWeek: null } },
+  { id: 'dp-6', name: 'Al-Noor Dubai South', country: 'AE', assessmentHref: '/demo', assessment: { id: 'demo-6', phase: 'complete', overall: 78, scores: { prod: 72, dispatch: 81, logistics: 83, fleet: 83, quality: 77 }, bottleneck: 'Production', ebitda_monthly: 31000, report_released: true, trackingWeek: 11 } },
+  { id: 'dp-7', name: 'Al-Noor Fujairah', country: 'AE', assessmentHref: '/demo', assessment: { id: 'demo-7', phase: 'onsite', overall: 66, scores: { prod: 77, dispatch: 71, logistics: 62, fleet: 62, quality: 54 }, bottleneck: 'Quality', ebitda_monthly: 54000, report_released: false, trackingWeek: null } },
+  { id: 'dp-8', name: 'Al-Noor Al Ain', country: 'AE', assessmentHref: '/demo', assessment: { id: 'demo-8', phase: 'complete', overall: 88, scores: { prod: 91, dispatch: 86, logistics: 89, fleet: 89, quality: 86 }, bottleneck: null, ebitda_monthly: 8000, report_released: true, trackingWeek: 13 } },
+  { id: 'dp-9', name: 'Al-Noor Ajman', country: 'AE', assessmentHref: '/demo', assessment: { id: 'demo-9', phase: 'onsite', overall: 57, scores: { prod: 70, dispatch: 59, logistics: 43, fleet: 43, quality: 55 }, bottleneck: 'Fleet', ebitda_monthly: 78000, report_released: false, trackingWeek: null } },
+  { id: 'dp-10', name: 'Al-Noor Umm Al Quwain', country: 'AE', assessmentHref: '/demo', assessment: { id: 'demo-10', phase: 'workshop', overall: null, scores: null, bottleneck: null, ebitda_monthly: null, report_released: false, trackingWeek: null } },
+]
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 type DemoPhase = 'workshop' | 'onsite'
 
@@ -182,8 +201,13 @@ const PHASE_CONFIG: Record<DemoPhase, {
 
 export default function DemoView() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
   const [demoPhase, setDemoPhase] = useState<DemoPhase>('workshop')
+  // 'plants' shows the portfolio overview; any AssessmentMode shows the assessment
+  const [demoView, setDemoView] = useState<'plants' | AssessmentMode>(
+    searchParams.get('view') === 'plants' ? 'plants' : 'questions'
+  )
 
   // ── Demo regeneration state ─────────────────────────────────────────────
   const [demoAnswersModified, setDemoAnswersModified] = useState(false)
@@ -301,14 +325,6 @@ export default function DemoView() {
           </button>
           {/* Right: nav buttons */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-            <button onClick={() => router.push('/demo/plants')} style={{
-              fontSize: '12px', color: '#fff',
-              background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)',
-              borderRadius: '6px', padding: '4px 10px', cursor: 'pointer', fontFamily: 'var(--font)',
-              fontWeight: 500,
-            }}>
-              All plants →
-            </button>
             <button onClick={() => router.push('/dashboard')} style={{
               fontSize: '12px', color: 'rgba(255,255,255,0.7)',
               background: 'none', border: '1px solid rgba(255,255,255,0.2)',
@@ -354,26 +370,52 @@ export default function DemoView() {
         </div>
       </div>
 
+      {/* Persistent tab row — always visible */}
+      <ModeTabs
+        activeMode={demoView === 'plants' ? ('' as AssessmentMode) : demoView}
+        onSwitch={(m) => setDemoView(m)}
+        extraTab={{
+          label: 'All plants',
+          shortLabel: 'All plants',
+          onClick: () => setDemoView('plants'),
+          active: demoView === 'plants',
+        }}
+      />
+
+      {/* Plants overview */}
+      {demoView === 'plants' && (
+        <div style={{ flex: 1, overflowY: 'auto' }}>
+          <PlantOverviewView
+            plants={DEMO_PLANTS}
+            customerName="Al-Noor RMX Group"
+            isDemo
+          />
+        </div>
+      )}
+
       {/* Assessment shell — key forces full remount when phase switches or answers reset */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <AssessmentShell
-          key={`${demoPhase}-${demoKey}`}
-          initialAnswers={demoPhase === 'workshop' ? WORKSHOP_ANSWERS : ONSITE_ANSWERS}
-          phase={cfg.phase}
-          season="summer"
-          country="UAE"
-          plant="Al-Noor RMX"
-          date="2025-06-15"
-          assessmentId="demo"
-          report={demoPhase === 'onsite' ? ONSITE_REPORT : null}
-          reportReleased={demoPhase === 'onsite'}
-          isAdmin={true}
-          onSave={() => { /* no-op in demo */ }}
-          onAnswersChange={handleAnswersChange}
-          demoBanner={demoBanner}
-          extraTab={{ label: 'All plants', shortLabel: 'All plants', onClick: () => router.push('/demo/plants') }}
-        />
-      </div>
+      {demoView !== 'plants' && (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <AssessmentShell
+            key={`${demoPhase}-${demoKey}`}
+            initialAnswers={demoPhase === 'workshop' ? WORKSHOP_ANSWERS : ONSITE_ANSWERS}
+            phase={cfg.phase}
+            season="summer"
+            country="UAE"
+            plant="Al-Noor RMX"
+            date="2025-06-15"
+            assessmentId="demo"
+            report={demoPhase === 'onsite' ? ONSITE_REPORT : null}
+            reportReleased={demoPhase === 'onsite'}
+            isAdmin={true}
+            onSave={() => { /* no-op in demo */ }}
+            onAnswersChange={handleAnswersChange}
+            demoBanner={demoBanner}
+            hideModeTabs
+            requestMode={demoView as AssessmentMode}
+          />
+        </div>
+      )}
     </div>
   )
 }
