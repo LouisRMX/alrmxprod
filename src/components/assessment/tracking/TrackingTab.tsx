@@ -716,6 +716,129 @@ function CaseStudyCard({ config, entries, coeffDispatch }: { config: TrackingCon
   )
 }
 
+// ── Program Complete View ──────────────────────────────────────────────────
+
+function ProgramCompleteView({ config, entries, coeffDispatch }: {
+  config: TrackingConfig
+  entries: TrackingEntry[]
+  coeffDispatch: number
+}) {
+  const isMobile = useIsMobile()
+  const sortedAsc = [...entries].sort((a, b) => a.week_number - b.week_number)
+  const lastEntry = sortedAsc[sortedAsc.length - 1] ?? null
+
+  const taBaseline = config.baseline_turnaround
+  const diBaseline = config.baseline_dispatch_min
+  const taFinal   = lastEntry?.turnaround_min ?? null
+  const diFinal   = lastEntry?.dispatch_min   ?? null
+  const taTarget  = config.target_turnaround
+  const diTarget  = config.target_dispatch_min
+
+  const taImprovement = taBaseline != null && taFinal != null ? Math.max(0, taBaseline - taFinal) : null
+  const diImprovement = diBaseline != null && diFinal != null ? Math.max(0, diBaseline - diFinal) : null
+
+  const monthlyRecovery = lastEntry ? calcMonthlyRecovery(lastEntry, config, coeffDispatch) : 0
+  const yearlyRecovery  = monthlyRecovery * 12
+
+  const taHitTarget = taFinal != null && taTarget != null && taFinal <= taTarget
+  const diHitTarget = diFinal != null && diTarget != null && diFinal <= diTarget
+
+  const rows: { label: string; before: string; after: string; delta: string; hit: boolean }[] = []
+  if (taBaseline != null && taFinal != null) {
+    rows.push({
+      label: 'Turnaround time',
+      before: `${taBaseline} min`,
+      after:  `${taFinal} min`,
+      delta:  taImprovement! > 0 ? `▼ ${taImprovement} min` : '—',
+      hit:    taHitTarget,
+    })
+  }
+  if (diBaseline != null && diFinal != null) {
+    rows.push({
+      label: 'Dispatch time',
+      before: `${diBaseline} min`,
+      after:  `${diFinal} min`,
+      delta:  diImprovement! > 0 ? `▼ ${diImprovement} min` : '—',
+      hit:    diHitTarget,
+    })
+  }
+
+  return (
+    <div style={{ background: 'var(--phase-complete-bg)', border: '2px solid var(--phase-complete)', borderRadius: 'var(--radius)', padding: isMobile ? '20px 16px' : '24px 28px', marginBottom: '20px' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', marginBottom: '20px' }}>
+        <div>
+          <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--phase-complete)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '4px' }}>
+            ✓ Program complete
+          </div>
+          <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--gray-900)', lineHeight: 1.2 }}>
+            90-day before / after
+          </div>
+          <div style={{ fontSize: '12px', color: 'var(--gray-500)', marginTop: '3px' }}>
+            {entries.length} weeks of data · started {new Date(config.started_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+          </div>
+        </div>
+        {config.consent_case_study && (
+          <button
+            onClick={() => window.print()}
+            style={{
+              padding: '8px 18px', background: 'var(--phase-complete)', color: '#fff',
+              border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600,
+              cursor: 'pointer', fontFamily: 'var(--font)', flexShrink: 0,
+            }}
+          >
+            Export PDF
+          </button>
+        )}
+      </div>
+
+      {/* Hero number */}
+      {monthlyRecovery > 0 && (
+        <div style={{ background: 'var(--white)', borderRadius: '10px', padding: '16px 20px', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '.8px', marginBottom: '4px' }}>
+              Value unlocked per month
+            </div>
+            <div style={{ fontSize: '32px', fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--phase-complete)', lineHeight: 1 }}>
+              {fmt(monthlyRecovery)}
+            </div>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '.8px', marginBottom: '4px' }}>
+              Annualised
+            </div>
+            <div style={{ fontSize: '20px', fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--gray-700)' }}>
+              {fmt(yearlyRecovery)}/year
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Before / After table */}
+      {rows.length > 0 && (
+        <div style={{ background: 'var(--white)', borderRadius: '10px', overflow: 'hidden' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', padding: '8px 16px', background: 'var(--gray-50)', borderBottom: '1px solid var(--border)' }}>
+            {['Metric', 'Before', 'After', 'Change'].map(h => (
+              <div key={h} style={{ fontSize: '10px', fontWeight: 600, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '.4px' }}>{h}</div>
+            ))}
+          </div>
+          {rows.map((row, i) => (
+            <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', padding: '12px 16px', borderBottom: i < rows.length - 1 ? '1px solid var(--border)' : 'none', alignItems: 'center' }}>
+              <div style={{ fontSize: '13px', color: 'var(--gray-700)', fontWeight: 500 }}>{row.label}</div>
+              <div style={{ fontSize: '13px', fontFamily: 'var(--mono)', color: 'var(--gray-400)' }}>{row.before}</div>
+              <div style={{ fontSize: '13px', fontFamily: 'var(--mono)', color: 'var(--gray-900)', fontWeight: 600 }}>
+                {row.after}
+                {row.hit && <span style={{ marginLeft: '5px', fontSize: '10px', color: 'var(--phase-complete)' }}>✓</span>}
+              </div>
+              <div style={{ fontSize: '12px', fontWeight: 700, color: row.delta !== '—' ? 'var(--phase-complete)' : 'var(--gray-300)' }}>{row.delta}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Progress View (admin) ──────────────────────────────────────────────────
 
 function ProgressView({ config, entries, onEntryLogged, coeffDispatch, viewOnly }: {
@@ -730,10 +853,16 @@ function ProgressView({ config, entries, onEntryLogged, coeffDispatch, viewOnly 
   const latest = sortedEntries[0] ?? null
   const weeksWithNoData = currentWeek > 2 && entries.filter(e => e.week_number <= currentWeek - 1).length < currentWeek - 2
   const canExport = config.consent_case_study && entries.length >= 8
+  const isComplete = currentWeek >= 13
 
   return (
     <div style={{ padding: '24px', maxWidth: '760px', margin: '0 auto' }}>
-      {weeksWithNoData && (
+      {/* Program Complete banner — shown at week 13+ */}
+      {isComplete && (
+        <ProgramCompleteView config={config} entries={entries} coeffDispatch={coeffDispatch} />
+      )}
+
+      {weeksWithNoData && !isComplete && (
         <div style={{ background: 'var(--error-bg)', border: '1px solid var(--error-border)', borderRadius: '8px', padding: '10px 16px', marginBottom: '16px', fontSize: '13px', color: 'var(--red)' }}>
           ⚠ No data logged in the last 2+ weeks — follow up with the plant
         </div>
@@ -770,22 +899,24 @@ function ProgressView({ config, entries, onEntryLogged, coeffDispatch, viewOnly 
         )}
       </div>
 
-      {/* D: Weekly Input — hidden for owners (view-only) */}
+      {/* D: Weekly Input — hidden for owners (view-only) and in print */}
       {!viewOnly && (
-        <WeeklyInput
-          config={config}
-          entries={entries}
-          currentWeek={currentWeek}
-          isAdmin={true}
-          onLogged={onEntryLogged}
-        />
+        <div data-hide-print>
+          <WeeklyInput
+            config={config}
+            entries={entries}
+            currentWeek={currentWeek}
+            isAdmin={true}
+            onLogged={onEntryLogged}
+          />
+        </div>
       )}
 
-      {/* Case study */}
+      {/* Case study — hidden once program is complete (ProgramCompleteView takes over) */}
       <div style={{ marginTop: '16px' }}>
-        {canExport ? (
+        {!isComplete && canExport ? (
           <CaseStudyCard config={config} entries={entries} coeffDispatch={coeffDispatch} />
-        ) : (
+        ) : !isComplete && (
           <div style={{ padding: '12px 16px', background: 'var(--gray-50)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', color: 'var(--gray-400)' }}>
             {!config.consent_case_study
               ? 'Case study export requires client consent (update in setup).'

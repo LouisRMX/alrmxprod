@@ -59,3 +59,10 @@ body {
     padding-bottom: 64px;
   }
 }
+
+@media print {
+  nav, header, .mode-tabs, .score-live-panel,
+  [data-hide-print], button { display: none !important; }
+  body { background: white !important; }
+  * { color-adjust: exact; -webkit-print-color-adjust: exact; }
+}
