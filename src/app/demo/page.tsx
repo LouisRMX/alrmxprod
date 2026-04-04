@@ -13,9 +13,12 @@ export default async function DemoPage() {
 
   if (!user) redirect('/login?redirect=demo')
 
-  // Read viewAs cookie so demo respects role switching
+  // Only system_admin can use viewAs role override
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  const isAdmin = profile?.role === 'system_admin'
+
   const cookieStore = await cookies()
-  const raw = cookieStore.get('viewAs')?.value
+  const raw = isAdmin ? cookieStore.get('viewAs')?.value : undefined
   const userRole: MemberRole | null =
     raw === 'owner' || raw === 'manager' || raw === 'operator' ? raw : null
   const isOverridden = userRole !== null

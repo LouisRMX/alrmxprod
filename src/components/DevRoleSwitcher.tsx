@@ -31,7 +31,7 @@ export default function DevRoleSwitcher({ viewAs, isOverridden }: DevRoleSwitche
     window.addEventListener('resize', checkMobile)
     fetch('/api/me')
       .then(r => r.json())
-      .then(d => { if (d.role === 'system_admin' || d.role === 'customer_admin') setIsAdmin(true) })
+      .then(d => { if (d.role === 'system_admin') setIsAdmin(true) })
       .catch(() => {})
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
