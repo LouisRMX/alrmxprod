@@ -32,17 +32,23 @@ const chipStyle = (active: boolean): React.CSSProperties => ({
 export default function DevRoleSwitcher({ viewAs, isOverridden }: DevRoleSwitcherProps) {
   const pathname = usePathname()
   const [mounted, setMounted] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
 
-  useEffect(() => { setMounted(true) }, [])
+  useEffect(() => {
+    setMounted(true)
+    // Fetch role client-side — bypasses any server-side isAdmin check issues
+    fetch('/api/me')
+      .then(r => r.json())
+      .then(d => { if (d.role === 'system_admin') setIsAdmin(true) })
+      .catch(() => {})
+  }, [])
 
-  // Only render on client — avoids SSR/hydration issues entirely
-  if (!mounted) return null
+  if (!mounted || !isAdmin) return null
 
   const returnUrl = encodeURIComponent(pathname)
   const roleReturnUrl = encodeURIComponent('/dashboard')
 
   const content = isOverridden && viewAs ? (
-    // Active override: centred red pill above tab bar
     <div style={{
       position: 'fixed',
       bottom: '80px',
@@ -60,7 +66,6 @@ export default function DevRoleSwitcher({ viewAs, isOverridden }: DevRoleSwitche
       flexWrap: 'wrap' as const,
       justifyContent: 'center',
       maxWidth: 'calc(100vw - 32px)',
-      pointerEvents: 'auto',
     }}>
       <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.75)', fontFamily: 'var(--font)', whiteSpace: 'nowrap' }}>
         View as:
@@ -88,7 +93,6 @@ export default function DevRoleSwitcher({ viewAs, isOverridden }: DevRoleSwitche
       </a>
     </div>
   ) : (
-    // No override: compact dark pill bottom-right
     <div style={{
       position: 'fixed',
       bottom: '80px',
@@ -101,7 +105,6 @@ export default function DevRoleSwitcher({ viewAs, isOverridden }: DevRoleSwitche
       display: 'flex',
       alignItems: 'center',
       gap: '5px',
-      pointerEvents: 'auto',
     }}>
       <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.45)', fontFamily: 'var(--font)', marginRight: '2px', whiteSpace: 'nowrap' }}>
         View as
@@ -128,6 +131,5 @@ export default function DevRoleSwitcher({ viewAs, isOverridden }: DevRoleSwitche
     </div>
   )
 
-  // Render via portal directly on document.body — bypasses all parent CSS
   return createPortal(content, document.body)
 }
