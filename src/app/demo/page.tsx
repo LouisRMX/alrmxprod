@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import DemoView from './DemoView'
@@ -8,5 +9,9 @@ export default async function DemoPage() {
 
   if (!user) redirect('/login?redirect=demo')
 
-  return <DemoView />
+  return (
+    <Suspense>
+      <DemoView />
+    </Suspense>
+  )
 }

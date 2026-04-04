@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import AssessmentShell from '@/components/assessment/AssessmentShell'
 import ModeTabs, { type AssessmentMode } from '@/components/assessment/ModeTabs'
@@ -201,10 +201,13 @@ const PHASE_CONFIG: Record<DemoPhase, {
 
 export default function DemoView() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
   const [demoPhase, setDemoPhase] = useState<DemoPhase>('workshop')
   // 'plants' shows the portfolio overview; any AssessmentMode shows the assessment
-  const [demoView, setDemoView] = useState<'plants' | AssessmentMode>('questions')
+  const [demoView, setDemoView] = useState<'plants' | AssessmentMode>(
+    searchParams.get('view') === 'plants' ? 'plants' : 'questions'
+  )
 
   // ── Demo regeneration state ─────────────────────────────────────────────
   const [demoAnswersModified, setDemoAnswersModified] = useState(false)
