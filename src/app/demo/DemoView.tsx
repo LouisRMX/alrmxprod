@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import DevRoleSwitcher from '@/components/DevRoleSwitcher'
 import AssessmentShell from '@/components/assessment/AssessmentShell'
 import ModeTabs, { type AssessmentMode } from '@/components/assessment/ModeTabs'
 import PlantOverviewView, { type PlantCardData } from '@/components/plants/PlantOverviewView'
@@ -425,6 +426,8 @@ export default function DemoView() {
           />
         </div>
       )}
+
+      <DevRoleSwitcher viewAs={null} isOverridden={false} />
     </div>
   )
 }
