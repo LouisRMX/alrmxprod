@@ -810,13 +810,14 @@ function FinancialHeadline({ totalLoss, dailyLoss, calcResult }: {
   dailyLoss: number
   calcResult: CalcResult
 }) {
+  const isMobile = useIsMobile()
   if (calcResult.overall === null) return null
   if (totalLoss === 0) {
     return (
       <div style={{
         background: 'linear-gradient(135deg, #f0faf6 0%, #fff 60%)',
         border: '1.5px solid #b5dfc9',
-        borderRadius: '10px', padding: '20px 24px', marginBottom: '10px',
+        borderRadius: '10px', padding: isMobile ? '14px 16px' : '20px 24px', marginBottom: '10px',
         display: 'flex', alignItems: 'center', gap: '16px',
       }}>
         <span style={{ fontSize: '24px', lineHeight: 1 }}>✓</span>
@@ -832,7 +833,7 @@ function FinancialHeadline({ totalLoss, dailyLoss, calcResult }: {
     <div style={{
       background: 'linear-gradient(135deg, #fff8f8 0%, #fff 60%)',
       border: '1.5px solid #f5c6c6',
-      borderRadius: '10px', padding: '20px 24px', marginBottom: '10px',
+      borderRadius: '10px', padding: isMobile ? '14px 16px' : '20px 24px', marginBottom: '10px',
       display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '24px',
     }}>
       <div>
@@ -1082,6 +1083,7 @@ function DimensionSummary({ calcResult, issues, answers }: {
   issues: Issue[]
   answers: Answers
 }) {
+  const isMobile = useIsMobile()
   if (calcResult.overall === null) return null
 
   const dispTimeMap: Record<string, number> = {
@@ -1161,7 +1163,7 @@ function DimensionSummary({ calcResult, issues, answers }: {
   return (
     <div style={{
       background: '#fff', border: '1px solid #e8e8e6',
-      borderRadius: '10px', padding: '20px 24px', marginBottom: '10px',
+      borderRadius: '10px', padding: isMobile ? '14px 16px' : '20px 24px', marginBottom: '10px',
     }}>
       <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#9b9b9b', marginBottom: '16px' }}>
         Operational diagnosis
@@ -1488,7 +1490,7 @@ function StartHereCard({ calcResult, issues, totalLoss, financialBottleneck, onS
       </div>
 
       {/* Body */}
-      <div style={{ padding: '20px 24px' }}>
+      <div style={{ padding: isMobile ? '14px 16px' : '20px 24px' }}>
         <div style={{ fontSize: '17px', fontWeight: 700, color: '#1a1a1a', marginBottom: '6px' }}>
           {topIssue.t}
         </div>
@@ -1541,6 +1543,7 @@ function StartHereCard({ calcResult, issues, totalLoss, financialBottleneck, onS
 
 // ── Recovery Breakdown ─────────────────────────────────────────────────────
 function RecoveryBreakdown({ calcResult }: { calcResult: CalcResult }) {
+  const isMobile = useIsMobile()
   if (calcResult.overall === null) return null
 
   const taLeak = calcResult.demandSufficient === false
@@ -1586,7 +1589,7 @@ function RecoveryBreakdown({ calcResult }: { calcResult: CalcResult }) {
   return (
     <div style={{
       background: '#fff', border: '1px solid #e8e8e6',
-      borderRadius: '10px', padding: '20px 24px', marginBottom: '10px',
+      borderRadius: '10px', padding: isMobile ? '14px 16px' : '20px 24px', marginBottom: '10px',
     }}>
       <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#9b9b9b', marginBottom: '16px' }}>
         Recovery breakdown
@@ -2034,7 +2037,7 @@ function FullReportDrawer({
         </div>
 
         {/* Body (scrollable) */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '16px' : '24px 28px' }}>
+        <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: isMobile ? '16px' : '24px 28px' }}>
           {genError && (
             <div style={{
               background: 'var(--error-bg)', border: '1px solid var(--error-border)',
@@ -2547,6 +2550,7 @@ function RecoverableValueCard({ totalLoss, financialBottleneck }: {
   totalLoss: number
   financialBottleneck: string | null
 }) {
+  const isMobile = useIsMobile()
   if (totalLoss === 0) return null
   const yearlyLoss = totalLoss * 12
   const bnLabel = financialBottleneck === 'Fleet' ? 'logistics' : (financialBottleneck?.toLowerCase() ?? null)
@@ -2554,7 +2558,7 @@ function RecoverableValueCard({ totalLoss, financialBottleneck }: {
   return (
     <div style={{
       background: '#fff', border: '1px solid #e8e8e6',
-      borderRadius: '12px', padding: '20px 24px', marginBottom: '16px',
+      borderRadius: '12px', padding: isMobile ? '14px 16px' : '20px 24px', marginBottom: '16px',
     }}>
       <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.4px', textTransform: 'uppercase', color: '#b0b0b0', marginBottom: '8px' }}>
         Recoverable value
@@ -2675,7 +2679,7 @@ function ScoreGrid({ calcResult, financialBottleneck, issues, onSwitchToTracking
   return (
     <div style={{
       background: '#fff', border: '1px solid #e8e8e6',
-      borderRadius: '12px', padding: '20px 24px', marginBottom: '16px',
+      borderRadius: '12px', padding: isMobile ? '14px 16px' : '20px 24px', marginBottom: '16px',
     }}>
       <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.4px', textTransform: 'uppercase', color: '#b0b0b0', marginBottom: '16px' }}>
         Operational scores — lowest is the constraint

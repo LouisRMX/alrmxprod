@@ -229,7 +229,7 @@ export default function DemoView() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--gray-50)' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--gray-50)', overflowX: 'hidden' }}>
 
       {/* Top bar */}
       {isMobile ? (

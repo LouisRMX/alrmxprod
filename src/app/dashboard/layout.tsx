@@ -24,7 +24,7 @@ export default async function DashboardLayout({
   // If profile fetch fails (e.g. RLS), profile is null — UI will show fallback
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', overflowX: 'hidden' }}>
       <NavBar user={user} profile={profile} />
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         {children}

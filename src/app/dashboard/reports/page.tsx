@@ -50,7 +50,7 @@ export default async function ReportsPage() {
     : normalized
 
   return (
-    <div style={{ padding: '24px', maxWidth: '900px', margin: '0 auto' }}>
+    <div style={{ padding: 'clamp(12px, 3vw, 24px)', maxWidth: '900px', margin: '0 auto', overflowX: 'hidden' }}>
       <h1 style={{ fontSize: '20px', fontWeight: '600', marginBottom: '4px' }}>
         {isAdmin ? 'Reports' : 'My Reports'}
       </h1>

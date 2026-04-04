@@ -39,14 +39,14 @@ function LoginForm() {
       alignItems: 'center',
       justifyContent: 'center',
       background: 'var(--gray-50)',
-      padding: '24px', gap: '24px'
+      padding: '16px', gap: '24px'
     }}>
       <div style={{
         width: '100%',
         maxWidth: '380px',
         background: 'var(--white)',
         borderRadius: '16px',
-        padding: '40px',
+        padding: 'clamp(24px, 5vw, 40px)',
         border: '1px solid var(--border)',
         boxShadow: '0 4px 24px rgba(0,0,0,0.06)'
       }}>
