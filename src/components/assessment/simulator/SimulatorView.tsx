@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react'
 import { simCalc, type CalcResult, type SimBaseline, type SimScenario } from '@/lib/calculations'
 import Slider from './Slider'
+import { useIsMobile } from '@/hooks/useIsMobile'
 
 function fmt(n: number): string {
   return '$' + n.toLocaleString()
@@ -22,6 +23,7 @@ interface SimulatorViewProps {
 
 export default function SimulatorView({ calcResult }: SimulatorViewProps) {
   const r = calcResult
+  const isMobile = useIsMobile()
   const [showInfo, setShowInfo] = useState(false)
 
   // Build baseline from calc result
@@ -215,7 +217,7 @@ export default function SimulatorView({ calcResult }: SimulatorViewProps) {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? '12px' : '24px' }}>
         {/* Left: Sliders */}
         <div>
           <Slider label="Turnaround" value={sTurnaround} min={40} max={180} step={1} baselineValue={r.ta || 90} unit="min" onChange={setSTurnaround} />

@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts'
+import { useIsMobile } from '@/hooks/useIsMobile'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -193,6 +194,7 @@ function MonthlyMilestones({ config, entries, coeffDispatch }: {
   entries: TrackingEntry[]
   coeffDispatch: number
 }) {
+  const isMobile = useIsMobile()
   const CHECKPOINTS = [
     { label: 'Month 1', week: 4 },
     { label: 'Month 2', week: 8 },
@@ -205,7 +207,7 @@ function MonthlyMilestones({ config, entries, coeffDispatch }: {
       <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '14px' }}>
         Milestones
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: '12px' }}>
         {CHECKPOINTS.map(({ label, week }) => {
           const entry = entries.find(e => e.week_number === week)
             ?? [...entries].sort((a, b) => Math.abs(a.week_number - week) - Math.abs(b.week_number - week))[0]
@@ -556,6 +558,7 @@ function SetupForm({
   coeffTurnaround, coeffDispatch, baselineMonthlyLoss, targetTA, onCreated,
 }: TrackingProps & { onCreated: (cfg: TrackingConfig) => void }) {
   const supabase = createClient()
+  const isMobile = useIsMobile()
   const [ta, setTa] = useState(String(targetTA))
   const [di, setDi] = useState('15')
   const [consent, setConsent] = useState(false)
@@ -589,7 +592,7 @@ function SetupForm({
   }
 
   const row = (label: string, baseline: number | null, unit: string, val: string, setVal: (v: string) => void) => (
-    <div style={{ display: 'grid', gridTemplateColumns: '160px 120px 1fr', gap: '12px', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : '160px 120px 1fr', gap: isMobile ? '8px' : '12px', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
       <div style={{ fontSize: '13px', color: 'var(--gray-700)' }}>{label}</div>
       <div style={{ fontSize: '13px', fontFamily: 'var(--mono)', color: 'var(--gray-500)' }}>
         {baseline != null ? `${baseline} ${unit}` : '—'}
@@ -631,8 +634,8 @@ function SetupForm({
         </div>
       </div>
       <div style={{ background: 'var(--white)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '0 20px', marginBottom: '20px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '160px 120px 1fr', gap: '12px', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
-          {['Metric', 'Baseline', '90-day target'].map(h => (
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : '160px 120px 1fr', gap: isMobile ? '8px' : '12px', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
+          {(isMobile ? ['Metric', 'Target'] : ['Metric', 'Baseline', '90-day target']).map(h => (
             <div key={h} style={{ fontSize: '11px', fontWeight: 600, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '.4px' }}>{h}</div>
           ))}
         </div>

@@ -249,6 +249,7 @@ function KPIPyramid({ calcResult, answers, totalLoss, financialBottleneck, liveB
   financialBottleneck: string | null
   liveBenchmarks?: LiveBenchmarkData | null
 }) {
+  const isMobile = useIsMobile()
   if (totalLoss === 0) return null
 
   const utilPct = Math.round(calcResult.util * 100)
@@ -333,7 +334,7 @@ function KPIPyramid({ calcResult, answers, totalLoss, financialBottleneck, liveB
       {connector}
 
       {/* Row 3: Supporting metrics */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : '1fr 1fr 1fr', gap: '6px' }}>
         <KpiBox
           label="Rejection Rate"
           value={`${Math.round(calcResult.rejectPct)}%`}
@@ -1008,6 +1009,7 @@ function ScoreOverview({ calcResult, meta, phase }: {
   meta?: { country?: string; plant?: string; date?: string }
   phase?: Phase
 }) {
+  const isMobile = useIsMobile()
   if (calcResult.overall === null) return null
   const overall = Math.round(calcResult.overall)
 
@@ -1033,21 +1035,23 @@ function ScoreOverview({ calcResult, meta, phase }: {
   return (
     <div style={{
       background: '#fff', border: '1px solid #e8e8e6',
-      borderRadius: '10px', padding: '24px', marginBottom: '10px',
-      display: 'flex', alignItems: 'center', gap: '32px',
+      borderRadius: '10px', padding: isMobile ? '16px' : '24px', marginBottom: '10px',
+      display: 'flex', alignItems: isMobile ? 'flex-start' : 'center',
+      flexDirection: isMobile ? 'row' : 'row', gap: isMobile ? '16px' : '32px',
+      flexWrap: 'wrap',
     }}>
       {/* Score circle */}
       <div style={{
-        width: '80px', height: '80px', borderRadius: '50%',
+        width: isMobile ? '64px' : '80px', height: isMobile ? '64px' : '80px', borderRadius: '50%',
         border: `4px solid ${overallStyle.color}`,
         display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'center', flexShrink: 0,
       }}>
-        <span style={{ fontSize: '28px', fontWeight: 700, color: overallStyle.color, lineHeight: 1 }}>{overall}</span>
+        <span style={{ fontSize: isMobile ? '22px' : '28px', fontWeight: 700, color: overallStyle.color, lineHeight: 1 }}>{overall}</span>
         <span style={{ fontSize: '11px', color: '#9b9b9b' }}>/100</span>
       </div>
       {/* Right side */}
-      <div style={{ flex: 1 }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: '17px', fontWeight: 700, color: '#1a1a1a', marginBottom: '4px' }}>
           {plantName} — {phaseLabel}
         </div>

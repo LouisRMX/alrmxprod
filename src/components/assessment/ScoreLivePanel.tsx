@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import type { CalcScores } from '@/lib/calculations'
+import { useIsMobile } from '@/hooks/useIsMobile'
 
 interface ScoreLivePanelProps {
   scores: CalcScores
@@ -199,6 +200,7 @@ function InfoModal({ onClose }: { onClose: () => void }) {
 }
 
 export default function ScoreLivePanel({ scores, overall, bottleneck }: ScoreLivePanelProps) {
+  const isMobile = useIsMobile()
   const [showInfo, setShowInfo] = useState(false)
 
   return (
@@ -219,8 +221,8 @@ export default function ScoreLivePanel({ scores, overall, bottleneck }: ScoreLiv
             title="How are these scores calculated?"
             style={{
               background: 'none', border: '1px solid var(--border)', borderRadius: '50%',
-              width: '18px', height: '18px', cursor: 'pointer',
-              fontSize: '10px', fontWeight: 700, color: 'var(--gray-400)',
+              width: isMobile ? '32px' : '18px', height: isMobile ? '32px' : '18px', cursor: 'pointer',
+              fontSize: isMobile ? '13px' : '10px', fontWeight: 700, color: 'var(--gray-400)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               lineHeight: 1, padding: 0, flexShrink: 0,
             }}
