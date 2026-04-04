@@ -928,6 +928,63 @@ function ProgressView({ config, entries, onEntryLogged, coeffDispatch, viewOnly 
   )
 }
 
+// ── Operator Progress Header ───────────────────────────────────────────────
+
+function OperatorProgressHeader({ config, latest, currentWeek }: {
+  config: TrackingConfig
+  latest: TrackingEntry | null
+  currentWeek: number
+}) {
+  const metrics: { label: string; baseline: number | null; now: number | null; target: number | null }[] = [
+    { label: 'Turnaround', baseline: config.baseline_turnaround, now: latest?.turnaround_min ?? null, target: config.target_turnaround },
+  ]
+  if (config.baseline_dispatch_min != null)
+    metrics.push({ label: 'Dispatch', baseline: config.baseline_dispatch_min, now: latest?.dispatch_min ?? null, target: config.target_dispatch_min })
+
+  const hasAny = metrics.some(m => m.now !== null && m.baseline !== null)
+
+  return (
+    <div style={{
+      background: 'var(--white)', border: '1px solid var(--border)',
+      borderRadius: 'var(--radius)', padding: '16px 20px', marginBottom: '16px',
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: hasAny ? '14px' : '0' }}>
+        <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--gray-700)' }}>
+          Week {currentWeek} of 12
+        </div>
+        <div style={{ fontSize: '11px', color: 'var(--gray-400)' }}>
+          {hasAny ? 'Your progress so far' : 'No data logged yet'}
+        </div>
+      </div>
+
+      {hasAny && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {metrics.map(m => {
+            if (m.now === null || m.baseline === null) return null
+            const delta = Math.max(0, m.baseline - m.now)
+            const pct   = progressPct(m.baseline, m.now, m.target)
+            const atTarget = m.target !== null && m.now <= m.target
+            const color = atTarget ? 'var(--phase-complete)' : pct >= 40 ? 'var(--warning)' : 'var(--gray-500)'
+            return (
+              <div key={m.label}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+                  <span style={{ fontSize: '12px', color: 'var(--gray-600)' }}>{m.label}</span>
+                  <span style={{ fontSize: '12px', fontWeight: 700, color }}>
+                    {delta > 0
+                      ? `▼ ${delta} min${atTarget ? ' ✓ target hit' : ` · ${pct}% toward target`}`
+                      : `${m.now} min — no improvement yet`}
+                  </span>
+                </div>
+                <ProgressBar pct={pct} color={atTarget ? 'var(--phase-complete)' : pct >= 40 ? 'var(--warning)' : 'var(--gray-200)'} />
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Customer Log ───────────────────────────────────────────────────────────
 
 function CustomerLog({ config, entries, onLogged, coeffDispatch }: {
@@ -942,7 +999,7 @@ function CustomerLog({ config, entries, onLogged, coeffDispatch }: {
 
   return (
     <div style={{ maxWidth: '520px', margin: '0 auto', padding: '24px 16px' }}>
-      <ImpactSummary config={config} entries={entries} coeffDispatch={coeffDispatch} currentWeek={currentWeek} />
+      <OperatorProgressHeader config={config} latest={latest} currentWeek={currentWeek} />
       <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '16px' }}>
         <KpiCard
           label="Turnaround"
