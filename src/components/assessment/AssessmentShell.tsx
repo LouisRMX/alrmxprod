@@ -64,9 +64,11 @@ interface AssessmentShellProps {
   extraTab?: { label: string; shortLabel: string; onClick: () => void }
   // When true, the internal ModeTabs row is not rendered (parent renders its own)
   hideModeTabs?: boolean
+  // Focus actions curated by admin — shown to manager in report banner
+  focusActions?: string[] | null
 }
 
-export default function AssessmentShell({ initialAnswers, phase, season, country, plant, date, assessmentId, report, reportReleased, isAdmin, userRole, onSave, baseline, requestMode, onAnswersChange, demoBanner, extraTab, hideModeTabs }: AssessmentShellProps) {
+export default function AssessmentShell({ initialAnswers, phase, season, country, plant, date, assessmentId, report, reportReleased, isAdmin, userRole, onSave, baseline, requestMode, onAnswersChange, demoBanner, extraTab, hideModeTabs, focusActions }: AssessmentShellProps) {
   const [answers, setAnswers] = useState<Answers>(initialAnswers)
   const [currentSection, setCurrentSection] = useState(0)
   // Owner starts on report (they have no questions tab)
@@ -286,6 +288,7 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
           onSwitchToTracking={() => setMode('track')}
           demoBanner={demoBanner}
           userRole={userRole}
+          focusActions={focusActions}
         />
       )}
 

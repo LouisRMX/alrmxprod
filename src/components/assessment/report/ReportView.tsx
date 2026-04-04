@@ -2941,18 +2941,89 @@ function SimulatorDrawer({ open, onClose, calcResult }: {
   )
 }
 
+// ── Focus Actions Editor (admin) ────────────────────────────────────────────
+
+function FocusActionsEditor({ assessmentId, initial, issues }: {
+  assessmentId: string
+  initial: string[] | null | undefined
+  issues: Issue[]
+}) {
+  const supabase = createClient()
+  const topActions = [...issues]
+    .filter(i => i.action && i.loss > 0)
+    .sort((a, b) => b.loss - a.loss)
+    .slice(0, 3)
+    .map(i => i.action!)
+
+  const [actions, setActions] = useState<[string, string, string]>(() => {
+    const src = initial && initial.length > 0 ? initial : topActions
+    return [src[0] ?? '', src[1] ?? '', src[2] ?? '']
+  })
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  async function handleSave() {
+    setSaving(true)
+    const vals = actions.filter(a => a.trim())
+    await supabase.from('assessments').update({ focus_actions: vals.length ? vals : null }).eq('id', assessmentId)
+    setSaving(false)
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2500)
+  }
+
+  return (
+    <div style={{ background: 'var(--white)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '16px 20px', marginBottom: '16px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+        <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '.6px' }}>
+          Manager focus board
+        </div>
+        <div style={{ fontSize: '10px', color: 'var(--gray-400)' }}>Visible to manager after report release</div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '12px' }}>
+        {([0, 1, 2] as const).map(i => (
+          <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+            <span style={{ fontSize: '10px', fontWeight: 700, color: '#0F6E56', background: '#f0faf6', border: '1px solid #b5dfc9', borderRadius: '3px', padding: '3px 6px', flexShrink: 0, marginTop: '8px', whiteSpace: 'nowrap' }}>
+              {i === 0 ? 'Week 1' : i === 1 ? 'Weeks 2–3' : 'Month 2–3'}
+            </span>
+            <input
+              value={actions[i]}
+              onChange={e => setActions(prev => { const n = [...prev] as [string,string,string]; n[i] = e.target.value; return n })}
+              placeholder={topActions[i] ?? `Action ${i + 1}`}
+              style={{ flex: 1, padding: '7px 10px', border: '1px solid var(--border)', borderRadius: '6px', fontSize: '12px', fontFamily: 'var(--font)', color: 'var(--gray-800)', background: 'var(--white)' }}
+            />
+          </div>
+        ))}
+      </div>
+      <button
+        onClick={handleSave}
+        disabled={saving}
+        style={{ padding: '6px 16px', background: saved ? 'var(--phase-complete)' : 'var(--green)', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer', fontFamily: 'var(--font)', transition: 'background .2s' }}
+      >
+        {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save focus board'}
+      </button>
+    </div>
+  )
+}
+
 // ── Manager Next Steps Banner ───────────────────────────────────────────────
 
-function ManagerNextSteps({ issues, onSwitchToTracking }: {
+function ManagerNextSteps({ issues, focusActions, onSwitchToTracking }: {
   issues: Issue[]
+  focusActions?: string[] | null
   onSwitchToTracking?: () => void
 }) {
-  const actionIssues = [...issues]
+  // Prefer Louis's curated focus actions; fall back to auto-generated from issues
+  const hasFocusActions = focusActions && focusActions.length > 0
+  const actionIssues = hasFocusActions ? [] : [...issues]
     .filter(i => i.action && i.loss > 0)
     .sort((a, b) => b.loss - a.loss)
     .slice(0, 3)
 
-  if (actionIssues.length === 0) return null
+  const displayActions: string[] = hasFocusActions
+    ? focusActions!
+    : actionIssues.map(i => i.action!)
+
+  if (displayActions.length === 0) return null
 
   const TIMEFRAMES = ['Week 1', 'Weeks 2–3', 'Month 2–3']
 
@@ -2965,7 +3036,7 @@ function ManagerNextSteps({ issues, onSwitchToTracking }: {
         Your next steps
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
-        {actionIssues.map((issue, i) => (
+        {displayActions.map((action, i) => (
           <div key={i} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
             <span style={{
               fontSize: '9px', fontWeight: 700, color: '#0F6E56',
@@ -2975,7 +3046,7 @@ function ManagerNextSteps({ issues, onSwitchToTracking }: {
               {TIMEFRAMES[i]}
             </span>
             <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.9)', lineHeight: 1.4 }}>
-              {issue.action}
+              {action}
             </span>
           </div>
         ))}
@@ -3013,9 +3084,10 @@ interface ReportViewProps {
   onSwitchToTracking?: () => void
   demoBanner?: DemoBannerProps
   userRole?: 'owner' | 'manager' | 'operator' | null
+  focusActions?: string[] | null
 }
 
-export default function ReportView({ calcResult, answers, meta, report, assessmentId, reportReleased, isAdmin, overrides, onOverrideChange, phase, onSwitchToTracking, demoBanner, userRole }: ReportViewProps) {
+export default function ReportView({ calcResult, answers, meta, report, assessmentId, reportReleased, isAdmin, overrides, onOverrideChange, phase, onSwitchToTracking, demoBanner, userRole, focusActions }: ReportViewProps) {
   const isMobile = useIsMobile()
   const supabase = createClient()
   const issues = buildIssues(calcResult, answers, meta)
@@ -3320,9 +3392,14 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
         </div>
       )}
 
-      {/* 0. MANAGER NEXT STEPS — shown first for managers when report is released */}
+      {/* 0a. ADMIN: Focus board editor */}
+      {isAdmin && calcResult.overall !== null && (
+        <FocusActionsEditor assessmentId={assessmentId} initial={focusActions} issues={issues} />
+      )}
+
+      {/* 0b. MANAGER NEXT STEPS — shown first for managers when report is released */}
       {userRole === 'manager' && reportReleased && (
-        <ManagerNextSteps issues={issues} onSwitchToTracking={onSwitchToTracking} />
+        <ManagerNextSteps issues={issues} focusActions={focusActions} onSwitchToTracking={onSwitchToTracking} />
       )}
 
       {/* 1. IMPACT / HOOK */}

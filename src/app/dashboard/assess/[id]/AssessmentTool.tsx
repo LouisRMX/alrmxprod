@@ -22,6 +22,7 @@ interface Assessment {
   ebitda_monthly: number | null
   report: { executive?: string; diagnosis?: string; actions?: string } | null
   report_released?: boolean
+  focus_actions?: string[] | null
 }
 
 export default function AssessmentTool({
@@ -364,6 +365,7 @@ export default function AssessmentTool({
           userRole={userRole}
           onSave={handleSave}
           requestMode={requestedMode as import('@/components/assessment/ModeTabs').AssessmentMode | undefined}
+          focusActions={assessment.focus_actions}
         />
       )}
 
