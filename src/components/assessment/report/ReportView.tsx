@@ -2941,6 +2941,63 @@ function SimulatorDrawer({ open, onClose, calcResult }: {
   )
 }
 
+// ── Manager Next Steps Banner ───────────────────────────────────────────────
+
+function ManagerNextSteps({ issues, onSwitchToTracking }: {
+  issues: Issue[]
+  onSwitchToTracking?: () => void
+}) {
+  const actionIssues = [...issues]
+    .filter(i => i.action && i.loss > 0)
+    .sort((a, b) => b.loss - a.loss)
+    .slice(0, 3)
+
+  if (actionIssues.length === 0) return null
+
+  const TIMEFRAMES = ['Week 1', 'Weeks 2–3', 'Month 2–3']
+
+  return (
+    <div style={{
+      background: '#0F6E56', borderRadius: 'var(--radius)',
+      padding: '20px 24px', marginBottom: '20px',
+    }}>
+      <div style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.55)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '14px' }}>
+        Your next steps
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
+        {actionIssues.map((issue, i) => (
+          <div key={i} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+            <span style={{
+              fontSize: '9px', fontWeight: 700, color: '#0F6E56',
+              background: 'rgba(255,255,255,0.9)', borderRadius: '3px',
+              padding: '2px 6px', flexShrink: 0, marginTop: '1px', whiteSpace: 'nowrap',
+            }}>
+              {TIMEFRAMES[i]}
+            </span>
+            <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.9)', lineHeight: 1.4 }}>
+              {issue.action}
+            </span>
+          </div>
+        ))}
+      </div>
+      {onSwitchToTracking && (
+        <button
+          type="button"
+          onClick={onSwitchToTracking}
+          style={{
+            padding: '8px 18px', background: 'rgba(255,255,255,0.15)',
+            border: '1px solid rgba(255,255,255,0.3)',
+            borderRadius: '7px', fontSize: '12px', fontWeight: 600,
+            color: '#fff', cursor: 'pointer', fontFamily: 'var(--font)',
+          }}
+        >
+          Set up 90-day tracking →
+        </button>
+      )}
+    </div>
+  )
+}
+
 // ── Main component ─────────────────────────────────────────────────────────
 interface ReportViewProps {
   calcResult: CalcResult
@@ -2955,9 +3012,10 @@ interface ReportViewProps {
   phase?: Phase
   onSwitchToTracking?: () => void
   demoBanner?: DemoBannerProps
+  userRole?: 'owner' | 'manager' | 'operator' | null
 }
 
-export default function ReportView({ calcResult, answers, meta, report, assessmentId, reportReleased, isAdmin, overrides, onOverrideChange, phase, onSwitchToTracking, demoBanner }: ReportViewProps) {
+export default function ReportView({ calcResult, answers, meta, report, assessmentId, reportReleased, isAdmin, overrides, onOverrideChange, phase, onSwitchToTracking, demoBanner, userRole }: ReportViewProps) {
   const isMobile = useIsMobile()
   const supabase = createClient()
   const issues = buildIssues(calcResult, answers, meta)
@@ -3260,6 +3318,11 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
             </div>
           ))}
         </div>
+      )}
+
+      {/* 0. MANAGER NEXT STEPS — shown first for managers when report is released */}
+      {userRole === 'manager' && reportReleased && (
+        <ManagerNextSteps issues={issues} onSwitchToTracking={onSwitchToTracking} />
       )}
 
       {/* 1. IMPACT / HOOK */}

@@ -285,6 +285,7 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
           phase={phase}
           onSwitchToTracking={() => setMode('track')}
           demoBanner={demoBanner}
+          userRole={userRole}
         />
       )}
 
