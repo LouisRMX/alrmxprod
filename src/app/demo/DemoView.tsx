@@ -264,18 +264,28 @@ export default function DemoView() {
               Sign out
             </button>
           </div>
-          {/* Row 2: phase switch full width */}
-          <div style={{ padding: '0 12px 8px' }}>
+          {/* Row 2: phase switch + all plants */}
+          <div style={{ padding: '0 12px 8px', display: 'flex', gap: '8px' }}>
             <button
               onClick={() => setDemoPhase(p => p === 'workshop' ? 'onsite' : 'workshop')}
               style={{
-                width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
                 background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)',
                 borderRadius: '6px', padding: '7px 14px', cursor: 'pointer', fontFamily: 'var(--font)',
               }}
             >
               <span style={{ fontSize: '12px', fontWeight: 600, color: '#fff' }}>{cfg.buttonLabel}</span>
               <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.5)' }}>{cfg.buttonSub}</span>
+            </button>
+            <button
+              onClick={() => router.push('/demo/plants')}
+              style={{
+                flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: 'rgba(255,255,255,0.18)', border: '1px solid rgba(255,255,255,0.3)',
+                borderRadius: '6px', padding: '7px 12px', cursor: 'pointer', fontFamily: 'var(--font)',
+              }}
+            >
+              <span style={{ fontSize: '11px', fontWeight: 600, color: '#fff' }}>All plants →</span>
             </button>
           </div>
         </div>
@@ -324,6 +334,14 @@ export default function DemoView() {
           </button>
           {/* Right: nav buttons */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+            <button onClick={() => router.push('/demo/plants')} style={{
+              fontSize: '12px', color: '#fff',
+              background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)',
+              borderRadius: '6px', padding: '4px 10px', cursor: 'pointer', fontFamily: 'var(--font)',
+              fontWeight: 500,
+            }}>
+              All plants →
+            </button>
             <button onClick={() => router.push('/dashboard')} style={{
               fontSize: '12px', color: 'rgba(255,255,255,0.7)',
               background: 'none', border: '1px solid rgba(255,255,255,0.2)',

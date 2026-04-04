@@ -24,10 +24,14 @@ export default function NavBar({ user, profile }: NavBarProps) {
     router.refresh()
   }
 
+  const isCustomerAdmin = profile?.role === 'customer_admin'
+
   const tabs = [
     { label: 'New assessment', href: '/dashboard/assess', adminOnly: true },
     { label: 'Portfolio', href: '/dashboard/portfolio', adminOnly: true },
     { label: 'Customers', href: '/dashboard/customers', adminOnly: true },
+    // My Plants: customer_admin only — system_admin uses Portfolio instead
+    ...(isCustomerAdmin ? [{ label: 'My Plants', href: '/dashboard/plants', adminOnly: false }] : []),
     { label: isAdmin ? 'Reports' : 'My Reports', href: '/dashboard/reports', adminOnly: false },
     { label: 'Simulator', href: '/dashboard/simulator', adminOnly: true },
   ].filter(t => !t.adminOnly || isAdmin)

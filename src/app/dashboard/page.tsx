@@ -16,7 +16,7 @@ export default async function DashboardPage() {
   if (role === 'system_admin') {
     redirect('/dashboard/portfolio')
   } else if (role === 'customer_admin') {
-    redirect('/dashboard/reports')
+    redirect('/dashboard/plants')
   } else {
     // customer_user — redirect to reports (they'll see their assigned assessments)
     redirect('/dashboard/reports')

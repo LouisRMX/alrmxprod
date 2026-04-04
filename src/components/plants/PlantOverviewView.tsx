@@ -1,0 +1,490 @@
+'use client'
+
+import { useState, useMemo } from 'react'
+import Link from 'next/link'
+import { useIsMobile } from '@/hooks/useIsMobile'
+
+// ── Types ──────────────────────────────────────────────────────────────────
+
+export interface PlantAssessmentData {
+  id: string
+  phase: string
+  overall: number | null
+  scores: {
+    prod: number | null
+    dispatch: number | null
+    logistics: number | null   // field name used by CalcResult (also stored as 'fleet' in older rows)
+    fleet: number | null       // fallback
+    quality: number | null
+  } | null
+  bottleneck: string | null
+  ebitda_monthly: number | null
+  report_released: boolean
+  trackingWeek: number | null  // pre-computed from started_at
+}
+
+export interface PlantCardData {
+  id: string
+  name: string
+  country: string
+  assessment: PlantAssessmentData | null
+  assessmentHref?: string   // override link (used by demo to point all cards to /demo)
+}
+
+type SortKey = 'score_asc' | 'score_desc' | 'gap' | 'name'
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+function scoreColor(s: number | null): string {
+  if (s === null) return 'var(--gray-300)'
+  if (s >= 80) return 'var(--phase-complete)'
+  if (s >= 60) return '#d97706'
+  return 'var(--red)'
+}
+
+function scoreBg(s: number | null): string {
+  if (s === null) return 'var(--gray-50)'
+  if (s >= 80) return 'var(--phase-complete-bg)'
+  if (s >= 60) return '#fffaf2'
+  return 'var(--error-bg)'
+}
+
+function fmt(n: number | null): string {
+  if (!n) return '—'
+  if (n >= 1_000_000) return '$' + (n / 1_000_000).toFixed(1) + 'M'
+  if (n >= 1_000) return '$' + Math.round(n / 1_000) + 'k'
+  return '$' + Math.round(n)
+}
+
+// ── MiniBar ────────────────────────────────────────────────────────────────
+
+function MiniBar({ label, value }: { label: string; value: number | null }) {
+  const color = scoreColor(value)
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px' }}>
+      <span style={{
+        fontSize: '10px', color: 'var(--gray-400)',
+        width: '62px', flexShrink: 0, lineHeight: 1.2,
+      }}>
+        {label}
+      </span>
+      <div style={{
+        flex: 1, height: '4px', background: 'var(--gray-100)',
+        borderRadius: '2px', overflow: 'hidden',
+      }}>
+        {value !== null && (
+          <div style={{
+            width: `${Math.min(100, value)}%`, height: '100%',
+            background: color, borderRadius: '2px',
+          }} />
+        )}
+      </div>
+      <span style={{
+        fontSize: '10px', fontFamily: 'var(--mono)', fontWeight: 600,
+        color, width: '22px', textAlign: 'right', flexShrink: 0,
+      }}>
+        {value !== null ? value : '—'}
+      </span>
+    </div>
+  )
+}
+
+// ── PhaseBadge ─────────────────────────────────────────────────────────────
+
+function PhaseBadge({ phase }: { phase: string }) {
+  const cfg: Record<string, { label: string; bg: string; color: string }> = {
+    workshop:          { label: 'Workshop',       bg: 'var(--phase-workshop-bg)',  color: 'var(--phase-workshop)' },
+    workshop_complete: { label: 'Pre-assessment', bg: 'var(--phase-workshop-bg)',  color: 'var(--phase-workshop)' },
+    onsite:            { label: 'On-site',        bg: 'var(--phase-onsite-bg)',    color: 'var(--phase-onsite)' },
+    complete:          { label: 'Complete',       bg: 'var(--phase-complete-bg)', color: 'var(--phase-complete)' },
+  }
+  const c = cfg[phase] || cfg.workshop
+  return (
+    <span style={{
+      fontSize: '10px', fontWeight: 600, padding: '2px 7px',
+      borderRadius: '4px', background: c.bg, color: c.color,
+    }}>
+      {c.label}
+    </span>
+  )
+}
+
+// ── PlantCard ──────────────────────────────────────────────────────────────
+
+function PlantCard({ plant, isMobile }: { plant: PlantCardData; isMobile: boolean }) {
+  const [hovered, setHovered] = useState(false)
+  const a = plant.assessment
+
+  // Compute href: override → explicit assessment link
+  const href = plant.assessmentHref
+    ?? (a ? `/dashboard/assess/${a.id}` : undefined)
+
+  // Normalize fleet score — older DB rows may use 'fleet' key
+  const fleetScore = a?.scores?.logistics ?? a?.scores?.fleet ?? null
+
+  const cardStyle: React.CSSProperties = {
+    background: 'var(--white)',
+    border: `1px solid ${hovered && href ? 'var(--green)' : 'var(--border)'}`,
+    borderRadius: '12px',
+    padding: isMobile ? '14px 16px' : '18px 20px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '10px',
+    boxShadow: hovered && href ? '0 2px 12px rgba(15,110,86,0.09)' : 'none',
+    transition: 'border-color .15s, box-shadow .15s',
+    cursor: href ? 'pointer' : 'default',
+    textDecoration: 'none',
+    color: 'inherit',
+  }
+
+  const inner = (
+    <div
+      style={cardStyle}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {/* Header: name + country */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+        <div style={{
+          fontSize: isMobile ? '13px' : '14px', fontWeight: 600,
+          color: 'var(--gray-900)', lineHeight: 1.3, flex: 1,
+        }}>
+          {plant.name}
+        </div>
+        <span style={{
+          fontSize: '10px', color: 'var(--gray-400)',
+          flexShrink: 0, fontFamily: 'var(--mono)',
+          background: 'var(--gray-50)', padding: '2px 6px', borderRadius: '4px',
+        }}>
+          {plant.country}
+        </span>
+      </div>
+
+      {/* Body */}
+      {!a || a.overall === null ? (
+        /* No score yet (workshop / no assessment) */
+        <div style={{ padding: '10px 0' }}>
+          <PhaseBadge phase={a?.phase || 'workshop'} />
+          <div style={{ fontSize: '12px', color: 'var(--gray-400)', marginTop: '8px' }}>
+            {a ? 'Assessment in progress — data being collected' : 'No assessment yet'}
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Score circle + mini bars */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '10px' : '14px' }}>
+            {/* Circle */}
+            <div style={{
+              width: isMobile ? '52px' : '58px',
+              height: isMobile ? '52px' : '58px',
+              borderRadius: '50%', flexShrink: 0,
+              border: `3px solid ${scoreColor(a.overall)}`,
+              background: scoreBg(a.overall),
+              display: 'flex', flexDirection: 'column',
+              alignItems: 'center', justifyContent: 'center',
+            }}>
+              <span style={{
+                fontSize: isMobile ? '18px' : '20px', fontWeight: 700,
+                color: scoreColor(a.overall), lineHeight: 1,
+              }}>
+                {a.overall}
+              </span>
+              <span style={{ fontSize: '9px', color: 'var(--gray-400)' }}>/100</span>
+            </div>
+            {/* Bars */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <MiniBar label="Production" value={a.scores?.prod ?? null} />
+              <MiniBar label="Dispatch"   value={a.scores?.dispatch ?? null} />
+              <MiniBar label="Fleet"      value={fleetScore} />
+              <MiniBar label="Quality"    value={a.scores?.quality ?? null} />
+            </div>
+          </div>
+
+          {/* Financial gap + bottleneck */}
+          <div style={{
+            display: 'flex', alignItems: 'center',
+            justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '3px' }}>
+              <span style={{
+                fontSize: isMobile ? '16px' : '18px', fontWeight: 700,
+                fontFamily: 'var(--mono)',
+                color: a.ebitda_monthly ? 'var(--red)' : 'var(--gray-300)',
+              }}>
+                {fmt(a.ebitda_monthly)}
+              </span>
+              {a.ebitda_monthly ? (
+                <span style={{ fontSize: '11px', color: 'var(--gray-400)' }}>/mo gap</span>
+              ) : null}
+            </div>
+            {a.bottleneck && (
+              <span style={{
+                fontSize: '10px', fontWeight: 600, padding: '2px 7px',
+                borderRadius: '4px', background: 'var(--error-bg)', color: 'var(--red)',
+              }}>
+                ⚡ {a.bottleneck}
+              </span>
+            )}
+          </div>
+
+          {/* Status badges */}
+          <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <PhaseBadge phase={a.phase} />
+            {a.trackingWeek !== null && (
+              <span style={{
+                fontSize: '10px', fontWeight: 600, padding: '2px 7px', borderRadius: '4px',
+                background: a.trackingWeek >= 13 ? 'var(--phase-complete-bg)' : 'var(--phase-onsite-bg)',
+                color: a.trackingWeek >= 13 ? 'var(--phase-complete)' : 'var(--phase-onsite)',
+              }}>
+                {a.trackingWeek >= 13 ? '✓ Tracked' : `Wk ${a.trackingWeek}/13`}
+              </span>
+            )}
+            {a.report_released && (
+              <span style={{
+                fontSize: '10px', fontWeight: 600, padding: '2px 7px', borderRadius: '4px',
+                background: 'var(--phase-complete-bg)', color: 'var(--phase-complete)',
+              }}>
+                ● Report
+              </span>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* Footer arrow */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 'auto', paddingTop: '2px' }}>
+        {href ? (
+          <span style={{
+            fontSize: '12px', fontWeight: 600,
+            color: hovered ? 'var(--green)' : 'var(--gray-400)',
+            transition: 'color .15s',
+          }}>
+            View →
+          </span>
+        ) : (
+          <span style={{ fontSize: '11px', color: 'var(--gray-300)' }}>Pending</span>
+        )}
+      </div>
+    </div>
+  )
+
+  if (!href) return inner
+  return (
+    <Link href={href} style={{ textDecoration: 'none', display: 'block' }}>
+      {inner}
+    </Link>
+  )
+}
+
+// ── PlantOverviewView ──────────────────────────────────────────────────────
+
+interface PlantOverviewViewProps {
+  plants: PlantCardData[]
+  customerName?: string
+  isDemo?: boolean
+}
+
+export default function PlantOverviewView({ plants, customerName, isDemo }: PlantOverviewViewProps) {
+  const isMobile = useIsMobile()
+  const [sort, setSort] = useState<SortKey>('score_asc')
+
+  // ── Sort ──
+  const sorted = useMemo(() => {
+    return [...plants].sort((a, b) => {
+      if (sort === 'score_asc') {
+        const sa = a.assessment?.overall ?? null
+        const sb = b.assessment?.overall ?? null
+        if (sa === null && sb === null) return 0
+        if (sa === null) return 1
+        if (sb === null) return -1
+        return sa - sb
+      }
+      if (sort === 'score_desc') {
+        const sa = a.assessment?.overall ?? null
+        const sb = b.assessment?.overall ?? null
+        if (sa === null && sb === null) return 0
+        if (sa === null) return 1
+        if (sb === null) return -1
+        return sb - sa
+      }
+      if (sort === 'gap') {
+        return (b.assessment?.ebitda_monthly ?? 0) - (a.assessment?.ebitda_monthly ?? 0)
+      }
+      return a.name.localeCompare(b.name)
+    })
+  }, [plants, sort])
+
+  // ── Summary stats ──
+  const withScore = plants.filter(p => p.assessment?.overall !== null && p.assessment !== null)
+  const avgScore = withScore.length > 0
+    ? Math.round(withScore.reduce((s, p) => s + p.assessment!.overall!, 0) / withScore.length)
+    : null
+  const totalGap = plants.reduce((s, p) => s + (p.assessment?.ebitda_monthly ?? 0), 0)
+  const atRisk = plants.filter(p => {
+    const score = p.assessment?.overall
+    return score !== null && score !== undefined && score < 60
+  }).length
+
+  const SORT_OPTS: { key: SortKey; label: string }[] = [
+    { key: 'score_asc',  label: 'Risk first' },
+    { key: 'score_desc', label: 'Best first' },
+    { key: 'gap',        label: 'Biggest gap' },
+    { key: 'name',       label: 'A–Z' },
+  ]
+
+  return (
+    <div style={{
+      padding: isMobile ? '16px 14px' : '28px 32px',
+      maxWidth: '1100px', margin: '0 auto',
+    }}>
+
+      {/* Demo banner */}
+      {isDemo && (
+        <div style={{
+          background: '#f0f9ff', border: '1px solid #bae6fd',
+          borderRadius: '8px', padding: '10px 16px', marginBottom: '20px',
+          fontSize: '12px', color: '#0369a1',
+          display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap',
+        }}>
+          <span style={{ flexShrink: 0 }}>🎯</span>
+          <span>
+            Demo — Al-Noor RMX Group · 10 plants across the UAE.
+            Click any plant to explore the live assessment tool.
+          </span>
+        </div>
+      )}
+
+      {/* Page header */}
+      <div style={{ marginBottom: '20px' }}>
+        <h1 style={{
+          fontSize: isMobile ? '18px' : '22px', fontWeight: 700,
+          color: 'var(--gray-900)', marginBottom: '3px',
+        }}>
+          {customerName || 'My Plants'}
+        </h1>
+        <p style={{ fontSize: '13px', color: 'var(--gray-500)' }}>
+          {plants.length} plant{plants.length !== 1 ? 's' : ''} · Performance overview
+        </p>
+      </div>
+
+      {/* Summary chips */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
+        gap: '10px', marginBottom: '20px',
+      }}>
+        {[
+          {
+            label: 'Plants',
+            value: String(plants.length),
+            color: 'var(--gray-900)',
+          },
+          {
+            label: 'Avg score',
+            value: avgScore !== null ? `${avgScore}/100` : '—',
+            color: avgScore !== null ? scoreColor(avgScore) : 'var(--gray-300)',
+          },
+          {
+            label: 'Total gap',
+            value: totalGap > 0 ? fmt(totalGap) + '/mo' : '—',
+            color: totalGap > 0 ? 'var(--red)' : 'var(--gray-300)',
+          },
+          {
+            label: atRisk > 0 ? `${atRisk} at risk` : 'Status',
+            value: atRisk > 0 ? 'Score < 60' : '✓ On track',
+            color: atRisk > 0 ? 'var(--red)' : 'var(--phase-complete)',
+          },
+        ].map(chip => (
+          <div key={chip.label} style={{
+            background: 'var(--white)', border: '1px solid var(--border)',
+            borderRadius: '10px', padding: isMobile ? '12px 14px' : '14px 18px',
+          }}>
+            <div style={{
+              fontSize: '10px', color: 'var(--gray-400)',
+              textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: '5px',
+            }}>
+              {chip.label}
+            </div>
+            <div style={{
+              fontSize: isMobile ? '18px' : '22px', fontWeight: 700,
+              fontFamily: 'var(--mono)', color: chip.color, lineHeight: 1,
+            }}>
+              {chip.value}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* At-risk alert */}
+      {atRisk > 0 && (
+        <div style={{
+          background: 'var(--error-bg)', border: '1px solid var(--error-border)',
+          borderRadius: '8px', padding: '10px 16px', marginBottom: '20px',
+          fontSize: '13px', color: 'var(--red)',
+          display: 'flex', gap: '8px', alignItems: 'center',
+        }}>
+          <span>⚠</span>
+          <span>
+            <strong>{atRisk} plant{atRisk !== 1 ? 's' : ''}</strong> scoring below 60
+            — prioritise these first. Click to see the full diagnosis.
+          </span>
+        </div>
+      )}
+
+      {/* Sort controls */}
+      <div style={{
+        display: 'flex', gap: '6px', marginBottom: '20px',
+        flexWrap: 'wrap', alignItems: 'center',
+      }}>
+        <span style={{ fontSize: '11px', color: 'var(--gray-400)', marginRight: '2px' }}>
+          Sort:
+        </span>
+        {SORT_OPTS.map(opt => (
+          <button
+            key={opt.key}
+            onClick={() => setSort(opt.key)}
+            type="button"
+            style={{
+              padding: '5px 12px', borderRadius: '20px',
+              fontSize: '11px', fontWeight: 500,
+              border: `1px solid ${sort === opt.key ? 'var(--green)' : 'var(--border)'}`,
+              background: sort === opt.key ? 'var(--green-light)' : 'var(--white)',
+              color: sort === opt.key ? 'var(--green)' : 'var(--gray-500)',
+              cursor: 'pointer', fontFamily: 'var(--font)', transition: 'all .1s',
+            }}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Cards grid */}
+      {plants.length === 0 ? (
+        <div style={{
+          background: 'var(--white)', border: '1px solid var(--border)',
+          borderRadius: '12px', padding: '60px 24px', textAlign: 'center',
+        }}>
+          <div style={{ fontSize: '15px', fontWeight: 500, color: 'var(--gray-700)', marginBottom: '8px' }}>
+            No plants yet
+          </div>
+          <div style={{ fontSize: '13px', color: 'var(--gray-400)' }}>
+            Your consultant will add plants when assessments are scheduled.
+          </div>
+        </div>
+      ) : (
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: isMobile
+            ? '1fr'
+            : 'repeat(auto-fill, minmax(300px, 1fr))',
+          gap: isMobile ? '10px' : '14px',
+          alignItems: 'start',
+        }}>
+          {sorted.map(plant => (
+            <PlantCard key={plant.id} plant={plant} isMobile={isMobile} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
