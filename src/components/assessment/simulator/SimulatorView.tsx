@@ -19,9 +19,10 @@ function fmtMarginal(n: number): string {
 
 interface SimulatorViewProps {
   calcResult: CalcResult
+  readOnly?: boolean
 }
 
-export default function SimulatorView({ calcResult }: SimulatorViewProps) {
+export default function SimulatorView({ calcResult, readOnly }: SimulatorViewProps) {
   const r = calcResult
   const isMobile = useIsMobile()
   const [showInfo, setShowInfo] = useState(false)
@@ -185,6 +186,18 @@ export default function SimulatorView({ calcResult }: SimulatorViewProps) {
 
   return (
     <div style={{ flex: 1, overflowY: 'auto', padding: '20px', paddingBottom: '60px' }}>
+      {/* Read-only notice for owners */}
+      {readOnly && (
+        <div style={{
+          background: 'var(--info-bg)', border: '1px solid var(--info-border)',
+          borderRadius: '8px', padding: '8px 14px', marginBottom: '14px',
+          fontSize: '12px', color: 'var(--phase-workshop)',
+          display: 'flex', alignItems: 'center', gap: '8px',
+        }}>
+          <span>📊</span>
+          <span>Exploring scenarios — assessment data is not changed</span>
+        </div>
+      )}
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
         <h2 style={{ fontSize: '16px', fontWeight: 500 }}>Scenario simulator</h2>

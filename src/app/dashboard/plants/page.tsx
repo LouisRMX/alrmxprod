@@ -20,8 +20,20 @@ export default async function PlantsPage() {
     .eq('id', user.id)
     .single()
 
-  // customer_user has no portfolio — send them to reports
-  if (profile?.role === 'customer_user') redirect('/dashboard/reports')
+  const isAdmin = profile?.role === 'system_admin'
+
+  // Operators have no portfolio — send them to their tracking page
+  if (!isAdmin) {
+    const { data: member } = await supabase
+      .from('customer_members')
+      .select('role')
+      .eq('user_id', user.id)
+      .limit(1)
+      .single()
+
+    const memberRole = member?.role
+    if (memberRole === 'operator') redirect('/dashboard/track')
+  }
 
   // ── Fetch plants + all their assessments ──────────────────────────────
   const { data: rawPlants } = await supabase

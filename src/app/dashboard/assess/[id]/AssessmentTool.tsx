@@ -27,11 +27,13 @@ interface Assessment {
 export default function AssessmentTool({
   assessment,
   userId,
-  isAdmin = false
+  isAdmin = false,
+  userRole = null,
 }: {
   assessment: Assessment
   userId: string
   isAdmin?: boolean
+  userRole?: 'owner' | 'manager' | 'operator' | null
 }) {
   const supabase = createClient()
   const router = useRouter()
@@ -359,6 +361,7 @@ export default function AssessmentTool({
           report={assessment.report}
           reportReleased={reportReleased}
           isAdmin={isAdmin}
+          userRole={userRole}
           onSave={handleSave}
           requestMode={requestedMode as import('@/components/assessment/ModeTabs').AssessmentMode | undefined}
         />

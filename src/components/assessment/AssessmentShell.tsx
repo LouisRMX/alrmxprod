@@ -54,6 +54,8 @@ interface AssessmentShellProps {
   }) => void
   baseline?: Answers
   requestMode?: AssessmentMode
+  // Role-based access control for customer users
+  userRole?: 'owner' | 'manager' | 'operator' | null
   // Demo-specific: called whenever any answer changes
   onAnswersChange?: (answers: Answers) => void
   // Demo-specific: drives the regenerate banner in the report tab
@@ -64,7 +66,7 @@ interface AssessmentShellProps {
   hideModeTabs?: boolean
 }
 
-export default function AssessmentShell({ initialAnswers, phase, season, country, plant, date, assessmentId, report, reportReleased, isAdmin, onSave, baseline, requestMode, onAnswersChange, demoBanner, extraTab, hideModeTabs }: AssessmentShellProps) {
+export default function AssessmentShell({ initialAnswers, phase, season, country, plant, date, assessmentId, report, reportReleased, isAdmin, userRole, onSave, baseline, requestMode, onAnswersChange, demoBanner, extraTab, hideModeTabs }: AssessmentShellProps) {
   const [answers, setAnswers] = useState<Answers>(initialAnswers)
   const [currentSection, setCurrentSection] = useState(0)
   const [mode, setMode] = useState<AssessmentMode>('questions')
@@ -72,6 +74,21 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
   const [overrides, setOverrides] = useState<CalcOverrides>({})
   const isMobile = useIsMobile()
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Role-based access control
+  // owner    = view report + simulator + track (read-only)
+  // manager  = full access (all tabs + editing)
+  // operator = questions + track (data input only)
+  // null/admin = full access
+  const allowedModes = useMemo((): AssessmentMode[] => {
+    if (userRole === 'owner')    return ['report', 'simulator', 'track']
+    if (userRole === 'operator') return ['questions', 'track']
+    return ['questions', 'report', 'simulator', 'track', 'gps']
+  }, [userRole])
+
+  const canEdit = !userRole || userRole === 'manager' || userRole === 'operator'
+  const showSidebar = canEdit
+  const showScorePanel = (isAdmin || userRole === 'manager' || userRole === 'operator') && !isMobile
 
   // Allow parent to imperatively switch tabs (e.g. "Set up tracking" CTA)
   useEffect(() => {
@@ -140,7 +157,7 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-      {!hideModeTabs && <ModeTabs activeMode={mode} onSwitch={setMode} extraTab={extraTab} />}
+      {!hideModeTabs && <ModeTabs activeMode={mode} onSwitch={setMode} allowedModes={allowedModes} extraTab={extraTab} />}
 
       {mode === 'questions' && guidedMode && (
         <GuidedMode
@@ -155,8 +172,8 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
 
       {(mode === 'questions' || mode === 'gps') && !guidedMode && (
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-          {/* Sidebar — hidden on mobile */}
-          {!isMobile && (
+          {/* Sidebar — hidden on mobile, hidden for owner role */}
+          {showSidebar && !isMobile && (
             <div style={{ width: '220px', flexShrink: 0, borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', background: 'var(--white)' }}>
               <Sidebar
                 currentSection={currentSection}
@@ -203,14 +220,16 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             {mode === 'questions' && (
               <>
-                {/* Live scores */}
-                <div style={{ padding: '12px 20px 0' }}>
-                  <ScoreLivePanel
-                    scores={calcResult.scores}
-                    overall={calcResult.overall}
-                    bottleneck={calcResult.bottleneck}
-                  />
-                </div>
+                {/* Live scores — hidden for owner (they don't edit), shown for others */}
+                {showScorePanel && (
+                  <div style={{ padding: '12px 20px 0' }}>
+                    <ScoreLivePanel
+                      scores={calcResult.scores}
+                      overall={calcResult.overall}
+                      bottleneck={calcResult.bottleneck}
+                    />
+                  </div>
+                )}
 
                 <SectionView
                   sectionIndex={currentSection}
@@ -254,7 +273,7 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
       )}
 
       {mode === 'simulator' && (
-        <SimulatorView calcResult={calcResult} />
+        <SimulatorView calcResult={calcResult} readOnly={userRole === 'owner'} />
       )}
 
       {mode === 'track' && (() => {
@@ -292,6 +311,7 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
           <TrackingTab
             assessmentId={assessmentId}
             isAdmin={isAdmin ?? false}
+            viewOnly={userRole === 'owner'}
             baselineTurnaround={(() => {
               const TURNAROUND_MAP: Record<string, number> = {
                 'Under 80 minutes — benchmark performance': 72,

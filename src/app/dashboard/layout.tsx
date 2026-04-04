@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import NavBar from '@/components/NavBar'
+import DevRoleSwitcher from '@/components/DevRoleSwitcher'
+import { getEffectiveMemberRole, type MemberRole } from '@/lib/getEffectiveMemberRole'
 
 export const dynamic = 'force-dynamic'
 
@@ -15,20 +17,47 @@ export default async function DashboardLayout({
   if (!user) redirect('/login')
 
   // Get profile with role
-  const { data: profile, error: profileError } = await supabase
+  const { data: profile } = await supabase
     .from('profiles')
     .select('*')
     .eq('id', user.id)
     .single()
 
-  // If profile fetch fails (e.g. RLS), profile is null — UI will show fallback
+  const isAdmin = profile?.role === 'system_admin'
+
+  // Get customer member role (for customer_admin / customer_user)
+  let realMemberRole: MemberRole | null = null
+  if (!isAdmin) {
+    const { data: member } = await supabase
+      .from('customer_members')
+      .select('role')
+      .eq('user_id', user.id)
+      .limit(1)
+      .single()
+
+    const raw = member?.role
+    if (raw === 'owner' || raw === 'manager' || raw === 'operator') {
+      realMemberRole = raw
+    } else if (profile?.role === 'customer_admin') {
+      // Legacy: customer_admin without a member row → treat as owner
+      realMemberRole = 'owner'
+    } else {
+      // Legacy: customer_user without a member row → treat as manager
+      realMemberRole = 'manager'
+    }
+  }
+
+  const { role: effectiveRole, isOverridden } = await getEffectiveMemberRole(realMemberRole, isAdmin)
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', overflowX: 'hidden' }}>
-      <NavBar user={user} profile={profile} />
+      <NavBar user={user} profile={profile} memberRole={effectiveRole} />
       <main className="dashboard-main" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         {children}
       </main>
+      {isAdmin && (
+        <DevRoleSwitcher viewAs={effectiveRole} isOverridden={isOverridden} />
+      )}
     </div>
   )
 }

@@ -5,10 +5,12 @@ import { useRouter, usePathname } from 'next/navigation'
 import type { Profile } from '@/lib/types'
 import type { User } from '@supabase/supabase-js'
 import { useIsMobile } from '@/hooks/useIsMobile'
+import type { MemberRole } from '@/lib/getEffectiveMemberRole'
 
 interface NavBarProps {
   user: User
   profile: Profile | null
+  memberRole?: MemberRole | null
 }
 
 function TabIcon({ name, active }: { name: string; active: boolean }) {
@@ -57,6 +59,8 @@ const TAB_ICONS: Record<string, string> = {
   '/dashboard/customers': 'customers',
   '/dashboard/reports': 'reports',
   '/dashboard/simulator': 'simulator',
+  '/dashboard/plants': 'portfolio',
+  '/dashboard/track': 'assess',
 }
 
 const SHORT_LABELS: Record<string, string> = {
@@ -65,10 +69,12 @@ const SHORT_LABELS: Record<string, string> = {
   'Customers': 'Clients',
   'Reports': 'Reports',
   'My Reports': 'Reports',
+  'My Plants': 'Plants',
+  'My Task': 'Track',
   'Simulator': 'Sim',
 }
 
-export default function NavBar({ user, profile }: NavBarProps) {
+export default function NavBar({ user, profile, memberRole }: NavBarProps) {
   const router = useRouter()
   const pathname = usePathname()
   const supabase = createClient()
@@ -81,17 +87,43 @@ export default function NavBar({ user, profile }: NavBarProps) {
     router.refresh()
   }
 
-  const isCustomerAdmin = profile?.role === 'customer_admin'
+  // Determine which tabs to show based on role
+  const tabs = (() => {
+    if (isAdmin) {
+      return [
+        { label: 'New assessment', href: '/dashboard/assess' },
+        { label: 'Portfolio',      href: '/dashboard/portfolio' },
+        { label: 'Customers',      href: '/dashboard/customers' },
+        { label: 'Reports',        href: '/dashboard/reports' },
+        { label: 'Simulator',      href: '/dashboard/simulator' },
+      ]
+    }
 
-  const tabs = [
-    { label: 'New assessment', href: '/dashboard/assess', adminOnly: true },
-    { label: 'Portfolio', href: '/dashboard/portfolio', adminOnly: true },
-    { label: 'Customers', href: '/dashboard/customers', adminOnly: true },
-    // My Plants: customer_admin only — system_admin uses Portfolio instead
-    ...(isCustomerAdmin ? [{ label: 'My Plants', href: '/dashboard/plants', adminOnly: false }] : []),
-    { label: isAdmin ? 'Reports' : 'My Reports', href: '/dashboard/reports', adminOnly: false },
-    { label: 'Simulator', href: '/dashboard/simulator', adminOnly: true },
-  ].filter(t => !t.adminOnly || isAdmin)
+    if (memberRole === 'owner') {
+      return [
+        { label: 'My Plants',  href: '/dashboard/plants' },
+        { label: 'My Reports', href: '/dashboard/reports' },
+      ]
+    }
+
+    if (memberRole === 'operator') {
+      return [
+        { label: 'My Task', href: '/dashboard/track' },
+      ]
+    }
+
+    // manager (default for customer users)
+    return [
+      { label: 'My Plants',  href: '/dashboard/plants' },
+      { label: 'My Reports', href: '/dashboard/reports' },
+    ]
+  })()
+
+  const roleLabel = isAdmin
+    ? 'admin'
+    : memberRole
+      ? memberRole
+      : (profile?.role || 'user')
 
   return (
     <>
@@ -115,7 +147,7 @@ export default function NavBar({ user, profile }: NavBarProps) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           {!isMobile && (
             <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', fontFamily: 'var(--mono)' }}>
-              {profile?.full_name || user.email} · {profile?.role === 'system_admin' ? 'admin' : profile?.role || 'user'}
+              {profile?.full_name || user.email} · {roleLabel}
             </span>
           )}
           <button

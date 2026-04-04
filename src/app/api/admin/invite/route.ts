@@ -40,9 +40,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing required fields: email, fullName, customerId, role' }, { status: 400 })
   }
 
-  if (!['customer_admin', 'customer_user'].includes(role)) {
-    return NextResponse.json({ error: 'Role must be customer_admin or customer_user' }, { status: 400 })
+  // Accept both old role names (for backwards compat) and new role names
+  const VALID_ROLES = ['owner', 'manager', 'operator', 'customer_admin', 'customer_user']
+  if (!VALID_ROLES.includes(role)) {
+    return NextResponse.json({ error: 'Role must be owner, manager, or operator' }, { status: 400 })
   }
+
+  // Normalise legacy role names
+  const normalizedRole = role === 'customer_admin' ? 'owner'
+    : role === 'customer_user' ? 'manager'
+    : role
 
   // Check customer exists
   const { data: customer } = await supabase
@@ -61,7 +68,7 @@ export async function POST(req: NextRequest) {
   const { data: inviteData, error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(email, {
     data: {
       full_name: fullName,
-      role,
+      role: normalizedRole,
     },
     redirectTo: `${req.nextUrl.origin}/auth/callback`,
   })
@@ -69,7 +76,7 @@ export async function POST(req: NextRequest) {
   // Set role in app_metadata (secure, JWT-accessible, user cannot modify)
   if (inviteData?.user) {
     await adminClient.auth.admin.updateUserById(inviteData.user.id, {
-      app_metadata: { role },
+      app_metadata: { role: normalizedRole },
     })
   }
 
@@ -84,15 +91,15 @@ export async function POST(req: NextRequest) {
         const { error: memberError } = await supabase.from('customer_members').upsert({
           customer_id: customerId,
           user_id: existingUser.id,
-          role,
+          role: normalizedRole,
         }, { onConflict: 'customer_id,user_id' })
 
         if (memberError) {
           return NextResponse.json({ error: 'Failed to add member: ' + memberError.message }, { status: 500 })
         }
 
-        // Assign assessment if provided
-        if (assessmentId && role === 'customer_user') {
+        // Assign assessment if provided (operators get explicit assignments)
+        if (assessmentId && normalizedRole === 'operator') {
           await supabase.from('assessment_assignments').upsert({
             assessment_id: assessmentId,
             user_id: existingUser.id,
@@ -112,15 +119,15 @@ export async function POST(req: NextRequest) {
   const { error: memberError } = await supabase.from('customer_members').insert({
     customer_id: customerId,
     user_id: newUserId,
-    role,
+    role: normalizedRole,
   })
 
   if (memberError) {
     return NextResponse.json({ error: 'User invited but failed to add to customer: ' + memberError.message }, { status: 500 })
   }
 
-  // Assign assessment if provided
-  if (assessmentId && role === 'customer_user') {
+  // Assign assessment if provided (operators get explicit assignments)
+  if (assessmentId && normalizedRole === 'operator') {
     await supabase.from('assessment_assignments').upsert({
       assessment_id: assessmentId,
       user_id: newUserId,

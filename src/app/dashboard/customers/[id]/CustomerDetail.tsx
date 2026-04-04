@@ -72,7 +72,7 @@ export default function CustomerDetail({ customer, plants, members: initialMembe
   const [showInvite, setShowInvite] = useState(false)
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteName, setInviteName] = useState('')
-  const [inviteRole, setInviteRole] = useState<'customer_admin' | 'customer_user'>('customer_user')
+  const [inviteRole, setInviteRole] = useState<'owner' | 'manager' | 'operator'>('manager')
   const [inviting, setInviting] = useState(false)
   const [inviteError, setInviteError] = useState('')
   const [inviteSuccess, setInviteSuccess] = useState('')
@@ -144,7 +144,7 @@ export default function CustomerDetail({ customer, plants, members: initialMembe
         : `Invite sent to ${inviteEmail}`)
       setInviteEmail('')
       setInviteName('')
-      setInviteRole('customer_user')
+      setInviteRole('manager')
       setShowInvite(false)
       router.refresh()
 
@@ -396,10 +396,14 @@ export default function CustomerDetail({ customer, plants, members: initialMembe
                   <td style={{ padding: '12px 16px', fontSize: '12px' }}>
                     <span style={{
                       padding: '2px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 600,
-                      background: m.role === 'customer_admin' ? 'var(--phase-workshop-bg)' : 'var(--gray-100)',
-                      color: m.role === 'customer_admin' ? 'var(--phase-workshop)' : 'var(--gray-500)',
+                      background: m.role === 'owner' ? 'var(--phase-workshop-bg)'
+                               : m.role === 'operator' ? '#F5F0FF'
+                               : 'var(--gray-100)',
+                      color: m.role === 'owner' ? 'var(--phase-workshop)'
+                           : m.role === 'operator' ? '#6B21A8'
+                           : 'var(--gray-500)',
                     }}>
-                      {m.role === 'customer_admin' ? 'Admin' : 'User'}
+                      {m.role === 'owner' ? 'Owner' : m.role === 'operator' ? 'Operator' : 'Manager'}
                     </span>
                   </td>
                   <td style={{ padding: '12px 16px' }}>
@@ -448,18 +452,22 @@ export default function CustomerDetail({ customer, plants, members: initialMembe
 
             <div style={{ marginBottom: '16px' }}>
               <label style={{ fontSize: '11px', fontWeight: '500', color: 'var(--gray-700)', display: 'block', marginBottom: '5px' }}>Role</label>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                {(['customer_user', 'customer_admin'] as const).map(r => (
+              <div style={{ display: 'flex', gap: '8px', flexDirection: 'column' }}>
+                {([
+                  { role: 'owner',    label: 'Owner',    desc: 'Sees all plants, reports and simulator. Read-only.' },
+                  { role: 'manager',  label: 'Manager',  desc: 'Full access — fills in assessment, views reports, logs tracking.' },
+                  { role: 'operator', label: 'Operator', desc: 'Data input only — fills in questions and logs weekly tracking.' },
+                ] as const).map(({ role: r, label, desc }) => (
                   <button key={r} type="button" onClick={() => setInviteRole(r)} style={{
-                    flex: 1, padding: '8px', borderRadius: '8px', fontSize: '12px', fontWeight: 500,
+                    padding: '10px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 500,
                     border: inviteRole === r ? '2px solid var(--green)' : '1px solid var(--border)',
                     background: inviteRole === r ? 'var(--green-light)' : 'var(--white)',
                     color: inviteRole === r ? 'var(--green)' : 'var(--gray-500)',
-                    cursor: 'pointer', fontFamily: 'var(--font)',
+                    cursor: 'pointer', fontFamily: 'var(--font)', textAlign: 'left',
                   }}>
-                    {r === 'customer_admin' ? 'Admin' : 'User'}
+                    {label}
                     <div style={{ fontSize: '10px', fontWeight: 400, marginTop: '2px', color: 'var(--gray-500)' }}>
-                      {r === 'customer_admin' ? 'Sees all plants & reports' : 'Sees assigned assessment only'}
+                      {desc}
                     </div>
                   </button>
                 ))}

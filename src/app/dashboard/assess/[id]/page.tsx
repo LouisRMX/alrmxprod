@@ -1,6 +1,7 @@
 import { redirect, notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import AssessmentTool from './AssessmentTool'
+import { getEffectiveMemberRole, type MemberRole } from '@/lib/getEffectiveMemberRole'
 
 export default async function AssessmentPage({
   params
@@ -40,7 +41,7 @@ export default async function AssessmentPage({
   const analystArr = assessment.analyst as unknown[]
   assessment.analyst = Array.isArray(analystArr) ? analystArr[0] || null : analystArr
 
-  // Get user role
+  // Get user profile role
   const { data: profile } = await supabase
     .from('profiles')
     .select('role')
@@ -49,10 +50,45 @@ export default async function AssessmentPage({
 
   const isAdmin = profile?.role === 'system_admin'
 
-  // Customer users can only access workshop phase — block access to onsite/complete
-  if (!isAdmin && !['workshop', 'workshop_complete'].includes(assessment.phase)) {
-    redirect('/dashboard/reports')
+  // Get customer member role
+  let realMemberRole: MemberRole | null = null
+  if (!isAdmin) {
+    const { data: member } = await supabase
+      .from('customer_members')
+      .select('role')
+      .eq('user_id', user.id)
+      .limit(1)
+      .single()
+
+    const raw = member?.role
+    if (raw === 'owner' || raw === 'manager' || raw === 'operator') {
+      realMemberRole = raw
+    } else if (profile?.role === 'customer_admin') {
+      realMemberRole = 'owner'
+    } else {
+      realMemberRole = 'manager'
+    }
   }
 
-  return <AssessmentTool assessment={assessment} userId={user.id} isAdmin={isAdmin} />
+  const { role: effectiveRole } = await getEffectiveMemberRole(realMemberRole, isAdmin)
+
+  // Access control: operators can only access workshop phase
+  // Owners and managers can access all phases
+  if (!isAdmin && effectiveRole === 'operator') {
+    if (!['workshop', 'workshop_complete'].includes(assessment.phase)) {
+      redirect('/dashboard/track')
+    }
+  }
+
+  // Non-admin, non-operator: owners/managers blocked from workshop-only access
+  // (they should be able to see everything)
+
+  return (
+    <AssessmentTool
+      assessment={assessment}
+      userId={user.id}
+      isAdmin={isAdmin}
+      userRole={effectiveRole}
+    />
+  )
 }

@@ -7,6 +7,7 @@ export type AssessmentMode = 'questions' | 'report' | 'simulator' | 'track' | 'g
 interface ModeTabsProps {
   activeMode: AssessmentMode
   onSwitch: (mode: AssessmentMode) => void
+  allowedModes?: AssessmentMode[]
   extraTab?: { label: string; shortLabel: string; onClick: () => void; active?: boolean }
 }
 
@@ -18,8 +19,12 @@ const TABS: { mode: AssessmentMode; label: string; shortLabel: string }[] = [
   { mode: 'gps',       label: 'GPS Data',   shortLabel: 'GPS' },
 ]
 
-export default function ModeTabs({ activeMode, onSwitch, extraTab }: ModeTabsProps) {
+export default function ModeTabs({ activeMode, onSwitch, allowedModes, extraTab }: ModeTabsProps) {
   const isMobile = useIsMobile()
+
+  const visibleTabs = allowedModes
+    ? TABS.filter(t => allowedModes.includes(t.mode))
+    : TABS
 
   const tabStyle = (active: boolean): React.CSSProperties => ({
     padding: isMobile ? '9px 10px' : '10px 16px',
@@ -35,6 +40,9 @@ export default function ModeTabs({ activeMode, onSwitch, extraTab }: ModeTabsPro
     whiteSpace: 'nowrap',
     flexShrink: 0,
   })
+
+  // If only one standard tab and no extraTab, don't render tab bar at all
+  if (visibleTabs.length <= 1 && !extraTab) return null
 
   return (
     <div style={{
@@ -52,7 +60,7 @@ export default function ModeTabs({ activeMode, onSwitch, extraTab }: ModeTabsPro
           {isMobile ? extraTab.shortLabel : extraTab.label}
         </button>
       )}
-      {TABS.map(tab => {
+      {visibleTabs.map(tab => {
         const active = activeMode === tab.mode
         return (
           <button

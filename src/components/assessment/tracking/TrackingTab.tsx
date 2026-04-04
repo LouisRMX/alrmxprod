@@ -42,6 +42,7 @@ interface TrackingEntry {
 export interface TrackingProps {
   assessmentId: string
   isAdmin: boolean
+  viewOnly?: boolean  // owner role — sees charts but no weekly input form
   baselineTurnaround: number | null
   baselineRejectPct: number | null
   baselineDispatchMin: number | null
@@ -717,11 +718,12 @@ function CaseStudyCard({ config, entries, coeffDispatch }: { config: TrackingCon
 
 // ── Progress View (admin) ──────────────────────────────────────────────────
 
-function ProgressView({ config, entries, onEntryLogged, coeffDispatch }: {
+function ProgressView({ config, entries, onEntryLogged, coeffDispatch, viewOnly }: {
   config: TrackingConfig
   entries: TrackingEntry[]
   onEntryLogged: () => void
   coeffDispatch: number
+  viewOnly?: boolean
 }) {
   const currentWeek = getWeekNumber(config.started_at)
   const sortedEntries = [...entries].sort((a, b) => b.week_number - a.week_number)
@@ -768,14 +770,16 @@ function ProgressView({ config, entries, onEntryLogged, coeffDispatch }: {
         )}
       </div>
 
-      {/* D: Weekly Input */}
-      <WeeklyInput
-        config={config}
-        entries={entries}
-        currentWeek={currentWeek}
-        isAdmin={true}
-        onLogged={onEntryLogged}
-      />
+      {/* D: Weekly Input — hidden for owners (view-only) */}
+      {!viewOnly && (
+        <WeeklyInput
+          config={config}
+          entries={entries}
+          currentWeek={currentWeek}
+          isAdmin={true}
+          onLogged={onEntryLogged}
+        />
+      )}
 
       {/* Case study */}
       <div style={{ marginTop: '16px' }}>
@@ -843,7 +847,7 @@ function CustomerLog({ config, entries, onLogged, coeffDispatch }: {
 
 export default function TrackingTab(props: TrackingProps) {
   const {
-    assessmentId, isAdmin, coeffDispatch,
+    assessmentId, isAdmin, viewOnly, coeffDispatch,
     baselineTurnaround, baselineRejectPct, baselineDispatchMin,
     coeffTurnaround, baselineMonthlyLoss, targetTA,
   } = props
@@ -929,7 +933,7 @@ export default function TrackingTab(props: TrackingProps) {
   }
 
   if (isAdmin) {
-    return <ProgressView config={config} entries={entries} onEntryLogged={fetchData} coeffDispatch={coeffDispatch} />
+    return <ProgressView config={config} entries={entries} onEntryLogged={fetchData} coeffDispatch={coeffDispatch} viewOnly={viewOnly} />
   }
 
   return <CustomerLog config={config} entries={entries} onLogged={fetchData} coeffDispatch={coeffDispatch} />
