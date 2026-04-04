@@ -11,6 +11,63 @@ interface NavBarProps {
   profile: Profile | null
 }
 
+function TabIcon({ name, active }: { name: string; active: boolean }) {
+  const color = active ? 'var(--green)' : 'var(--gray-400)'
+  const sw = active ? '2' : '1.5'
+
+  switch (name) {
+    case 'assess':
+      return (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+        </svg>
+      )
+    case 'portfolio':
+      return (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" />
+        </svg>
+      )
+    case 'customers':
+      return (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 00-3-3.87" /><path d="M16 3.13a4 4 0 010 7.75" />
+        </svg>
+      )
+    case 'reports':
+      return (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" />
+        </svg>
+      )
+    case 'simulator':
+      return (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round">
+          <line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" /><line x1="12" y1="21" x2="12" y2="12" /><line x1="12" y1="8" x2="12" y2="3" /><line x1="20" y1="21" x2="20" y2="16" /><line x1="20" y1="12" x2="20" y2="3" /><line x1="1" y1="14" x2="7" y2="14" /><line x1="9" y1="8" x2="15" y2="8" /><line x1="17" y1="16" x2="23" y2="16" />
+        </svg>
+      )
+    default:
+      return null
+  }
+}
+
+const TAB_ICONS: Record<string, string> = {
+  '/dashboard/assess': 'assess',
+  '/dashboard/portfolio': 'portfolio',
+  '/dashboard/customers': 'customers',
+  '/dashboard/reports': 'reports',
+  '/dashboard/simulator': 'simulator',
+}
+
+const SHORT_LABELS: Record<string, string> = {
+  'New assessment': 'Assess',
+  'Portfolio': 'Portfolio',
+  'Customers': 'Clients',
+  'Reports': 'Reports',
+  'My Reports': 'Reports',
+  'Simulator': 'Sim',
+}
+
 export default function NavBar({ user, profile }: NavBarProps) {
   const router = useRouter()
   const pathname = usePathname()
@@ -37,7 +94,7 @@ export default function NavBar({ user, profile }: NavBarProps) {
   ].filter(t => !t.adminOnly || isAdmin)
 
   return (
-    <div>
+    <>
       {/* Top bar */}
       <div style={{
         background: 'var(--green)', padding: isMobile ? '0 12px' : '0 24px',
@@ -75,34 +132,75 @@ export default function NavBar({ user, profile }: NavBarProps) {
         </div>
       </div>
 
-      {/* Tab bar */}
-      <div style={{
-        background: 'var(--white)', borderBottom: '1px solid var(--border)',
-        display: 'flex', padding: isMobile ? '0 8px' : '0 24px',
-        overflowX: 'auto', WebkitOverflowScrolling: 'touch' as React.CSSProperties['WebkitOverflowScrolling'],
-      }}>
-        {tabs.map(tab => {
-          const active = pathname.startsWith(tab.href)
-          return (
-            <button
-              key={tab.href}
-              onClick={() => router.push(tab.href)}
-              style={{
-                padding: isMobile ? '11px 12px' : '13px 20px',
-                fontSize: isMobile ? '12px' : '13px',
-                color: active ? 'var(--green)' : 'var(--gray-500)',
-                border: 'none', background: 'none', cursor: 'pointer',
-                borderBottom: active ? '2px solid var(--green)' : '2px solid transparent',
-                marginBottom: '-1px', fontWeight: active ? '500' : '400',
-                fontFamily: 'var(--font)', whiteSpace: 'nowrap', transition: 'all .15s',
-                flexShrink: 0,
-              }}
-            >
-              {tab.label}
-            </button>
-          )
-        })}
-      </div>
-    </div>
+      {/* Desktop: top tab bar */}
+      {!isMobile && (
+        <div style={{
+          background: 'var(--white)', borderBottom: '1px solid var(--border)',
+          display: 'flex', padding: '0 24px',
+        }}>
+          {tabs.map(tab => {
+            const active = pathname.startsWith(tab.href)
+            return (
+              <button
+                key={tab.href}
+                onClick={() => router.push(tab.href)}
+                style={{
+                  padding: '13px 20px',
+                  fontSize: '13px',
+                  color: active ? 'var(--green)' : 'var(--gray-500)',
+                  border: 'none', background: 'none', cursor: 'pointer',
+                  borderBottom: active ? '2px solid var(--green)' : '2px solid transparent',
+                  marginBottom: '-1px', fontWeight: active ? '500' : '400',
+                  fontFamily: 'var(--font)', whiteSpace: 'nowrap', transition: 'all .15s',
+                  flexShrink: 0,
+                }}
+              >
+                {tab.label}
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Mobile: bottom tab bar */}
+      {isMobile && (
+        <div style={{
+          position: 'fixed', bottom: 0, left: 0, right: 0,
+          background: 'var(--white)',
+          borderTop: '1px solid var(--border)',
+          display: 'flex', justifyContent: 'space-around',
+          padding: '6px 0 env(safe-area-inset-bottom, 6px)',
+          zIndex: 100,
+          boxShadow: '0 -2px 12px rgba(0,0,0,0.06)',
+        }}>
+          {tabs.map(tab => {
+            const active = pathname.startsWith(tab.href)
+            const iconName = TAB_ICONS[tab.href] || 'reports'
+            const shortLabel = SHORT_LABELS[tab.label] || tab.label
+            return (
+              <button
+                key={tab.href}
+                onClick={() => router.push(tab.href)}
+                style={{
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px',
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  padding: '4px 8px', minWidth: '48px',
+                  fontFamily: 'var(--font)',
+                }}
+              >
+                <TabIcon name={iconName} active={active} />
+                <span style={{
+                  fontSize: '10px', fontWeight: active ? 600 : 400,
+                  color: active ? 'var(--green)' : 'var(--gray-400)',
+                  lineHeight: 1,
+                }}>
+                  {shortLabel}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </>
   )
 }
