@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import DeleteButton from './DeleteButton'
+import ActionItems from './ActionItems'
 
 function scoreColor(s: number | null) {
   if (s === null) return 'var(--gray-300)'
@@ -30,7 +31,7 @@ export default async function PortfolioPage() {
 
   if (profile?.role !== 'system_admin') redirect('/dashboard/reports')
 
-  // Get all assessments with plant, customer info, and tracking status
+  // Get all assessments with plant, customer info, tracking status, and report
   const { data: assessments } = await supabase
     .from('assessments')
     .select(`
@@ -40,9 +41,29 @@ export default async function PortfolioPage() {
         customer:customers(name)
       ),
       analyst:profiles(full_name),
-      tracking_config:tracking_configs(id, started_at)
+      tracking_config:tracking_configs(id, started_at),
+      report:reports(executive, diagnosis, actions)
     `)
     .order('created_at', { ascending: false })
+
+  // Latest tracking entry per config (for staleness check)
+  const configIds = (assessments || [])
+    .map(a => Array.isArray(a.tracking_config) ? a.tracking_config[0]?.id : (a.tracking_config as { id: string } | null)?.id)
+    .filter(Boolean) as string[]
+
+  const { data: latestEntries } = configIds.length > 0
+    ? await supabase
+        .from('tracking_entries')
+        .select('config_id, logged_at')
+        .in('config_id', configIds)
+        .order('logged_at', { ascending: false })
+    : { data: [] }
+
+  // Map configId → last logged_at
+  const lastLogged: Record<string, string> = {}
+  for (const e of latestEntries || []) {
+    if (!lastLogged[e.config_id]) lastLogged[e.config_id] = e.logged_at
+  }
 
   const total = assessments?.length || 0
   const avgScore = total > 0
@@ -67,6 +88,9 @@ export default async function PortfolioPage() {
           + New assessment
         </Link>
       </div>
+
+      {/* Action items */}
+      <ActionItems assessments={assessments || []} lastLogged={lastLogged} />
 
       {/* KPI row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px', marginBottom: '24px' }}>
