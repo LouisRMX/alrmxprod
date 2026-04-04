@@ -9,6 +9,7 @@ import ModeTabs, { type AssessmentMode } from '@/components/assessment/ModeTabs'
 import PlantOverviewView, { type PlantCardData } from '@/components/plants/PlantOverviewView'
 import type { Answers } from '@/lib/calculations'
 import type { Phase } from '@/lib/questions'
+import type { MemberRole } from '@/lib/getEffectiveMemberRole'
 import { useIsMobile } from '@/hooks/useIsMobile'
 
 // Compare two answer maps — returns true when every key matches
@@ -200,15 +201,32 @@ const PHASE_CONFIG: Record<DemoPhase, {
   },
 }
 
-export default function DemoView() {
+interface DemoViewProps {
+  userRole?: MemberRole | null
+  isOverridden?: boolean
+}
+
+export default function DemoView({ userRole = null, isOverridden = false }: DemoViewProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const supabase = createClient()
   const [demoPhase, setDemoPhase] = useState<DemoPhase>('workshop')
+
+  // Allowed modes per role — mirrors AssessmentShell logic
+  const allowedModes: AssessmentMode[] = userRole === 'owner'
+    ? ['report', 'simulator', 'track']
+    : userRole === 'operator'
+    ? ['track']
+    : ['questions', 'report', 'simulator', 'track']
+
+  // Owner/operator start on a sensible mode, not 'questions'
+  const defaultView: 'plants' | AssessmentMode =
+    userRole === 'operator' ? 'track'
+    : userRole === 'owner' ? 'report'
+    : searchParams.get('view') === 'plants' ? 'plants' : 'questions'
+
   // 'plants' shows the portfolio overview; any AssessmentMode shows the assessment
-  const [demoView, setDemoView] = useState<'plants' | AssessmentMode>(
-    searchParams.get('view') === 'plants' ? 'plants' : 'questions'
-  )
+  const [demoView, setDemoView] = useState<'plants' | AssessmentMode>(defaultView)
 
   // ── Demo regeneration state ─────────────────────────────────────────────
   const [demoAnswersModified, setDemoAnswersModified] = useState(false)
@@ -383,13 +401,14 @@ export default function DemoView() {
       {/* Persistent tab row — always visible */}
       <ModeTabs
         activeMode={demoView === 'plants' ? ('' as AssessmentMode) : demoView}
-        onSwitch={(m) => setDemoView(m)}
-        extraTab={{
+        onSwitch={(m) => { if (allowedModes.includes(m)) setDemoView(m) }}
+        allowedModes={allowedModes}
+        extraTab={userRole !== 'operator' ? {
           label: 'All plants',
           shortLabel: 'All plants',
           onClick: () => setDemoView('plants'),
           active: demoView === 'plants',
-        }}
+        } : undefined}
       />
 
       {/* Plants overview */}
@@ -417,7 +436,8 @@ export default function DemoView() {
             assessmentId="demo"
             report={demoPhase === 'onsite' ? ONSITE_REPORT : null}
             reportReleased={demoPhase === 'onsite'}
-            isAdmin={true}
+            isAdmin={!userRole}
+            userRole={userRole ?? undefined}
             onSave={() => { /* no-op in demo */ }}
             onAnswersChange={handleAnswersChange}
             demoBanner={demoBanner}
@@ -427,7 +447,7 @@ export default function DemoView() {
         </div>
       )}
 
-      <DevRoleSwitcher viewAs={null} isOverridden={false} />
+      <DevRoleSwitcher viewAs={userRole} isOverridden={isOverridden} />
     </div>
   )
 }
