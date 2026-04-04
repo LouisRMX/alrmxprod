@@ -39,7 +39,10 @@ export default function DevRoleSwitcher({ viewAs, isOverridden }: DevRoleSwitche
     // Fetch role client-side — bypasses any server-side isAdmin check issues
     fetch('/api/me')
       .then(r => r.json())
-      .then(d => { if (d.role === 'system_admin') setIsAdmin(true) })
+      .then(d => {
+        // Show for system_admin or customer_admin (both are platform operators)
+        if (d.role === 'system_admin' || d.role === 'customer_admin') setIsAdmin(true)
+      })
       .catch(() => {})
   }, [])
 
