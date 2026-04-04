@@ -58,9 +58,11 @@ interface AssessmentShellProps {
   onAnswersChange?: (answers: Answers) => void
   // Demo-specific: drives the regenerate banner in the report tab
   demoBanner?: DemoBannerProps
+  // Extra tab injected before the standard tabs (e.g. "All plants" in demo)
+  extraTab?: { label: string; shortLabel: string; onClick: () => void }
 }
 
-export default function AssessmentShell({ initialAnswers, phase, season, country, plant, date, assessmentId, report, reportReleased, isAdmin, onSave, baseline, requestMode, onAnswersChange, demoBanner }: AssessmentShellProps) {
+export default function AssessmentShell({ initialAnswers, phase, season, country, plant, date, assessmentId, report, reportReleased, isAdmin, onSave, baseline, requestMode, onAnswersChange, demoBanner, extraTab }: AssessmentShellProps) {
   const [answers, setAnswers] = useState<Answers>(initialAnswers)
   const [currentSection, setCurrentSection] = useState(0)
   const [mode, setMode] = useState<AssessmentMode>('questions')
@@ -136,7 +138,7 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-      <ModeTabs activeMode={mode} onSwitch={setMode} />
+      <ModeTabs activeMode={mode} onSwitch={setMode} extraTab={extraTab} />
 
       {mode === 'questions' && guidedMode && (
         <GuidedMode
