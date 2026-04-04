@@ -233,60 +233,27 @@ export default function DemoView() {
 
       {/* Top bar */}
       {isMobile ? (
-        <div style={{ background: 'var(--green)', flexShrink: 0 }}>
-          {/* Row 1: logo + sign out */}
-          <div style={{
-            padding: '0 12px', display: 'flex', alignItems: 'center',
-            justifyContent: 'space-between', height: '44px',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div style={{
-                width: '26px', height: '26px', borderRadius: '7px', flexShrink: 0,
-                background: 'rgba(255,255,255,0.15)', display: 'flex',
-                alignItems: 'center', justifyContent: 'center',
-              }}>
-                <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#5DCAA5' }} />
-              </div>
-              <span style={{ color: '#fff', fontSize: '14px', fontWeight: 600 }}>Al-RMX</span>
-              <span style={{
-                fontSize: '9px', fontWeight: 700, letterSpacing: '.4px',
-                color: cfg.badgeColor, background: cfg.badgeBg,
-                padding: '2px 6px', borderRadius: '3px',
-              }}>
-                {cfg.badge}
-              </span>
-            </div>
-            <button onClick={handleSignOut} style={{
-              fontSize: '11px', color: 'rgba(255,255,255,0.7)',
-              background: 'none', border: '1px solid rgba(255,255,255,0.25)',
-              borderRadius: '5px', padding: '4px 9px', cursor: 'pointer', fontFamily: 'var(--font)',
+        <div style={{
+          background: 'var(--green)', flexShrink: 0,
+          padding: '0 12px', display: 'flex', alignItems: 'center',
+          height: '44px',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{
+              width: '26px', height: '26px', borderRadius: '7px', flexShrink: 0,
+              background: 'rgba(255,255,255,0.15)', display: 'flex',
+              alignItems: 'center', justifyContent: 'center',
             }}>
-              Sign out
-            </button>
-          </div>
-          {/* Row 2: phase switch + all plants */}
-          <div style={{ padding: '0 12px 8px', display: 'flex', gap: '8px' }}>
-            <button
-              onClick={() => setDemoPhase(p => p === 'workshop' ? 'onsite' : 'workshop')}
-              style={{
-                flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)',
-                borderRadius: '6px', padding: '7px 14px', cursor: 'pointer', fontFamily: 'var(--font)',
-              }}
-            >
-              <span style={{ fontSize: '12px', fontWeight: 600, color: '#fff' }}>{cfg.buttonLabel}</span>
-              <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.5)' }}>{cfg.buttonSub}</span>
-            </button>
-            <button
-              onClick={() => router.push('/demo/plants')}
-              style={{
-                flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                background: 'rgba(255,255,255,0.18)', border: '1px solid rgba(255,255,255,0.3)',
-                borderRadius: '6px', padding: '7px 12px', cursor: 'pointer', fontFamily: 'var(--font)',
-              }}
-            >
-              <span style={{ fontSize: '11px', fontWeight: 600, color: '#fff' }}>All plants →</span>
-            </button>
+              <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#5DCAA5' }} />
+            </div>
+            <span style={{ color: '#fff', fontSize: '14px', fontWeight: 600 }}>Al-RMX</span>
+            <span style={{
+              fontSize: '9px', fontWeight: 700, letterSpacing: '.4px',
+              color: cfg.badgeColor, background: cfg.badgeBg,
+              padding: '2px 6px', borderRadius: '3px',
+            }}>
+              {cfg.badge}
+            </span>
           </div>
         </div>
       ) : (
@@ -435,7 +402,7 @@ export default function DemoView() {
           </button>
 
           <button
-            onClick={() => router.push('/dashboard')}
+            onClick={() => router.push('/demo/plants')}
             style={{
               display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px',
               background: 'none', border: 'none', cursor: 'pointer',
@@ -445,7 +412,7 @@ export default function DemoView() {
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--gray-400)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" />
             </svg>
-            <span style={{ fontSize: '10px', fontWeight: 400, color: 'var(--gray-400)', lineHeight: 1 }}>Platform</span>
+            <span style={{ fontSize: '10px', fontWeight: 400, color: 'var(--gray-400)', lineHeight: 1 }}>All plants</span>
           </button>
 
           <button
