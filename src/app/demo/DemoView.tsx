@@ -260,6 +260,7 @@ export default function DemoView() {
         <div style={{
           background: 'var(--green)', flexShrink: 0,
           padding: '0 12px', display: 'flex', alignItems: 'center',
+          justifyContent: 'space-between',
           height: '44px',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -279,6 +280,14 @@ export default function DemoView() {
               {cfg.badge}
             </span>
           </div>
+          <button onClick={handleSignOut} style={{
+            fontSize: '11px', color: 'rgba(255,255,255,0.7)',
+            background: 'none', border: '1px solid rgba(255,255,255,0.2)',
+            borderRadius: '5px', padding: '3px 8px', cursor: 'pointer',
+            fontFamily: 'var(--font)',
+          }}>
+            Sign out
+          </button>
         </div>
       ) : (
         <div style={{
