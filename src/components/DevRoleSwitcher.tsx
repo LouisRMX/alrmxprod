@@ -19,6 +19,9 @@ export default function DevRoleSwitcher({ viewAs, isOverridden }: DevRoleSwitche
   const pathname = usePathname()
   const isMobile = useIsMobile()
   const returnUrl = encodeURIComponent(pathname)
+  // Role chips always land on /dashboard so the routing logic picks the right page per role.
+  // Exit returns to current page (restore normal admin view).
+  const roleReturnUrl = encodeURIComponent('/dashboard')
 
   const chipStyle = (active: boolean): React.CSSProperties => ({
     padding: isMobile ? '5px 12px' : '4px 10px',
@@ -62,7 +65,7 @@ export default function DevRoleSwitcher({ viewAs, isOverridden }: DevRoleSwitche
         </span>
         <div style={{ display: 'flex', gap: '4px', flex: isMobile ? 1 : 'none', justifyContent: isMobile ? 'center' : 'flex-start' }}>
           {ROLES.map(({ role, label }) => (
-            <a key={role} href={`/api/dev-role?role=${role}&return=${returnUrl}`} style={chipStyle(role === viewAs)}>
+            <a key={role} href={`/api/dev-role?role=${role}&return=${roleReturnUrl}`} style={chipStyle(role === viewAs)}>
               {label}
             </a>
           ))}
@@ -110,7 +113,7 @@ export default function DevRoleSwitcher({ viewAs, isOverridden }: DevRoleSwitche
       {ROLES.map(({ role, label }) => (
         <a
           key={role}
-          href={`/api/dev-role?role=${role}&return=${returnUrl}`}
+          href={`/api/dev-role?role=${role}&return=${roleReturnUrl}`}
           style={{
             padding: isMobile ? '4px 10px' : '3px 7px',
             borderRadius: '5px',
