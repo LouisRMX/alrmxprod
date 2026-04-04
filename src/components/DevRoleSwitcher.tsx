@@ -1,7 +1,6 @@
 'use client'
 
 import { usePathname } from 'next/navigation'
-import { useIsMobile } from '@/hooks/useIsMobile'
 import type { MemberRole } from '@/lib/getEffectiveMemberRole'
 
 interface DevRoleSwitcherProps {
@@ -15,67 +14,61 @@ const ROLES: { role: MemberRole; label: string }[] = [
   { role: 'operator', label: 'Operator' },
 ]
 
+const chipStyle = (active: boolean): React.CSSProperties => ({
+  padding: '4px 10px',
+  borderRadius: '5px',
+  fontSize: '11px',
+  fontWeight: active ? 700 : 400,
+  background: active ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.1)',
+  color: '#fff',
+  textDecoration: 'none',
+  border: '1px solid rgba(255,255,255,0.2)',
+  fontFamily: 'var(--font)',
+  whiteSpace: 'nowrap' as const,
+})
+
 export default function DevRoleSwitcher({ viewAs, isOverridden }: DevRoleSwitcherProps) {
   const pathname = usePathname()
-  const isMobile = useIsMobile()
   const returnUrl = encodeURIComponent(pathname)
   // Role chips always land on /dashboard so the routing logic picks the right page per role.
   // Exit returns to current page (restore normal admin view).
   const roleReturnUrl = encodeURIComponent('/dashboard')
 
-  const chipStyle = (active: boolean): React.CSSProperties => ({
-    padding: isMobile ? '5px 12px' : '4px 10px',
-    borderRadius: '5px',
-    fontSize: isMobile ? '12px' : '11px',
-    fontWeight: active ? 700 : 400,
-    background: active ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.1)',
-    color: '#fff',
-    textDecoration: 'none',
-    border: '1px solid rgba(255,255,255,0.2)',
-    fontFamily: 'var(--font)',
-    whiteSpace: 'nowrap' as const,
-  })
-
-  // On mobile: thin bar just below the top nav bar (above content, never touches bottom tab bar)
-  // On desktop: floating at bottom
   if (isOverridden && viewAs) {
+    // Active override: red bar centered above the mobile tab bar
     return (
       <div style={{
-        position: isMobile ? 'sticky' : 'fixed',
-        top: isMobile ? 0 : 'auto',
-        bottom: isMobile ? 'auto' : '14px',
-        left: isMobile ? 0 : '50%',
-        right: isMobile ? 0 : 'auto',
-        transform: isMobile ? 'none' : 'translateX(-50%)',
+        position: 'fixed',
+        bottom: '72px',
+        left: '50%',
+        transform: 'translateX(-50%)',
         zIndex: 9999,
         background: '#C0392B',
         color: '#fff',
-        padding: isMobile ? '8px 16px' : '6px 10px',
-        boxShadow: '0 2px 12px rgba(0,0,0,0.2)',
+        borderRadius: '8px',
+        padding: '6px 12px',
+        boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
         display: 'flex',
         alignItems: 'center',
-        gap: isMobile ? '8px' : '6px',
-        flexWrap: 'nowrap' as const,
-        justifyContent: isMobile ? 'space-between' : 'center',
-        borderRadius: isMobile ? 0 : '8px',
-        flexShrink: 0,
+        gap: '6px',
+        flexWrap: 'wrap' as const,
+        justifyContent: 'center',
+        maxWidth: 'calc(100vw - 32px)',
       }}>
-        <span style={{ fontSize: isMobile ? '11px' : '10px', color: 'rgba(255,255,255,0.75)', fontFamily: 'var(--font)', whiteSpace: 'nowrap' }}>
+        <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.75)', fontFamily: 'var(--font)', whiteSpace: 'nowrap' }}>
           View as:
         </span>
-        <div style={{ display: 'flex', gap: '4px', flex: isMobile ? 1 : 'none', justifyContent: isMobile ? 'center' : 'flex-start' }}>
-          {ROLES.map(({ role, label }) => (
-            <a key={role} href={`/api/dev-role?role=${role}&return=${roleReturnUrl}`} style={chipStyle(role === viewAs)}>
-              {label}
-            </a>
-          ))}
-        </div>
+        {ROLES.map(({ role, label }) => (
+          <a key={role} href={`/api/dev-role?role=${role}&return=${roleReturnUrl}`} style={chipStyle(role === viewAs)}>
+            {label}
+          </a>
+        ))}
         <a
           href={`/api/dev-role?clear=1&return=${returnUrl}`}
           style={{
-            padding: isMobile ? '5px 12px' : '4px 8px',
+            padding: '4px 10px',
             borderRadius: '5px',
-            fontSize: isMobile ? '12px' : '11px',
+            fontSize: '11px',
             background: 'rgba(255,255,255,0.15)',
             color: '#fff',
             textDecoration: 'none',
@@ -90,13 +83,11 @@ export default function DevRoleSwitcher({ viewAs, isOverridden }: DevRoleSwitche
     )
   }
 
-  // No override active — compact trigger
-  // Mobile: top-right corner (below top bar). Desktop: bottom-right.
+  // No override active — compact trigger, above mobile tab bar
   return (
     <div style={{
       position: 'fixed',
-      top: isMobile ? '54px' : 'auto',
-      bottom: isMobile ? 'auto' : '14px',
+      bottom: '72px',
       right: '12px',
       zIndex: 9999,
       background: 'rgba(30,30,30,0.85)',
@@ -115,7 +106,7 @@ export default function DevRoleSwitcher({ viewAs, isOverridden }: DevRoleSwitche
           key={role}
           href={`/api/dev-role?role=${role}&return=${roleReturnUrl}`}
           style={{
-            padding: isMobile ? '4px 10px' : '3px 7px',
+            padding: '3px 8px',
             borderRadius: '5px',
             fontSize: '10px',
             background: 'rgba(255,255,255,0.1)',
