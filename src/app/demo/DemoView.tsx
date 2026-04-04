@@ -219,10 +219,10 @@ export default function DemoView({ userRole = null, isOverridden = false }: Demo
     ? ['track']
     : ['questions', 'report', 'simulator', 'track']
 
-  // Owner/operator start on a sensible mode, not 'questions'
+  // Owner lands on All plants, operator on track, others on questions
   const defaultView: 'plants' | AssessmentMode =
     userRole === 'operator' ? 'track'
-    : userRole === 'owner' ? 'report'
+    : userRole === 'owner' ? 'plants'
     : searchParams.get('view') === 'plants' ? 'plants' : 'questions'
 
   // 'plants' shows the portfolio overview; any AssessmentMode shows the assessment
