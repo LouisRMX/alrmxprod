@@ -134,13 +134,12 @@ export default function OperatorTrackView({ assessmentId, assessment, userId }: 
 
   if (!assessmentId || !assessment) {
     return (
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 24px', textAlign: 'center' }}>
-        <div style={{ fontSize: '32px', marginBottom: '16px' }}>📋</div>
-        <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--gray-700)', marginBottom: '8px' }}>
-          No assessment assigned yet
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 24px', textAlign: 'center', gap: '8px' }}>
+        <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--gray-700)' }}>
+          No assignment yet
         </div>
-        <div style={{ fontSize: '13px', color: 'var(--gray-400)' }}>
-          Your manager will assign you to a plant assessment shortly.
+        <div style={{ fontSize: '13px', color: 'var(--gray-400)', maxWidth: '280px' }}>
+          Your manager hasn&apos;t assigned you to a plant yet. You&apos;ll be notified when tracking begins.
         </div>
       </div>
     )
@@ -148,13 +147,12 @@ export default function OperatorTrackView({ assessmentId, assessment, userId }: 
 
   if (!config) {
     return (
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 24px', textAlign: 'center' }}>
-        <div style={{ fontSize: '32px', marginBottom: '16px' }}>📊</div>
-        <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--gray-700)', marginBottom: '8px' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 24px', textAlign: 'center', gap: '8px' }}>
+        <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--gray-700)' }}>
           Tracking not started yet
         </div>
-        <div style={{ fontSize: '13px', color: 'var(--gray-400)' }}>
-          Your manager will activate 90-day tracking after the initial assessment.
+        <div style={{ fontSize: '13px', color: 'var(--gray-400)', maxWidth: '300px' }}>
+          Your manager will activate 90-day tracking after the on-site assessment is complete.
         </div>
       </div>
     )
@@ -163,6 +161,9 @@ export default function OperatorTrackView({ assessmentId, assessment, userId }: 
   const currentWeek = getWeekNumber(config.started_at)
   const thisWeekLogged = entries.some(e => e.week_number === currentWeek)
   const sortedEntries = [...entries].sort((a, b) => b.week_number - a.week_number)
+
+  // Most recent logged values for showing improvement
+  const lastEntry = sortedEntries[0] ?? null
 
   return (
     <div style={{ flex: 1, overflowY: 'auto', background: 'var(--gray-50)' }}>
@@ -201,32 +202,68 @@ export default function OperatorTrackView({ assessmentId, assessment, userId }: 
           </div>
         </div>
 
-        {/* Baseline reference */}
-        <div style={{
-          background: 'var(--info-bg)', border: '1px solid var(--info-border)',
-          borderRadius: '10px', padding: '14px 16px', marginBottom: '20px',
-        }}>
-          <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--phase-workshop)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '.4px' }}>
-            Your targets
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            {config.track_turnaround && (
-              <div>
-                <div style={{ fontSize: '11px', color: 'var(--gray-400)' }}>Turnaround</div>
-                <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--gray-800)' }}>
-                  {config.baseline_turnaround} → <span style={{ color: 'var(--green)' }}>{config.target_turnaround} min</span>
+        {/* KPI target cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: config.track_turnaround && config.track_dispatch && config.baseline_dispatch_min != null ? '1fr 1fr' : '1fr', gap: '12px', marginBottom: '20px' }}>
+          {config.track_turnaround && (() => {
+            const last = lastEntry?.turnaround_min ?? null
+            const target = config.target_turnaround ?? 75
+            const atTarget = last !== null && last <= target
+            const improving = last !== null && last < (config.baseline_turnaround ?? last + 1)
+            return (
+              <div style={{ background: 'var(--white)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px 16px' }}>
+                <div style={{ fontSize: '11px', color: 'var(--gray-400)', marginBottom: '6px' }}>Turnaround time</div>
+                <div style={{ fontSize: '20px', fontWeight: 700, color: atTarget ? 'var(--green)' : 'var(--gray-900)', lineHeight: 1 }}>
+                  {last !== null ? `${last} min` : `${target} min`}
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--gray-400)', marginTop: '2px' }}>
+                  {last !== null ? 'last week' : 'target'}
+                </div>
+                <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--gray-100)', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                  <div style={{ fontSize: '11px', color: 'var(--gray-500)' }}>
+                    Target: <strong style={{ color: 'var(--green)' }}>under {target} min</strong>
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--gray-400)' }}>
+                    Starting point: {config.baseline_turnaround} min
+                  </div>
+                  {last !== null && (
+                    <div style={{ fontSize: '11px', color: improving ? 'var(--green)' : '#E67E22', fontWeight: 500 }}>
+                      {improving ? 'Improving' : 'Above target'}
+                    </div>
+                  )}
                 </div>
               </div>
-            )}
-            {config.track_dispatch && config.baseline_dispatch_min != null && (
-              <div>
-                <div style={{ fontSize: '11px', color: 'var(--gray-400)' }}>Dispatch Time</div>
-                <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--gray-800)' }}>
-                  {config.baseline_dispatch_min} → <span style={{ color: 'var(--green)' }}>{config.target_dispatch_min ?? 15} min</span>
+            )
+          })()}
+          {config.track_dispatch && config.baseline_dispatch_min != null && (() => {
+            const last = lastEntry?.dispatch_min ?? null
+            const target = config.target_dispatch_min ?? 15
+            const atTarget = last !== null && last <= target
+            const improving = last !== null && last < (config.baseline_dispatch_min ?? last + 1)
+            return (
+              <div style={{ background: 'var(--white)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px 16px' }}>
+                <div style={{ fontSize: '11px', color: 'var(--gray-400)', marginBottom: '6px' }}>Dispatch time</div>
+                <div style={{ fontSize: '20px', fontWeight: 700, color: atTarget ? 'var(--green)' : 'var(--gray-900)', lineHeight: 1 }}>
+                  {last !== null ? `${last} min` : `${target} min`}
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--gray-400)', marginTop: '2px' }}>
+                  {last !== null ? 'last week' : 'target'}
+                </div>
+                <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--gray-100)', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                  <div style={{ fontSize: '11px', color: 'var(--gray-500)' }}>
+                    Target: <strong style={{ color: 'var(--green)' }}>under {target} min</strong>
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--gray-400)' }}>
+                    Starting point: {config.baseline_dispatch_min} min
+                  </div>
+                  {last !== null && (
+                    <div style={{ fontSize: '11px', color: improving ? 'var(--green)' : '#E67E22', fontWeight: 500 }}>
+                      {improving ? 'Improving' : 'Above target'}
+                    </div>
+                  )}
                 </div>
               </div>
-            )}
-          </div>
+            )
+          })()}
         </div>
 
         {/* Log form */}

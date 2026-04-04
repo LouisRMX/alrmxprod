@@ -164,6 +164,17 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
       {!hideModeTabs && <ModeTabs activeMode={mode} onSwitch={setMode} allowedModes={allowedModes} extraTab={extraTab} />}
 
+      {userRole === 'owner' && (
+        <div style={{ padding: '6px 16px', background: 'var(--gray-50)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{
+            fontSize: '10px', fontWeight: 600, color: 'var(--gray-500)',
+            background: 'var(--gray-100)', border: '1px solid var(--gray-200)',
+            borderRadius: '4px', padding: '2px 7px', letterSpacing: '.3px', textTransform: 'uppercase',
+          }}>Read only</span>
+          <span style={{ fontSize: '11px', color: 'var(--gray-400)' }}>Contact your manager to make changes</span>
+        </div>
+      )}
+
       {mode === 'questions' && guidedMode && (
         <GuidedMode
           answers={answers}

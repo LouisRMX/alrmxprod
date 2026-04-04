@@ -67,7 +67,7 @@ function ReportInfoTip({ title, text }: { title: string; text: string }) {
 
 // ── Inline AI text section ─────────────────────────────────────────────────
 function AISection({
-  title, text, generating, onGenerate, onSave, minHeight = 80,
+  title, text, generating, onGenerate, onSave, minHeight = 80, readOnly = false,
 }: {
   title: string
   text: string
@@ -75,6 +75,7 @@ function AISection({
   onGenerate: () => void
   onSave: (text: string) => void
   minHeight?: number
+  readOnly?: boolean
 }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(text)
@@ -89,43 +90,45 @@ function AISection({
         <h3 style={{ fontSize: '13px', fontWeight: 600, color: 'var(--gray-900)', margin: 0, textTransform: 'uppercase', letterSpacing: '.4px' }}>
           {title}
         </h3>
-        <div style={{ display: 'flex', gap: '6px' }}>
-          {text && !editing && (
+        {!readOnly && (
+          <div style={{ display: 'flex', gap: '6px' }}>
+            {text && !editing && (
+              <button
+                type="button"
+                onClick={() => { setDraft(text); setEditing(true) }}
+                style={{
+                  padding: '4px 10px', border: '1px solid var(--gray-300)', borderRadius: '6px',
+                  fontSize: '11px', color: 'var(--gray-500)', background: 'var(--white)',
+                  cursor: 'pointer', fontFamily: 'var(--font)',
+                }}
+              >Edit</button>
+            )}
+            {editing && (
+              <button
+                type="button"
+                onClick={() => { onSave(draft); setEditing(false) }}
+                style={{
+                  padding: '4px 10px', border: '1px solid var(--green-mid)', borderRadius: '6px',
+                  fontSize: '11px', color: 'var(--green)', background: 'var(--green-light)',
+                  cursor: 'pointer', fontFamily: 'var(--font)', fontWeight: 500,
+                }}
+              >Save</button>
+            )}
             <button
               type="button"
-              onClick={() => { setDraft(text); setEditing(true) }}
+              onClick={onGenerate}
+              disabled={generating}
               style={{
-                padding: '4px 10px', border: '1px solid var(--gray-300)', borderRadius: '6px',
-                fontSize: '11px', color: 'var(--gray-500)', background: 'var(--white)',
-                cursor: 'pointer', fontFamily: 'var(--font)',
+                padding: '4px 10px', border: 'none', borderRadius: '6px',
+                fontSize: '11px', color: 'white',
+                background: generating ? 'var(--gray-300)' : 'var(--green)',
+                cursor: generating ? 'not-allowed' : 'pointer', fontFamily: 'var(--font)', fontWeight: 500,
               }}
-            >Edit</button>
-          )}
-          {editing && (
-            <button
-              type="button"
-              onClick={() => { onSave(draft); setEditing(false) }}
-              style={{
-                padding: '4px 10px', border: '1px solid var(--green-mid)', borderRadius: '6px',
-                fontSize: '11px', color: 'var(--green)', background: 'var(--green-light)',
-                cursor: 'pointer', fontFamily: 'var(--font)', fontWeight: 500,
-              }}
-            >Save</button>
-          )}
-          <button
-            type="button"
-            onClick={onGenerate}
-            disabled={generating}
-            style={{
-              padding: '4px 10px', border: 'none', borderRadius: '6px',
-              fontSize: '11px', color: 'white',
-              background: generating ? 'var(--gray-300)' : 'var(--green)',
-              cursor: generating ? 'not-allowed' : 'pointer', fontFamily: 'var(--font)', fontWeight: 500,
-            }}
-          >
-            {generating ? 'Generating…' : text ? 'Regenerate' : 'Generate'}
-          </button>
-        </div>
+            >
+              {generating ? 'Generating…' : text ? 'Regenerate' : 'Generate'}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Content */}
@@ -1953,6 +1956,7 @@ interface FullReportDrawerProps {
   isAdmin?: boolean
   phase?: Phase
   financialBottleneck: string | null
+  readOnly?: boolean
 }
 
 function FullReportDrawer({
@@ -1961,7 +1965,7 @@ function FullReportDrawer({
   calcResult, answers, meta, assessmentId,
   issues, primaryBottleneckLoss,
   logisticsText, gpsAvgTA,
-  totalLoss, isAdmin, phase, financialBottleneck,
+  totalLoss, isAdmin, phase, financialBottleneck, readOnly,
 }: FullReportDrawerProps) {
   const isMobile = useIsMobile()
   const plantName = meta?.plant || 'Full Report'
@@ -2005,7 +2009,7 @@ function FullReportDrawer({
             <div style={{ fontSize: '11px', color: 'var(--gray-400)', marginTop: '1px' }}>Full diagnostic report</div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            {!hasAllSections && (
+            {!readOnly && !hasAllSections && (
               <button
                 type="button"
                 onClick={onGenerateAll}
@@ -2117,6 +2121,7 @@ function FullReportDrawer({
             onGenerate={() => onGenerate('executive')}
             onSave={t => onSave('executive', t)}
             minHeight={100}
+            readOnly={readOnly}
           />
 
           <Divider />
@@ -2129,6 +2134,7 @@ function FullReportDrawer({
             onGenerate={() => onGenerate('diagnosis')}
             onSave={t => onSave('diagnosis', t)}
             minHeight={120}
+            readOnly={readOnly}
           />
 
           <Divider />
@@ -2141,6 +2147,7 @@ function FullReportDrawer({
             onGenerate={() => onGenerate('actions')}
             onSave={t => onSave('actions', t)}
             minHeight={80}
+            readOnly={readOnly}
           />
 
           <Divider />
@@ -3328,6 +3335,7 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
         isAdmin={isAdmin}
         phase={phase}
         financialBottleneck={financialBottleneck}
+        readOnly={!isAdmin}
       />
 
     </div>
