@@ -26,7 +26,7 @@ export default async function DashboardLayout({
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', overflowX: 'hidden' }}>
       <NavBar user={user} profile={profile} />
-      <main style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <main className="dashboard-main" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         {children}
       </main>
     </div>

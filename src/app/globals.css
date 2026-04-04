@@ -52,3 +52,10 @@ body {
   color: var(--gray-900);
   min-height: 100vh;
 }
+
+/* Bottom tab bar spacing on mobile */
+@media (max-width: 640px) {
+  .dashboard-main {
+    padding-bottom: 64px;
+  }
+}
