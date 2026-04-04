@@ -13,6 +13,15 @@ import ReportView from './report/ReportView'
 import SimulatorView from './simulator/SimulatorView'
 import TrackingTab from './tracking/TrackingTab'
 import GpsUploadView from '@/components/gps-upload/GpsUploadView'
+import { useIsMobile } from '@/hooks/useIsMobile'
+
+export interface DemoBannerProps {
+  show: boolean
+  regenCount: number
+  maxRegen: number
+  onRegenerate: () => void
+  onReset: () => void
+}
 
 interface AssessmentShellProps {
   initialAnswers: Answers
@@ -32,17 +41,32 @@ interface AssessmentShellProps {
     bottleneck: CalcResult['bottleneck']
     ebitdaMonthly: number
     hiddenRevMonthly: number
+    // Anonymized fields for market benchmarking
+    benchmark?: {
+      radius: number
+      trucks: number
+      turnaroundMin: number
+      dispatchMin: number | null
+      rejectPct: number
+      delDay: number
+      utilPct: number
+    }
   }) => void
   baseline?: Answers
   requestMode?: AssessmentMode
+  // Demo-specific: called whenever any answer changes
+  onAnswersChange?: (answers: Answers) => void
+  // Demo-specific: drives the regenerate banner in the report tab
+  demoBanner?: DemoBannerProps
 }
 
-export default function AssessmentShell({ initialAnswers, phase, season, country, plant, date, assessmentId, report, reportReleased, isAdmin, onSave, baseline, requestMode }: AssessmentShellProps) {
+export default function AssessmentShell({ initialAnswers, phase, season, country, plant, date, assessmentId, report, reportReleased, isAdmin, onSave, baseline, requestMode, onAnswersChange, demoBanner }: AssessmentShellProps) {
   const [answers, setAnswers] = useState<Answers>(initialAnswers)
   const [currentSection, setCurrentSection] = useState(0)
   const [mode, setMode] = useState<AssessmentMode>('questions')
   const [guidedMode, setGuidedMode] = useState(phase === 'onsite' && Object.keys(initialAnswers).length < 20)
   const [overrides, setOverrides] = useState<CalcOverrides>({})
+  const isMobile = useIsMobile()
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Allow parent to imperatively switch tabs (e.g. "Set up tracking" CTA)
@@ -68,6 +92,15 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
         bottleneck: result.bottleneck,
         ebitdaMonthly: bnLoss + indLoss,
         hiddenRevMonthly: result.hiddenRevMonthly,
+        benchmark: result.overall !== null ? {
+          radius:       result.radius,
+          trucks:       result.trucks,
+          turnaroundMin: Math.round(result.ta),
+          dispatchMin:  result.dispatchMin ?? null,
+          rejectPct:    result.rejectPct,
+          delDay:       result.delDay,
+          utilPct:      Math.round(result.util * 100),
+        } : undefined,
       })
     }, 1000)
   }, [onSave, country])
@@ -85,9 +118,10 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
       // Calculate with new answers for save payload
       const result = calc(next, meta)
       triggerSave(next, result)
+      onAnswersChange?.(next)
       return next
     })
-  }, [meta, triggerSave])
+  }, [meta, triggerSave, onAnswersChange])
 
   const handleNextSection = useCallback(() => {
     setCurrentSection(prev => Math.min(prev + 1, SECTIONS.length - 1))
@@ -117,47 +151,49 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
 
       {(mode === 'questions' || mode === 'gps') && !guidedMode && (
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-          {/* Sidebar */}
-          <div style={{ width: '220px', flexShrink: 0, borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', background: 'var(--white)' }}>
-            <Sidebar
-              currentSection={currentSection}
-              onSelect={(i) => { setCurrentSection(i); setMode('questions') }}
-              answers={answers}
-              phase={phase}
-            />
-            {phase === 'workshop' && (
-              <div style={{ borderTop: '1px solid var(--border)', padding: '8px 0', background: 'var(--white)' }}>
-                <button
-                  type="button"
-                  onClick={() => setMode('gps')}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '8px',
-                    width: '100%', padding: '8px 16px',
-                    background: mode === 'gps' ? 'var(--info-bg)' : 'transparent',
-                    border: 'none',
-                    borderLeft: mode === 'gps' ? '3px solid var(--phase-workshop)' : '3px solid transparent',
-                    cursor: 'pointer', fontFamily: 'var(--font)', fontSize: '12px',
-                    color: mode === 'gps' ? 'var(--phase-workshop)' : 'var(--gray-500)',
-                    fontWeight: mode === 'gps' ? 500 : 400,
-                    textAlign: 'left',
-                  }}
-                >
-                  <span style={{
-                    width: '16px', height: '16px', borderRadius: '50%', flexShrink: 0,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px',
-                    background: mode === 'gps' ? 'var(--phase-workshop)' : 'var(--gray-100)',
-                    color: mode === 'gps' ? 'white' : 'var(--gray-400)',
-                  }}>⊕</span>
-                  <span style={{ flex: 1, lineHeight: 1.3 }}>GPS Fleet Data</span>
-                  <span style={{
-                    fontSize: '9px', padding: '1px 5px', borderRadius: '3px',
-                    background: 'var(--info-bg)', border: '1px solid var(--info-border)',
-                    color: 'var(--phase-workshop)', fontWeight: 500,
-                  }}>opt</span>
-                </button>
-              </div>
-            )}
-          </div>
+          {/* Sidebar — hidden on mobile */}
+          {!isMobile && (
+            <div style={{ width: '220px', flexShrink: 0, borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', background: 'var(--white)' }}>
+              <Sidebar
+                currentSection={currentSection}
+                onSelect={(i) => { setCurrentSection(i); setMode('questions') }}
+                answers={answers}
+                phase={phase}
+              />
+              {phase === 'workshop' && (
+                <div style={{ borderTop: '1px solid var(--border)', padding: '8px 0', background: 'var(--white)' }}>
+                  <button
+                    type="button"
+                    onClick={() => setMode('gps')}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '8px',
+                      width: '100%', padding: '8px 16px',
+                      background: mode === 'gps' ? 'var(--info-bg)' : 'transparent',
+                      border: 'none',
+                      borderLeft: mode === 'gps' ? '3px solid var(--phase-workshop)' : '3px solid transparent',
+                      cursor: 'pointer', fontFamily: 'var(--font)', fontSize: '12px',
+                      color: mode === 'gps' ? 'var(--phase-workshop)' : 'var(--gray-500)',
+                      fontWeight: mode === 'gps' ? 500 : 400,
+                      textAlign: 'left',
+                    }}
+                  >
+                    <span style={{
+                      width: '16px', height: '16px', borderRadius: '50%', flexShrink: 0,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px',
+                      background: mode === 'gps' ? 'var(--phase-workshop)' : 'var(--gray-100)',
+                      color: mode === 'gps' ? 'white' : 'var(--gray-400)',
+                    }}>⊕</span>
+                    <span style={{ flex: 1, lineHeight: 1.3 }}>GPS Fleet Data</span>
+                    <span style={{
+                      fontSize: '9px', padding: '1px 5px', borderRadius: '3px',
+                      background: 'var(--info-bg)', border: '1px solid var(--info-border)',
+                      color: 'var(--phase-workshop)', fontWeight: 500,
+                    }}>opt</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Main content area */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -209,6 +245,7 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
           onOverrideChange={setOverrides}
           phase={phase}
           onSwitchToTracking={() => setMode('track')}
+          demoBanner={demoBanner}
         />
       )}
 

@@ -912,6 +912,24 @@ export const SECTIONS: Section[] = [
         },
       },
       {
+        id: 'reject_cause_split',
+        label: 'Of your rejected loads, roughly what fraction are caused by site or customer conditions — versus plant-side quality issues?',
+        hint: 'Site/customer = pump not ready, crew absent, contractor refusal, transit delay. Plant-side = batching error, wrong slump, dosing failure.',
+        howto: 'Ask the dispatcher or plant manager: "When a load comes back — is it usually because something went wrong at our end, or because the customer wasn\'t ready?"',
+        type: 'opts',
+        opts: [
+          'Mostly plant-side — batching, dosing, or mix quality (<25% site/customer)',
+          'Roughly equal — both plant and site contribute',
+          'Mostly site/customer — pump delays, unreadiness, or contractor refusal (>50%)',
+          'Not tracked — unknown',
+        ],
+        info: {
+          what: 'Estimated fraction of rejections attributable to plant-side versus customer/site-side causes.',
+          why: 'Plant-side rejection requires fixing batch control or mix design. Customer-side rejection requires contract enforcement and site coordination. The dollar figure is the same — the intervention is completely different.',
+          calc: 'Splits rejectLeakMonthly into rejectPlantSideLoss and rejectCustomerSideLoss. Each generates a separate finding with its own action and financial tag. Default (unknown/unanswered): 50/50 split.',
+        },
+      },
+      {
         id: 'surplus_concrete',
         label: 'On average, how much concrete is left over and wasted per truck trip — returned to plant but not counted as a formal rejection?',
         hint: 'This is structural waste — not a quality failure, just over-batching or customer order changes at site.',

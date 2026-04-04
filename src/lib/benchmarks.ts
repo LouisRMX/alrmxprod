@@ -81,6 +81,57 @@ export function benchmarkTag(key: keyof typeof GCC_BENCHMARKS): string {
 }
 
 /**
+ * Live benchmark data shape (matches BenchmarkData from useBenchmarks hook).
+ * Duplicated here to avoid a circular import — hook imports from lib/benchmarks.
+ */
+export interface LiveBenchmarkData {
+  n: number
+  turnaround: { p25: number; p50: number; p75: number }
+  dispatch:   { p25: number; p50: number; p75: number }
+  reject:     { p25: number; p50: number; p75: number }
+  deliveries: { p50: number }
+}
+
+/**
+ * Returns a benchmark tag using live database percentiles when available,
+ * falling back to static GCC benchmarks when not.
+ *
+ * Live data shown when N ≥ 3 comparable plants exist.
+ * Displayed as: "N similar plants — median: X min · top 25%: Y min"
+ */
+export function liveBenchmarkTag(
+  key: keyof typeof GCC_BENCHMARKS,
+  live: LiveBenchmarkData | null
+): string {
+  const b = GCC_BENCHMARKS[key]
+  if (!b) return ''
+
+  if (!live || live.n < 3) {
+    // Fall back to static GCC benchmarks
+    return benchmarkTag(key)
+  }
+
+  const n = live.n
+  const label = `${n} similar plant${n === 1 ? '' : 's'}`
+
+  switch (key) {
+    case 'turnaround':
+      return `${label} — median: ${live.turnaround.p50}${b.unit} · top 25%: ${live.turnaround.p25}${b.unit}`
+    case 'dispatch':
+      return `${label} — median: ${live.dispatch.p50}${b.unit} · top 25%: ${live.dispatch.p25}${b.unit}`
+    case 'rejection':
+      return `${label} — median: ${live.reject.p50}${b.unit} · top 25%: ${live.reject.p25}${b.unit}`
+    case 'deliveriesPerTruck':
+      return `${label} — median: ${live.deliveries.p50}${b.unit}`
+    case 'utilisation':
+      // No utilisation data in live benchmarks — fall back to static
+      return benchmarkTag(key)
+    default:
+      return benchmarkTag(key)
+  }
+}
+
+/**
  * Returns which GCC quartile the value sits in.
  * 'top' = p75 or better, 'mid' = p50–p75, 'low' = below p50, 'bottom' = below p25
  */

@@ -6,10 +6,13 @@ import type { CalcResult, Answers, CalcOverrides } from '@/lib/calculations'
 import type { Phase } from '@/lib/questions'
 import { calcLossRange } from '@/lib/calculations'
 import { buildIssues, getFinancialBottleneck, type Issue } from '@/lib/issues'
-import { benchmarkTag, gcQuartile } from '@/lib/benchmarks'
+import { benchmarkTag, liveBenchmarkTag, gcQuartile, type LiveBenchmarkData } from '@/lib/benchmarks'
+import { useBenchmarks } from '@/hooks/useBenchmarks'
+import { useIsMobile } from '@/hooks/useIsMobile'
 import { stripMarkdown } from '@/lib/stripMarkdown'
 import FindingCard from './FindingCard'
 import ExportPDF from './ExportPDF'
+import type { DemoBannerProps } from '@/components/assessment/AssessmentShell'
 
 function fmt(n: number): string {
   return '$' + n.toLocaleString('en-US')
@@ -52,7 +55,7 @@ function ReportInfoTip({ title, text }: { title: string; text: string }) {
           background: 'var(--tooltip-bg)', border: '1px solid var(--tooltip-border)', borderRadius: '8px',
           padding: '10px 12px', marginTop: '6px', fontSize: '11px', color: 'var(--gray-700)',
           lineHeight: 1.6, position: 'absolute', left: 0, top: '100%', zIndex: 100,
-          width: '300px', boxShadow: '0 4px 16px rgba(0,0,0,.1)',
+          width: 'min(300px, calc(100vw - 32px))', maxWidth: '300px', boxShadow: '0 4px 16px rgba(0,0,0,.1)',
         }}>
           <div style={{ fontWeight: 600, color: 'var(--gray-900)', marginBottom: '4px', fontSize: '11px' }}>{title}</div>
           <div>{text}</div>
@@ -239,11 +242,12 @@ function KpiBarLower({ current, target, max, isBottleneck, isWarn }: { current: 
 }
 
 // ── KPI Pyramid ────────────────────────────────────────────────────────────
-function KPIPyramid({ calcResult, answers, totalLoss, financialBottleneck }: {
+function KPIPyramid({ calcResult, answers, totalLoss, financialBottleneck, liveBenchmarks }: {
   calcResult: CalcResult
   answers: Answers
   totalLoss: number
   financialBottleneck: string | null
+  liveBenchmarks?: LiveBenchmarkData | null
 }) {
   if (totalLoss === 0) return null
 
@@ -311,7 +315,7 @@ function KPIPyramid({ calcResult, answers, totalLoss, financialBottleneck }: {
           bar={<KpiBarHigher current={utilPct} target={85} max={100} isBottleneck={isUtilBn} isWarn={utilWarn} />}
           gap={utilWarn ? `−${85 - utilPct} pp below target` : 'on target'}
           gapColor={kpiColor(isUtilBn, utilWarn)}
-          benchmark={benchmarkTag('utilisation')}
+          benchmark={liveBenchmarkTag('utilisation', liveBenchmarks ?? null)}
         />
         <KpiBox
           label="Turnaround Time"
@@ -322,7 +326,7 @@ function KPIPyramid({ calcResult, answers, totalLoss, financialBottleneck }: {
           bar={<KpiBarLowerOverlay current={calcResult.ta} target={calcResult.TARGET_TA} isBottleneck={isTaBn} />}
           gap={taWarn ? `+${calcResult.ta - calcResult.TARGET_TA} min over target` : 'on target'}
           gapColor={kpiColor(isTaBn, taWarn)}
-          benchmark={benchmarkTag('turnaround')}
+          benchmark={liveBenchmarkTag('turnaround', liveBenchmarks ?? null)}
         />
       </div>
 
@@ -340,7 +344,7 @@ function KPIPyramid({ calcResult, answers, totalLoss, financialBottleneck }: {
           bar={<KpiBarLower current={calcResult.rejectPct} target={3} max={Math.max(calcResult.rejectPct * 1.5, 6)} isBottleneck={isRejectBn} isWarn={rejectWarn} />}
           gap={rejectWarn ? `+${Math.round(calcResult.rejectPct - 3)} pp over target` : 'on target'}
           gapColor={kpiColor(isRejectBn, rejectWarn)}
-          benchmark={benchmarkTag('rejection')}
+          benchmark={liveBenchmarkTag('rejection', liveBenchmarks ?? null)}
         />
         {dispTime !== null ? (
           <KpiBox
@@ -353,7 +357,7 @@ function KPIPyramid({ calcResult, answers, totalLoss, financialBottleneck }: {
             bar={<KpiBarLowerOverlay current={dispTime} target={15} isBottleneck={isDispBn} />}
             gap={dispWarn ? `+${dispTime - 15} min over target` : 'on target'}
             gapColor={kpiColor(isDispBn, dispWarn)}
-            benchmark={benchmarkTag('dispatch')}
+            benchmark={liveBenchmarkTag('dispatch', liveBenchmarks ?? null)}
           />
         ) : (
           <KpiBox label="Dispatch Time" value="—" target="target 15 min" isBottleneck={false} isWarn={false} size="small" bar={null} gap="" gapColor="var(--gray-400)" />
@@ -368,7 +372,7 @@ function KPIPyramid({ calcResult, answers, totalLoss, financialBottleneck }: {
           bar={delPerTruck > 0 && targetDelPerTruck > 0 ? <KpiBarHigher current={delPerTruck} target={targetDelPerTruck} max={targetDelPerTruck * 1.1} isBottleneck={false} isWarn={delWarn} /> : null}
           gap={delWarn && targetDelPerTruck > 0 ? `−${Math.round(targetDelPerTruck - delPerTruck)} per day` : ''}
           gapColor={kpiColor(false, delWarn)}
-          benchmark={benchmarkTag('deliveriesPerTruck')}
+          benchmark={liveBenchmarkTag('deliveriesPerTruck', liveBenchmarks ?? null)}
         />
       </div>
     </div>
@@ -853,13 +857,15 @@ function FinancialHeadline({ totalLoss, dailyLoss, calcResult }: {
 }
 
 // ── Impact Hook ────────────────────────────────────────────────────────────
-function ImpactHook({ bnLoss, bnDailyLoss, calcResult, issues, financialBottleneck }: {
+function ImpactHook({ bnLoss, bnDailyLoss, calcResult, issues, financialBottleneck, liveBenchmarks }: {
   bnLoss: number
   bnDailyLoss: number
   calcResult: CalcResult
   issues: Issue[]
   financialBottleneck: string | null
+  liveBenchmarks?: LiveBenchmarkData | null
 }) {
+  const isMobile = useIsMobile()
   if (calcResult.overall === null) {
     return (
       <div style={{
@@ -914,15 +920,15 @@ function ImpactHook({ bnLoss, bnDailyLoss, calcResult, issues, financialBottlene
     <div style={{
       border: '1.5px solid #f0f0ee', borderRadius: '12px',
       overflow: 'hidden', marginBottom: '16px',
-      display: 'grid', gridTemplateColumns: '3fr 2fr',
+      display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '3fr 2fr',
     }}>
       {/* Left — Estimated revenue leakage */}
-      <div style={{ padding: '24px', background: '#ffe0e0', borderRight: '1px solid #f5c6c6' }}>
+      <div style={{ padding: isMobile ? '16px' : '24px', background: '#ffe0e0', borderRight: isMobile ? 'none' : '1px solid #f5c6c6', borderBottom: isMobile ? '1px solid #f5c6c6' : 'none' }}>
         <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.4px', textTransform: 'uppercase', color: '#c0a0a0', marginBottom: '8px' }}>
           {calcResult.demandSufficient === false ? 'Margin improvement potential' : 'Estimated revenue leakage'}
         </div>
-        <div style={{ fontSize: '48px', fontWeight: 800, color: '#cc3333', lineHeight: 1, letterSpacing: '-1px', marginBottom: '4px' }}>
-          {fmtK(bnLoss)}<span style={{ fontSize: '20px', fontWeight: 500, color: '#e88', marginLeft: '8px' }}>/ month</span>
+        <div style={{ fontSize: isMobile ? '32px' : '48px', fontWeight: 800, color: '#cc3333', lineHeight: 1, letterSpacing: '-1px', marginBottom: '4px' }}>
+          {fmtK(bnLoss)}<span style={{ fontSize: isMobile ? '15px' : '20px', fontWeight: 500, color: '#e88', marginLeft: '8px' }}>/ month</span>
         </div>
         <div style={{ fontSize: '13px', color: '#c09090', marginBottom: '16px' }}>
           ≈ {fmtK(bnDailyLoss)} per day
@@ -935,10 +941,26 @@ function ImpactHook({ bnLoss, bnDailyLoss, calcResult, issues, financialBottlene
         {driverMetric && (
           <div style={{ fontSize: '12px', color: '#aaa' }}>{driverMetric}</div>
         )}
+        {liveBenchmarks && liveBenchmarks.n >= 3 && (() => {
+          // Show relevant benchmark for the primary bottleneck
+          const bTag = financialBottleneck === 'Fleet'
+            ? `${liveBenchmarks.n} comparable plants — median: ${liveBenchmarks.turnaround.p50} min · top 25%: ${liveBenchmarks.turnaround.p25} min`
+            : financialBottleneck === 'Dispatch'
+            ? `${liveBenchmarks.n} comparable plants — median: ${liveBenchmarks.dispatch.p50} min · top 25%: ${liveBenchmarks.dispatch.p25} min`
+            : financialBottleneck === 'Quality'
+            ? `${liveBenchmarks.n} comparable plants — median: ${liveBenchmarks.reject.p50}% · top 25%: ${liveBenchmarks.reject.p25}%`
+            : null
+          if (!bTag) return null
+          return (
+            <div style={{ fontSize: '11px', color: '#bbb', marginTop: '6px', borderTop: '1px solid #f5c6c6', paddingTop: '6px', fontStyle: 'italic' }}>
+              {bTag}
+            </div>
+          )
+        })()}
       </div>
 
       {/* Right — Recoverable revenue */}
-      <div style={{ padding: '24px', background: '#f6fbf8' }}>
+      <div style={{ padding: isMobile ? '16px' : '24px', background: '#f6fbf8' }}>
         <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.4px', textTransform: 'uppercase', color: '#7ab89a', marginBottom: '8px' }}>
           Recoverable revenue
         </div>
@@ -1431,6 +1453,7 @@ function StartHereCard({ calcResult, issues, totalLoss, financialBottleneck, onS
   financialBottleneck: string | null
   onSwitchToTracking?: () => void
 }) {
+  const isMobile = useIsMobile()
   if (totalLoss === 0 || calcResult.overall === null) return null
   const topIssue = [...issues].filter(i => i.loss > 0).sort((a, b) => b.loss - a.loss)[0]
   if (!topIssue) return null
@@ -1470,7 +1493,7 @@ function StartHereCard({ calcResult, issues, totalLoss, financialBottleneck, onS
           {topIssue.rec ? ` — ${topIssue.rec}` : ''}
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '16px' }}>
           {topIssue.action && (
             <div>
               <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase', color: '#9b9b9b', marginBottom: '5px' }}>
@@ -1591,6 +1614,7 @@ function RecoveryBreakdown({ calcResult }: { calcResult: CalcResult }) {
 
 // ── Metrics Snapshot ───────────────────────────────────────────────────────
 function MetricsSnapshot({ calcResult, answers }: { calcResult: CalcResult; answers: Answers }) {
+  const isMobile = useIsMobile()
   if (calcResult.overall === null) return null
 
   const dispTimeMap: Record<string, number> = {
@@ -1641,7 +1665,7 @@ function MetricsSnapshot({ calcResult, answers }: { calcResult: CalcResult; answ
       <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#9b9b9b', marginBottom: '8px', paddingLeft: '2px' }}>
         Metrics snapshot
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: '6px' }}>
         {metrics.map(m => {
           const s = metricStyle(m.status)
           return (
@@ -1734,6 +1758,80 @@ function NextImprovements({ issues }: { issues: Issue[] }) {
       {expanded && actionIssues.map((issue, i) => (
         <ActionRow key={i} issue={issue} num={i + 1} isLast={i === actionIssues.length - 1} />
       ))}
+    </div>
+  )
+}
+
+// ── Indicative notice ─────────────────────────────────────────────────────
+function IndicativeNotice() {
+  const gaps = [
+    {
+      label: 'Dosing and batch variance',
+      detail: 'Requires batcher computer log — uncalibrated scales drift ±3–8% on cement dosing, invisible without the raw data.',
+    },
+    {
+      label: 'Actual truck idle and yard time',
+      detail: 'Self-reported turnaround typically underestimates plant waiting time by 15–25%. Verified with GPS trace or timed observation.',
+    },
+    {
+      label: 'Site wait time vs delivery ticket',
+      detail: 'Reported site wait often differs from timestamped delivery receipts. Discrepancies reveal whether demurrage is enforceable.',
+    },
+    {
+      label: 'Water additions at site',
+      detail: 'Free water added by crews before discharge is the most common cause of strength failures and rejections — never captured in self-reporting.',
+    },
+    {
+      label: 'Mix design cement content',
+      detail: 'Whether current designs carry excess cement vs. optimised benchmarks — requires lab records and batcher log comparison.',
+    },
+    {
+      label: 'Return mortar volume',
+      detail: 'Actual waste per trip verified via weighbridge tare. Driver estimates typically run 30–50% below the true figure.',
+    },
+  ]
+
+  return (
+    <div style={{ marginBottom: '16px', border: '1px solid #e8e8e6', borderRadius: '12px', overflow: 'hidden' }}>
+      <div style={{
+        padding: '13px 20px', borderBottom: '1px solid #e8e8e6',
+        display: 'flex', alignItems: 'center', gap: '10px',
+      }}>
+        <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#f59e0b', flexShrink: 0 }} />
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: '13px', fontWeight: 600, color: '#1a1a1a' }}>
+            Indicative assessment — based on reported data
+          </span>
+          <span style={{ fontSize: '11px', color: '#999' }}>
+            6 data points require physical verification
+          </span>
+        </div>
+      </div>
+      <div>
+        {gaps.map((gap, i) => (
+          <div key={i} style={{
+            display: 'flex', alignItems: 'flex-start', gap: '12px',
+            padding: '10px 20px',
+            borderBottom: i < gaps.length - 1 ? '1px solid #f5f5f3' : 'none',
+          }}>
+            <div style={{
+              width: '5px', height: '5px', borderRadius: '50%',
+              background: '#d1d1ce', flexShrink: 0, marginTop: '7px',
+            }} />
+            <div style={{ fontSize: '12px', lineHeight: 1.5, color: '#555' }}>
+              <span style={{ fontWeight: 600, color: '#333' }}>{gap.label} — </span>
+              {gap.detail}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div style={{
+        padding: '11px 20px', background: '#fafaf9',
+        borderTop: '1px solid #e8e8e6',
+        fontSize: '12px', color: '#888', lineHeight: 1.5,
+      }}>
+        A physical assessment verifies these figures directly — typically closing the gap between indicative and actual loss by 20–40%.
+      </div>
     </div>
   )
 }
@@ -1858,6 +1956,7 @@ function FullReportDrawer({
   logisticsText, gpsAvgTA,
   totalLoss, isAdmin, phase, financialBottleneck,
 }: FullReportDrawerProps) {
+  const isMobile = useIsMobile()
   const plantName = meta?.plant || 'Full Report'
   const dateStr = meta?.date || ''
 
@@ -1878,7 +1977,7 @@ function FullReportDrawer({
       {/* Drawer panel — always in DOM, slides in/out */}
       <div style={{
         position: 'fixed', top: 0, right: 0, bottom: 0,
-        width: '65%', maxWidth: '900px',
+        width: isMobile ? '100%' : '65%', maxWidth: isMobile ? '100%' : '900px',
         background: 'var(--white)',
         boxShadow: '-8px 0 32px rgba(0,0,0,0.15)',
         zIndex: 200,
@@ -1931,7 +2030,7 @@ function FullReportDrawer({
         </div>
 
         {/* Body (scrollable) */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px' }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '16px' : '24px 28px' }}>
           {genError && (
             <div style={{
               background: 'var(--error-bg)', border: '1px solid var(--error-border)',
@@ -1961,16 +2060,16 @@ function FullReportDrawer({
               <div style={{ marginBottom: '24px' }}>
                 {/* 3-col header */}
                 <div style={{
-                  display: 'grid', gridTemplateColumns: '1fr 1fr 1fr',
+                  display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr',
                   border: '1.5px solid #e8e8e6', borderRadius: '10px 10px 0 0',
                   overflow: 'hidden',
                 }}>
-                  <div style={{ padding: '16px 20px', background: '#f6fbf8', borderRight: '1px solid #e8e8e6' }}>
+                  <div style={{ padding: '16px 20px', background: '#f6fbf8', borderRight: isMobile ? 'none' : '1px solid #e8e8e6', borderBottom: isMobile ? '1px solid #e8e8e6' : 'none' }}>
                     <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.3px', textTransform: 'uppercase', color: '#7ab89a', marginBottom: '4px' }}>Operational Score</div>
                     <div style={{ fontSize: '36px', fontWeight: 800, color: '#1a6644', lineHeight: 1, letterSpacing: '-1px' }}>{calcResult.overall}</div>
                     <div style={{ fontSize: '10px', color: '#9b9b9b', marginTop: '2px' }}>out of 100</div>
                   </div>
-                  <div style={{ padding: '16px 20px', background: '#fff5f5', borderRight: '1px solid #e8e8e6' }}>
+                  <div style={{ padding: '16px 20px', background: '#fff5f5', borderRight: isMobile ? 'none' : '1px solid #e8e8e6', borderBottom: isMobile ? '1px solid #e8e8e6' : 'none' }}>
                     <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.3px', textTransform: 'uppercase', color: '#c0a0a0', marginBottom: '4px' }}>Total recoverable</div>
                     <div style={{ fontSize: '28px', fontWeight: 800, color: '#cc3333', lineHeight: 1, letterSpacing: '-1px' }}>{fmtK(totalLoss)}</div>
                     <div style={{ fontSize: '10px', color: '#c09090', marginTop: '2px' }}>per month</div>
@@ -2480,6 +2579,7 @@ function ScoreGrid({ calcResult, financialBottleneck, issues, onSwitchToTracking
   issues: Issue[]
   onSwitchToTracking?: () => void
 }) {
+  const isMobile = useIsMobile()
   if (calcResult.overall === null) return null
 
   const dims = [
@@ -2660,9 +2760,9 @@ function ScoreGrid({ calcResult, financialBottleneck, issues, onSwitchToTracking
         </div>
       )}
 
-      {/* Other scores — muted, 3 columns */}
+      {/* Other scores — muted, capped at 2 cols on mobile */}
       {others.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${others.length}, 1fr)`, gap: '8px', marginBottom: '8px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : `repeat(${Math.min(others.length, 3)}, 1fr)`, gap: '8px', marginBottom: '8px' }}>
           {others.map(d => (
             <div key={d.key} style={{
               background: '#f9faf9', border: '1px solid #e8e8e6', borderRadius: '12px',
@@ -2685,6 +2785,7 @@ function WhyAndStartHere({ issues, totalLoss, calcResult, onSwitchToTracking }: 
   calcResult: CalcResult
   onSwitchToTracking?: () => void
 }) {
+  const isMobile = useIsMobile()
   if (totalLoss === 0 || calcResult.overall === null) return null
 
   const actionIssues = [...issues].filter(i => i.loss > 0).sort((a, b) => b.loss - a.loss)
@@ -2700,10 +2801,10 @@ function WhyAndStartHere({ issues, totalLoss, calcResult, onSwitchToTracking }: 
       background: '#fff', border: '1px solid #e8e8e6',
       borderRadius: '12px', overflow: 'hidden', marginBottom: '16px',
     }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr' }}>
 
         {/* Left: WHY THIS HAPPENS */}
-        <div style={{ padding: '20px 24px', borderRight: '1px solid #f0f0ee' }}>
+        <div style={{ padding: isMobile ? '16px 18px' : '20px 24px', borderRight: isMobile ? 'none' : '1px solid #f0f0ee', borderBottom: isMobile ? '1px solid #f0f0ee' : 'none' }}>
           <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.4px', textTransform: 'uppercase', color: '#b0b0b0', marginBottom: '16px' }}>
             Why this happens
           </div>
@@ -2721,7 +2822,7 @@ function WhyAndStartHere({ issues, totalLoss, calcResult, onSwitchToTracking }: 
         </div>
 
         {/* Right: START HERE */}
-        <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ padding: isMobile ? '16px 18px' : '20px 24px', display: 'flex', flexDirection: 'column' }}>
           <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.4px', textTransform: 'uppercase', color: '#b0b0b0', marginBottom: '16px' }}>
             Start here — next 7 days
           </div>
@@ -2760,6 +2861,7 @@ function SimulatorDrawer({ open, onClose, calcResult }: {
   onClose: () => void
   calcResult: CalcResult
 }) {
+  const isMobile = useIsMobile()
   return (
     <>
       {open && (
@@ -2770,7 +2872,7 @@ function SimulatorDrawer({ open, onClose, calcResult }: {
       )}
       <div style={{
         position: 'fixed', top: 0, right: 0, bottom: 0,
-        width: '420px',
+        width: isMobile ? '100%' : '420px',
         background: 'var(--white)',
         boxShadow: '-8px 0 32px rgba(0,0,0,0.12)',
         zIndex: 200,
@@ -2821,9 +2923,11 @@ interface ReportViewProps {
   onOverrideChange?: (o: CalcOverrides) => void
   phase?: Phase
   onSwitchToTracking?: () => void
+  demoBanner?: DemoBannerProps
 }
 
-export default function ReportView({ calcResult, answers, meta, report, assessmentId, reportReleased, isAdmin, overrides, onOverrideChange, phase, onSwitchToTracking }: ReportViewProps) {
+export default function ReportView({ calcResult, answers, meta, report, assessmentId, reportReleased, isAdmin, overrides, onOverrideChange, phase, onSwitchToTracking, demoBanner }: ReportViewProps) {
+  const isMobile = useIsMobile()
   const supabase = createClient()
   const issues = buildIssues(calcResult, answers, meta)
   const financialBottleneck = getFinancialBottleneck(issues)
@@ -2841,6 +2945,9 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
     ? issues.filter(i => i.dimension === financialBottleneck).reduce((sum, i) => sum + (i.loss ?? 0), 0)
     : 0
   const bnDailyLoss = Math.round(bnLoss / (calcResult.workingDaysMonth || 22))
+
+  // ── Live benchmark data ──────────────────────────────────────────────────
+  const liveBenchmarks = useBenchmarks(calcResult, assessmentId)
 
   // ── AI section state ─────────────────────────────────────────────────────
   const [texts, setTexts] = useState({
@@ -2899,6 +3006,9 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
     targetTA: calcResult.TARGET_TA,
     dispatchMin: calcResult.dispatchMin,
     rejectPct: Math.round(calcResult.rejectPct),
+    rejectPlantFraction:    Math.round(calcResult.rejectPlantFraction * 100),
+    rejectPlantSideLoss:    calcResult.rejectPlantSideLoss,
+    rejectCustomerSideLoss: calcResult.rejectCustomerSideLoss,
     trucks: calcResult.trucks,
     cap: calcResult.cap,
     performingWell: totalLoss === 0 && issues.length === 0 && calcResult.overall !== null,
@@ -2907,6 +3017,9 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
       loss: i.loss, sev: i.sev, category: i.category, formula: i.formula, dimension: i.dimension,
     })),
     answers,
+    // Segmentation buckets — used server-side for benchmark percentile lookup
+    radiusBucket: calcResult.radius < 10 ? 'short' : calcResult.radius <= 20 ? 'medium' : 'long',
+    fleetBucket:  calcResult.trucks <= 5 ? 'small' : calcResult.trucks <= 15 ? 'medium' : 'large',
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [assessmentId, calcResult, answers, meta])
 
@@ -2921,16 +3034,16 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
     }, { onConflict: 'assessment_id' })
   }, [assessmentId, supabase])
 
-  const generate = useCallback(async (section: string) => {
+  const generate = useCallback(async (section: string, demoOverride = false) => {
     setGenerating(section)
-    setGenError(null)  // clear previous error
+    setGenError(null)
     setTexts(prev => ({ ...prev, [section]: '' }))
 
     try {
       const resp = await fetch('/api/generate-report', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ assessmentId, type: section, context: aiContext }),
+        body: JSON.stringify({ assessmentId, type: section, context: aiContext, ...(demoOverride && { demoOverride: true }) }),
       })
       if (!resp.ok) {
         let detail = ''
@@ -2954,15 +3067,14 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error'
       setGenError(`Failed to generate ${section}: ${msg}`)
-      // Don't auto-dismiss — keep visible until next attempt
     }
 
     setGenerating(null)
   }, [assessmentId, aiContext])
 
-  const generateAll = useCallback(async () => {
+  const generateAll = useCallback(async (demoOverride = false) => {
     for (const section of ['executive', 'diagnosis', 'actions']) {
-      await generate(section)
+      await generate(section, demoOverride)
     }
   }, [generate])
 
@@ -2973,10 +3085,83 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
   )
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto', padding: '20px', paddingBottom: '60px' }}>
+    <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '12px' : '20px', paddingBottom: '60px' }}>
+
+      {/* Demo regenerate banner — shown when user edits answers away from defaults */}
+      {demoBanner?.show && (
+        <div style={{
+          marginBottom: '16px',
+          border: '1px solid #fcd34d',
+          background: '#fffbeb',
+          borderRadius: '10px',
+          padding: '12px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '16px',
+          flexWrap: 'wrap',
+        }}>
+          <div>
+            <div style={{ fontSize: '13px', fontWeight: 600, color: '#92400e' }}>
+              You&apos;ve updated the plant data.
+            </div>
+            <div style={{ fontSize: '12px', color: '#b45309', marginTop: '2px' }}>
+              Regenerate the report to see findings based on your inputs.
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+            <button
+              type="button"
+              onClick={demoBanner.onReset}
+              style={{
+                fontSize: '12px', color: '#92400e', background: 'none', border: 'none',
+                cursor: 'pointer', textDecoration: 'underline', fontFamily: 'var(--font)',
+                textDecorationColor: '#fbbf24',
+              }}
+            >
+              Reset answers
+            </button>
+            {demoBanner.regenCount < demoBanner.maxRegen ? (
+              <button
+                type="button"
+                disabled={generating !== null}
+                onClick={async () => {
+                  await generateAll(true)
+                  demoBanner.onRegenerate()
+                }}
+                style={{
+                  fontSize: '12px', fontWeight: 600,
+                  color: generating !== null ? '#92400e' : '#fff',
+                  background: generating !== null ? 'transparent' : '#d97706',
+                  border: generating !== null ? '1px solid #fcd34d' : 'none',
+                  borderRadius: '7px', padding: '7px 14px',
+                  cursor: generating !== null ? 'not-allowed' : 'pointer',
+                  fontFamily: 'var(--font)',
+                  transition: 'background 0.15s',
+                }}
+              >
+                {generating !== null ? 'Generating…' : 'Regenerate report →'}
+              </button>
+            ) : (
+              <button
+                type="button"
+                disabled
+                style={{
+                  fontSize: '12px', fontWeight: 500,
+                  color: '#9ca3af', background: '#f3f4f6',
+                  border: '1px solid #e5e7eb', borderRadius: '7px',
+                  padding: '7px 14px', cursor: 'not-allowed', fontFamily: 'var(--font)',
+                }}
+              >
+                Regenerate limit reached for this session
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Top bar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           {isAdmin && !reportReleased && (
             <span style={{ fontSize: '11px', color: 'var(--warning-dark)', background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', borderRadius: '4px', padding: '3px 8px', fontWeight: 500 }}>
@@ -2984,7 +3169,7 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
             </span>
           )}
         </div>
-        <div style={{ display: 'flex', gap: '8px' }}>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           {hasSliders && (
             <button
               type="button"
@@ -3053,10 +3238,25 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
         calcResult={calcResult}
         issues={issues}
         financialBottleneck={financialBottleneck}
+        liveBenchmarks={liveBenchmarks}
       />
 
       {/* 3. SCORE GRID */}
       <ScoreGrid calcResult={calcResult} financialBottleneck={financialBottleneck} issues={issues} onSwitchToTracking={onSwitchToTracking} />
+
+      {/* 4. WHY THIS HAPPENS + START HERE */}
+      <WhyAndStartHere
+        issues={issues}
+        totalLoss={totalLoss}
+        calcResult={calcResult}
+        onSwitchToTracking={onSwitchToTracking}
+      />
+
+      {/* 5. NEXT IMPROVEMENTS (collapsed) */}
+      <NextImprovements issues={issues} />
+
+      {/* 6. INDICATIVE NOTICE */}
+      <IndicativeNotice />
 
       {/* Full report CTA */}
       {calcResult.overall !== null && (
@@ -3074,17 +3274,6 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
           </button>
         </div>
       )}
-
-      {/* 4. WHY THIS HAPPENS + START HERE */}
-      <WhyAndStartHere
-        issues={issues}
-        totalLoss={totalLoss}
-        calcResult={calcResult}
-        onSwitchToTracking={onSwitchToTracking}
-      />
-
-      {/* 5. NEXT IMPROVEMENTS (collapsed) */}
-      <NextImprovements issues={issues} />
 
       {/* Pre-assessment cards (workshop phase) */}
       {phase === 'workshop' && totalLoss > 0 && (

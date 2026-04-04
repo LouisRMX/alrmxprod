@@ -1,11 +1,23 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import AssessmentShell from '@/components/assessment/AssessmentShell'
 import type { Answers } from '@/lib/calculations'
 import type { Phase } from '@/lib/questions'
+import { useIsMobile } from '@/hooks/useIsMobile'
+
+// Compare two answer maps — returns true when every key matches
+function answersMatchDefaults(current: Answers, defaults: Answers): boolean {
+  const allKeys = Array.from(new Set(Object.keys(current).concat(Object.keys(defaults))))
+  for (const k of allKeys) {
+    const cv = current[k] ?? ''
+    const dv = defaults[k] ?? ''
+    if (cv !== dv) return false
+  }
+  return true
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Demo dataset: Al-Noor RMX, Dubai
@@ -173,7 +185,42 @@ export default function DemoView() {
   const supabase = createClient()
   const [demoPhase, setDemoPhase] = useState<DemoPhase>('workshop')
 
+  // ── Demo regeneration state ─────────────────────────────────────────────
+  const [demoAnswersModified, setDemoAnswersModified] = useState(false)
+  const [regenCount, setRegenCount] = useState(0)
+  // demoKey forces a full AssessmentShell remount on reset, restoring defaults
+  const [demoKey, setDemoKey] = useState(0)
+
+  // Reset modified flag whenever the phase switches — new phase starts clean
+  useEffect(() => {
+    setDemoAnswersModified(false)
+  }, [demoPhase])
+
+  const currentDefaults = demoPhase === 'workshop' ? WORKSHOP_ANSWERS : ONSITE_ANSWERS
+
+  const handleAnswersChange = useCallback((answers: Answers) => {
+    setDemoAnswersModified(!answersMatchDefaults(answers, currentDefaults))
+  }, [currentDefaults])
+
+  const handleReset = useCallback(() => {
+    setDemoKey(k => k + 1)
+    setDemoAnswersModified(false)
+  }, [])
+
+  const demoBanner = {
+    show: demoAnswersModified,
+    regenCount,
+    maxRegen: 3,
+    onRegenerate: () => {
+      setRegenCount(c => c + 1)
+      setDemoAnswersModified(false)
+    },
+    onReset: handleReset,
+  }
+  // ────────────────────────────────────────────────────────────────────────
+
   const cfg = PHASE_CONFIG[demoPhase]
+  const isMobile = useIsMobile()
 
   async function handleSignOut() {
     await supabase.auth.signOut()
@@ -185,86 +232,136 @@ export default function DemoView() {
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--gray-50)' }}>
 
       {/* Top bar */}
-      <div style={{
-        background: 'var(--green)', padding: '0 16px',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        height: '44px', flexShrink: 0, gap: '12px',
-      }}>
-        {/* Left: logo + phase badge */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+      {isMobile ? (
+        <div style={{ background: 'var(--green)', flexShrink: 0 }}>
+          {/* Row 1: logo + sign out */}
           <div style={{
-            width: '28px', height: '28px', borderRadius: '8px', flexShrink: 0,
-            background: 'rgba(255,255,255,0.15)', display: 'flex',
-            alignItems: 'center', justifyContent: 'center',
+            padding: '0 12px', display: 'flex', alignItems: 'center',
+            justifyContent: 'space-between', height: '44px',
           }}>
-            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#5DCAA5' }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{
+                width: '26px', height: '26px', borderRadius: '7px', flexShrink: 0,
+                background: 'rgba(255,255,255,0.15)', display: 'flex',
+                alignItems: 'center', justifyContent: 'center',
+              }}>
+                <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#5DCAA5' }} />
+              </div>
+              <span style={{ color: '#fff', fontSize: '14px', fontWeight: 600 }}>Al-RMX</span>
+              <span style={{
+                fontSize: '9px', fontWeight: 700, letterSpacing: '.4px',
+                color: cfg.badgeColor, background: cfg.badgeBg,
+                padding: '2px 6px', borderRadius: '3px',
+              }}>
+                {cfg.badge}
+              </span>
+            </div>
+            <button onClick={handleSignOut} style={{
+              fontSize: '11px', color: 'rgba(255,255,255,0.7)',
+              background: 'none', border: '1px solid rgba(255,255,255,0.25)',
+              borderRadius: '5px', padding: '4px 9px', cursor: 'pointer', fontFamily: 'var(--font)',
+            }}>
+              Sign out
+            </button>
           </div>
-          <span style={{ color: '#fff', fontSize: '15px', fontWeight: '500', flexShrink: 0 }}>Al-RMX</span>
-          <span style={{
-            fontSize: '10px', fontWeight: 700, letterSpacing: '.5px',
-            color: cfg.badgeColor, background: cfg.badgeBg,
-            padding: '2px 7px', borderRadius: '4px', flexShrink: 0,
-          }}>
-            {cfg.badge}
-          </span>
-          <span style={{
-            fontSize: '12px', color: 'rgba(255,255,255,0.45)',
-            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-          }}>
-            Al-Noor RMX · Dubai
-          </span>
+          {/* Row 2: phase switch full width */}
+          <div style={{ padding: '0 12px 8px' }}>
+            <button
+              onClick={() => setDemoPhase(p => p === 'workshop' ? 'onsite' : 'workshop')}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)',
+                borderRadius: '6px', padding: '7px 14px', cursor: 'pointer', fontFamily: 'var(--font)',
+              }}
+            >
+              <span style={{ fontSize: '12px', fontWeight: 600, color: '#fff' }}>{cfg.buttonLabel}</span>
+              <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.5)' }}>{cfg.buttonSub}</span>
+            </button>
+          </div>
         </div>
-
-        {/* Centre: phase switch button */}
-        <button
-          onClick={() => setDemoPhase(p => p === 'workshop' ? 'onsite' : 'workshop')}
-          style={{
-            display: 'flex', flexDirection: 'column', alignItems: 'center',
-            background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)',
-            borderRadius: '6px', padding: '4px 14px', cursor: 'pointer',
-            fontFamily: 'var(--font)', flexShrink: 0,
-          }}
-        >
-          <span style={{ fontSize: '12px', fontWeight: 600, color: '#fff' }}>{cfg.buttonLabel}</span>
-          <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.5)', marginTop: '1px' }}>{cfg.buttonSub}</span>
-        </button>
-
-        {/* Right: nav buttons */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-          <button onClick={() => router.push('/dashboard')} style={{
-            fontSize: '12px', color: 'rgba(255,255,255,0.7)',
-            background: 'none', border: '1px solid rgba(255,255,255,0.2)',
-            borderRadius: '6px', padding: '4px 10px', cursor: 'pointer', fontFamily: 'var(--font)',
-          }}>
-            Platform
+      ) : (
+        <div style={{
+          background: 'var(--green)', padding: '0 16px',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          height: '44px', flexShrink: 0, gap: '12px',
+        }}>
+          {/* Left: logo + phase badge */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+            <div style={{
+              width: '28px', height: '28px', borderRadius: '8px', flexShrink: 0,
+              background: 'rgba(255,255,255,0.15)', display: 'flex',
+              alignItems: 'center', justifyContent: 'center',
+            }}>
+              <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#5DCAA5' }} />
+            </div>
+            <span style={{ color: '#fff', fontSize: '15px', fontWeight: '500', flexShrink: 0 }}>Al-RMX</span>
+            <span style={{
+              fontSize: '10px', fontWeight: 700, letterSpacing: '.5px',
+              color: cfg.badgeColor, background: cfg.badgeBg,
+              padding: '2px 7px', borderRadius: '4px', flexShrink: 0,
+            }}>
+              {cfg.badge}
+            </span>
+            <span style={{
+              fontSize: '12px', color: 'rgba(255,255,255,0.45)',
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}>
+              Al-Noor RMX · Dubai
+            </span>
+          </div>
+          {/* Centre: phase switch button */}
+          <button
+            onClick={() => setDemoPhase(p => p === 'workshop' ? 'onsite' : 'workshop')}
+            style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center',
+              background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)',
+              borderRadius: '6px', padding: '4px 14px', cursor: 'pointer',
+              fontFamily: 'var(--font)', flexShrink: 0,
+            }}
+          >
+            <span style={{ fontSize: '12px', fontWeight: 600, color: '#fff' }}>{cfg.buttonLabel}</span>
+            <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.5)', marginTop: '1px' }}>{cfg.buttonSub}</span>
           </button>
-          <button onClick={handleSignOut} style={{
-            fontSize: '12px', color: 'rgba(255,255,255,0.7)',
-            background: 'none', border: '1px solid rgba(255,255,255,0.2)',
-            borderRadius: '6px', padding: '4px 10px', cursor: 'pointer', fontFamily: 'var(--font)',
-          }}>
-            Sign out
-          </button>
+          {/* Right: nav buttons */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+            <button onClick={() => router.push('/dashboard')} style={{
+              fontSize: '12px', color: 'rgba(255,255,255,0.7)',
+              background: 'none', border: '1px solid rgba(255,255,255,0.2)',
+              borderRadius: '6px', padding: '4px 10px', cursor: 'pointer', fontFamily: 'var(--font)',
+            }}>
+              Platform
+            </button>
+            <button onClick={handleSignOut} style={{
+              fontSize: '12px', color: 'rgba(255,255,255,0.7)',
+              background: 'none', border: '1px solid rgba(255,255,255,0.2)',
+              borderRadius: '6px', padding: '4px 10px', cursor: 'pointer', fontFamily: 'var(--font)',
+            }}>
+              Sign out
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Phase context banner */}
       <div style={{
         background: demoPhase === 'workshop' ? '#EFF6FF' : '#F0FDF4',
         borderBottom: `1px solid ${demoPhase === 'workshop' ? '#BFDBFE' : '#BBF7D0'}`,
-        padding: '8px 20px', fontSize: '12px',
+        padding: isMobile ? '7px 12px' : '8px 20px', fontSize: '12px',
         color: demoPhase === 'workshop' ? '#1E40AF' : '#166534',
-        display: 'flex', alignItems: 'center', gap: '10px',
+        display: 'flex', alignItems: 'center', gap: '8px',
       }}>
-        <span style={{ fontSize: '16px' }}>{demoPhase === 'workshop' ? '📋' : '🏭'}</span>
-        <div>
-          <strong>{cfg.label}:</strong> {cfg.sublabel}
-          {demoPhase === 'workshop' && (
+        <span style={{ fontSize: '14px', flexShrink: 0 }}>{demoPhase === 'workshop' ? '📋' : '🏭'}</span>
+        <div style={{ minWidth: 0 }}>
+          <strong>{cfg.label}</strong>
+          {!isMobile && (
+            <span style={{ marginLeft: '6px', opacity: 0.7 }}>{cfg.sublabel}</span>
+          )}
+          {!isMobile && demoPhase === 'workshop' && (
             <span style={{ marginLeft: '12px', opacity: 0.7 }}>
               → Click <strong>Start on-site visit</strong> to see the full diagnostic
             </span>
           )}
-          {demoPhase === 'onsite' && (
+          {!isMobile && demoPhase === 'onsite' && (
             <span style={{ marginLeft: '12px', opacity: 0.7 }}>
               All data is live — edit any answer and the scores update instantly
             </span>
@@ -272,10 +369,10 @@ export default function DemoView() {
         </div>
       </div>
 
-      {/* Assessment shell — key forces full remount when phase switches */}
+      {/* Assessment shell — key forces full remount when phase switches or answers reset */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <AssessmentShell
-          key={demoPhase}
+          key={`${demoPhase}-${demoKey}`}
           initialAnswers={demoPhase === 'workshop' ? WORKSHOP_ANSWERS : ONSITE_ANSWERS}
           phase={cfg.phase}
           season="summer"
@@ -287,6 +384,8 @@ export default function DemoView() {
           reportReleased={demoPhase === 'onsite'}
           isAdmin={true}
           onSave={() => { /* no-op in demo */ }}
+          onAnswersChange={handleAnswersChange}
+          demoBanner={demoBanner}
         />
       </div>
     </div>

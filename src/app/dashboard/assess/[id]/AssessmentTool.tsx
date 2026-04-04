@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import AssessmentShell from '@/components/assessment/AssessmentShell'
 import type { Phase } from '@/lib/questions'
 import type { Answers, CalcScores } from '@/lib/calculations'
+import { useIsMobile } from '@/hooks/useIsMobile'
 
 interface Assessment {
   id: string
@@ -45,6 +46,7 @@ export default function AssessmentTool({
   const [requestedMode, setRequestedMode] = useState<string | undefined>()
   const savingRef = useRef(false)
   const pendingSaveRef = useRef<Parameters<typeof handleSave>[0] | null>(null)
+  const isMobile = useIsMobile()
 
   const assessmentPhase: Phase = phase === 'workshop' ? 'workshop'
     : phase === 'onsite' ? 'onsite'
@@ -106,6 +108,15 @@ export default function AssessmentTool({
     bottleneck: string | null
     ebitdaMonthly: number
     hiddenRevMonthly: number
+    benchmark?: {
+      radius: number
+      trucks: number
+      turnaroundMin: number
+      dispatchMin: number | null
+      rejectPct: number
+      delDay: number
+      utilPct: number
+    }
   }) => {
     // Queue if already saving — latest data will be saved when current save completes
     if (savingRef.current) {
@@ -133,6 +144,29 @@ export default function AssessmentTool({
       setTimeout(() => { setSaveError(false); handleSave(data) }, 3000)
     } else {
       setLastSaved(new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }))
+
+      // Write anonymized benchmark data when we have a valid score
+      if (data.overall !== null && data.benchmark) {
+        const b = data.benchmark
+        const rb = b.radius < 10 ? 'short' : b.radius <= 20 ? 'medium' : 'long'
+        const fb = b.trucks <= 5 ? 'small' : b.trucks <= 15 ? 'medium' : 'large'
+        // Fire-and-forget — non-fatal if this fails
+        supabase.from('plant_benchmarks').upsert({
+          assessment_id:            assessment.id,
+          radius_bucket:            rb,
+          fleet_bucket:             fb,
+          country:                  assessment.plant?.country ?? null,
+          turnaround_min:           b.turnaroundMin,
+          dispatch_min:             b.dispatchMin,
+          reject_pct:               b.rejectPct,
+          deliveries_per_truck_day: b.delDay,
+          util_pct:                 b.utilPct,
+          overall_score:            data.overall,
+          bottleneck:               data.bottleneck ?? null,
+        }, { onConflict: 'assessment_id' }).then(({ error: bErr }) => {
+          if (bErr) console.warn('[benchmark] upsert failed:', bErr.message)
+        })
+      }
     }
 
     savingRef.current = false
@@ -163,12 +197,17 @@ export default function AssessmentTool({
       {/* Save status bar */}
       <div style={{
         background: 'var(--white)', borderBottom: '1px solid var(--border)',
-        padding: '6px 16px', display: 'flex', alignItems: 'center',
-        justifyContent: 'space-between', fontSize: '11px', color: 'var(--gray-500)',
-        fontFamily: 'var(--mono)'
+        padding: isMobile ? '5px 12px' : '6px 16px',
+        display: 'flex', flexDirection: isMobile ? 'column' : 'row',
+        alignItems: isMobile ? 'stretch' : 'center',
+        justifyContent: 'space-between', gap: isMobile ? '4px' : 0,
+        fontSize: '11px', color: 'var(--gray-500)', fontFamily: 'var(--mono)',
       }}>
-        <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {assessment.plant?.name} — {assessment.plant?.country}
+        {/* Row 1: plant name + phase badge */}
+        <span style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <span style={{ color: 'var(--gray-700)', fontWeight: 500 }}>
+            {assessment.plant?.name}{!isMobile && ` — ${assessment.plant?.country}`}
+          </span>
           {phaseLabel && (
             <span style={{
               padding: '2px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: '600',
@@ -178,8 +217,10 @@ export default function AssessmentTool({
             </span>
           )}
         </span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          {isAdmin && (
+        {/* Row 2 (mobile) / right side (desktop): save state + admin actions */}
+        <span style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          {/* Admin buttons — hidden on mobile to keep bar clean */}
+          {isAdmin && !isMobile && (
             <>
               <button
                 onClick={toggleReportRelease}
@@ -221,7 +262,7 @@ export default function AssessmentTool({
               <span style={{ fontSize: '13px' }}>✓</span> Saved {lastSaved}
             </span>
           ) : (
-            <span style={{ color: 'var(--gray-300)' }}>Auto-saves to database</span>
+            <span style={{ color: 'var(--gray-300)' }}>Auto-saves</span>
           )}
         </span>
       </div>

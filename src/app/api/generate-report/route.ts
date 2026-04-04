@@ -8,6 +8,14 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
 })
 
+interface BenchmarkContext {
+  n: number
+  turnaround: { p25: number; p50: number; p75: number }
+  dispatch:   { p25: number; p50: number; p75: number }
+  reject:     { p25: number; p50: number; p75: number }
+  deliveries: { p50: number }
+}
+
 // 10 report generations per user per minute
 const RATE_LIMIT = { maxRequests: 10, windowSeconds: 60 }
 
@@ -33,13 +41,14 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  const { assessmentId, type, context } = await req.json()
+  const { assessmentId, type, context, demoOverride } = await req.json()
   if (!assessmentId || !type || !context) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   }
 
   // Demo mode: return fixed pre-written report text, no database access needed
-  if (assessmentId === 'demo') {
+  // Skip when demoOverride === true (user has changed inputs and wants a live generation)
+  if (assessmentId === 'demo' && !demoOverride) {
     const DEMO_TEXTS: Record<string, string> = {
       executive: `At 32 minutes, order-to-dispatch is more than double the 15-minute target — a gap of this size indicates the dispatch sequence is likely reactive rather than pre-planned, with trucks prepared after orders arrive rather than before.
 
@@ -101,18 +110,33 @@ This pre-assessment has established the financial picture based on what Al-Noor 
     return new Response(stream, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } })
   }
 
-  // Verify assessment exists and user has access
-  const { data: assessment } = await supabase
-    .from('assessments')
-    .select('id')
-    .eq('id', assessmentId)
-    .single()
+  // Verify assessment exists and user has access (skipped for demo override — no DB record)
+  if (assessmentId !== 'demo') {
+    const { data: assessment } = await supabase
+      .from('assessments')
+      .select('id')
+      .eq('id', assessmentId)
+      .single()
 
-  if (!assessment) return NextResponse.json({ error: 'Assessment not found' }, { status: 404 })
+    if (!assessment) return NextResponse.json({ error: 'Assessment not found' }, { status: 404 })
+  }
+
+  // Fetch anonymized benchmark percentiles for comparable plants (N ≥ 5 required for AI injection)
+  let benchmarks: BenchmarkContext | null = null
+  if (context.radiusBucket && context.fleetBucket) {
+    const { data: bData } = await supabase.rpc('get_plant_percentiles', {
+      p_radius_bucket: context.radiusBucket as string,
+      p_fleet_bucket:  context.fleetBucket as string,
+      p_exclude_id:    assessmentId,
+    })
+    if (bData && (bData as BenchmarkContext).n >= 5) {
+      benchmarks = bData as BenchmarkContext
+    }
+  }
 
   const prompts: Record<string, string> = {
-    executive: buildExecutivePrompt(context),
-    diagnosis: buildDiagnosisPrompt(context),
+    executive: buildExecutivePrompt(context, benchmarks),
+    diagnosis: buildDiagnosisPrompt(context, benchmarks),
     actions: buildActionsPrompt(context),
   }
 
@@ -138,13 +162,15 @@ This pre-assessment has established the financial picture based on what Al-Noor 
 
         trackSpend(user.id)
 
-        // Save to database when complete — strip markdown before persisting
-        const fullText = stripMarkdown(await response.finalText())
-        await supabase.from('reports').upsert({
-          assessment_id: assessmentId,
-          [type]: fullText,
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'assessment_id' })
+        // Save to database when complete — skipped for demo override (no persistent record)
+        if (assessmentId !== 'demo') {
+          const fullText = stripMarkdown(await response.finalText())
+          await supabase.from('reports').upsert({
+            assessment_id: assessmentId,
+            [type]: fullText,
+            updated_at: new Date().toISOString(),
+          }, { onConflict: 'assessment_id' })
+        }
 
         controller.close()
       } catch (err) {
@@ -158,7 +184,17 @@ This pre-assessment has established the financial picture based on what Al-Noor 
   })
 }
 
-function buildExecutivePrompt(ctx: Record<string, unknown>) {
+function buildMarketContext(b: BenchmarkContext): string {
+  return `
+MARKET CONTEXT (${b.n} comparable plants — similar fleet size and delivery radius):
+Turnaround — median: ${b.turnaround.p50} min · top quartile: ${b.turnaround.p25} min
+Dispatch   — median: ${b.dispatch.p50} min · top quartile: ${b.dispatch.p25} min
+Rejection  — median: ${b.reject.p50}% · top quartile: ${b.reject.p25}%
+
+When this data is available, reference the plant's position relative to comparable operations. Use language like "comparable plants" or "similar operations in this segment". Do not call it an "industry average". Be direct: if the plant is below median on a key metric, state it.`
+}
+
+function buildExecutivePrompt(ctx: Record<string, unknown>, benchmarks: BenchmarkContext | null = null) {
   const RULES = `RULES:
 - Plain text only. No markdown, no asterisks, no bold, no headings with #, no bullet dashes, no numbered lists.
 - Never invent data. Use only the figures provided.
@@ -199,10 +235,12 @@ PLANT DATA:
 Primary bottleneck: ${ctx.bottleneck}
 Turnaround: ${ctx.turnaround} min (target: ${ctx.targetTA} min)
 Dispatch time: ${ctx.dispatchMin ?? '—'} min (target: 15 min)
-Rejection rate: ${ctx.rejectPct ?? '—'}% (target: <3%)
+Rejection rate: ${ctx.rejectPct ?? '—'}% (target: <3%)${ctx.rejectPlantFraction != null && (ctx.rejectPct as number) > 0 ? `
+  → Plant-side: ~${ctx.rejectPlantFraction}% of rejections ($${ctx.rejectPlantSideLoss}/month) — batch/dosing/mix quality
+  → Customer-side: ~${100 - (ctx.rejectPlantFraction as number)}% of rejections ($${ctx.rejectCustomerSideLoss}/month) — site unreadiness/pump delays/contractor` : ''}
 Utilisation: ${ctx.utilPct}% (target: 85%)
 Fleet: ${ctx.trucks} trucks
-
+${benchmarks ? buildMarketContext(benchmarks) : ''}
 WRITE EXACTLY THREE PARAGRAPHS. No headings. No bullets. No labels.
 
 COMPRESSION RULES — strictly enforced:
@@ -221,7 +259,7 @@ Paragraph 2: State the downstream consequence that follows directly from the gap
 Paragraph 3: State why this dimension is the binding constraint over the others. Reference ALL other dimensions that are off-target (e.g. rejection rate, utilisation, turnaround) and briefly state why each is secondary — either smaller financial gap, already partially constrained by the primary issue, or not yet at the point of system-wide impact. One sentence per secondary dimension. End with one sentence confirming why the primary constraint unlocks the most recovery.`
 }
 
-function buildDiagnosisPrompt(ctx: Record<string, unknown>) {
+function buildDiagnosisPrompt(ctx: Record<string, unknown>, benchmarks: BenchmarkContext | null = null) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const scores = ctx.scores as any
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -240,30 +278,26 @@ function buildDiagnosisPrompt(ctx: Record<string, unknown>) {
   if (ctx.performingWell) {
     return `${RULES}
 
-You are writing the Operational Diagnosis section for a well-performing ready-mix concrete plant. The assessment found no significant financial losses. Your job is to explain what is working well and what to monitor.
+You are writing the Constraint Analysis section for a well-performing ready-mix concrete plant. No binding constraint was found. Your job is to explain what the absence of constraint indicates about how this operation is run.
 
-SCORES:
-Production: ${scores?.prod ?? '—'}/100
-Dispatch: ${scores?.dispatch ?? '—'}/100
-Fleet: ${scores?.logistics ?? '—'}/100
-Quality: ${scores?.quality ?? '—'}/100
-Overall: ${ctx.overall}/100
+PLANT DATA:
+Plant: ${ctx.plant}, ${ctx.country}
+Overall score: ${ctx.overall}/100
+Utilisation: ${ctx.utilPct}% (target: 85%)
+Turnaround: ${ctx.turnaround} min (target: ${ctx.targetTA} min)
+Dispatch: ${ctx.dispatchMin ?? '—'} min (target: 15 min)
+Scores — Production: ${scores?.prod ?? '—'}/100 | Dispatch: ${scores?.dispatch ?? '—'}/100 | Fleet: ${scores?.logistics ?? '—'}/100 | Quality: ${scores?.quality ?? '—'}/100
 
-KEY METRICS:
-Utilisation: ${ctx.utilPct}% — target: 85%
-Turnaround: ${ctx.turnaround} min — target: ${ctx.targetTA} min
-Fleet: ${ctx.trucks} trucks
+WRITE THREE PARAGRAPHS. No headings. No bullet points. No metric listings.
 
-WRITE TWO SECTIONS:
+Paragraph 1 — System state:
+Describe what the operation looks like when no single dimension is constraining throughput. What does it mean for the whole system that turnaround, dispatch, and utilisation are all close to target simultaneously? One core idea. Max 3 sentences.
 
-Performance Scores — heading on its own line
-For each dimension write one line: [Dimension]: [Score]/100
-Followed by one sentence: What this means: [specific to this plant's actual numbers, not a generic definition]
+Paragraph 2 — What the scores indicate:
+Name the dimensions that are performing well and explain — in operational terms, not score terms — what that implies about the day-to-day discipline of the plant. Be specific to the actual numbers. Do not list scores. Weave them into a coherent observation. Max 3 sentences.
 
-Overall: ${ctx.overall}/100 — one sentence on what this means for the plant as a whole.
-
-What Is Working — heading on its own line
-3 to 4 sentences describing the operational strengths. Be specific. Reference actual numbers. Identify anything that could slip if not actively maintained.`
+Paragraph 3 — What to monitor:
+Identify the one or two dimensions most likely to slip first if operational discipline softens — based on the actual metrics and their margin above target. One sentence per dimension. Conclude with what early signal would indicate the constraint is forming.`
   }
 
   const bottleneck = ctx.bottleneck as string
@@ -292,11 +326,13 @@ Bottleneck loss: up to $${ctx.bnLossMonthly}/month ($${ctx.bnDailyLoss}/day)
 Total recoverable (all areas): up to $${ctx.totalLossMonthly}/month
 Turnaround: ${ctx.turnaround} min (target: ${ctx.targetTA} min)
 Dispatch time: ${ctx.dispatchMin ?? '—'} min (target: 15 min)
-Rejection rate: ${ctx.rejectPct ?? '—'}% (target: <3%)
+Rejection rate: ${ctx.rejectPct ?? '—'}% (target: <3%)${ctx.rejectPlantFraction != null && (ctx.rejectPct as number) > 0 ? `
+  → Plant-side: ~${ctx.rejectPlantFraction}% ($${ctx.rejectPlantSideLoss}/month) — batch/dosing/mix quality
+  → Customer-side: ~${100 - (ctx.rejectPlantFraction as number)}% ($${ctx.rejectCustomerSideLoss}/month) — site/pump/contractor` : ''}
 Utilisation: ${ctx.utilPct}% (target: 85%)
 Fleet: ${ctx.trucks} trucks
 Scores — constraint: ${bottleneck} ${scores?.[bottleneck.toLowerCase() as keyof typeof scores] ?? (bottleneck === 'Fleet' ? scores?.logistics : null) ?? '—'}/100 | secondary: ${secondaryDims}
-
+${benchmarks ? buildMarketContext(benchmarks) : ''}
 WRITE 3–4 PARAGRAPHS. No headings. No bullet points. No findings. No metric listings.
 
 Paragraph 1 — System consequence:

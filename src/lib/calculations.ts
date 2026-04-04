@@ -87,6 +87,9 @@ export interface CalcResult {
   rejectLeakMonthly: number      // total: material loss + opportunity cost (demand-gated)
   rejectMaterialLoss: number     // materials wasted only (always applies)
   rejectOpportunityCost: number  // wasted truck cycle contrib — only when demandSufficient
+  rejectPlantFraction: number    // 0–1: fraction of loss attributable to plant-side causes
+  rejectPlantSideLoss: number    // rejectLeakMonthly × rejectPlantFraction
+  rejectCustomerSideLoss: number // rejectLeakMonthly × (1 − rejectPlantFraction)
 
   // Financial leaks
   partialLoad: number
@@ -530,6 +533,17 @@ export function calc(answers: Answers, meta?: { season?: string }, overrides?: C
     : 0
   const rejectLeakMonthly = rejectMaterialLoss + rejectOpportunityCost
 
+  // Rejection causation split — plant-side vs customer/site-side
+  const REJECT_SPLIT_MAP: Record<string, number> = {
+    'Mostly plant-side — batching, dosing, or mix quality (<25% site/customer)': 0.80,
+    'Roughly equal — both plant and site contribute':                             0.50,
+    'Mostly site/customer — pump delays, unreadiness, or contractor refusal (>50%)': 0.25,
+    'Not tracked — unknown':                                                      0.50,
+  }
+  const rejectPlantFraction    = REJECT_SPLIT_MAP[a.reject_cause_split as string] ?? 0.50
+  const rejectPlantSideLoss    = Math.round(rejectLeakMonthly * rejectPlantFraction)
+  const rejectCustomerSideLoss = Math.round(rejectLeakMonthly * (1 - rejectPlantFraction))
+
   // Demurrage opportunity
   const demurrageOpportunity = (siteWait > 45 && (
     a.demurrage_policy === 'Clause exists but rarely enforced' ||
@@ -688,6 +702,7 @@ export function calc(answers: Answers, meta?: { season?: string }, overrides?: C
     taBreakdownSum, taBreakdownEntered, siteWaitExcess, washoutExcess,
     // Reject & quality
     rejectPct, rejectLeakMonthly, rejectMaterialLoss, rejectOpportunityCost,
+    rejectPlantFraction, rejectPlantSideLoss, rejectCustomerSideLoss,
     // Financial leaks
     partialLoad, partialRatio, partialLeakMonthly,
     surplusMid, surplusLeakMonthly,

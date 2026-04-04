@@ -168,16 +168,35 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
   // ── Quality & Rejection ────────────────────────────────────────────────
 
   if (r.rejectPct > 1.5) {
-    issues.push({
-      sev: 'amber', pin: false, category: 'independent', dimension: 'Quality',
-      t: `${r.rejectPct}% of loads rejected — materials wasted on every returned load`,
-      action: 'Run slump test on every load before dispatch',
-      rec: `Each rejected load wastes the raw materials batched into it — $${Math.round(r.materialCostPerM3 || r.contribSafe)}/m³ (cement + aggregates + admixtures). Reduce by calibrating water-cement ratio sensors monthly and enforcing slump testing before dispatch.`,
-      loss: r.rejectLeakMonthly,
-      formula: r.rejectOpportunityCost > 0
-        ? `Material loss: ${r.rejectPct}% × ${r.delDay} del/day × ${r.mixCap} m³ × $${Math.round(r.materialCostPerM3 || r.contribSafe)}/m³ × ${Math.round(r.opD / 12)} days = $${r.rejectMaterialLoss.toLocaleString()} | Wasted cycle (demand-sufficient): ${r.rejectPct}% × ${r.delDay} del × ${r.mixCap} m³ × $${Math.round(r.contribSafe)} margin × ${Math.round(r.opD / 12)} days = $${r.rejectOpportunityCost.toLocaleString()}`
-        : `${r.rejectPct}% ÷ 100 × ${r.delDay} del/day × ${r.mixCap} m³ × $${Math.round(r.materialCostPerM3 || r.contribSafe)}/m³ material cost × ${Math.round(r.opD / 12)} days (opportunity cost excluded — demand-constrained)`,
-    })
+    const plantPct    = Math.round(r.rejectPlantFraction * 100)
+    const customerPct = Math.round((1 - r.rejectPlantFraction) * 100)
+    const totalFormula = r.rejectOpportunityCost > 0
+      ? `Material loss: ${r.rejectPct}% × ${r.delDay} del/day × ${r.mixCap} m³ × $${Math.round(r.materialCostPerM3 || r.contribSafe)}/m³ × ${Math.round(r.opD / 12)} days = $${r.rejectMaterialLoss.toLocaleString()} | Wasted cycle (demand-sufficient): ${r.rejectPct}% × ${r.delDay} del × ${r.mixCap} m³ × $${Math.round(r.contribSafe)} margin × ${Math.round(r.opD / 12)} days = $${r.rejectOpportunityCost.toLocaleString()}`
+      : `${r.rejectPct}% ÷ 100 × ${r.delDay} del/day × ${r.mixCap} m³ × $${Math.round(r.materialCostPerM3 || r.contribSafe)}/m³ material cost × ${Math.round(r.opD / 12)} days (opportunity cost excluded — demand-constrained)`
+
+    // Plant-side issue — batching, dosing, mix quality
+    if (r.rejectPlantSideLoss > 0) {
+      issues.push({
+        sev: 'amber', pin: false, category: 'independent', dimension: 'Quality',
+        t: `${Math.round(r.rejectPct)}% rejection — plant-side quality losses`,
+        action: 'Calibrate water-cement ratio sensors and run slump test on every load before dispatch',
+        rec: `Plant-side rejections (~${plantPct}% of total) are caused by batching, dosing, or mix quality failures. Each rejected load wastes $${Math.round(r.materialCostPerM3 || r.contribSafe)}/m³ in raw materials. Fix: monthly sensor calibration and mandatory slump testing at dispatch.`,
+        loss: r.rejectPlantSideLoss,
+        formula: `${plantPct}% of total rejection loss ($${r.rejectLeakMonthly.toLocaleString()}) | ${totalFormula}`,
+      })
+    }
+
+    // Customer-side issue — site unreadiness, pump delays, contractor refusal
+    if (r.rejectCustomerSideLoss > 0) {
+      issues.push({
+        sev: 'amber', pin: false, category: 'independent', dimension: 'Quality',
+        t: `${Math.round(r.rejectPct)}% rejection — site and customer-side losses`,
+        action: 'Implement pre-departure site readiness confirmation and enforce demurrage clause after 45 min on site',
+        rec: `Customer-side rejections (~${customerPct}% of total) are caused by site unreadiness, pump delays, or contractor refusals. The fix is contract enforcement and dispatch protocol — not batch control. A pre-departure confirmation call and an enforced demurrage clause address this directly.`,
+        loss: r.rejectCustomerSideLoss,
+        formula: `${customerPct}% of total rejection loss ($${r.rejectLeakMonthly.toLocaleString()}) | ${totalFormula}`,
+      })
+    }
   }
 
   // ── Mix visibility ─────────────────────────────────────────────────────
