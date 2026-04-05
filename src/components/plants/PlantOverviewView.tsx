@@ -438,7 +438,7 @@ export default function PlantOverviewView({ plants, customerName, isDemo, demoPl
           borderRadius: '10px', padding: isMobile ? '12px 14px' : '14px 18px',
         }}>
           <div style={{ fontSize: '10px', color: atRisk > 0 ? '#b07a00' : 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: '5px', fontWeight: 600 }}>
-            {atRisk > 0 ? 'Need attention' : 'Status'}
+            Alerts
           </div>
           {atRisk > 0 ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -446,7 +446,7 @@ export default function PlantOverviewView({ plants, customerName, isDemo, demoPl
               <span style={{ fontSize: '11px', color: '#b07a00', fontWeight: 500, lineHeight: 1.3 }}>plant{atRisk !== 1 ? 's' : ''}<br />below 60</span>
             </div>
           ) : (
-            <div style={{ fontSize: isMobile ? '18px' : '22px', fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--phase-complete)', lineHeight: 1 }}>✓ On track</div>
+            <div style={{ fontSize: isMobile ? '18px' : '22px', fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--phase-complete)', lineHeight: 1 }}>✓ None</div>
           )}
         </div>
       </div>
