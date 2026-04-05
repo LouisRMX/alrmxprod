@@ -377,6 +377,23 @@ export default function PlantOverviewView({ plants, customerName, isDemo, demoPl
         gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
         gap: '10px', marginBottom: '20px',
       }}>
+        {/* Total gap chip — visually dominant */}
+        <div style={{
+          background: totalGap > 0 ? '#fff3f3' : 'var(--white)',
+          border: `1px solid ${totalGap > 0 ? '#fcc' : 'var(--border)'}`,
+          borderRadius: '10px', padding: isMobile ? '12px 14px' : '14px 18px',
+        }}>
+          <div style={{ fontSize: '10px', color: totalGap > 0 ? '#e06060' : 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: '4px', fontWeight: 600 }}>
+            Total gap
+          </div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+            <span style={{ fontSize: isMobile ? '24px' : '30px', fontWeight: 800, fontFamily: 'var(--mono)', color: totalGap > 0 ? 'var(--red)' : 'var(--gray-300)', lineHeight: 1 }}>
+              {totalGap > 0 ? fmt(totalGap) : '—'}
+            </span>
+            {totalGap > 0 && <span style={{ fontSize: '13px', color: '#e06060', fontWeight: 500 }}>/mo</span>}
+          </div>
+        </div>
+
         {/* Recovered chip */}
         <div style={{
           background: totalRecovered > 0 ? 'var(--phase-complete-bg)' : 'var(--white)',
@@ -399,23 +416,6 @@ export default function PlantOverviewView({ plants, customerName, isDemo, demoPl
           <div style={{ fontSize: '10px', color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: '5px' }}>Avg score</div>
           <div style={{ fontSize: isMobile ? '18px' : '22px', fontWeight: 700, fontFamily: 'var(--mono)', color: avgScore !== null ? scoreColor(avgScore) : 'var(--gray-300)', lineHeight: 1 }}>
             {avgScore !== null ? `${avgScore}/100` : '—'}
-          </div>
-        </div>
-
-        {/* Total gap chip — visually dominant */}
-        <div style={{
-          background: totalGap > 0 ? '#fff3f3' : 'var(--white)',
-          border: `1px solid ${totalGap > 0 ? '#fcc' : 'var(--border)'}`,
-          borderRadius: '10px', padding: isMobile ? '12px 14px' : '14px 18px',
-        }}>
-          <div style={{ fontSize: '10px', color: totalGap > 0 ? '#e06060' : 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: '4px', fontWeight: 600 }}>
-            Total gap
-          </div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
-            <span style={{ fontSize: isMobile ? '24px' : '30px', fontWeight: 800, fontFamily: 'var(--mono)', color: totalGap > 0 ? 'var(--red)' : 'var(--gray-300)', lineHeight: 1 }}>
-              {totalGap > 0 ? fmt(totalGap) : '—'}
-            </span>
-            {totalGap > 0 && <span style={{ fontSize: '13px', color: '#e06060', fontWeight: 500 }}>/mo</span>}
           </div>
         </div>
 
