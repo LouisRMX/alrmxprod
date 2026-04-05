@@ -307,8 +307,9 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
         const coeffReject = calcResult.rejectPct > 0
           ? Math.round(calcResult.rejectLeakMonthly / calcResult.rejectPct)
           : 0
-        const coeffDispatch = calcResult.dispatchMin != null && calcResult.dispatchMin > 15
-          ? Math.round(taLeak * 0.22)
+        const dispatchGap = (calcResult.dispatchMin ?? 15) - 15
+        const coeffDispatch = dispatchGap > 0
+          ? Math.round(taLeak * 0.22 / dispatchGap)
           : 800
 
         // Baseline monthly loss from issues engine

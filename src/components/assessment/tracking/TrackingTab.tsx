@@ -1071,12 +1071,12 @@ export default function TrackingTab(props: TrackingProps) {
       }
       const now = Date.now()
       const mockEntries: TrackingEntry[] = [
-        { id: 'e1', config_id: 'demo-cfg', week_number: 1, logged_at: new Date(now - 42 * 86_400_000).toISOString(), turnaround_min: 112, reject_pct: null, dispatch_min: 32, notes: null },
-        { id: 'e2', config_id: 'demo-cfg', week_number: 2, logged_at: new Date(now - 35 * 86_400_000).toISOString(), turnaround_min: 108, reject_pct: null, dispatch_min: 29, notes: 'Demurrage clause enforced with top 3 contractors' },
-        { id: 'e3', config_id: 'demo-cfg', week_number: 3, logged_at: new Date(now - 28 * 86_400_000).toISOString(), turnaround_min: 105, reject_pct: null, dispatch_min: 26, notes: null },
-        { id: 'e4', config_id: 'demo-cfg', week_number: 4, logged_at: new Date(now - 21 * 86_400_000).toISOString(), turnaround_min: 101, reject_pct: null, dispatch_min: 24, notes: 'Dispatch SOP implemented — dedicated dispatcher' },
-        { id: 'e5', config_id: 'demo-cfg', week_number: 5, logged_at: new Date(now - 14 * 86_400_000).toISOString(), turnaround_min: 97, reject_pct: null, dispatch_min: 21, notes: null },
-        { id: 'e6', config_id: 'demo-cfg', week_number: 6, logged_at: new Date(now - 7 * 86_400_000).toISOString(), turnaround_min: 93, reject_pct: null, dispatch_min: 19, notes: 'Zone routing implemented — 4 delivery quadrants' },
+        { id: 'e1', config_id: 'demo-cfg', week_number: 1, logged_at: new Date(now - 49 * 86_400_000).toISOString(), turnaround_min: 112, reject_pct: null, dispatch_min: 32, notes: null },
+        { id: 'e2', config_id: 'demo-cfg', week_number: 2, logged_at: new Date(now - 42 * 86_400_000).toISOString(), turnaround_min: 108, reject_pct: null, dispatch_min: 29, notes: 'Demurrage clause enforced with top 3 contractors' },
+        { id: 'e3', config_id: 'demo-cfg', week_number: 3, logged_at: new Date(now - 35 * 86_400_000).toISOString(), turnaround_min: 105, reject_pct: null, dispatch_min: 26, notes: null },
+        { id: 'e4', config_id: 'demo-cfg', week_number: 4, logged_at: new Date(now - 28 * 86_400_000).toISOString(), turnaround_min: 101, reject_pct: null, dispatch_min: 24, notes: 'Dispatch SOP implemented — dedicated dispatcher' },
+        { id: 'e5', config_id: 'demo-cfg', week_number: 5, logged_at: new Date(now - 21 * 86_400_000).toISOString(), turnaround_min: 97, reject_pct: null, dispatch_min: 21, notes: null },
+        { id: 'e6', config_id: 'demo-cfg', week_number: 6, logged_at: new Date(now - 14 * 86_400_000).toISOString(), turnaround_min: 93, reject_pct: null, dispatch_min: 19, notes: 'Zone routing implemented — 4 delivery quadrants' },
         { id: 'e7', config_id: 'demo-cfg', week_number: 7, logged_at: new Date(now - 7 * 86_400_000).toISOString(), turnaround_min: 89, reject_pct: null, dispatch_min: 17, notes: null },
         { id: 'e8', config_id: 'demo-cfg', week_number: 8, logged_at: new Date(now - 1 * 86_400_000).toISOString(), turnaround_min: 85, reject_pct: null, dispatch_min: 15, notes: 'Dispatch target hit — 15 min order-to-dispatch achieved' },
       ]
