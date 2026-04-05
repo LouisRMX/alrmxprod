@@ -282,9 +282,11 @@ interface PlantOverviewViewProps {
   plants: PlantCardData[]
   customerName?: string
   isDemo?: boolean
+  demoPlantCount?: 1 | 3 | 10 | 20
+  onDemoPlantCountChange?: (n: 1 | 3 | 10 | 20) => void
 }
 
-export default function PlantOverviewView({ plants, customerName, isDemo }: PlantOverviewViewProps) {
+export default function PlantOverviewView({ plants, customerName, isDemo, demoPlantCount, onDemoPlantCountChange }: PlantOverviewViewProps) {
   const isMobile = useIsMobile()
   const [sort, setSort] = useState<SortKey>('score_asc')
 
@@ -344,13 +346,38 @@ export default function PlantOverviewView({ plants, customerName, isDemo }: Plan
           background: '#f0f9ff', border: '1px solid #bae6fd',
           borderRadius: '8px', padding: '10px 16px', marginBottom: '20px',
           fontSize: '12px', color: '#0369a1',
-          display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap',
+          display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap',
+          justifyContent: 'space-between',
         }}>
-          <span style={{ flexShrink: 0 }}>🎯</span>
-          <span>
-            Demo — Al-Noor RMX Group · 10 plants across the UAE.
-            Click any plant to explore the live assessment tool.
-          </span>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <span style={{ flexShrink: 0 }}>🎯</span>
+            <span>
+              Demo — Al-Noor RMX Group · {plants.length} plant{plants.length !== 1 ? 's' : ''} across Saudi Arabia.
+              Click any plant to explore the live assessment tool.
+            </span>
+          </div>
+          {onDemoPlantCountChange && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+              <span style={{ fontSize: '11px', color: '#64b2d4', marginRight: '2px' }}>Portfolio size:</span>
+              {([1, 3, 10, 20] as const).map(n => (
+                <button
+                  key={n}
+                  onClick={() => onDemoPlantCountChange(n)}
+                  style={{
+                    padding: '3px 10px', borderRadius: '20px', cursor: 'pointer',
+                    fontSize: '12px', fontWeight: demoPlantCount === n ? 700 : 400,
+                    fontFamily: 'var(--font)',
+                    background: demoPlantCount === n ? '#0369a1' : 'transparent',
+                    color: demoPlantCount === n ? '#fff' : '#0369a1',
+                    border: `1px solid ${demoPlantCount === n ? '#0369a1' : '#7dd3fc'}`,
+                    transition: 'all .15s',
+                  }}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -373,46 +400,55 @@ export default function PlantOverviewView({ plants, customerName, isDemo }: Plan
         gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
         gap: '10px', marginBottom: '20px',
       }}>
-        {[
-          {
-            label: 'Plants',
-            value: String(plants.length),
-            color: 'var(--gray-900)',
-          },
-          {
-            label: 'Avg score',
-            value: avgScore !== null ? `${avgScore}/100` : '—',
-            color: avgScore !== null ? scoreColor(avgScore) : 'var(--gray-300)',
-          },
-          {
-            label: 'Total gap',
-            value: totalGap > 0 ? fmt(totalGap) + '/mo' : '—',
-            color: totalGap > 0 ? 'var(--red)' : 'var(--gray-300)',
-          },
-          {
-            label: atRisk > 0 ? `${atRisk} at risk` : 'Status',
-            value: atRisk > 0 ? 'Score < 60' : '✓ On track',
-            color: atRisk > 0 ? 'var(--red)' : 'var(--phase-complete)',
-          },
-        ].map(chip => (
-          <div key={chip.label} style={{
-            background: 'var(--white)', border: '1px solid var(--border)',
-            borderRadius: '10px', padding: isMobile ? '12px 14px' : '14px 18px',
-          }}>
-            <div style={{
-              fontSize: '10px', color: 'var(--gray-400)',
-              textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: '5px',
-            }}>
-              {chip.label}
-            </div>
-            <div style={{
-              fontSize: isMobile ? '18px' : '22px', fontWeight: 700,
-              fontFamily: 'var(--mono)', color: chip.color, lineHeight: 1,
-            }}>
-              {chip.value}
-            </div>
+        {/* Plants chip */}
+        <div style={{ background: 'var(--white)', border: '1px solid var(--border)', borderRadius: '10px', padding: isMobile ? '12px 14px' : '14px 18px' }}>
+          <div style={{ fontSize: '10px', color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: '5px' }}>Plants</div>
+          <div style={{ fontSize: isMobile ? '18px' : '22px', fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--gray-900)', lineHeight: 1 }}>{plants.length}</div>
+        </div>
+
+        {/* Avg score chip */}
+        <div style={{ background: 'var(--white)', border: '1px solid var(--border)', borderRadius: '10px', padding: isMobile ? '12px 14px' : '14px 18px' }}>
+          <div style={{ fontSize: '10px', color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: '5px' }}>Avg score</div>
+          <div style={{ fontSize: isMobile ? '18px' : '22px', fontWeight: 700, fontFamily: 'var(--mono)', color: avgScore !== null ? scoreColor(avgScore) : 'var(--gray-300)', lineHeight: 1 }}>
+            {avgScore !== null ? `${avgScore}/100` : '—'}
           </div>
-        ))}
+        </div>
+
+        {/* Total gap chip — visually dominant */}
+        <div style={{
+          background: totalGap > 0 ? '#fff3f3' : 'var(--white)',
+          border: `1px solid ${totalGap > 0 ? '#fcc' : 'var(--border)'}`,
+          borderRadius: '10px', padding: isMobile ? '12px 14px' : '14px 18px',
+        }}>
+          <div style={{ fontSize: '10px', color: totalGap > 0 ? '#e06060' : 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: '4px', fontWeight: 600 }}>
+            Total gap
+          </div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+            <span style={{ fontSize: isMobile ? '24px' : '30px', fontWeight: 800, fontFamily: 'var(--mono)', color: totalGap > 0 ? 'var(--red)' : 'var(--gray-300)', lineHeight: 1 }}>
+              {totalGap > 0 ? fmt(totalGap) : '—'}
+            </span>
+            {totalGap > 0 && <span style={{ fontSize: '13px', color: '#e06060', fontWeight: 500 }}>/mo</span>}
+          </div>
+        </div>
+
+        {/* At-risk chip */}
+        <div style={{
+          background: atRisk > 0 ? '#fff8ed' : 'var(--white)',
+          border: `1px solid ${atRisk > 0 ? '#f5c842' : 'var(--border)'}`,
+          borderRadius: '10px', padding: isMobile ? '12px 14px' : '14px 18px',
+        }}>
+          <div style={{ fontSize: '10px', color: atRisk > 0 ? '#b07a00' : 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: '5px', fontWeight: 600 }}>
+            {atRisk > 0 ? 'Need attention' : 'Status'}
+          </div>
+          {atRisk > 0 ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: isMobile ? '24px' : '30px', fontWeight: 800, fontFamily: 'var(--mono)', color: '#c07000', lineHeight: 1 }}>{atRisk}</span>
+              <span style={{ fontSize: '11px', color: '#b07a00', fontWeight: 500, lineHeight: 1.3 }}>plant{atRisk !== 1 ? 's' : ''}<br />below 60</span>
+            </div>
+          ) : (
+            <div style={{ fontSize: isMobile ? '18px' : '22px', fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--phase-complete)', lineHeight: 1 }}>✓ On track</div>
+          )}
+        </div>
       </div>
 
       {/* At-risk alert */}

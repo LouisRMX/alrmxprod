@@ -155,16 +155,29 @@ Production: Utilisation at 84% is constrained downstream by the turnaround bottl
 // ─────────────────────────────────────────────────────────────────────────────
 
 const DEMO_PLANTS: PlantCardData[] = [
-  { id: 'dp-1', name: 'Al-Noor Riyadh North', country: 'SA', assessmentHref: '/demo', assessment: { id: 'demo', phase: 'onsite', overall: 68, scores: { prod: 82, dispatch: 48, logistics: 71, fleet: 71, quality: 70 }, bottleneck: 'Dispatch', ebitda_monthly: 79000, report_released: true, trackingWeek: 7 } },
-  { id: 'dp-2', name: 'Al-Noor Riyadh East', country: 'SA', assessmentHref: '/demo', assessment: { id: 'demo-2', phase: 'onsite', overall: 54, scores: { prod: 68, dispatch: 34, logistics: 52, fleet: 52, quality: 61 }, bottleneck: 'Dispatch', ebitda_monthly: 103000, report_released: false, trackingWeek: null } },
-  { id: 'dp-3', name: 'Al-Noor Jeddah', country: 'SA', assessmentHref: '/demo', assessment: { id: 'demo-3', phase: 'complete', overall: 83, scores: { prod: 88, dispatch: 79, logistics: 85, fleet: 85, quality: 80 }, bottleneck: null, ebitda_monthly: 14000, report_released: true, trackingWeek: 13 } },
-  { id: 'dp-4', name: 'Al-Noor Dammam', country: 'SA', assessmentHref: '/demo', assessment: { id: 'demo-4', phase: 'onsite', overall: 61, scores: { prod: 74, dispatch: 65, logistics: 59, fleet: 59, quality: 47 }, bottleneck: 'Quality', ebitda_monthly: 54000, report_released: false, trackingWeek: 3 } },
-  { id: 'dp-5', name: 'Al-Noor Al Khobar', country: 'SA', assessmentHref: '/demo', assessment: { id: 'demo-5', phase: 'onsite', overall: 44, scores: { prod: 62, dispatch: 42, logistics: 29, fleet: 29, quality: 44 }, bottleneck: 'Fleet', ebitda_monthly: 141000, report_released: false, trackingWeek: null } },
-  { id: 'dp-6', name: 'Al-Noor Makkah', country: 'SA', assessmentHref: '/demo', assessment: { id: 'demo-6', phase: 'complete', overall: 78, scores: { prod: 72, dispatch: 81, logistics: 83, fleet: 83, quality: 77 }, bottleneck: 'Production', ebitda_monthly: 36000, report_released: true, trackingWeek: 11 } },
-  { id: 'dp-7', name: 'Al-Noor Madinah', country: 'SA', assessmentHref: '/demo', assessment: { id: 'demo-7', phase: 'onsite', overall: 66, scores: { prod: 77, dispatch: 71, logistics: 62, fleet: 62, quality: 54 }, bottleneck: 'Quality', ebitda_monthly: 62000, report_released: false, trackingWeek: null } },
-  { id: 'dp-8', name: 'Al-Noor Jubail', country: 'SA', assessmentHref: '/demo', assessment: { id: 'demo-8', phase: 'complete', overall: 88, scores: { prod: 91, dispatch: 86, logistics: 89, fleet: 89, quality: 86 }, bottleneck: null, ebitda_monthly: 9000, report_released: true, trackingWeek: 13 } },
-  { id: 'dp-9', name: 'Al-Noor Yanbu', country: 'SA', assessmentHref: '/demo', assessment: { id: 'demo-9', phase: 'onsite', overall: 57, scores: { prod: 70, dispatch: 59, logistics: 43, fleet: 43, quality: 55 }, bottleneck: 'Fleet', ebitda_monthly: 89000, report_released: false, trackingWeek: null } },
-  { id: 'dp-10', name: 'Al-Noor NEOM', country: 'SA', assessmentHref: '/demo', assessment: { id: 'demo-10', phase: 'workshop', overall: null, scores: null, bottleneck: null, ebitda_monthly: null, report_released: false, trackingWeek: null } },
+  // ── Core 3 (always shown) ────────────────────────────────────────────────
+  { id: 'dp-1',  name: 'Al-Noor Riyadh North', country: 'SA', assessmentHref: '/demo', assessment: { id: 'demo',    phase: 'onsite',   overall: 68, scores: { prod: 82, dispatch: 48, logistics: 71, fleet: 71, quality: 70 }, bottleneck: 'Dispatch',    ebitda_monthly: 79000,  report_released: true,  trackingWeek: 7    } },
+  { id: 'dp-2',  name: 'Al-Noor Riyadh East',  country: 'SA', assessmentHref: '/demo', assessment: { id: 'demo-2',  phase: 'onsite',   overall: 54, scores: { prod: 68, dispatch: 34, logistics: 52, fleet: 52, quality: 61 }, bottleneck: 'Dispatch',    ebitda_monthly: 103000, report_released: false, trackingWeek: null } },
+  { id: 'dp-3',  name: 'Al-Noor Dammam',        country: 'SA', assessmentHref: '/demo', assessment: { id: 'demo-3',  phase: 'onsite',   overall: 44, scores: { prod: 62, dispatch: 42, logistics: 29, fleet: 29, quality: 44 }, bottleneck: 'Fleet',       ebitda_monthly: 141000, report_released: false, trackingWeek: null } },
+  // ── Extended 10 ──────────────────────────────────────────────────────────
+  { id: 'dp-4',  name: 'Al-Noor Jeddah',        country: 'SA', assessmentHref: '/demo', assessment: { id: 'demo-4',  phase: 'complete', overall: 83, scores: { prod: 88, dispatch: 79, logistics: 85, fleet: 85, quality: 80 }, bottleneck: null,           ebitda_monthly: 14000,  report_released: true,  trackingWeek: 13   } },
+  { id: 'dp-5',  name: 'Al-Noor Al Khobar',     country: 'SA', assessmentHref: '/demo', assessment: { id: 'demo-5',  phase: 'onsite',   overall: 61, scores: { prod: 74, dispatch: 65, logistics: 59, fleet: 59, quality: 47 }, bottleneck: 'Quality',      ebitda_monthly: 54000,  report_released: false, trackingWeek: 3    } },
+  { id: 'dp-6',  name: 'Al-Noor Makkah',        country: 'SA', assessmentHref: '/demo', assessment: { id: 'demo-6',  phase: 'complete', overall: 78, scores: { prod: 72, dispatch: 81, logistics: 83, fleet: 83, quality: 77 }, bottleneck: 'Production',   ebitda_monthly: 36000,  report_released: true,  trackingWeek: 11   } },
+  { id: 'dp-7',  name: 'Al-Noor Madinah',       country: 'SA', assessmentHref: '/demo', assessment: { id: 'demo-7',  phase: 'onsite',   overall: 66, scores: { prod: 77, dispatch: 71, logistics: 62, fleet: 62, quality: 54 }, bottleneck: 'Quality',      ebitda_monthly: 62000,  report_released: false, trackingWeek: null } },
+  { id: 'dp-8',  name: 'Al-Noor Jubail',        country: 'SA', assessmentHref: '/demo', assessment: { id: 'demo-8',  phase: 'complete', overall: 88, scores: { prod: 91, dispatch: 86, logistics: 89, fleet: 89, quality: 86 }, bottleneck: null,           ebitda_monthly: 9000,   report_released: true,  trackingWeek: 13   } },
+  { id: 'dp-9',  name: 'Al-Noor Yanbu',         country: 'SA', assessmentHref: '/demo', assessment: { id: 'demo-9',  phase: 'onsite',   overall: 57, scores: { prod: 70, dispatch: 59, logistics: 43, fleet: 43, quality: 55 }, bottleneck: 'Fleet',       ebitda_monthly: 89000,  report_released: false, trackingWeek: null } },
+  { id: 'dp-10', name: 'Al-Noor NEOM',          country: 'SA', assessmentHref: '/demo', assessment: { id: 'demo-10', phase: 'workshop', overall: null, scores: null, bottleneck: null,                                         ebitda_monthly: null,   report_released: false, trackingWeek: null } },
+  // ── Extended 20 ──────────────────────────────────────────────────────────
+  { id: 'dp-11', name: 'Al-Noor Tabuk',         country: 'SA', assessmentHref: '/demo', assessment: { id: 'demo-11', phase: 'onsite',   overall: 59, scores: { prod: 67, dispatch: 55, logistics: 48, fleet: 48, quality: 63 }, bottleneck: 'Fleet',       ebitda_monthly: 97000,  report_released: false, trackingWeek: null } },
+  { id: 'dp-12', name: 'Al-Noor Taif',          country: 'SA', assessmentHref: '/demo', assessment: { id: 'demo-12', phase: 'onsite',   overall: 72, scores: { prod: 80, dispatch: 74, logistics: 69, fleet: 69, quality: 66 }, bottleneck: 'Quality',      ebitda_monthly: 41000,  report_released: true,  trackingWeek: 5    } },
+  { id: 'dp-13', name: 'Al-Noor Buraidah',      country: 'SA', assessmentHref: '/demo', assessment: { id: 'demo-13', phase: 'workshop', overall: null, scores: null, bottleneck: null,                                         ebitda_monthly: null,   report_released: false, trackingWeek: null } },
+  { id: 'dp-14', name: 'Al-Noor Al Ahsa',       country: 'SA', assessmentHref: '/demo', assessment: { id: 'demo-14', phase: 'onsite',   overall: 49, scores: { prod: 58, dispatch: 38, logistics: 44, fleet: 44, quality: 56 }, bottleneck: 'Dispatch',    ebitda_monthly: 118000, report_released: false, trackingWeek: null } },
+  { id: 'dp-15', name: 'Al-Noor Hail',          country: 'SA', assessmentHref: '/demo', assessment: { id: 'demo-15', phase: 'complete', overall: 81, scores: { prod: 85, dispatch: 78, logistics: 83, fleet: 83, quality: 79 }, bottleneck: null,           ebitda_monthly: 19000,  report_released: true,  trackingWeek: 13   } },
+  { id: 'dp-16', name: 'Al-Noor Jizan',         country: 'SA', assessmentHref: '/demo', assessment: { id: 'demo-16', phase: 'onsite',   overall: 63, scores: { prod: 75, dispatch: 60, logistics: 57, fleet: 57, quality: 62 }, bottleneck: 'Fleet',       ebitda_monthly: 73000,  report_released: false, trackingWeek: null } },
+  { id: 'dp-17', name: 'Al-Noor Sakaka',        country: 'SA', assessmentHref: '/demo', assessment: { id: 'demo-17', phase: 'workshop', overall: null, scores: null, bottleneck: null,                                         ebitda_monthly: null,   report_released: false, trackingWeek: null } },
+  { id: 'dp-18', name: 'Al-Noor Najran',        country: 'SA', assessmentHref: '/demo', assessment: { id: 'demo-18', phase: 'onsite',   overall: 55, scores: { prod: 64, dispatch: 52, logistics: 47, fleet: 47, quality: 59 }, bottleneck: 'Fleet',       ebitda_monthly: 86000,  report_released: false, trackingWeek: null } },
+  { id: 'dp-19', name: 'Al-Noor Abha',          country: 'SA', assessmentHref: '/demo', assessment: { id: 'demo-19', phase: 'onsite',   overall: 76, scores: { prod: 83, dispatch: 77, logistics: 72, fleet: 72, quality: 71 }, bottleneck: 'Quality',      ebitda_monthly: 28000,  report_released: true,  trackingWeek: 9    } },
+  { id: 'dp-20', name: 'Al-Noor Arar',          country: 'SA', assessmentHref: '/demo', assessment: { id: 'demo-20', phase: 'workshop', overall: null, scores: null, bottleneck: null,                                         ebitda_monthly: null,   report_released: false, trackingWeek: null } },
 ]
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -225,10 +238,15 @@ export default function DemoView({ userRole = null, isOverridden = false }: Demo
   const defaultView: 'plants' | AssessmentMode =
     userRole === 'operator' ? 'track'
     : userRole === 'owner' ? 'plants'
-    : searchParams.get('view') === 'plants' ? 'plants' : 'questions'
+    : searchParams.get('view') === 'plants' ? 'plants'
+    : searchParams.get('view') === 'report' ? 'report'
+    : searchParams.get('view') === 'simulator' ? 'simulator'
+    : searchParams.get('view') === 'track' ? 'track'
+    : 'questions'
 
   // 'plants' shows the portfolio overview; any AssessmentMode shows the assessment
   const [demoView, setDemoView] = useState<'plants' | AssessmentMode>(defaultView)
+  const [demoPlantCount, setDemoPlantCount] = useState<1 | 3 | 10 | 20>(3)
 
   // ── Demo regeneration state ─────────────────────────────────────────────
   const [demoAnswersModified, setDemoAnswersModified] = useState(false)
@@ -337,7 +355,7 @@ export default function DemoView({ userRole = null, isOverridden = false }: Demo
               fontSize: '12px', color: 'rgba(255,255,255,0.45)',
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
             }}>
-              Al-Noor RMX · Dubai
+              Al-Noor RMX · Riyadh
             </span>
           </div>
           {/* Centre: phase switch button */}
@@ -417,9 +435,11 @@ export default function DemoView({ userRole = null, isOverridden = false }: Demo
       {demoView === 'plants' && (
         <div style={{ flex: 1, overflowY: 'auto' }}>
           <PlantOverviewView
-            plants={DEMO_PLANTS}
+            plants={DEMO_PLANTS.slice(0, demoPlantCount)}
             customerName="Al-Noor RMX Group"
             isDemo
+            demoPlantCount={demoPlantCount}
+            onDemoPlantCountChange={setDemoPlantCount}
           />
         </div>
       )}
