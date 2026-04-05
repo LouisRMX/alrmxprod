@@ -24,41 +24,41 @@ function answersMatchDefaults(current: Answers, defaults: Answers): boolean {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Demo dataset: Al-Noor RMX, Dubai
+// Demo dataset: Al-Noor RMX, Riyadh (Saudi Arabia)
 //
 // Pre-assessment (workshop): core questions filled remotely by plant manager.
 // On-site: All questions filled during Louis's plant visit.
 //
-// Plant profile:
-//   10-truck fleet (8 operative), 10 h/day, 290 days/year, 22 days this month
+// Plant profile (Saudi mid-size, Vision 2030 supply zone):
+//   20-truck fleet (17 operative), 10 h/day, 245 days/year, 20 days this month
 //   Deliveries mostly 12–20 km (suburban/outer city) → TARGET_TA = 84 min
 //   Actual turnaround: 100–125 min range (calc midpoint 112 min → +28 min excess)
-//   42 deliveries/day, actual_prod 6,400 m³/month → effectiveMixCap ≈ 6.9 m³
-//   Rated capacity 34 m³/hr → utilisation ~86%, close to 85% target
-//   Contribution margin: $68 − $26 − $7 − $3 = $32/m³ (fuel further reduces)
-//   turnaroundLeak ≈ 28 × $1,750/min = $49k/month · rejectLeak ≈ $14k/month
-//   Total recoverable ≈ $63k/month
+//   68 deliveries/day, actual_prod 10,000 m³/month → effectiveMixCap ≈ 7.1 m³
+//   Rated capacity 75 m³/hr → utilisation ~84%, close to 85% target
+//   Contribution margin: $60 − $23 − $12 − $5 = $20/m³ (fuel further reduces)
+//   turnaroundLeak ≈ 28 min × $2,200/min = $62k/month · rejectLeak ≈ $17k/month
+//   Total recoverable ≈ $79k/month
 // ─────────────────────────────────────────────────────────────────────────────
 
 // The questions sent to the plant before the visit (PRE_ASSESSMENT_IDS)
 const WORKSHOP_ANSWERS: Answers = {
-  price_m3:           '68',
-  cement_cost:        '26',
-  aggregate_cost:     '7',
-  admix_cost:         '3',
-  plant_cap:          '34',
-  actual_prod:        '6400',
+  price_m3:           '60',
+  cement_cost:        '23',
+  aggregate_cost:     '12',
+  admix_cost:         '5',
+  plant_cap:          '75',
+  actual_prod:        '10000',
   op_hours:           '10',
-  op_days:            '290',
-  n_trucks:           '10',
-  deliveries_day:     '42',
+  op_days:            '245',
+  n_trucks:           '20',
+  deliveries_day:     '68',
   turnaround:         '100 to 125 minutes — slow',
-  reject_pct:         '3.8',
+  reject_pct:         '3.5',
   delivery_radius:    'Most deliveries 12 to 20 km — suburban / outer city',
   dispatch_tool:      'Spreadsheet combined with WhatsApp',
   order_to_dispatch:  '25 to 40 minutes — slow',
   prod_data_source:   'System records — read from batch computer or dispatch system',
-  biggest_pain:       'Trucks are always late returning and we lose orders in the afternoons.',
+  biggest_pain:       'Trucks are stuck at construction sites during the morning peak and we lose afternoon orders — especially in summer.',
   demand_sufficient:  'Operations — we have more demand than we can currently produce or deliver',
 }
 
@@ -67,23 +67,23 @@ const ONSITE_ANSWERS: Answers = {
   ...WORKSHOP_ANSWERS,
 
   // Economics depth
-  aggregate_cost:     '7',
-  admix_cost:         '3',
-  fuel_per_delivery:  '11',
+  aggregate_cost:     '12',
+  admix_cost:         '5',
+  fuel_per_delivery:  '5',
   water_cost:         '0',
   silo_days:          '5 to 10 days — adequate',
   aggregate_days:     '2 to 5 days — tight, supply-sensitive',
   mix_split:          'Mostly standard strength — over 70% is C20 to C30',
   ramadan_schedule:   'Partially — informal earlier start, no formal plan',
-  working_days_month: '22',
+  working_days_month: '20',
   typical_month:      'Yes — normal month, representative of typical operations',
 
   // Fleet depth
-  truck_availability: '8',
-  qualified_drivers:  '8',
+  truck_availability: '17',
+  qualified_drivers:  '16',
   delivery_radius:    'Most deliveries 12 to 20 km — suburban / outer city',
   partial_load_size:  '6.5',
-  site_wait_time:     '62',
+  site_wait_time:     '52',
   washout_time:       '10 to 20 minutes — standard',
 
   // Production depth
@@ -101,12 +101,12 @@ const ONSITE_ANSWERS: Answers = {
 
   // Quality & maintenance
   maint_programme:    'Informal — some checks but no written programme',
-  truck_breakdowns:   '3',
+  truck_breakdowns:   '4',
   return_liability:   'Plant always absorbs the cost',
   demurrage_policy:   'Clause exists but rarely enforced',
-  top_customer_pct:   '38',
+  top_customer_pct:   '41',
   quality_control:    'Usually done — most trucks, informal recording',
-  reject_cause:       'Heat and stiffening during transit',
+  reject_cause:       'Heat and slump loss during transit — loads batched before 09:00 arriving outside spec at peak summer sites',
   surplus_concrete:   '0.2 to 0.5 m³ — moderate',
   summer_cooling:     'Partial — cold tap water or shaded aggregate storage only',
   breakdowns:         '2 to 3 — acceptable',
@@ -117,35 +117,37 @@ const ONSITE_ANSWERS: Answers = {
   data_crosscheck:    'Partially — one or two figures cross-checked',
   data_confidence_self: "Medium — reasonable but I'd verify one or two before presenting",
   data_days_match:    'Yes — all from the same month',
-  summer_prod_drop:   '10 to 20% — moderate drop',
+  summer_prod_drop:   '20 to 30% — significant drop during June–September',
 }
 
 // Report — only available after on-site visit
 const ONSITE_REPORT = {
   executive:
-`Al-Noor RMX scores 68/100. Fleet turnaround time is the primary financial constraint at 112 minutes — 28 minutes above the 84-minute benchmark for a suburban delivery radius — placing the plant in the bottom 25% of GCC operators. This alone costs an estimated $49,000 per month in lost delivery capacity. Rejection losses add a further $14,000/month. Total recoverable margin is approximately $63,000 per month from operational changes alone, without capital investment.`,
+`Al-Noor scores 68/100. Fleet turnaround time is the primary financial constraint at 112 minutes — 28 minutes above the 84-minute benchmark for a suburban delivery radius — placing the plant in the bottom 25% of Saudi operators. This alone costs an estimated $62,000 per month in lost delivery capacity. Rejection losses driven by summer heat add a further $17,000/month. Total recoverable margin is approximately $79,000 per month from operational changes alone, without capital investment.`,
 
   diagnosis:
-`Fleet (primary financial driver): Turnaround at 112 minutes is 28 minutes above the 84-minute benchmark for a 12–20 km suburban delivery radius. Site wait time of 62 minutes is the single largest component — more than 20 minutes above the 40-minute industry standard — driven by uncoordinated site handover and no demurrage enforcement despite a clause existing in contracts. Each excess minute of turnaround costs approximately $1,750/month in lost contribution. Bringing turnaround to 84 minutes — a realistic 90-day target — would recover the full $49,000/month.
+`Fleet (primary financial driver): Turnaround at 112 minutes is 28 minutes above the 84-minute benchmark for a 12–20 km suburban delivery radius. Site wait time of 52 minutes is the single largest component — more than 12 minutes above the 40-minute industry standard — driven by uncoordinated site handover and no demurrage enforcement despite a clause existing in contracts. Each excess minute of turnaround costs approximately $2,200/month in lost contribution across the 20-truck fleet. Bringing turnaround to 84 minutes — a realistic 90-day target — would recover the full $62,000/month.
 
-Dispatch (lowest score — 48/100): Order-to-dispatch averaging 32 minutes against a 15-minute target. Deliveries are clustered ad hoc by the dispatcher with no zone system, and the operation runs on WhatsApp and spreadsheet with no real-time visibility. At 32 minutes, the plant is in the bottom 25% of GCC operators on this metric.
+Dispatch (lowest score — 48/100): Order-to-dispatch averaging 32 minutes against a 15-minute target. Deliveries are clustered ad hoc by the dispatcher with no zone system, and the operation runs on WhatsApp and spreadsheet with no real-time visibility. At 32 minutes, the plant is in the bottom 25% of Saudi operators on this metric.
 
-Quality: A 3.8% rejection rate at $68/m³ with the plant absorbing 100% of write-off costs amounts to approximately $14,000/month. The dominant cause is heat-related stiffening during the extended 112-minute cycle — a problem that will partially resolve as turnaround improves. The plant has only partial cooling measures in place.
+Quality: A 3.5% rejection rate at $60/m³ with the plant absorbing 100% of write-off costs amounts to approximately $17,000/month. The dominant cause is heat-related slump loss during the extended 112-minute cycle — compounded by summer temperatures exceeding 40°C and the absence of a consistent retarder protocol. The problem will partially resolve as turnaround improves.
 
-Production: Utilisation at 86% is constrained downstream by the turnaround bottleneck — the fleet cannot complete enough cycles to consistently load the plant. Three truck breakdowns last month on an informally maintained 10-truck fleet indicates reactive rather than preventive maintenance.`,
+Production: Utilisation at 84% is constrained downstream by the turnaround bottleneck — the 20-truck fleet cannot complete enough cycles to consistently load the plant. Four truck breakdowns last month on an informally maintained fleet indicates reactive rather than preventive maintenance.`,
 
   actions:
-`1. Demurrage enforcement (Week 1): Formalise the existing contract clause. A firm 45-minute site limit with a $25/15-min charge, communicated to the top 3 contractors, recovers 15–20 minutes of site wait within 30 days. No capital required.
+`1. Demurrage enforcement (Week 1): Formalise the existing contract clause. A firm 45-minute site limit with a $25/15-min charge, communicated to the top 3 contractors, recovers 10–15 minutes of site wait within 30 days. No capital required.
 
 2. Turnaround audit (Week 1–2): Time-stamp 5 full truck cycles with the plant manager present. Map where the 112 minutes goes — site wait, transit, weighbridge queue, washout. Identify the top 2 recoverable components before committing to an action sequence.
 
-3. Dispatch SOP — order-to-dispatch under 20 minutes (Week 2–3): Pre-load 3 trucks before first orders of the day. Assign a dedicated dispatcher. Introduce a simple zone map for the 12–20 km delivery area — cluster morning and afternoon runs by quadrant. Target: under 20 minutes by Week 5.
+3. Retarder protocol for summer loads (Week 1): Flag all loads with expected site arrival after 10:00 AM during June–September. Batch plant operator confirms retarder addition before drum rotation starts. The 3.5% rejection rate is directly linked to heat-related slump failure — a documented protocol reduces this within 30 days.
 
-4. Zone-based routing (Week 3–4): Systematic area clustering reduces transit per cycle by an estimated 10–14 minutes for the suburban delivery pattern — the single largest operational lever after site wait.
+4. Dispatch SOP — order-to-dispatch under 20 minutes (Week 2–3): Pre-load 3 trucks before first orders of the day. Assign a dedicated dispatcher. Introduce a simple zone map for the 12–20 km delivery area — cluster morning and afternoon runs by quadrant. Target: under 20 minutes by Week 5.
 
-5. Preventive maintenance schedule (Week 2): Create a 4-week rotating service schedule. Three breakdowns per month on an 8-operative fleet is 37.5% above the 2-per-month benchmark and keeps 20% of fleet capacity off-road at any given time.
+5. Zone-based routing (Week 3–4): Systematic area clustering reduces transit per cycle by an estimated 10–14 minutes for the suburban delivery pattern — the single largest operational lever after site wait.
 
-6. Activate 90-day tracking: Baselines set — turnaround 112 min, rejection rate 3.8%, dispatch time 32 min. Weekly logging takes 5 minutes and creates the before/after case study.`,
+6. Preventive maintenance schedule (Week 2): Create a 4-week rotating service schedule. Four breakdowns per month on a 20-truck fleet is above benchmark and keeps capacity off-road at peak demand hours.
+
+7. Activate 90-day tracking: Baselines set — turnaround 112 min, rejection rate 3.5%, dispatch time 32 min. Weekly logging takes 5 minutes and creates the before/after case study.`,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -153,16 +155,16 @@ Production: Utilisation at 86% is constrained downstream by the turnaround bottl
 // ─────────────────────────────────────────────────────────────────────────────
 
 const DEMO_PLANTS: PlantCardData[] = [
-  { id: 'dp-1', name: 'Al-Noor Dubai North', country: 'AE', assessmentHref: '/demo', assessment: { id: 'demo', phase: 'onsite', overall: 68, scores: { prod: 82, dispatch: 48, logistics: 71, fleet: 71, quality: 70 }, bottleneck: 'Dispatch', ebitda_monthly: 63000, report_released: true, trackingWeek: 7 } },
-  { id: 'dp-2', name: 'Al-Noor Dubai Industrial', country: 'AE', assessmentHref: '/demo', assessment: { id: 'demo-2', phase: 'onsite', overall: 54, scores: { prod: 68, dispatch: 34, logistics: 52, fleet: 52, quality: 61 }, bottleneck: 'Dispatch', ebitda_monthly: 89000, report_released: false, trackingWeek: null } },
-  { id: 'dp-3', name: 'Al-Noor Abu Dhabi', country: 'AE', assessmentHref: '/demo', assessment: { id: 'demo-3', phase: 'complete', overall: 83, scores: { prod: 88, dispatch: 79, logistics: 85, fleet: 85, quality: 80 }, bottleneck: null, ebitda_monthly: 12000, report_released: true, trackingWeek: 13 } },
-  { id: 'dp-4', name: 'Al-Noor Sharjah', country: 'AE', assessmentHref: '/demo', assessment: { id: 'demo-4', phase: 'onsite', overall: 61, scores: { prod: 74, dispatch: 65, logistics: 59, fleet: 59, quality: 47 }, bottleneck: 'Quality', ebitda_monthly: 47000, report_released: false, trackingWeek: 3 } },
-  { id: 'dp-5', name: 'Al-Noor Ras Al Khaimah', country: 'AE', assessmentHref: '/demo', assessment: { id: 'demo-5', phase: 'onsite', overall: 44, scores: { prod: 62, dispatch: 42, logistics: 29, fleet: 29, quality: 44 }, bottleneck: 'Fleet', ebitda_monthly: 124000, report_released: false, trackingWeek: null } },
-  { id: 'dp-6', name: 'Al-Noor Dubai South', country: 'AE', assessmentHref: '/demo', assessment: { id: 'demo-6', phase: 'complete', overall: 78, scores: { prod: 72, dispatch: 81, logistics: 83, fleet: 83, quality: 77 }, bottleneck: 'Production', ebitda_monthly: 31000, report_released: true, trackingWeek: 11 } },
-  { id: 'dp-7', name: 'Al-Noor Fujairah', country: 'AE', assessmentHref: '/demo', assessment: { id: 'demo-7', phase: 'onsite', overall: 66, scores: { prod: 77, dispatch: 71, logistics: 62, fleet: 62, quality: 54 }, bottleneck: 'Quality', ebitda_monthly: 54000, report_released: false, trackingWeek: null } },
-  { id: 'dp-8', name: 'Al-Noor Al Ain', country: 'AE', assessmentHref: '/demo', assessment: { id: 'demo-8', phase: 'complete', overall: 88, scores: { prod: 91, dispatch: 86, logistics: 89, fleet: 89, quality: 86 }, bottleneck: null, ebitda_monthly: 8000, report_released: true, trackingWeek: 13 } },
-  { id: 'dp-9', name: 'Al-Noor Ajman', country: 'AE', assessmentHref: '/demo', assessment: { id: 'demo-9', phase: 'onsite', overall: 57, scores: { prod: 70, dispatch: 59, logistics: 43, fleet: 43, quality: 55 }, bottleneck: 'Fleet', ebitda_monthly: 78000, report_released: false, trackingWeek: null } },
-  { id: 'dp-10', name: 'Al-Noor Umm Al Quwain', country: 'AE', assessmentHref: '/demo', assessment: { id: 'demo-10', phase: 'workshop', overall: null, scores: null, bottleneck: null, ebitda_monthly: null, report_released: false, trackingWeek: null } },
+  { id: 'dp-1', name: 'Al-Noor Riyadh North', country: 'SA', assessmentHref: '/demo', assessment: { id: 'demo', phase: 'onsite', overall: 68, scores: { prod: 82, dispatch: 48, logistics: 71, fleet: 71, quality: 70 }, bottleneck: 'Dispatch', ebitda_monthly: 79000, report_released: true, trackingWeek: 7 } },
+  { id: 'dp-2', name: 'Al-Noor Riyadh East', country: 'SA', assessmentHref: '/demo', assessment: { id: 'demo-2', phase: 'onsite', overall: 54, scores: { prod: 68, dispatch: 34, logistics: 52, fleet: 52, quality: 61 }, bottleneck: 'Dispatch', ebitda_monthly: 103000, report_released: false, trackingWeek: null } },
+  { id: 'dp-3', name: 'Al-Noor Jeddah', country: 'SA', assessmentHref: '/demo', assessment: { id: 'demo-3', phase: 'complete', overall: 83, scores: { prod: 88, dispatch: 79, logistics: 85, fleet: 85, quality: 80 }, bottleneck: null, ebitda_monthly: 14000, report_released: true, trackingWeek: 13 } },
+  { id: 'dp-4', name: 'Al-Noor Dammam', country: 'SA', assessmentHref: '/demo', assessment: { id: 'demo-4', phase: 'onsite', overall: 61, scores: { prod: 74, dispatch: 65, logistics: 59, fleet: 59, quality: 47 }, bottleneck: 'Quality', ebitda_monthly: 54000, report_released: false, trackingWeek: 3 } },
+  { id: 'dp-5', name: 'Al-Noor Al Khobar', country: 'SA', assessmentHref: '/demo', assessment: { id: 'demo-5', phase: 'onsite', overall: 44, scores: { prod: 62, dispatch: 42, logistics: 29, fleet: 29, quality: 44 }, bottleneck: 'Fleet', ebitda_monthly: 141000, report_released: false, trackingWeek: null } },
+  { id: 'dp-6', name: 'Al-Noor Makkah', country: 'SA', assessmentHref: '/demo', assessment: { id: 'demo-6', phase: 'complete', overall: 78, scores: { prod: 72, dispatch: 81, logistics: 83, fleet: 83, quality: 77 }, bottleneck: 'Production', ebitda_monthly: 36000, report_released: true, trackingWeek: 11 } },
+  { id: 'dp-7', name: 'Al-Noor Madinah', country: 'SA', assessmentHref: '/demo', assessment: { id: 'demo-7', phase: 'onsite', overall: 66, scores: { prod: 77, dispatch: 71, logistics: 62, fleet: 62, quality: 54 }, bottleneck: 'Quality', ebitda_monthly: 62000, report_released: false, trackingWeek: null } },
+  { id: 'dp-8', name: 'Al-Noor Jubail', country: 'SA', assessmentHref: '/demo', assessment: { id: 'demo-8', phase: 'complete', overall: 88, scores: { prod: 91, dispatch: 86, logistics: 89, fleet: 89, quality: 86 }, bottleneck: null, ebitda_monthly: 9000, report_released: true, trackingWeek: 13 } },
+  { id: 'dp-9', name: 'Al-Noor Yanbu', country: 'SA', assessmentHref: '/demo', assessment: { id: 'demo-9', phase: 'onsite', overall: 57, scores: { prod: 70, dispatch: 59, logistics: 43, fleet: 43, quality: 55 }, bottleneck: 'Fleet', ebitda_monthly: 89000, report_released: false, trackingWeek: null } },
+  { id: 'dp-10', name: 'Al-Noor NEOM', country: 'SA', assessmentHref: '/demo', assessment: { id: 'demo-10', phase: 'workshop', overall: null, scores: null, bottleneck: null, ebitda_monthly: null, report_released: false, trackingWeek: null } },
 ]
 
 // ─────────────────────────────────────────────────────────────────────────────
