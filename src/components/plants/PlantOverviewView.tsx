@@ -18,9 +18,16 @@ export interface PlantAssessmentData {
     quality: number | null
   } | null
   bottleneck: string | null
+  constraintDetail?: string | null   // e.g. "32 min order-to-dispatch · target 15 min"
   ebitda_monthly: number | null
   report_released: boolean
   trackingWeek: number | null  // pre-computed from started_at
+  trackingImprovement?: {
+    turnaroundDelta: number | null   // minutes improved at latest tracked week (positive = better)
+    dispatchDelta: number | null     // minutes improved
+    weekOf: number
+    weekTotal: number
+  } | null
 }
 
 export interface PlantCardData {
@@ -56,34 +63,17 @@ function fmt(n: number | null): string {
   return '$' + Math.round(n)
 }
 
-// ── MiniBar ────────────────────────────────────────────────────────────────
+// ── TrackBar ───────────────────────────────────────────────────────────────
 
-function MiniBar({ label, value }: { label: string; value: number | null }) {
-  const color = scoreColor(value)
+function TrackBar({ week, total }: { week: number; total: number }) {
+  const pct = Math.min(1, week / total)
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px' }}>
-      <span style={{
-        fontSize: '10px', color: 'var(--gray-400)',
-        width: '62px', flexShrink: 0, lineHeight: 1.2,
-      }}>
-        {label}
-      </span>
-      <div style={{
-        flex: 1, height: '4px', background: 'var(--gray-100)',
-        borderRadius: '2px', overflow: 'hidden',
-      }}>
-        {value !== null && (
-          <div style={{
-            width: `${Math.min(100, value)}%`, height: '100%',
-            background: color, borderRadius: '2px',
-          }} />
-        )}
+    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <div style={{ flex: 1, height: '4px', background: 'var(--gray-100)', borderRadius: '2px', overflow: 'hidden' }}>
+        <div style={{ width: `${pct * 100}%`, height: '100%', background: 'var(--phase-complete)', borderRadius: '2px', transition: 'width .3s' }} />
       </div>
-      <span style={{
-        fontSize: '10px', fontFamily: 'var(--mono)', fontWeight: 600,
-        color, width: '22px', textAlign: 'right', flexShrink: 0,
-      }}>
-        {value !== null ? value : '—'}
+      <span style={{ fontSize: '10px', color: 'var(--gray-400)', fontFamily: 'var(--mono)', flexShrink: 0 }}>
+        Wk {week}/{total}
       </span>
     </div>
   )
@@ -137,32 +127,40 @@ function PlantCard({ plant, isMobile }: { plant: PlantCardData; isMobile: boolea
     color: 'inherit',
   }
 
+  const imp = a?.trackingImprovement ?? null
+  const isImproving = imp && ((imp.turnaroundDelta ?? 0) > 0 || (imp.dispatchDelta ?? 0) > 0)
+
   const inner = (
     <div
       style={cardStyle}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      {/* Header: name + country */}
+      {/* Header: name · country · score */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
-        <div style={{
-          fontSize: isMobile ? '13px' : '14px', fontWeight: 600,
-          color: 'var(--gray-900)', lineHeight: 1.3, flex: 1,
-        }}>
+        <div style={{ fontSize: isMobile ? '13px' : '14px', fontWeight: 600, color: 'var(--gray-900)', lineHeight: 1.3, flex: 1 }}>
           {plant.name}
         </div>
-        <span style={{
-          fontSize: '10px', color: 'var(--gray-400)',
-          flexShrink: 0, fontFamily: 'var(--mono)',
-          background: 'var(--gray-50)', padding: '2px 6px', borderRadius: '4px',
-        }}>
-          {plant.country}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+          {a?.overall !== null && a?.overall !== undefined && (
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px' }}>
+              <span style={{ fontSize: '15px', fontWeight: 700, fontFamily: 'var(--mono)', color: scoreColor(a.overall) }}>
+                {a.overall}
+              </span>
+              <span style={{ fontSize: '10px', color: 'var(--gray-400)' }}>/100</span>
+              {isImproving && (
+                <span style={{ fontSize: '12px', color: 'var(--phase-complete)', marginLeft: '2px', fontWeight: 700 }}>↑</span>
+              )}
+            </div>
+          )}
+          <span style={{ fontSize: '10px', color: 'var(--gray-400)', fontFamily: 'var(--mono)', background: 'var(--gray-50)', padding: '2px 6px', borderRadius: '4px' }}>
+            {plant.country}
+          </span>
+        </div>
       </div>
 
       {/* Body */}
       {!a || a.overall === null ? (
-        /* No score yet (workshop / no assessment) */
         <div style={{ padding: '10px 0' }}>
           <PhaseBadge phase={a?.phase || 'workshop'} />
           <div style={{ fontSize: '12px', color: 'var(--gray-400)', marginTop: '8px' }}>
@@ -171,100 +169,91 @@ function PlantCard({ plant, isMobile }: { plant: PlantCardData; isMobile: boolea
         </div>
       ) : (
         <>
-          {/* Score circle + mini bars */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '10px' : '14px' }}>
-            {/* Circle */}
-            <div style={{
-              width: isMobile ? '52px' : '58px',
-              height: isMobile ? '52px' : '58px',
-              borderRadius: '50%', flexShrink: 0,
-              border: `3px solid ${scoreColor(a.overall)}`,
-              background: scoreBg(a.overall),
-              display: 'flex', flexDirection: 'column',
-              alignItems: 'center', justifyContent: 'center',
-            }}>
-              <span style={{
-                fontSize: isMobile ? '18px' : '20px', fontWeight: 700,
-                color: scoreColor(a.overall), lineHeight: 1,
-              }}>
-                {a.overall}
-              </span>
-              <span style={{ fontSize: '9px', color: 'var(--gray-400)' }}>/100</span>
-            </div>
-            {/* Bars */}
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <MiniBar label="Production" value={a.scores?.prod ?? null} />
-              <MiniBar label="Dispatch"   value={a.scores?.dispatch ?? null} />
-              <MiniBar label="Fleet"      value={fleetScore} />
-              <MiniBar label="Quality"    value={a.scores?.quality ?? null} />
-            </div>
-          </div>
-
-          {/* Financial gap + bottleneck */}
+          {/* Financial hero */}
           <div style={{
-            display: 'flex', alignItems: 'center',
-            justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px',
+            background: a.ebitda_monthly ? '#fff3f3' : 'var(--gray-50)',
+            borderRadius: '8px', padding: '10px 12px',
           }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '3px' }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
               <span style={{
-                fontSize: isMobile ? '16px' : '18px', fontWeight: 700,
-                fontFamily: 'var(--mono)',
+                fontSize: isMobile ? '26px' : '30px', fontWeight: 800,
+                fontFamily: 'var(--mono)', lineHeight: 1,
                 color: a.ebitda_monthly ? 'var(--red)' : 'var(--gray-300)',
               }}>
                 {fmt(a.ebitda_monthly)}
               </span>
-              {a.ebitda_monthly ? (
-                <span style={{ fontSize: '11px', color: 'var(--gray-400)' }}>/mo gap</span>
-              ) : null}
+              {a.ebitda_monthly && (
+                <span style={{ fontSize: '12px', color: '#e06060', fontWeight: 500 }}>/mo</span>
+              )}
             </div>
-            {a.bottleneck && (
-              <span style={{
-                fontSize: '10px', fontWeight: 600, padding: '2px 7px',
-                borderRadius: '4px', background: 'var(--error-bg)', color: 'var(--red)',
-              }}>
-                ⚡ {a.bottleneck === 'Fleet' ? 'Logistics' : a.bottleneck}
-              </span>
-            )}
+            <div style={{ fontSize: '11px', color: a.ebitda_monthly ? '#c05050' : 'var(--gray-400)', marginTop: '2px' }}>
+              {a.ebitda_monthly ? 'revenue at risk' : 'no gap identified'}
+            </div>
           </div>
 
-          {/* Status badges */}
-          <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', alignItems: 'center' }}>
-            <PhaseBadge phase={a.phase} />
-            {a.trackingWeek !== null && (
-              <span style={{
-                fontSize: '10px', fontWeight: 600, padding: '2px 7px', borderRadius: '4px',
-                background: a.trackingWeek >= 13 ? 'var(--phase-complete-bg)' : 'var(--phase-onsite-bg)',
-                color: a.trackingWeek >= 13 ? 'var(--phase-complete)' : 'var(--phase-onsite)',
-              }}>
-                {a.trackingWeek >= 13 ? '✓ Tracked' : `Wk ${a.trackingWeek}/13`}
-              </span>
-            )}
-            {a.report_released && (
-              <span style={{
-                fontSize: '10px', fontWeight: 600, padding: '2px 7px', borderRadius: '4px',
-                background: 'var(--phase-complete-bg)', color: 'var(--phase-complete)',
-              }}>
-                ● Report
+          {/* Primary constraint */}
+          {a.bottleneck && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <span style={{
+                  fontSize: '10px', fontWeight: 700, padding: '2px 7px',
+                  borderRadius: '4px', background: 'var(--error-bg)', color: 'var(--red)', flexShrink: 0,
+                }}>
+                  ⚡ {a.bottleneck === 'Fleet' ? 'Logistics' : a.bottleneck}
+                </span>
+                <span style={{ fontSize: '10px', color: 'var(--gray-500)', fontWeight: 600 }}>
+                  Primary constraint
+                </span>
+              </div>
+              {a.constraintDetail && (
+                <div style={{ fontSize: '11px', color: 'var(--gray-400)', paddingLeft: '2px' }}>
+                  {a.constraintDetail}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Tracking progress */}
+          {a.trackingWeek !== null && a.trackingWeek > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+              <TrackBar week={a.trackingWeek} total={imp?.weekTotal ?? 12} />
+              {imp && (imp.turnaroundDelta || imp.dispatchDelta) && (
+                <div style={{ fontSize: '11px', color: 'var(--phase-complete)', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                  {imp.turnaroundDelta ? <span>▼ {imp.turnaroundDelta} min turnaround</span> : null}
+                  {imp.dispatchDelta   ? <span>▼ {imp.dispatchDelta} min dispatch</span>   : null}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Footer: phase · report · view */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px', marginTop: 'auto', paddingTop: '2px' }}>
+            <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', alignItems: 'center' }}>
+              <PhaseBadge phase={a.phase} />
+              {a.report_released && (
+                <span style={{
+                  fontSize: '10px', fontWeight: 600, padding: '2px 7px', borderRadius: '4px',
+                  background: 'var(--phase-complete-bg)', color: 'var(--phase-complete)',
+                }}>
+                  ✓ Report
+                </span>
+              )}
+            </div>
+            {href && (
+              <span style={{ fontSize: '12px', fontWeight: 600, color: hovered ? 'var(--green)' : 'var(--gray-400)', transition: 'color .15s', flexShrink: 0 }}>
+                View →
               </span>
             )}
           </div>
         </>
       )}
 
-      {/* Footer arrow */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 'auto', paddingTop: '2px' }}>
-        {href ? (
-          <span style={{
-            fontSize: '12px', fontWeight: 600,
-            color: hovered ? 'var(--green)' : 'var(--gray-400)',
-            transition: 'color .15s',
-          }}>
-            View →
-          </span>
-        ) : (
+      {/* Pending footer (no href, no score) */}
+      {(!a || a.overall === null) && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
           <span style={{ fontSize: '11px', color: 'var(--gray-300)' }}>Pending</span>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   )
 
