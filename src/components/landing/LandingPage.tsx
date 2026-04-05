@@ -52,12 +52,6 @@ function Nav() {
 
         {/* Right nav */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Link href="/pricing" style={{
-            fontSize: '13px', color: 'var(--gray-500)', textDecoration: 'none',
-            padding: '6px 12px', borderRadius: '6px',
-          }}>
-            Pricing
-          </Link>
           <Link href="/login" style={{
             fontSize: '13px', color: 'var(--gray-700)', textDecoration: 'none',
             padding: '6px 12px', borderRadius: '6px',
@@ -139,14 +133,6 @@ function Hero() {
             padding: '13px 24px', borderRadius: '9px', fontSize: '15px', fontWeight: 600,
           }}>
             Run the diagnostic on your plant →
-          </Link>
-          <Link href="/pricing" style={{
-            display: 'inline-flex', alignItems: 'center',
-            color: 'rgba(255,255,255,0.6)', textDecoration: 'none',
-            padding: '13px 24px', borderRadius: '9px', fontSize: '15px',
-            border: '1px solid rgba(255,255,255,0.15)',
-          }}>
-            See pricing
           </Link>
         </div>
       </div>
@@ -537,7 +523,6 @@ function Footer() {
         {/* Links */}
         <div style={{ display: 'flex', gap: '24px' }}>
           {[
-            { label: 'Pricing', href: '/pricing' },
             { label: 'Log in', href: '/login' },
             { label: 'Run diagnostic', href: '/demo' },
           ].map(link => (
