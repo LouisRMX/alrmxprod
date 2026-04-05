@@ -33,10 +33,10 @@ function answersMatchDefaults(current: Answers, defaults: Answers): boolean {
 //   20-truck fleet (17 operative), 10 h/day, 245 days/year, 20 days this month
 //   Deliveries mostly 12–20 km (suburban/outer city) → TARGET_TA = 84 min
 //   Actual turnaround: 100–125 min range (calc midpoint 112 min → +28 min excess)
-//   68 deliveries/day, actual_prod 10,000 m³/month → effectiveMixCap ≈ 7.1 m³
+//   86 deliveries/day, actual_prod 10,000 m³/month → effectiveMixCap ≈ 5.8 m³
 //   Rated capacity 75 m³/hr → utilisation ~84%, close to 85% target
 //   Contribution margin: $60 − $23 − $12 − $5 = $20/m³ (fuel further reduces)
-//   turnaroundLeak ≈ 28 min × $2,200/min = $62k/month · rejectLeak ≈ $17k/month
+//   turnaroundLeak ≈ 28 min × $2,100/min = $58k/month · rejectLeak ≈ $21k/month
 //   Total recoverable ≈ $79k/month
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -51,7 +51,7 @@ const WORKSHOP_ANSWERS: Answers = {
   op_hours:           '10',
   op_days:            '245',
   n_trucks:           '20',
-  deliveries_day:     '68',
+  deliveries_day:     '86',
   turnaround:         '100 to 125 minutes — slow',
   reject_pct:         '3.5',
   delivery_radius:    'Most deliveries 12 to 20 km — suburban / outer city',
@@ -123,14 +123,14 @@ const ONSITE_ANSWERS: Answers = {
 // Report — only available after on-site visit
 const ONSITE_REPORT = {
   executive:
-`Al-Noor scores 68/100. Fleet turnaround time is the primary financial constraint at 112 minutes — 28 minutes above the 84-minute benchmark for a suburban delivery radius — placing the plant in the bottom 25% of Saudi operators. This alone costs an estimated $62,000 per month in lost delivery capacity. Rejection losses driven by summer heat add a further $17,000/month. Total recoverable margin is approximately $79,000 per month from operational changes alone, without capital investment.`,
+`Al-Noor scores 68/100. Fleet turnaround time is the primary financial constraint at 112 minutes — 28 minutes above the 84-minute benchmark for a suburban delivery radius — placing the plant in the bottom 25% of Saudi operators. This alone costs an estimated $58,000 per month in lost delivery capacity. Rejection losses driven by summer heat add a further $21,000/month. Total recoverable margin is approximately $79,000 per month from operational changes alone, without capital investment.`,
 
   diagnosis:
-`Fleet (primary financial driver): Turnaround at 112 minutes is 28 minutes above the 84-minute benchmark for a 12–20 km suburban delivery radius. Site wait time of 52 minutes is the single largest component — more than 12 minutes above the 40-minute industry standard — driven by uncoordinated site handover and no demurrage enforcement despite a clause existing in contracts. Each excess minute of turnaround costs approximately $2,200/month in lost contribution across the 20-truck fleet. Bringing turnaround to 84 minutes — a realistic 90-day target — would recover the full $62,000/month.
+`Fleet (primary financial driver): Turnaround at 112 minutes is 28 minutes above the 84-minute benchmark for a 12–20 km suburban delivery radius. Site wait time of 52 minutes is the single largest component — more than 12 minutes above the 40-minute industry standard — driven by uncoordinated site handover and no demurrage enforcement despite a clause existing in contracts. Each excess minute of turnaround costs approximately $2,100/month in lost contribution across the 20-truck fleet. Bringing turnaround to 84 minutes — a realistic 90-day target — would recover the full $58,000/month.
 
 Dispatch (lowest score — 48/100): Order-to-dispatch averaging 32 minutes against a 15-minute target. Deliveries are clustered ad hoc by the dispatcher with no zone system, and the operation runs on WhatsApp and spreadsheet with no real-time visibility. At 32 minutes, the plant is in the bottom 25% of Saudi operators on this metric.
 
-Quality: A 3.5% rejection rate at $60/m³ with the plant absorbing 100% of write-off costs amounts to approximately $17,000/month. The dominant cause is heat-related slump loss during the extended 112-minute cycle — compounded by summer temperatures exceeding 40°C and the absence of a consistent retarder protocol. The problem will partially resolve as turnaround improves.
+Quality: A 3.5% rejection rate at $60/m³ with the plant absorbing 100% of write-off costs amounts to approximately $21,000/month. The dominant cause is heat-related slump loss during the extended 112-minute cycle — compounded by summer temperatures exceeding 40°C and the absence of a consistent retarder protocol. The problem will partially resolve as turnaround improves.
 
 Production: Utilisation at 84% is constrained downstream by the turnaround bottleneck — the 20-truck fleet cannot complete enough cycles to consistently load the plant. Four truck breakdowns last month on an informally maintained fleet indicates reactive rather than preventive maintenance.`,
 
