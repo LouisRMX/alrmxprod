@@ -75,15 +75,7 @@ function Nav() {
 
 // ── Hero ──────────────────────────────────────────────────────────────────────
 
-const heroScreens = [
-  { label: 'Identify the gap',      src: '/screen-1-dashboard.png' },
-  { label: 'Quantify the cost',     src: '/screen-2-report.png'    },
-  { label: 'Track improvement',     src: '/screen-3-tracking.png'  },
-]
-
 function Hero() {
-  const [activeScreen, setActiveScreen] = useState(0)
-
   return (
     <section style={{
       background: '#0a1a13',
@@ -91,13 +83,12 @@ function Hero() {
     }}>
       <div style={{
         maxWidth: '1120px', margin: '0 auto',
-        display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)',
-        gap: 'clamp(32px, 5vw, 72px)', alignItems: 'center',
+        display: 'grid', gridTemplateColumns: 'minmax(0,1.1fr) minmax(0,0.9fr)',
+        gap: 'clamp(32px, 5vw, 80px)', alignItems: 'center',
       }}>
 
         {/* ── Left: text ── */}
         <div>
-          {/* Eyebrow */}
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: '7px',
             background: 'rgba(15,110,86,0.25)', border: '1px solid rgba(15,110,86,0.4)',
@@ -109,7 +100,6 @@ function Hero() {
             </span>
           </div>
 
-          {/* Headline */}
           <h1 style={{
             fontSize: 'clamp(28px, 3.5vw, 46px)', fontWeight: 800,
             color: '#fff', lineHeight: 1.1, letterSpacing: '-1px',
@@ -119,7 +109,6 @@ function Hero() {
             <span style={{ color: '#4ade80' }}> They are always calculable.</span>
           </h1>
 
-          {/* Subline */}
           <p style={{
             fontSize: 'clamp(14px, 1.6vw, 16px)', color: 'rgba(255,255,255,0.6)',
             lineHeight: 1.6, margin: '0 0 28px',
@@ -128,7 +117,6 @@ function Hero() {
             and rejection rate — based on your plant&apos;s own data. Before anyone visits the site.
           </p>
 
-          {/* Bullets */}
           <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 36px', display: 'flex', flexDirection: 'column', gap: '9px' }}>
             {[
               'Monthly revenue leakage per dimension — in dollars',
@@ -142,7 +130,6 @@ function Hero() {
             ))}
           </ul>
 
-          {/* CTA */}
           <a href="#contact" style={{
             display: 'inline-flex', alignItems: 'center', gap: '8px',
             background: 'var(--green)', color: '#fff', textDecoration: 'none',
@@ -152,60 +139,71 @@ function Hero() {
           </a>
         </div>
 
-        {/* ── Right: screenshot ── */}
-        <div>
-          {/* Tab pills */}
-          <div style={{ display: 'flex', gap: '6px', marginBottom: '12px', flexWrap: 'wrap' }}>
-            {heroScreens.map((s, i) => (
-              <button
-                key={s.label}
-                onClick={() => setActiveScreen(i)}
-                style={{
-                  fontSize: '11px', fontWeight: 600, padding: '5px 12px',
-                  borderRadius: '20px', border: 'none', cursor: 'pointer',
-                  background: activeScreen === i ? '#4ade80' : 'rgba(255,255,255,0.08)',
-                  color: activeScreen === i ? '#0a1a13' : 'rgba(255,255,255,0.5)',
-                  transition: 'all .15s',
-                }}
-              >
-                {s.label}
-              </button>
-            ))}
+        {/* ── Right: data story cards ── */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
+
+          {/* Card 1 — Identified */}
+          <div style={{
+            background: 'rgba(255,255,255,0.04)',
+            border: '1px solid rgba(255,255,255,0.09)',
+            borderRadius: '12px',
+            padding: '20px 24px',
+          }}>
+            <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.5px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', marginBottom: '10px' }}>
+              Identified
+            </div>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginBottom: '4px' }}>
+              <span style={{ fontSize: '42px', fontWeight: 800, color: '#fff', lineHeight: 1, letterSpacing: '-2px', fontFamily: 'var(--mono)' }}>$359k</span>
+              <span style={{ fontSize: '16px', color: 'rgba(255,255,255,0.4)', fontWeight: 500 }}>/mo</span>
+            </div>
+            <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)' }}>Total operational gap — 3 plants</div>
           </div>
 
-          {/* Screenshot frame */}
+          {/* Connector */}
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '6px 0', color: 'rgba(255,255,255,0.15)', fontSize: '16px' }}>↓</div>
+
+          {/* Card 2 — Primary constraint */}
           <div style={{
-            borderRadius: '10px', overflow: 'hidden',
-            border: '1px solid rgba(255,255,255,0.1)',
-            boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
+            background: 'rgba(255,255,255,0.04)',
+            border: '1px solid rgba(255,255,255,0.09)',
+            borderRadius: '12px',
+            padding: '20px 24px',
           }}>
-            {/* Browser chrome bar */}
-            <div style={{
-              background: '#1a2e22', padding: '8px 14px',
-              display: 'flex', alignItems: 'center', gap: '6px',
-              borderBottom: '1px solid rgba(255,255,255,0.07)',
-            }}>
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'rgba(255,255,255,0.15)' }} />
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'rgba(255,255,255,0.15)' }} />
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'rgba(255,255,255,0.15)' }} />
-              <div style={{
-                flex: 1, marginLeft: '8px', background: 'rgba(255,255,255,0.06)',
-                borderRadius: '4px', padding: '3px 10px',
-                fontSize: '10px', color: 'rgba(255,255,255,0.3)',
-              }}>
-                alrmx.com/dashboard
+            <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.5px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', marginBottom: '10px' }}>
+              Primary constraint
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
+              <span style={{ fontSize: '42px', fontWeight: 800, color: '#fff', lineHeight: 1, letterSpacing: '-2px', fontFamily: 'var(--mono)' }}>47</span>
+              <div>
+                <div style={{ fontSize: '14px', fontWeight: 600, color: 'rgba(255,255,255,0.75)' }}>Dispatch</div>
+                <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)' }}>score out of 100</div>
               </div>
             </div>
-            {/* Screenshot image */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={heroScreens[activeScreen].src}
-              alt={heroScreens[activeScreen].label}
-              style={{ width: '100%', display: 'block', maxHeight: '420px', objectFit: 'cover', objectPosition: 'top' }}
-            />
+            <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', marginTop: '2px' }}>$108k revenue at risk /mo</div>
           </div>
-        </div>
 
+          {/* Connector */}
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '6px 0', color: 'rgba(255,255,255,0.15)', fontSize: '16px' }}>↓</div>
+
+          {/* Card 3 — Recovered */}
+          <div style={{
+            background: 'rgba(74,222,128,0.06)',
+            border: '1px solid rgba(74,222,128,0.2)',
+            borderLeft: '3px solid #4ade80',
+            borderRadius: '12px',
+            padding: '20px 24px',
+          }}>
+            <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.5px', textTransform: 'uppercase', color: 'rgba(74,222,128,0.6)', marginBottom: '10px' }}>
+              Recovered
+            </div>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginBottom: '4px' }}>
+              <span style={{ fontSize: '42px', fontWeight: 800, color: '#4ade80', lineHeight: 1, letterSpacing: '-2px', fontFamily: 'var(--mono)' }}>$85k</span>
+              <span style={{ fontSize: '16px', color: 'rgba(74,222,128,0.5)', fontWeight: 500 }}>/mo</span>
+            </div>
+            <div style={{ fontSize: '12px', color: 'rgba(74,222,128,0.55)' }}>After 12 weeks of tracking</div>
+          </div>
+
+        </div>
       </div>
     </section>
   )
