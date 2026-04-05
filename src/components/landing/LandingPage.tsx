@@ -75,69 +75,137 @@ function Nav() {
 
 // ── Hero ──────────────────────────────────────────────────────────────────────
 
+const heroScreens = [
+  { label: 'Identify the gap',      src: '/screen-1-dashboard.png' },
+  { label: 'Quantify the cost',     src: '/screen-2-report.png'    },
+  { label: 'Track improvement',     src: '/screen-3-tracking.png'  },
+]
+
 function Hero() {
+  const [activeScreen, setActiveScreen] = useState(0)
+
   return (
     <section style={{
       background: '#0a1a13',
-      padding: 'clamp(72px, 10vw, 120px) 24px clamp(80px, 11vw, 130px)',
+      padding: 'clamp(56px, 8vw, 96px) 24px clamp(64px, 9vw, 112px)',
     }}>
-      <div style={{ maxWidth: '760px', margin: '0 auto' }}>
+      <div style={{
+        maxWidth: '1120px', margin: '0 auto',
+        display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)',
+        gap: 'clamp(32px, 5vw, 72px)', alignItems: 'center',
+      }}>
 
-        {/* Eyebrow */}
-        <div style={{
-          display: 'inline-flex', alignItems: 'center', gap: '7px',
-          background: 'rgba(15,110,86,0.25)', border: '1px solid rgba(15,110,86,0.4)',
-          borderRadius: '20px', padding: '4px 12px', marginBottom: '32px',
-        }}>
-          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#4ade80', flexShrink: 0 }} />
-          <span style={{ fontSize: '11px', fontWeight: 600, color: '#86efac', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
-            Ready-mix concrete operations
-          </span>
-        </div>
+        {/* ── Left: text ── */}
+        <div>
+          {/* Eyebrow */}
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: '7px',
+            background: 'rgba(15,110,86,0.25)', border: '1px solid rgba(15,110,86,0.4)',
+            borderRadius: '20px', padding: '4px 12px', marginBottom: '28px',
+          }}>
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#4ade80', flexShrink: 0 }} />
+            <span style={{ fontSize: '11px', fontWeight: 600, color: '#86efac', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+              Ready-mix concrete operations
+            </span>
+          </div>
 
-        {/* Headline */}
-        <h1 style={{
-          fontSize: 'clamp(32px, 5vw, 52px)', fontWeight: 800,
-          color: '#fff', lineHeight: 1.1, letterSpacing: '-1px',
-          margin: '0 0 20px',
-        }}>
-          Operational losses in ready-mix plants are rarely visible.
-          <span style={{ color: '#4ade80' }}> They are always calculable.</span>
-        </h1>
+          {/* Headline */}
+          <h1 style={{
+            fontSize: 'clamp(28px, 3.5vw, 46px)', fontWeight: 800,
+            color: '#fff', lineHeight: 1.1, letterSpacing: '-1px',
+            margin: '0 0 18px',
+          }}>
+            Operational losses in ready-mix plants are rarely visible.
+            <span style={{ color: '#4ade80' }}> They are always calculable.</span>
+          </h1>
 
-        {/* Subline */}
-        <p style={{
-          fontSize: 'clamp(15px, 2vw, 18px)', color: 'rgba(255,255,255,0.6)',
-          lineHeight: 1.6, margin: '0 0 36px', maxWidth: '580px',
-        }}>
-          We calculate the exact monthly dollar cost of your turnaround time, dispatch delay,
-          and rejection rate — based on your plant&apos;s own data. Before anyone visits the site.
-        </p>
+          {/* Subline */}
+          <p style={{
+            fontSize: 'clamp(14px, 1.6vw, 16px)', color: 'rgba(255,255,255,0.6)',
+            lineHeight: 1.6, margin: '0 0 28px',
+          }}>
+            We calculate the exact monthly dollar cost of your turnaround time, dispatch delay,
+            and rejection rate — based on your plant&apos;s own data. Before anyone visits the site.
+          </p>
 
-        {/* Bullets */}
-        <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 44px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {[
-            'Monthly revenue leakage per operational dimension — in dollars',
-            'Primary bottleneck identified and ranked by financial impact',
-            'Clear improvement actions with a 90-day tracking baseline',
-          ].map(text => (
-            <li key={text} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-              <span style={{ color: '#4ade80', fontSize: '16px', flexShrink: 0, marginTop: '1px' }}>✓</span>
-              <span style={{ fontSize: '15px', color: 'rgba(255,255,255,0.75)', lineHeight: 1.5 }}>{text}</span>
-            </li>
-          ))}
-        </ul>
+          {/* Bullets */}
+          <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 36px', display: 'flex', flexDirection: 'column', gap: '9px' }}>
+            {[
+              'Monthly revenue leakage per dimension — in dollars',
+              'Primary bottleneck ranked by financial impact',
+              'Clear actions with a 90-day tracking baseline',
+            ].map(text => (
+              <li key={text} style={{ display: 'flex', alignItems: 'flex-start', gap: '9px' }}>
+                <span style={{ color: '#4ade80', fontSize: '15px', flexShrink: 0, marginTop: '1px' }}>✓</span>
+                <span style={{ fontSize: '14px', color: 'rgba(255,255,255,0.75)', lineHeight: 1.5 }}>{text}</span>
+              </li>
+            ))}
+          </ul>
 
-        {/* CTAs */}
-        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+          {/* CTA */}
           <a href="#contact" style={{
             display: 'inline-flex', alignItems: 'center', gap: '8px',
             background: 'var(--green)', color: '#fff', textDecoration: 'none',
-            padding: '13px 24px', borderRadius: '9px', fontSize: '15px', fontWeight: 600,
+            padding: '12px 22px', borderRadius: '9px', fontSize: '14px', fontWeight: 600,
           }}>
             Book a 20-min walkthrough →
           </a>
         </div>
+
+        {/* ── Right: screenshot ── */}
+        <div>
+          {/* Tab pills */}
+          <div style={{ display: 'flex', gap: '6px', marginBottom: '12px', flexWrap: 'wrap' }}>
+            {heroScreens.map((s, i) => (
+              <button
+                key={s.label}
+                onClick={() => setActiveScreen(i)}
+                style={{
+                  fontSize: '11px', fontWeight: 600, padding: '5px 12px',
+                  borderRadius: '20px', border: 'none', cursor: 'pointer',
+                  background: activeScreen === i ? '#4ade80' : 'rgba(255,255,255,0.08)',
+                  color: activeScreen === i ? '#0a1a13' : 'rgba(255,255,255,0.5)',
+                  transition: 'all .15s',
+                }}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Screenshot frame */}
+          <div style={{
+            borderRadius: '10px', overflow: 'hidden',
+            border: '1px solid rgba(255,255,255,0.1)',
+            boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
+          }}>
+            {/* Browser chrome bar */}
+            <div style={{
+              background: '#1a2e22', padding: '8px 14px',
+              display: 'flex', alignItems: 'center', gap: '6px',
+              borderBottom: '1px solid rgba(255,255,255,0.07)',
+            }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'rgba(255,255,255,0.15)' }} />
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'rgba(255,255,255,0.15)' }} />
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'rgba(255,255,255,0.15)' }} />
+              <div style={{
+                flex: 1, marginLeft: '8px', background: 'rgba(255,255,255,0.06)',
+                borderRadius: '4px', padding: '3px 10px',
+                fontSize: '10px', color: 'rgba(255,255,255,0.3)',
+              }}>
+                alrmx.com/dashboard
+              </div>
+            </div>
+            {/* Screenshot image */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={heroScreens[activeScreen].src}
+              alt={heroScreens[activeScreen].label}
+              style={{ width: '100%', display: 'block', maxHeight: '420px', objectFit: 'cover', objectPosition: 'top' }}
+            />
+          </div>
+        </div>
+
       </div>
     </section>
   )
