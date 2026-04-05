@@ -169,66 +169,52 @@ function PlantCard({ plant, isMobile }: { plant: PlantCardData; isMobile: boolea
         </div>
       ) : (
         <>
-          {/* Financial hero */}
-          <div style={{
-            background: a.ebitda_monthly ? '#fff3f3' : 'var(--gray-50)',
-            borderRadius: '8px', padding: '10px 12px',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
-              <span style={{
-                fontSize: isMobile ? '26px' : '30px', fontWeight: 800,
-                fontFamily: 'var(--mono)', lineHeight: 1,
-                color: a.ebitda_monthly ? 'var(--red)' : 'var(--gray-300)',
-              }}>
-                {fmt(a.ebitda_monthly)}
-              </span>
-              {a.ebitda_monthly && (
-                <span style={{ fontSize: '12px', color: '#e06060', fontWeight: 500 }}>/mo</span>
-              )}
-            </div>
-            <div style={{ fontSize: '11px', color: a.ebitda_monthly ? '#c05050' : 'var(--gray-400)', marginTop: '2px' }}>
-              {a.ebitda_monthly ? 'revenue at risk' : 'no gap identified'}
-            </div>
+          {/* Financial hero — no box, just the number */}
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+            <span style={{
+              fontSize: isMobile ? '28px' : '32px', fontWeight: 800,
+              fontFamily: 'var(--mono)', lineHeight: 1,
+              color: a.ebitda_monthly ? 'var(--red)' : 'var(--gray-300)',
+            }}>
+              {fmt(a.ebitda_monthly)}
+            </span>
+            {a.ebitda_monthly
+              ? <span style={{ fontSize: '12px', color: '#e06060', fontWeight: 500 }}>/mo revenue at risk</span>
+              : <span style={{ fontSize: '12px', color: 'var(--gray-300)' }}>no gap identified</span>
+            }
           </div>
 
-          {/* Primary constraint */}
+          {/* Constraint — chip + detail on one line */}
           {a.bottleneck && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <span style={{
-                  fontSize: '10px', fontWeight: 700, padding: '2px 7px',
-                  borderRadius: '4px', background: 'var(--error-bg)', color: 'var(--red)', flexShrink: 0,
-                }}>
-                  ⚡ {a.bottleneck === 'Fleet' ? 'Logistics' : a.bottleneck}
-                </span>
-                <span style={{ fontSize: '10px', color: 'var(--gray-500)', fontWeight: 600 }}>
-                  Primary constraint
-                </span>
-              </div>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', flexWrap: 'wrap' }}>
+              <span style={{
+                fontSize: '10px', fontWeight: 700, padding: '2px 7px',
+                borderRadius: '4px', background: 'var(--error-bg)', color: 'var(--red)', flexShrink: 0,
+              }}>
+                ⚡ {a.bottleneck === 'Fleet' ? 'Logistics' : a.bottleneck}
+              </span>
               {a.constraintDetail && (
-                <div style={{ fontSize: '11px', color: 'var(--gray-400)', paddingLeft: '2px' }}>
-                  {a.constraintDetail}
-                </div>
+                <span style={{ fontSize: '11px', color: 'var(--gray-400)' }}>{a.constraintDetail}</span>
               )}
             </div>
           )}
 
-          {/* Tracking progress */}
+          {/* Tracking — bar + improvement on one line */}
           {a.trackingWeek !== null && a.trackingWeek > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <TrackBar week={a.trackingWeek} total={imp?.weekTotal ?? 12} />
               {imp && (imp.turnaroundDelta || imp.dispatchDelta) && (
-                <div style={{ fontSize: '11px', color: 'var(--phase-complete)', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                  {imp.turnaroundDelta ? <span>▼ {imp.turnaroundDelta} min turnaround</span> : null}
-                  {imp.dispatchDelta   ? <span>▼ {imp.dispatchDelta} min dispatch</span>   : null}
+                <div style={{ fontSize: '11px', color: 'var(--phase-complete)', display: 'flex', gap: '8px' }}>
+                  {imp.turnaroundDelta ? <span>▼{imp.turnaroundDelta} min turnaround</span> : null}
+                  {imp.dispatchDelta   ? <span>▼{imp.dispatchDelta} min dispatch</span>   : null}
                 </div>
               )}
             </div>
           )}
 
-          {/* Footer: phase · report · view */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px', marginTop: 'auto', paddingTop: '2px' }}>
-            <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', alignItems: 'center' }}>
+          {/* Footer */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', marginTop: 'auto', paddingTop: '2px' }}>
+            <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
               <PhaseBadge phase={a.phase} />
               {a.report_released && (
                 <span style={{
@@ -240,7 +226,7 @@ function PlantCard({ plant, isMobile }: { plant: PlantCardData; isMobile: boolea
               )}
             </div>
             {href && (
-              <span style={{ fontSize: '12px', fontWeight: 600, color: hovered ? 'var(--green)' : 'var(--gray-400)', transition: 'color .15s', flexShrink: 0 }}>
+              <span style={{ fontSize: '12px', fontWeight: 600, color: hovered ? 'var(--green)' : 'var(--gray-400)', transition: 'color .15s' }}>
                 View →
               </span>
             )}
