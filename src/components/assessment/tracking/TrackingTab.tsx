@@ -150,36 +150,40 @@ function ImpactSummary({ config, entries, coeffDispatch, currentWeek }: {
   const onTrack = pct >= 40
 
   return (
-    <div style={{ background: 'var(--white)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '20px 24px', marginBottom: '16px' }}>
+    <div style={{
+      background: currentMonthlyRecovery > 0 ? 'linear-gradient(135deg, #f0faf6 0%, #fff 70%)' : 'var(--white)',
+      border: `1px solid ${currentMonthlyRecovery > 0 ? '#b5dfc9' : 'var(--border)'}`,
+      borderRadius: 'var(--radius)', padding: '20px 24px', marginBottom: '16px',
+    }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
         <div>
-          <div style={{ fontSize: '11px', color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '4px' }}>
-            Current monthly savings
+          <div style={{ fontSize: '10px', color: currentMonthlyRecovery > 0 ? '#4a9a72' : 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '6px', fontWeight: 600 }}>
+            Value recovered / month
           </div>
-          <div style={{ fontSize: '36px', fontWeight: 700, fontFamily: 'var(--mono)', color: currentMonthlyRecovery > 0 ? 'var(--phase-complete)' : 'var(--gray-300)', lineHeight: 1 }}>
+          <div style={{ fontSize: '48px', fontWeight: 800, fontFamily: 'var(--mono)', color: currentMonthlyRecovery > 0 ? '#1a6644' : 'var(--gray-300)', lineHeight: 1, letterSpacing: '-1px' }}>
             {currentMonthlyRecovery > 0 ? fmt(currentMonthlyRecovery) : '—'}
           </div>
           {predictedTotal > 0 && (
-            <div style={{ fontSize: '12px', color: 'var(--gray-500)', marginTop: '5px' }}>
-              of {fmt(predictedTotal)}/mo predicted when targets hit
+            <div style={{ fontSize: '12px', color: '#7ab89a', marginTop: '6px' }}>
+              of {fmt(predictedTotal)}/mo predicted at target
             </div>
           )}
         </div>
         <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: '11px', color: 'var(--gray-400)', marginBottom: '6px' }}>
+          <div style={{ fontSize: '12px', color: 'var(--gray-500)', marginBottom: '8px', fontWeight: 500 }}>
             Week {currentWeek} of 12
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'flex-end' }}>
             <StatusBadge pct={pct} />
-            {onTrack && <span style={{ fontSize: '12px', color: 'var(--phase-complete)' }}>✓</span>}
+            {onTrack && <span style={{ fontSize: '14px', color: 'var(--phase-complete)' }}>✓</span>}
           </div>
         </div>
       </div>
       {predictedTotal > 0 && currentMonthlyRecovery > 0 && (
         <div style={{ marginTop: '16px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
-            <span style={{ fontSize: '10px', color: 'var(--gray-400)' }}>Progress toward predicted improvement</span>
-            <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--gray-600)' }}>{pct}%</span>
+            <span style={{ fontSize: '10px', color: '#7ab89a' }}>Progress toward full recovery</span>
+            <span style={{ fontSize: '10px', fontWeight: 700, color: '#1a6644' }}>{pct}%</span>
           </div>
           <ProgressBar pct={pct} color={onTrack ? 'var(--phase-complete)' : 'var(--warning)'} />
         </div>
@@ -1045,7 +1049,7 @@ export default function TrackingTab(props: TrackingProps) {
 
   const fetchData = useCallback(async () => {
     if (assessmentId === 'demo') {
-      const startedAt = new Date(Date.now() - 49 * 86_400_000).toISOString()
+      const startedAt = new Date(Date.now() - 56 * 86_400_000).toISOString()
       const mockConfig: TrackingConfig = {
         id: 'demo-cfg',
         assessment_id: 'demo',
@@ -1073,7 +1077,8 @@ export default function TrackingTab(props: TrackingProps) {
         { id: 'e4', config_id: 'demo-cfg', week_number: 4, logged_at: new Date(now - 21 * 86_400_000).toISOString(), turnaround_min: 101, reject_pct: null, dispatch_min: 24, notes: 'Dispatch SOP implemented — dedicated dispatcher' },
         { id: 'e5', config_id: 'demo-cfg', week_number: 5, logged_at: new Date(now - 14 * 86_400_000).toISOString(), turnaround_min: 97, reject_pct: null, dispatch_min: 21, notes: null },
         { id: 'e6', config_id: 'demo-cfg', week_number: 6, logged_at: new Date(now - 7 * 86_400_000).toISOString(), turnaround_min: 93, reject_pct: null, dispatch_min: 19, notes: 'Zone routing implemented — 4 delivery quadrants' },
-        { id: 'e7', config_id: 'demo-cfg', week_number: 7, logged_at: new Date(now - 1 * 86_400_000).toISOString(), turnaround_min: 89, reject_pct: null, dispatch_min: 17, notes: null },
+        { id: 'e7', config_id: 'demo-cfg', week_number: 7, logged_at: new Date(now - 7 * 86_400_000).toISOString(), turnaround_min: 89, reject_pct: null, dispatch_min: 17, notes: null },
+        { id: 'e8', config_id: 'demo-cfg', week_number: 8, logged_at: new Date(now - 1 * 86_400_000).toISOString(), turnaround_min: 85, reject_pct: null, dispatch_min: 15, notes: 'Dispatch target hit — 15 min order-to-dispatch achieved' },
       ]
       setConfig(mockConfig)
       setEntries(mockEntries)

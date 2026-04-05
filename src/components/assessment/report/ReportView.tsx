@@ -995,8 +995,8 @@ function ImpactHook({ bnLoss, bnDailyLoss, totalLoss, calcResult, issues, financ
               )}
             </div>
 
-            <div style={{ fontSize: '11px', color: '#b0b0b0' }}>
-              Based on current operational data — no capital required
+            <div style={{ fontSize: '12px', color: '#2e8a5f', fontWeight: 600, marginTop: '4px' }}>
+              ✓ No capital required — operational changes only
             </div>
           </>
         ) : (
@@ -3436,13 +3436,17 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
           <button
             onClick={() => setDrawerOpen(true)}
             style={{
-              background: 'none', border: '1px solid #e8e8e6', borderRadius: '10px',
-              padding: '14px 20px', width: '100%', textAlign: 'left', cursor: 'pointer',
+              background: 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)',
+              border: 'none', borderRadius: '10px',
+              padding: '18px 24px', width: '100%', textAlign: 'left', cursor: 'pointer',
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
             }}
           >
-            <span style={{ fontSize: '13px', color: '#555' }}>Want to understand the full operational picture?</span>
-            <span style={{ fontSize: '13px', fontWeight: 600, color: '#111', textDecoration: 'underline', textUnderlineOffset: '3px', textDecorationColor: '#bbb' }}>See full operational breakdown →</span>
+            <div>
+              <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '4px' }}>Full operational report</div>
+              <div style={{ fontSize: '14px', fontWeight: 600, color: '#fff' }}>AI diagnosis · Root cause analysis · Action plan →</div>
+            </div>
+            <span style={{ fontSize: '20px', color: 'rgba(255,255,255,0.6)' }}>›</span>
           </button>
         </div>
       )}

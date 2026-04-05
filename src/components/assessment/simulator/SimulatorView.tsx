@@ -148,9 +148,9 @@ export default function SimulatorView({ calcResult, readOnly }: SimulatorViewPro
       const targetTA = result.prodDaily > 0
         ? Math.max(40, Math.round(baseline.opH * 60 * sTrucks * baseline.mixCap * dispEff / result.prodDaily))
         : sTurnaround
-      return `Fleet is the binding constraint — ${Math.round(result.effFleetDaily)} m³/day delivered vs ${Math.round(result.prodDaily)} m³/day plant ceiling (${gap} m³/day gap). To fully utilise plant capacity at current dispatch efficiency, reduce turnaround to ~${targetTA} min.`
+      return `Trucks are the bottleneck — delivering ${Math.round(result.effFleetDaily)} m³/day but plant can produce ${Math.round(result.prodDaily)} m³/day (${gap} m³/day idle capacity). Reducing turnaround to ~${targetTA} min unlocks that gap without adding trucks.`
     } else {
-      return `Plant is at its physical ceiling (${Math.round(result.prodDaily)} m³/day at 92% nameplate) — this is a capacity constraint, not a fleet problem. Fleet improvements will not increase output. The only lever available here is price: use the Price slider to grow revenue on existing volume.`
+      return `Plant is running at full capacity (${Math.round(result.prodDaily)} m³/day) — adding trucks or cutting turnaround won't increase output from here. Use the Price slider to grow revenue on existing volume, or invest in plant capacity expansion.`
     }
   }, [result, baseline, sTurnaround, sTrucks])
 
@@ -199,7 +199,7 @@ export default function SimulatorView({ calcResult, readOnly }: SimulatorViewPro
         </div>
       )}
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
         <h2 style={{ fontSize: '16px', fontWeight: 500 }}>Scenario simulator</h2>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <button
@@ -228,6 +228,11 @@ export default function SimulatorView({ calcResult, readOnly }: SimulatorViewPro
             Reset to baseline
           </button>
         </div>
+      </div>
+
+      {/* Intro hint */}
+      <div style={{ fontSize: '12px', color: 'var(--gray-400)', marginBottom: '16px' }}>
+        Drag sliders to model operational improvements — revenue impact updates in real time
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? '12px' : '24px' }}>
