@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  LineChart, Line, ComposedChart, Bar,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts'
 import { useIsMobile } from '@/hooks/useIsMobile'
 
@@ -37,6 +38,21 @@ interface TrackingEntry {
   reject_pct: number | null
   dispatch_min: number | null
   notes: string | null
+}
+
+interface DailyEntry {
+  id: string
+  config_id: string
+  logged_date: string   // 'YYYY-MM-DD'
+  deliveries_completed: number
+  orders_received: number | null
+  rejects: number | null
+}
+
+interface DailyChartPoint {
+  date: string
+  deliveries: number | undefined
+  rolling7: number | undefined
 }
 
 export interface TrackingProps {
@@ -107,6 +123,49 @@ function buildChartPoints(
     points.push({ week: w, baseline, predicted, actual: val != null ? val : undefined })
   }
   return points
+}
+
+function buildDailyChartPoints(entries: DailyEntry[]): DailyChartPoint[] {
+  // Build date→entry map
+  const map: Record<string, DailyEntry> = {}
+  for (const e of entries) map[e.logged_date] = e
+
+  // Generate last 30 calendar days
+  const today = new Date()
+  const points: DailyChartPoint[] = []
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(today)
+    d.setDate(d.getDate() - i)
+    const dateStr = d.toISOString().slice(0, 10)
+    const entry = map[dateStr]
+
+    // Rolling 7: avg of up to 7 most-recent prior logged entries
+    const prior = entries
+      .filter(e => e.logged_date < dateStr)
+      .sort((a, b) => b.logged_date.localeCompare(a.logged_date))
+      .slice(0, 7)
+    const rolling7 = prior.length >= 3
+      ? Math.round(prior.reduce((s, e) => s + e.deliveries_completed, 0) / prior.length)
+      : undefined
+
+    points.push({ date: dateStr, deliveries: entry?.deliveries_completed, rolling7 })
+  }
+  return points
+}
+
+function calcTrendAlert(entries: DailyEntry[]): string | null {
+  const sorted = [...entries].sort((a, b) => b.logged_date.localeCompare(a.logged_date))
+  const last7 = sorted.slice(0, 7)
+  const prev7 = sorted.slice(7, 14)
+  if (last7.length < 4 || prev7.length < 4) return null
+  const avgLast = last7.reduce((s, e) => s + e.deliveries_completed, 0) / last7.length
+  const avgPrev = prev7.reduce((s, e) => s + e.deliveries_completed, 0) / prev7.length
+  if (avgPrev === 0) return null
+  const drop = (avgPrev - avgLast) / avgPrev
+  if (drop >= 0.10) {
+    return `Deliveries down ~${Math.round(drop * 100)}% vs prior 7 days — check fleet availability or order intake`
+  }
+  return null
 }
 
 // ── Basic sub-components ───────────────────────────────────────────────────
@@ -843,15 +902,218 @@ function ProgramCompleteView({ config, entries, coeffDispatch }: {
   )
 }
 
+// ── Daily Ops sub-components ───────────────────────────────────────────────
+
+function SubTabToggle({ active, onChange }: { active: 'weekly' | 'daily'; onChange: (v: 'weekly' | 'daily') => void }) {
+  return (
+    <div style={{ display: 'flex', gap: '2px', background: 'var(--gray-100)', borderRadius: '8px', padding: '2px', width: 'fit-content', marginBottom: '16px' }}>
+      {(['weekly', 'daily'] as const).map(tab => (
+        <button
+          key={tab}
+          onClick={() => onChange(tab)}
+          style={{
+            padding: '6px 14px', fontSize: '12px', fontWeight: 500,
+            border: 'none', borderRadius: '6px', cursor: 'pointer', fontFamily: 'var(--font)',
+            background: active === tab ? 'var(--white)' : 'transparent',
+            color: active === tab ? 'var(--gray-900)' : 'var(--gray-400)',
+            boxShadow: active === tab ? '0 1px 3px rgba(0,0,0,.1)' : 'none',
+            transition: 'all .15s',
+          }}
+        >
+          {tab === 'weekly' ? 'Weekly Progress' : 'Daily Ops'}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function TrendAlertBanner({ message }: { message: string }) {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'flex-start', gap: '10px',
+      background: '#fefce8', border: '1px solid #fde047',
+      borderRadius: '8px', padding: '10px 14px', marginBottom: '14px',
+    }}>
+      <span style={{ fontSize: '14px', flexShrink: 0 }}>⚠</span>
+      <span style={{ fontSize: '12px', color: '#92400e', lineHeight: 1.5 }}>{message}</span>
+    </div>
+  )
+}
+
+function DailyOpsChart({ entries }: { entries: DailyEntry[] }) {
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+
+  const points = buildDailyChartPoints(entries)
+
+  // X-axis ticks every 7 days
+  const tickDates = points.filter((_, i) => i % 7 === 0).map(p => p.date)
+  const formatDate = (dateStr: string) => {
+    const d = new Date(dateStr + 'T00:00:00')
+    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+  }
+
+  const maxVal = Math.max(...points.map(p => p.deliveries ?? 0), ...points.map(p => p.rolling7 ?? 0))
+
+  return (
+    <div style={{ background: 'var(--white)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '16px 20px', marginBottom: '16px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+        <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--gray-700)' }}>Daily deliveries — 30 days</div>
+        <div style={{ display: 'flex', gap: '14px' }}>
+          {[
+            { color: '#d1d5db', label: 'Daily' },
+            { color: '#0F6E56', label: '7-day avg', line: true },
+          ].map(l => (
+            <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+              {l.line
+                ? <svg width="20" height="10"><line x1="0" y1="5" x2="20" y2="5" stroke={l.color} strokeWidth="2" /></svg>
+                : <div style={{ width: '12px', height: '12px', background: l.color, borderRadius: '2px' }} />
+              }
+              <span style={{ fontSize: '10px', color: 'var(--gray-500)' }}>{l.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      {mounted ? (
+        <ResponsiveContainer width="100%" height={180}>
+          <ComposedChart data={points} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.05)" />
+            <XAxis
+              dataKey="date"
+              ticks={tickDates}
+              tickFormatter={formatDate}
+              tick={{ fontSize: 9, fill: '#9ca3af' }}
+              axisLine={false} tickLine={false}
+            />
+            <YAxis
+              tick={{ fontSize: 9, fill: '#9ca3af' }}
+              axisLine={false} tickLine={false}
+              domain={[0, maxVal + 5]}
+              width={28}
+            />
+            <Tooltip
+              formatter={(value: unknown, name: unknown) => [
+                `${value}`,
+                name === 'deliveries' ? 'Deliveries' : '7-day avg'
+              ]}
+              labelFormatter={(date: unknown) => formatDate(String(date))}
+              contentStyle={{ fontSize: '12px', borderRadius: '8px', border: '1px solid #e5e7eb' }}
+            />
+            <Bar dataKey="deliveries" fill="#e5e7eb" stroke="#d1d5db" strokeWidth={0.5} radius={[2,2,0,0]} name="deliveries" />
+            <Line dataKey="rolling7" stroke="#0F6E56" strokeWidth={2} dot={false} connectNulls name="rolling7" />
+          </ComposedChart>
+        </ResponsiveContainer>
+      ) : (
+        <div style={{ height: 180 }} />
+      )}
+    </div>
+  )
+}
+
+function DailyInput({ configId, isDemo, onLogged }: { configId: string; isDemo: boolean; onLogged: () => void }) {
+  const supabase = createClient()
+  const [del, setDel] = useState('')
+  const [ord, setOrd] = useState('')
+  const [rej, setRej] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  async function handleSubmit() {
+    if (!del) return
+    setSaving(true)
+    if (!isDemo) {
+      const today = new Date().toISOString().slice(0, 10)
+      await supabase.from('daily_entries').upsert({
+        config_id: configId,
+        logged_date: today,
+        deliveries_completed: +del,
+        orders_received: ord ? +ord : null,
+        rejects: rej ? +rej : null,
+      }, { onConflict: 'config_id,logged_date' })
+    }
+    setSaving(false)
+    setSaved(true)
+    setDel(''); setOrd(''); setRej('')
+    setTimeout(() => setSaved(false), 3000)
+    if (!isDemo) onLogged()
+  }
+
+  const inputStyle: React.CSSProperties = {
+    width: '80px', padding: '8px 10px', border: '1px solid var(--border)',
+    borderRadius: '8px', fontSize: '16px', fontFamily: 'var(--mono)',
+    background: 'var(--white)', color: 'var(--gray-900)',
+  }
+
+  return (
+    <div style={{ background: 'var(--white)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '16px 20px' }}>
+      <div style={{ fontSize: '13px', fontWeight: 600, color: saved ? 'var(--phase-complete)' : 'var(--gray-700)', marginBottom: '14px' }}>
+        {saved ? '✓ Logged' : "Log today's deliveries"}
+      </div>
+      <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', marginBottom: '14px' }}>
+        {[
+          { label: 'Deliveries today', val: del, set: setDel, placeholder: 'e.g. 42', required: true },
+          { label: 'Orders received', val: ord, set: setOrd, placeholder: 'optional' },
+          { label: 'Rejects', val: rej, set: setRej, placeholder: 'optional' },
+        ].map(({ label, val, set, placeholder, required }) => (
+          <div key={label}>
+            <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: '5px' }}>
+              {label}{required && <span style={{ color: 'var(--red)', marginLeft: '2px' }}>*</span>}
+            </label>
+            <input
+              type="number" value={val}
+              onChange={e => set(e.target.value)}
+              placeholder={placeholder}
+              style={inputStyle}
+            />
+          </div>
+        ))}
+      </div>
+      <button
+        onClick={handleSubmit}
+        disabled={saving || !del}
+        style={{
+          padding: '8px 20px',
+          background: saved ? 'var(--phase-complete)' : 'var(--green)',
+          color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 600,
+          cursor: (saving || !del) ? 'not-allowed' : 'pointer',
+          fontFamily: 'var(--font)', opacity: !del ? 0.5 : 1, transition: 'background .2s',
+        }}
+      >
+        {saving ? 'Saving…' : saved ? '✓ Logged' : 'Log today'}
+      </button>
+    </div>
+  )
+}
+
+function DailyOpsView({ configId, isDemo, dailyEntries, onLogged, viewOnly }: {
+  configId: string
+  isDemo: boolean
+  dailyEntries: DailyEntry[]
+  onLogged: () => void
+  viewOnly?: boolean
+}) {
+  const alert = calcTrendAlert(dailyEntries)
+  return (
+    <div>
+      {alert && <TrendAlertBanner message={alert} />}
+      <DailyOpsChart entries={dailyEntries} />
+      {!viewOnly && <DailyInput configId={configId} isDemo={isDemo} onLogged={onLogged} />}
+    </div>
+  )
+}
+
 // ── Progress View (admin) ──────────────────────────────────────────────────
 
-function ProgressView({ config, entries, onEntryLogged, coeffDispatch, viewOnly }: {
+function ProgressView({ config, entries, dailyEntries, onEntryLogged, coeffDispatch, viewOnly, isDemo }: {
   config: TrackingConfig
   entries: TrackingEntry[]
+  dailyEntries: DailyEntry[]
   onEntryLogged: () => void
   coeffDispatch: number
   viewOnly?: boolean
+  isDemo?: boolean
 }) {
+  const [subTab, setSubTab] = useState<'weekly' | 'daily'>('weekly')
   const currentWeek = getWeekNumber(config.started_at)
   const sortedEntries = [...entries].sort((a, b) => b.week_number - a.week_number)
   const latest = sortedEntries[0] ?? null
@@ -872,6 +1134,18 @@ function ProgressView({ config, entries, onEntryLogged, coeffDispatch, viewOnly 
         </div>
       )}
 
+      <SubTabToggle active={subTab} onChange={setSubTab} />
+
+      {subTab === 'daily' ? (
+        <DailyOpsView
+          configId={config.id}
+          isDemo={isDemo ?? false}
+          dailyEntries={dailyEntries}
+          onLogged={onEntryLogged}
+          viewOnly={viewOnly}
+        />
+      ) : (
+        <>
       {/* A: Impact Summary */}
       <ImpactSummary config={config} entries={entries} coeffDispatch={coeffDispatch} currentWeek={currentWeek} />
 
@@ -928,6 +1202,8 @@ function ProgressView({ config, entries, onEntryLogged, coeffDispatch, viewOnly 
           </div>
         )}
       </div>
+        </>
+      )}
     </div>
   )
 }
@@ -991,46 +1267,61 @@ function OperatorProgressHeader({ config, latest, currentWeek }: {
 
 // ── Customer Log ───────────────────────────────────────────────────────────
 
-function CustomerLog({ config, entries, onLogged, coeffDispatch }: {
+function CustomerLog({ config, entries, dailyEntries, onLogged, coeffDispatch, isDemo }: {
   config: TrackingConfig
   entries: TrackingEntry[]
+  dailyEntries: DailyEntry[]
   onLogged: () => void
   coeffDispatch: number
+  isDemo?: boolean
 }) {
+  const [subTab, setSubTab] = useState<'weekly' | 'daily'>('weekly')
   const currentWeek = getWeekNumber(config.started_at)
   const sortedEntries = [...entries].sort((a, b) => b.week_number - a.week_number)
   const latest = sortedEntries[0] ?? null
 
   return (
     <div style={{ maxWidth: '520px', margin: '0 auto', padding: '24px 16px' }}>
-      <OperatorProgressHeader config={config} latest={latest} currentWeek={currentWeek} />
-      <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '16px' }}>
-        <KpiCard
-          label="Turnaround"
-          baseline={config.baseline_turnaround}
-          target={config.target_turnaround}
-          latest={latest?.turnaround_min ?? null}
-          coeff={config.coeff_turnaround}
-          unit="min"
+      <SubTabToggle active={subTab} onChange={setSubTab} />
+      {subTab === 'daily' ? (
+        <DailyOpsView
+          configId={config.id}
+          isDemo={isDemo ?? false}
+          dailyEntries={dailyEntries}
+          onLogged={onLogged}
         />
-        {config.baseline_dispatch_min != null && (
-          <KpiCard
-            label="Dispatch Time"
-            baseline={config.baseline_dispatch_min}
-            target={config.target_dispatch_min}
-            latest={latest?.dispatch_min ?? null}
-            coeff={coeffDispatch}
-            unit="min"
+      ) : (
+        <>
+          <OperatorProgressHeader config={config} latest={latest} currentWeek={currentWeek} />
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '16px' }}>
+            <KpiCard
+              label="Turnaround"
+              baseline={config.baseline_turnaround}
+              target={config.target_turnaround}
+              latest={latest?.turnaround_min ?? null}
+              coeff={config.coeff_turnaround}
+              unit="min"
+            />
+            {config.baseline_dispatch_min != null && (
+              <KpiCard
+                label="Dispatch Time"
+                baseline={config.baseline_dispatch_min}
+                target={config.target_dispatch_min}
+                latest={latest?.dispatch_min ?? null}
+                coeff={coeffDispatch}
+                unit="min"
+              />
+            )}
+          </div>
+          <WeeklyInput
+            config={config}
+            entries={entries}
+            currentWeek={currentWeek}
+            isAdmin={false}
+            onLogged={onLogged}
           />
-        )}
-      </div>
-      <WeeklyInput
-        config={config}
-        entries={entries}
-        currentWeek={currentWeek}
-        isAdmin={false}
-        onLogged={onLogged}
-      />
+        </>
+      )}
     </div>
   )
 }
@@ -1046,9 +1337,11 @@ export default function TrackingTab(props: TrackingProps) {
   const supabase = createClient()
   const [config, setConfig] = useState<TrackingConfig | null | undefined>(undefined)
   const [entries, setEntries] = useState<TrackingEntry[]>([])
+  const [dailyEntries, setDailyEntries] = useState<DailyEntry[]>([])
+  const isDemo = assessmentId === 'demo'
 
   const fetchData = useCallback(async () => {
-    if (assessmentId === 'demo') {
+    if (isDemo) {
       const startedAt = new Date(Date.now() - 56 * 86_400_000).toISOString()
       const mockConfig: TrackingConfig = {
         id: 'demo-cfg',
@@ -1080,8 +1373,30 @@ export default function TrackingTab(props: TrackingProps) {
         { id: 'e7', config_id: 'demo-cfg', week_number: 7, logged_at: new Date(now - 7 * 86_400_000).toISOString(), turnaround_min: 89, reject_pct: null, dispatch_min: 17, notes: null },
         { id: 'e8', config_id: 'demo-cfg', week_number: 8, logged_at: new Date(now - 1 * 86_400_000).toISOString(), turnaround_min: 85, reject_pct: null, dispatch_min: 15, notes: 'Dispatch target hit — 15 min order-to-dispatch achieved' },
       ]
+
+      // Mock daily entries — 30 days, dip in days 10-14 ago to trigger trend alert
+      const today = new Date()
+      const mockDaily: DailyEntry[] = Array.from({ length: 30 }, (_, i) => {
+        const d = new Date(today)
+        d.setDate(d.getDate() - (29 - i))
+        const dateStr = d.toISOString().slice(0, 10)
+        const isDip = i >= 15 && i <= 19   // days 10-14 ago relative to today
+        const base = isDip ? 30 : 42
+        const noise = (i * 7 + 3) % 9 - 4  // deterministic ±4
+        const deliveries = Math.max(20, base + noise)
+        return {
+          id: `d${i}`,
+          config_id: 'demo-cfg',
+          logged_date: dateStr,
+          deliveries_completed: deliveries,
+          orders_received: deliveries + 2 + (i % 4),
+          rejects: 1 + (i % 3),
+        }
+      })
+
       setConfig(mockConfig)
       setEntries(mockEntries)
+      setDailyEntries(mockDaily)
       return
     }
 
@@ -1095,14 +1410,23 @@ export default function TrackingTab(props: TrackingProps) {
     setConfig(cfg ?? null)
 
     if (cfg) {
-      const { data: ents } = await supabase
-        .from('tracking_entries')
-        .select('*')
-        .eq('config_id', cfg.id)
-        .order('week_number', { ascending: true })
+      const [{ data: ents }, { data: dailyData }] = await Promise.all([
+        supabase
+          .from('tracking_entries')
+          .select('*')
+          .eq('config_id', cfg.id)
+          .order('week_number', { ascending: true }),
+        supabase
+          .from('daily_entries')
+          .select('*')
+          .eq('config_id', cfg.id)
+          .order('logged_date', { ascending: false })
+          .limit(60),
+      ])
       setEntries(ents ?? [])
+      setDailyEntries(dailyData ?? [])
     }
-  }, [assessmentId, supabase, baselineTurnaround, baselineRejectPct, baselineDispatchMin, targetTA, coeffTurnaround, coeffDispatch, baselineMonthlyLoss])
+  }, [assessmentId, isDemo, supabase, baselineTurnaround, baselineRejectPct, baselineDispatchMin, targetTA, coeffTurnaround, coeffDispatch, baselineMonthlyLoss])
 
   useEffect(() => { fetchData() }, [fetchData])
 
@@ -1126,8 +1450,19 @@ export default function TrackingTab(props: TrackingProps) {
   }
 
   if (isAdmin) {
-    return <ProgressView config={config} entries={entries} onEntryLogged={fetchData} coeffDispatch={coeffDispatch} viewOnly={viewOnly} />
+    return (
+      <ProgressView
+        config={config} entries={entries} dailyEntries={dailyEntries}
+        onEntryLogged={fetchData} coeffDispatch={coeffDispatch}
+        viewOnly={viewOnly} isDemo={isDemo}
+      />
+    )
   }
 
-  return <CustomerLog config={config} entries={entries} onLogged={fetchData} coeffDispatch={coeffDispatch} />
+  return (
+    <CustomerLog
+      config={config} entries={entries} dailyEntries={dailyEntries}
+      onLogged={fetchData} coeffDispatch={coeffDispatch} isDemo={isDemo}
+    />
+  )
 }
