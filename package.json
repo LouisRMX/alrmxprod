@@ -15,17 +15,20 @@
     "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.49.4",
     "csv-parse": "^6.2.1",
+    "docx": "^9.6.1",
     "html2canvas-pro": "^2.0.2",
     "jspdf": "^4.2.1",
     "next": "15.3.6",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "recharts": "^3.8.1"
+    "recharts": "^3.8.1",
+    "resend": "^6.10.0"
   },
   "devDependencies": {
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "adm-zip": "^0.5.17",
     "typescript": "^5",
     "vitest": "^4.1.2"
   }

@@ -1,8 +1,11 @@
+'use client'
+
 import Link from 'next/link'
+import { useState } from 'react'
 
 // ── Landing page ─────────────────────────────────────────────────────────────
 // Public marketing page for unauthenticated visitors.
-// Drives primary CTA to /demo, secondary to /pricing.
+// Primary CTA: book a demo (contact form → Louishellmann@gmail.com)
 
 export default function LandingPage() {
   return (
@@ -14,7 +17,7 @@ export default function LandingPage() {
       <HowItWorks />
       <WhatYouReceive />
       <Credibility />
-      <DemoCTA />
+      <Contact />
       <FAQ />
       <Footer />
     </div>
@@ -58,7 +61,7 @@ function Nav() {
           }}>
             Log in
           </Link>
-          <Link href="/demo" style={{
+          <Link href="/api/demo-login" style={{
             fontSize: '13px', fontWeight: 600, color: '#fff', textDecoration: 'none',
             padding: '7px 16px', borderRadius: '7px', background: 'var(--green)',
           }}>
@@ -127,13 +130,13 @@ function Hero() {
 
         {/* CTAs */}
         <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-          <Link href="/demo" style={{
+          <a href="#contact" style={{
             display: 'inline-flex', alignItems: 'center', gap: '8px',
             background: 'var(--green)', color: '#fff', textDecoration: 'none',
             padding: '13px 24px', borderRadius: '9px', fontSize: '15px', fontWeight: 600,
           }}>
-            Run the diagnostic on your plant →
-          </Link>
+            Book a demo →
+          </a>
         </div>
       </div>
     </section>
@@ -406,37 +409,117 @@ function Credibility() {
   )
 }
 
-// ── Demo CTA ──────────────────────────────────────────────────────────────────
+// ── Contact ───────────────────────────────────────────────────────────────────
 
-function DemoCTA() {
+function Contact() {
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [message, setMessage] = useState('')
+  const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setStatus('sending')
+    const res = await fetch('/api/contact', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, message }),
+    })
+    setStatus(res.ok ? 'sent' : 'error')
+  }
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%', padding: '11px 14px',
+    border: '1px solid var(--border)', borderRadius: '8px',
+    fontSize: '14px', fontFamily: 'var(--font)',
+    background: 'var(--white)', color: 'var(--gray-900)',
+    boxSizing: 'border-box',
+  }
+
   return (
-    <section style={{
-      background: '#0a1a13',
-      padding: 'clamp(64px, 9vw, 100px) 24px',
-    }}>
-      <div style={{ maxWidth: '640px', margin: '0 auto', textAlign: 'center' }}>
+    <section id="contact" style={{ background: '#0a1a13', padding: 'clamp(64px, 9vw, 100px) 24px' }}>
+      <div style={{ maxWidth: '520px', margin: '0 auto' }}>
         <h2 style={{
-          fontSize: 'clamp(24px, 4vw, 36px)', fontWeight: 800,
+          fontSize: 'clamp(24px, 4vw, 34px)', fontWeight: 800,
           color: '#fff', lineHeight: 1.2, letterSpacing: '-0.5px',
-          margin: '0 0 16px',
+          margin: '0 0 12px',
         }}>
-          See what the diagnostic finds in your plant — before we visit.
+          Book a demo
         </h2>
-        <p style={{
-          fontSize: '16px', color: 'rgba(255,255,255,0.55)',
-          lineHeight: 1.6, margin: '0 0 36px',
-        }}>
-          Enter your plant&apos;s operational data. The diagnostic calculates your numbers
-          immediately — turnaround cost, dispatch gap, rejection write-off, utilization
-          loss, bottleneck ranked by financial impact.
+        <p style={{ fontSize: '15px', color: 'rgba(255,255,255,0.5)', margin: '0 0 32px', lineHeight: 1.6 }}>
+          Send a message and we&apos;ll walk you through the diagnostic on your own plant data.
         </p>
-        <Link href="/demo" style={{
-          display: 'inline-flex', alignItems: 'center', gap: '8px',
-          background: '#4ade80', color: '#0a1a13', textDecoration: 'none',
-          padding: '14px 28px', borderRadius: '9px', fontSize: '15px', fontWeight: 700,
-        }}>
-          Run the diagnostic on your plant →
-        </Link>
+
+        {status === 'sent' ? (
+          <div style={{
+            background: 'rgba(15,110,86,0.2)', border: '1px solid rgba(15,110,86,0.4)',
+            borderRadius: '10px', padding: '24px', textAlign: 'center',
+          }}>
+            <div style={{ fontSize: '24px', marginBottom: '10px' }}>✓</div>
+            <div style={{ fontSize: '15px', fontWeight: 600, color: '#4ade80', marginBottom: '6px' }}>Message sent</div>
+            <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.5)' }}>We&apos;ll be in touch within 24 hours.</div>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
+              <div style={{ flex: 1, minWidth: '180px' }}>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
+                  Name
+                </label>
+                <input
+                  required type="text" value={name}
+                  onChange={e => setName(e.target.value)}
+                  placeholder="Your name"
+                  style={inputStyle}
+                />
+              </div>
+              <div style={{ flex: 1, minWidth: '180px' }}>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
+                  Email
+                </label>
+                <input
+                  required type="email" value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder="you@company.com"
+                  style={inputStyle}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
+                Message
+              </label>
+              <textarea
+                required value={message}
+                onChange={e => setMessage(e.target.value)}
+                placeholder="Tell us about your plant — location, number of trucks, daily output, or any specific concern."
+                rows={4}
+                style={{ ...inputStyle, resize: 'vertical' }}
+              />
+            </div>
+
+            {status === 'error' && (
+              <div style={{ fontSize: '13px', color: '#f87171' }}>
+                Something went wrong — please try again or email directly at Louishellmann@gmail.com
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={status === 'sending'}
+              style={{
+                padding: '13px 24px', background: 'var(--green)', color: '#fff',
+                border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 600,
+                cursor: status === 'sending' ? 'not-allowed' : 'pointer',
+                fontFamily: 'var(--font)', opacity: status === 'sending' ? 0.7 : 1,
+                alignSelf: 'flex-start',
+              }}
+            >
+              {status === 'sending' ? 'Sending…' : 'Send message →'}
+            </button>
+          </form>
+        )}
       </div>
     </section>
   )
@@ -524,7 +607,6 @@ function Footer() {
         <div style={{ display: 'flex', gap: '24px' }}>
           {[
             { label: 'Log in', href: '/login' },
-            { label: 'Run diagnostic', href: '/demo' },
           ].map(link => (
             <Link key={link.href} href={link.href} style={{
               fontSize: '13px', color: 'rgba(255,255,255,0.4)',
