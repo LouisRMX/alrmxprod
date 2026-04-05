@@ -61,7 +61,7 @@ function Nav() {
           }}>
             Log in
           </Link>
-          <Link href="/api/demo-login" style={{
+          <Link href="/login" style={{
             fontSize: '13px', fontWeight: 600, color: '#fff', textDecoration: 'none',
             padding: '7px 16px', borderRadius: '7px', background: 'var(--green)',
           }}>
