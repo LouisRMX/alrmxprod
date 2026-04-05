@@ -156,7 +156,7 @@ Production: Utilisation at 84% is constrained downstream by the turnaround bottl
 
 const DEMO_PLANTS: PlantCardData[] = [
   // ── Core 3 (always shown) ────────────────────────────────────────────────
-  { id: 'dp-1',  name: 'Al-Noor Riyadh North', country: 'SA', assessmentHref: '/demo', assessment: { id: 'demo',    phase: 'onsite',   overall: 68, scores: { prod: 82, dispatch: 48, logistics: 71, fleet: 71, quality: 70 }, bottleneck: 'Dispatch',    ebitda_monthly: 79000,  report_released: true,  trackingWeek: 7    } },
+  { id: 'dp-1',  name: 'Al-Noor Riyadh North', country: 'SA', assessmentHref: '/demo', assessment: { id: 'demo',    phase: 'onsite',   overall: 68, scores: { prod: 82, dispatch: 48, logistics: 71, fleet: 71, quality: 70 }, bottleneck: 'Fleet',       ebitda_monthly: 79000,  report_released: true,  trackingWeek: 7    } },
   { id: 'dp-2',  name: 'Al-Noor Riyadh East',  country: 'SA', assessmentHref: '/demo', assessment: { id: 'demo-2',  phase: 'onsite',   overall: 54, scores: { prod: 68, dispatch: 34, logistics: 52, fleet: 52, quality: 61 }, bottleneck: 'Dispatch',    ebitda_monthly: 103000, report_released: false, trackingWeek: null } },
   { id: 'dp-3',  name: 'Al-Noor Dammam',        country: 'SA', assessmentHref: '/demo', assessment: { id: 'demo-3',  phase: 'onsite',   overall: 44, scores: { prod: 62, dispatch: 42, logistics: 29, fleet: 29, quality: 44 }, bottleneck: 'Fleet',       ebitda_monthly: 141000, report_released: false, trackingWeek: null } },
   // ── Extended 10 ──────────────────────────────────────────────────────────
@@ -234,19 +234,17 @@ export default function DemoView({ userRole = null, isOverridden = false }: Demo
     ? ['track']
     : ['questions', 'report', 'simulator', 'track']
 
-  // Owner lands on All plants, operator on track, others on questions
+  // Everyone starts on All plants by default
   const defaultView: 'plants' | AssessmentMode =
     userRole === 'operator' ? 'track'
-    : userRole === 'owner' ? 'plants'
-    : searchParams.get('view') === 'plants' ? 'plants'
     : searchParams.get('view') === 'report' ? 'report'
     : searchParams.get('view') === 'simulator' ? 'simulator'
     : searchParams.get('view') === 'track' ? 'track'
-    : 'questions'
+    : 'plants'
 
   // 'plants' shows the portfolio overview; any AssessmentMode shows the assessment
   const [demoView, setDemoView] = useState<'plants' | AssessmentMode>(defaultView)
-  const [demoPlantCount, setDemoPlantCount] = useState<1 | 3 | 10 | 20>(3)
+  const [demoPlantCount, setDemoPlantCount] = useState<1 | 3 | 10 | 20>(1)
 
   // ── Demo regeneration state ─────────────────────────────────────────────
   const [demoAnswersModified, setDemoAnswersModified] = useState(false)

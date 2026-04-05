@@ -222,7 +222,7 @@ function PlantCard({ plant, isMobile }: { plant: PlantCardData; isMobile: boolea
                 fontSize: '10px', fontWeight: 600, padding: '2px 7px',
                 borderRadius: '4px', background: 'var(--error-bg)', color: 'var(--red)',
               }}>
-                ⚡ {a.bottleneck}
+                ⚡ {a.bottleneck === 'Fleet' ? 'Logistics' : a.bottleneck}
               </span>
             )}
           </div>
