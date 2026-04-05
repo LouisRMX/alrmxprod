@@ -986,9 +986,6 @@ function ImpactHook({ bnLoss, bnDailyLoss, totalLoss, calcResult, issues, financ
               </div>
             )}
 
-            <div style={{ fontSize: '12px', color: '#2e8a5f', fontWeight: 600, marginTop: '4px' }}>
-              ✓ No capital required — operational changes only
-            </div>
           </>
         ) : (
           <div style={{ fontSize: '13px', color: '#aaa', marginTop: '8px' }}>
