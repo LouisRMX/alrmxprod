@@ -931,7 +931,7 @@ function ImpactHook({ bnLoss, bnDailyLoss, totalLoss, calcResult, issues, financ
       {/* Left — Estimated revenue leakage */}
       <div style={{ padding: isMobile ? '16px' : '24px', background: '#ffe0e0', borderRight: isMobile ? 'none' : '1px solid #f5c6c6', borderBottom: isMobile ? '1px solid #f5c6c6' : 'none' }}>
         <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.4px', textTransform: 'uppercase', color: '#c0a0a0', marginBottom: '8px' }}>
-          {calcResult.demandSufficient === false ? 'Margin improvement potential' : 'Estimated revenue leakage'}
+          {driverLabel ? `${driverLabel} — ` : ''}{calcResult.demandSufficient === false ? 'Margin improvement potential' : 'Estimated revenue leakage'}
         </div>
         <div style={{ fontSize: isMobile ? '32px' : '48px', fontWeight: 800, color: '#cc3333', lineHeight: 1, letterSpacing: '-1px', marginBottom: '4px' }}>
           {fmtK(bnLoss)}<span style={{ fontSize: isMobile ? '15px' : '20px', fontWeight: 500, color: '#e88', marginLeft: '8px' }}>/ month</span>
@@ -968,7 +968,7 @@ function ImpactHook({ bnLoss, bnDailyLoss, totalLoss, calcResult, issues, financ
       {/* Right — Recovery potential (main constraint only) */}
       <div style={{ padding: isMobile ? '16px' : '24px', background: '#f6fbf8' }}>
         <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.4px', textTransform: 'uppercase', color: '#7ab89a', marginBottom: '8px' }}>
-          Recovery potential
+          {driverLabel ? `${driverLabel} — ` : ''}Recovery potential
         </div>
         {bnLoss > 0 ? (
           <>
@@ -3367,7 +3367,7 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
           Note: aggregate/admixture costs not entered — margin estimated at 35%. Enter material costs for precise figures.
         </div>
       )}
-      {calcResult.warnings && calcResult.warnings.length > 0 && (
+      {isAdmin && calcResult.warnings && calcResult.warnings.length > 0 && (
         <div style={{
           background: 'var(--warning-bg)', border: '1px solid var(--warning-border)',
           borderRadius: 'var(--radius)', padding: '12px 16px', marginBottom: '16px',

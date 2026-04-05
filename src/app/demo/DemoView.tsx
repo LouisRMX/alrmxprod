@@ -391,32 +391,34 @@ export default function DemoView({ userRole = null, isOverridden = false }: Demo
         </div>
       )}
 
-      {/* Phase context banner */}
-      <div style={{
-        background: demoPhase === 'workshop' ? '#EFF6FF' : '#F0FDF4',
-        borderBottom: `1px solid ${demoPhase === 'workshop' ? '#BFDBFE' : '#BBF7D0'}`,
-        padding: isMobile ? '7px 12px' : '8px 20px', fontSize: '12px',
-        color: demoPhase === 'workshop' ? '#1E40AF' : '#166534',
-        display: 'flex', alignItems: 'center', gap: '8px',
-      }}>
-        <span style={{ fontSize: '14px', flexShrink: 0 }}>{demoPhase === 'workshop' ? '📋' : '🏭'}</span>
-        <div style={{ minWidth: 0 }}>
-          <strong>{cfg.label}</strong>
-          {!isMobile && (
-            <span style={{ marginLeft: '6px', opacity: 0.7 }}>{cfg.sublabel}</span>
-          )}
-          {!isMobile && demoPhase === 'workshop' && (
-            <span style={{ marginLeft: '12px', opacity: 0.7 }}>
-              → Click <strong>Start on-site visit</strong> to see the full diagnostic
-            </span>
-          )}
-          {!isMobile && demoPhase === 'onsite' && (
-            <span style={{ marginLeft: '12px', opacity: 0.7 }}>
-              All data is live — edit any answer and the scores update instantly
-            </span>
-          )}
+      {/* Phase context banner — hidden for owner (they see report/track only) */}
+      {userRole !== 'owner' && (
+        <div style={{
+          background: demoPhase === 'workshop' ? '#EFF6FF' : '#F0FDF4',
+          borderBottom: `1px solid ${demoPhase === 'workshop' ? '#BFDBFE' : '#BBF7D0'}`,
+          padding: isMobile ? '7px 12px' : '8px 20px', fontSize: '12px',
+          color: demoPhase === 'workshop' ? '#1E40AF' : '#166534',
+          display: 'flex', alignItems: 'center', gap: '8px',
+        }}>
+          <span style={{ fontSize: '14px', flexShrink: 0 }}>{demoPhase === 'workshop' ? '📋' : '🏭'}</span>
+          <div style={{ minWidth: 0 }}>
+            <strong>{cfg.label}</strong>
+            {!isMobile && (
+              <span style={{ marginLeft: '6px', opacity: 0.7 }}>{cfg.sublabel}</span>
+            )}
+            {!isMobile && demoPhase === 'workshop' && (
+              <span style={{ marginLeft: '12px', opacity: 0.7 }}>
+                → Click <strong>Start on-site visit</strong> to see the full diagnostic
+              </span>
+            )}
+            {!isMobile && demoPhase === 'onsite' && (
+              <span style={{ marginLeft: '12px', opacity: 0.7 }}>
+                All data is live — edit any answer and the scores update instantly
+              </span>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Persistent tab row — always visible */}
       <ModeTabs
