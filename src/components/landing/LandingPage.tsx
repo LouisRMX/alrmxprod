@@ -110,8 +110,8 @@ function Hero() {
           fontSize: 'clamp(15px, 2vw, 18px)', color: 'rgba(255,255,255,0.6)',
           lineHeight: 1.6, margin: '0 0 36px', maxWidth: '580px',
         }}>
-          A structured two-phase diagnostic that identifies where revenue is leaking —
-          and quantifies it in dollars and cubic metres, before a consultant sets foot on site.
+          We calculate the exact monthly dollar cost of your turnaround time, dispatch delay,
+          and rejection rate — based on your plant&apos;s own data. Before anyone visits the site.
         </p>
 
         {/* Bullets */}
@@ -135,7 +135,7 @@ function Hero() {
             background: 'var(--green)', color: '#fff', textDecoration: 'none',
             padding: '13px 24px', borderRadius: '9px', fontSize: '15px', fontWeight: 600,
           }}>
-            Book a demo →
+            Book a 20-min walkthrough →
           </a>
         </div>
       </div>
@@ -289,18 +289,13 @@ function HowItWorks() {
   const steps = [
     {
       num: '1',
-      label: 'Remote assessment',
-      text: 'You answer structured questions about your operations. The diagnostic calculates monthly losses across all five dimensions from your own data. No site visit required for the initial output.',
+      label: 'Remote diagnostic',
+      text: 'You answer structured questions about your operations. The diagnostic calculates monthly losses across all five dimensions — dispatch, turnaround, utilization, fleet, quality — from your own data. Output is immediate. No site visit required.',
     },
     {
       num: '2',
       label: 'On-site validation',
-      text: 'Physical visit to confirm findings, observe dispatch and batch cycles, and identify what the numbers alone cannot capture.',
-    },
-    {
-      num: '3',
-      label: '90-day tracking',
-      text: 'Baseline documented at assessment. KPIs logged weekly. Improvement measured against real numbers — not estimates.',
+      text: 'Physical visit to confirm findings, observe actual dispatch and batch cycles, and identify what the numbers alone cannot capture. Output: validated diagnosis and a prioritized action plan.',
     },
   ]
 
@@ -317,7 +312,6 @@ function HowItWorks() {
               padding: '28px 0',
               borderBottom: i < steps.length - 1 ? '1px solid var(--border)' : 'none',
             }}>
-              {/* Step number */}
               <div style={{
                 width: '36px', height: '36px', borderRadius: '50%',
                 background: 'var(--green)', color: '#fff',
@@ -336,6 +330,19 @@ function HowItWorks() {
               </div>
             </div>
           ))}
+        </div>
+
+        {/* 90-day tracking note */}
+        <div style={{
+          marginTop: '24px', padding: '14px 18px',
+          background: 'var(--gray-50)', border: '1px solid var(--border)',
+          borderRadius: '8px', display: 'flex', gap: '12px', alignItems: 'flex-start',
+        }}>
+          <span style={{ color: 'var(--green)', flexShrink: 0, marginTop: '1px' }}>↳</span>
+          <div style={{ fontSize: '13px', color: 'var(--gray-500)', lineHeight: 1.6 }}>
+            <strong style={{ color: 'var(--gray-700)' }}>Optional: 90-day improvement tracking.</strong>{' '}
+            Baseline documented at assessment. KPIs logged weekly. Improvement measured against real numbers — not estimates.
+          </div>
         </div>
       </div>
     </section>
@@ -444,10 +451,10 @@ function Contact() {
           color: '#fff', lineHeight: 1.2, letterSpacing: '-0.5px',
           margin: '0 0 12px',
         }}>
-          Book a demo
+          Book a 20-min walkthrough
         </h2>
         <p style={{ fontSize: '15px', color: 'rgba(255,255,255,0.5)', margin: '0 0 32px', lineHeight: 1.6 }}>
-          Send a message and we&apos;ll walk you through the diagnostic on your own plant data.
+          We run the diagnostic live on your plant&apos;s data. You see your numbers — turnaround cost, dispatch gap, bottleneck — before we finish the call.
         </p>
 
         {status === 'sent' ? (
