@@ -924,24 +924,24 @@ function ImpactHook({ bnLoss, bnDailyLoss, totalLoss, calcResult, issues, financ
 
   return (
     <div style={{
-      border: '1.5px solid #f0f0ee', borderRadius: '12px',
+      border: '1px solid #e2e2de', borderRadius: '12px',
       overflow: 'hidden', marginBottom: '16px',
       display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '3fr 2fr',
     }}>
       {/* Left — Estimated revenue leakage */}
-      <div style={{ padding: isMobile ? '16px' : '24px', background: '#ffe0e0', borderRight: isMobile ? 'none' : '1px solid #f5c6c6', borderBottom: isMobile ? '1px solid #f5c6c6' : 'none' }}>
-        <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.4px', textTransform: 'uppercase', color: '#c0a0a0', marginBottom: '8px' }}>
+      <div style={{ padding: isMobile ? '16px' : '24px', background: '#fff', borderRight: isMobile ? 'none' : '1px solid #e2e2de', borderBottom: isMobile ? '1px solid #e2e2de' : 'none' }}>
+        <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.4px', textTransform: 'uppercase', color: '#999', marginBottom: '8px' }}>
           {driverLabel ? `${driverLabel} — ` : ''}{calcResult.demandSufficient === false ? 'Margin improvement potential' : 'Estimated revenue leakage'}
         </div>
-        <div style={{ fontSize: isMobile ? '32px' : '48px', fontWeight: 800, color: '#cc3333', lineHeight: 1, letterSpacing: '-1px', marginBottom: '4px' }}>
-          {fmtK(bnLoss)}<span style={{ fontSize: isMobile ? '15px' : '20px', fontWeight: 500, color: '#e88', marginLeft: '8px' }}>/ month</span>
+        <div style={{ fontSize: isMobile ? '32px' : '48px', fontWeight: 800, color: '#1a1a1a', lineHeight: 1, letterSpacing: '-1px', marginBottom: '4px' }}>
+          {fmtK(bnLoss)}<span style={{ fontSize: isMobile ? '15px' : '20px', fontWeight: 500, color: '#888', marginLeft: '8px' }}>/ month</span>
         </div>
-        <div style={{ fontSize: '13px', color: '#c09090', marginBottom: '16px' }}>
+        <div style={{ fontSize: '13px', color: '#aaa', marginBottom: '16px' }}>
           ≈ {fmtK(bnDailyLoss)} per day
         </div>
         {driverLabel && (
-          <div style={{ fontSize: '13px', color: '#666', marginBottom: '3px' }}>
-            Primary driver: <strong style={{ color: '#cc3333' }}>{driverLabel}</strong>
+          <div style={{ fontSize: '13px', color: '#555', marginBottom: '3px' }}>
+            Primary driver: <strong style={{ color: '#1a1a1a' }}>{driverLabel}</strong>
           </div>
         )}
         {driverMetric && (
@@ -958,7 +958,7 @@ function ImpactHook({ bnLoss, bnDailyLoss, totalLoss, calcResult, issues, financ
             : null
           if (!bTag) return null
           return (
-            <div style={{ fontSize: '11px', color: '#bbb', marginTop: '6px', borderTop: '1px solid #f5c6c6', paddingTop: '6px', fontStyle: 'italic' }}>
+            <div style={{ fontSize: '11px', color: '#bbb', marginTop: '6px', borderTop: '1px solid #e2e2de', paddingTop: '6px', fontStyle: 'italic' }}>
               {bTag}
             </div>
           )
@@ -2685,46 +2685,46 @@ function ScoreGrid({ calcResult, financialBottleneck, issues, onSwitchToTracking
       {/* Bottleneck card — expanded, single column */}
       {bottleneck && (
         <div style={{
-          background: '#fff0f0', border: '2px solid #f5c6c6', borderRadius: '12px',
+          background: '#f8f9fa', border: '1px solid #e2e2de', borderLeft: '3px solid #1a6644', borderRadius: '12px',
           padding: '24px 28px', marginBottom: '8px',
         }}>
           {/* Eyebrow */}
-          <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.4px', textTransform: 'uppercase', color: '#c09090', marginBottom: '4px' }}>
+          <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.4px', textTransform: 'uppercase', color: '#999', marginBottom: '4px' }}>
             {bottleneck.label}
           </div>
           {/* Subtitle */}
-          <div style={{ fontSize: '13px', color: '#b08080', marginBottom: '20px' }}>
+          <div style={{ fontSize: '13px', color: '#aaa', marginBottom: '20px' }}>
             Primary bottleneck across all operations
           </div>
 
           {/* Score row */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '6px' }}>
-            <div style={{ fontSize: '42px', fontWeight: 800, color: '#cc3333', lineHeight: 1, letterSpacing: '-2px' }}>
+            <div style={{ fontSize: '42px', fontWeight: 800, color: '#1a1a1a', lineHeight: 1, letterSpacing: '-2px' }}>
               {Math.round(bottleneck.score)}
             </div>
-            <div style={{ fontSize: '18px', fontWeight: 700, color: '#cc3333' }}>— {bottleneck.label}</div>
+            <div style={{ fontSize: '18px', fontWeight: 700, color: '#1a1a1a' }}>— {bottleneck.label}</div>
           </div>
-          <div style={{ display: 'inline-block', fontSize: '9px', fontWeight: 700, letterSpacing: '.8px', textTransform: 'uppercase', color: '#fff', background: '#cc3333', borderRadius: '4px', padding: '3px 8px', marginBottom: '20px' }}>
-            Fix this first
+          <div style={{ display: 'inline-block', fontSize: '9px', fontWeight: 700, letterSpacing: '.8px', textTransform: 'uppercase', color: '#1a6644', background: '#e8f5ee', border: '1px solid #b8dfc8', borderRadius: '4px', padding: '3px 8px', marginBottom: '20px' }}>
+            Primary constraint
           </div>
 
           {/* Impact */}
           <div style={{ marginBottom: '24px' }}>
-            <div style={{ fontSize: '15px', fontWeight: 600, color: '#cc3333', marginBottom: '2px' }}>
+            <div style={{ fontSize: '15px', fontWeight: 600, color: '#1a1a1a', marginBottom: '2px' }}>
               Impact: up to {fmtK(bnLoss)} / month
             </div>
-            <div style={{ fontSize: '13px', color: '#c09090' }}>≈ {fmtK(bnDailyLoss)} per day</div>
+            <div style={{ fontSize: '13px', color: '#aaa' }}>≈ {fmtK(bnDailyLoss)} per day</div>
           </div>
 
           {bnDetail && (
             <>
               {/* Divider */}
-              <div style={{ borderTop: '1px solid #f5c6c6', marginBottom: '20px' }} />
+              <div style={{ borderTop: '1px solid #e2e2de', marginBottom: '20px' }} />
 
               {/* Root cause */}
               <div style={{ marginBottom: '20px' }}>
-                <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#c09090', marginBottom: '8px' }}>Root cause</div>
-                <div style={{ fontSize: '14px', fontWeight: 600, color: '#333', marginBottom: '3px' }}>{bnDetail.rootCauseLabel}</div>
+                <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#aaa', marginBottom: '8px' }}>Root cause</div>
+                <div style={{ fontSize: '14px', fontWeight: 600, color: '#1a1a1a', marginBottom: '3px' }}>{bnDetail.rootCauseLabel}</div>
                 {bnDetail.rootCauseMetric && (
                   <div style={{ fontSize: '12px', color: '#aaa' }}>{bnDetail.rootCauseMetric}</div>
                 )}
@@ -2732,11 +2732,11 @@ function ScoreGrid({ calcResult, financialBottleneck, issues, onSwitchToTracking
 
               {/* Start here */}
               <div style={{ marginBottom: '20px' }}>
-                <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#c09090', marginBottom: '8px' }}>Start here — next 7 days</div>
+                <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#aaa', marginBottom: '8px' }}>Start here — next 7 days</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {bnDetail.startHere.map((bullet, i) => (
                     <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-                      <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#cc3333', flexShrink: 0, marginTop: '6px' }} />
+                      <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#1a6644', flexShrink: 0, marginTop: '6px' }} />
                       <span style={{ fontSize: '13px', color: '#444', lineHeight: 1.5 }}>{bullet}</span>
                     </div>
                   ))}
@@ -2745,16 +2745,16 @@ function ScoreGrid({ calcResult, financialBottleneck, issues, onSwitchToTracking
 
               {/* Expected outcome */}
               <div style={{ marginBottom: '20px' }}>
-                <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#c09090', marginBottom: '8px' }}>Expected outcome</div>
+                <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#aaa', marginBottom: '8px' }}>Expected outcome</div>
                 <div style={{ fontSize: '14px', color: '#333', marginBottom: '3px' }}>{bnDetail.outcome[0]}</div>
-                <div style={{ fontSize: '14px', fontWeight: 600, color: '#cc3333' }}>Up to {fmtK(bnLoss)} / month recoverable</div>
+                <div style={{ fontSize: '14px', fontWeight: 600, color: '#1a6644' }}>Up to {fmtK(bnLoss)} / month recoverable</div>
               </div>
 
               {/* CTA */}
               {onSwitchToTracking && (
                 <button onClick={onSwitchToTracking} style={{
                   background: 'none', border: 'none', padding: '0',
-                  fontSize: '13px', fontWeight: 600, color: '#cc3333',
+                  fontSize: '13px', fontWeight: 600, color: '#1a6644',
                   cursor: 'pointer', textAlign: 'left',
                 }}>
                   Start 90-day tracking →
