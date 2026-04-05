@@ -22,6 +22,7 @@ export interface PlantAssessmentData {
   ebitda_monthly: number | null
   report_released: boolean
   trackingWeek: number | null  // pre-computed from started_at
+  recoveredMonthly?: number | null  // current monthly saving from tracking improvements
   trackingImprovement?: {
     turnaroundDelta: number | null   // minutes improved at latest tracked week (positive = better)
     dispatchDelta: number | null     // minutes improved
@@ -297,6 +298,7 @@ export default function PlantOverviewView({ plants, customerName, isDemo, demoPl
     ? Math.round(withScore.reduce((s, p) => s + p.assessment!.overall!, 0) / withScore.length)
     : null
   const totalGap = plants.reduce((s, p) => s + (p.assessment?.ebitda_monthly ?? 0), 0)
+  const totalRecovered = plants.reduce((s, p) => s + (p.assessment?.recoveredMonthly ?? 0), 0)
   const atRisk = plants.filter(p => {
     const score = p.assessment?.overall
     return score !== null && score !== undefined && score < 60
@@ -375,10 +377,21 @@ export default function PlantOverviewView({ plants, customerName, isDemo, demoPl
         gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
         gap: '10px', marginBottom: '20px',
       }}>
-        {/* Plants chip */}
-        <div style={{ background: 'var(--white)', border: '1px solid var(--border)', borderRadius: '10px', padding: isMobile ? '12px 14px' : '14px 18px' }}>
-          <div style={{ fontSize: '10px', color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: '5px' }}>Plants</div>
-          <div style={{ fontSize: isMobile ? '18px' : '22px', fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--gray-900)', lineHeight: 1 }}>{plants.length}</div>
+        {/* Recovered chip */}
+        <div style={{
+          background: totalRecovered > 0 ? 'var(--phase-complete-bg)' : 'var(--white)',
+          border: `1px solid ${totalRecovered > 0 ? 'var(--phase-complete)' : 'var(--border)'}`,
+          borderRadius: '10px', padding: isMobile ? '12px 14px' : '14px 18px',
+        }}>
+          <div style={{ fontSize: '10px', color: totalRecovered > 0 ? 'var(--phase-complete)' : 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: '4px', fontWeight: 600 }}>
+            Recovered
+          </div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '3px' }}>
+            <span style={{ fontSize: isMobile ? '18px' : '22px', fontWeight: 800, fontFamily: 'var(--mono)', color: totalRecovered > 0 ? 'var(--phase-complete)' : 'var(--gray-300)', lineHeight: 1 }}>
+              {totalRecovered > 0 ? fmt(totalRecovered) : '—'}
+            </span>
+            {totalRecovered > 0 && <span style={{ fontSize: '12px', color: 'var(--phase-complete)', fontWeight: 500 }}>/mo</span>}
+          </div>
         </div>
 
         {/* Avg score chip */}
