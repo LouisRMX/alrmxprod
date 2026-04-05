@@ -965,35 +965,26 @@ function ImpactHook({ bnLoss, bnDailyLoss, totalLoss, calcResult, issues, financ
         })()}
       </div>
 
-      {/* Right — Total recovery potential across all findings */}
+      {/* Right — Recovery potential (main constraint only) */}
       <div style={{ padding: isMobile ? '16px' : '24px', background: '#f6fbf8' }}>
         <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.4px', textTransform: 'uppercase', color: '#7ab89a', marginBottom: '8px' }}>
-          Total recovery potential
+          Recovery potential
         </div>
-        {totalLoss > 0 ? (
+        {bnLoss > 0 ? (
           <>
             <div style={{ fontSize: isMobile ? '32px' : '40px', fontWeight: 800, color: '#1a6644', lineHeight: 1, letterSpacing: '-1px', marginBottom: '4px' }}>
-              {fmtK(totalLoss)}<span style={{ fontSize: '17px', fontWeight: 500, color: '#5aaa82', marginLeft: '8px' }}>/ month</span>
+              {fmtK(bnLoss)}<span style={{ fontSize: '17px', fontWeight: 500, color: '#5aaa82', marginLeft: '8px' }}>/ month</span>
             </div>
             <div style={{ fontSize: '13px', color: '#7ab89a', marginBottom: '20px' }}>
-              ≈ {fmtK(Math.round(totalLoss / (calcResult.workingDaysMonth || 22)))} per day
+              ≈ {fmtK(bnDailyLoss)} per day
             </div>
 
-            {/* Breakdown: primary + secondary */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
-              {bnLoss > 0 && driverLabel && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                  <span style={{ fontSize: '12px', color: '#4a9a72' }}>{driverLabel} (primary)</span>
-                  <span style={{ fontSize: '12px', fontWeight: 600, color: '#1a6644', fontFamily: 'var(--mono)' }}>{fmtK(bnLoss)}</span>
-                </div>
-              )}
-              {totalLoss > bnLoss && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                  <span style={{ fontSize: '12px', color: '#4a9a72' }}>Secondary findings</span>
-                  <span style={{ fontSize: '12px', fontWeight: 600, color: '#1a6644', fontFamily: 'var(--mono)' }}>{fmtK(totalLoss - bnLoss)}</span>
-                </div>
-              )}
-            </div>
+            {driverLabel && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '16px' }}>
+                <span style={{ fontSize: '12px', color: '#4a9a72' }}>{driverLabel} constraint</span>
+                <span style={{ fontSize: '12px', fontWeight: 600, color: '#1a6644', fontFamily: 'var(--mono)' }}>{fmtK(bnLoss)}</span>
+              </div>
+            )}
 
             <div style={{ fontSize: '12px', color: '#2e8a5f', fontWeight: 600, marginTop: '4px' }}>
               ✓ No capital required — operational changes only
