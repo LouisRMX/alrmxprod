@@ -323,41 +323,45 @@ function HowItWorks() {
           Time to value in a few weeks.
         </p>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0', marginTop: '8px' }}>
-          {steps.map((step, i) => (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
+          {steps.map((step) => (
             <div key={step.num} style={{
               display: 'flex', gap: '24px', alignItems: 'flex-start',
-              padding: '28px 0',
-              borderBottom: i < steps.length - 1 ? '1px solid var(--border)' : 'none',
+              background: 'var(--gray-50)',
+              border: '1px solid var(--border)',
+              borderRadius: '14px',
+              padding: '28px 28px',
             }}>
               <div style={{
-                width: '36px', height: '36px', borderRadius: '50%',
-                background: 'var(--green)', color: '#fff',
+                width: '40px', height: '40px', borderRadius: '50%',
+                background: '#0a2318', color: '#4ade80',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '14px', fontWeight: 700, flexShrink: 0,
+                fontSize: '15px', fontWeight: 800, flexShrink: 0,
+                fontFamily: 'var(--mono)',
               }}>
                 {step.num}
               </div>
-              <div>
-                <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--gray-900)', marginBottom: '6px' }}>
-                  {step.label}
-                </div>
-                <div style={{ fontSize: '14px', color: 'var(--gray-500)', lineHeight: 1.6, maxWidth: '560px', marginBottom: '10px' }}>
-                  {step.text}
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                  <span style={{
-                    fontSize: '12px', fontWeight: 500, fontFamily: 'var(--mono)',
-                    color: 'var(--green)', background: 'var(--green-pale)',
-                    padding: '2px 8px', borderRadius: '4px',
-                  }}>
-                    {step.price}
-                  </span>
-                  {step.priceNote && (
-                    <span style={{ fontSize: '11px', color: 'var(--gray-500)', fontStyle: 'italic' }}>
-                      {step.priceNote}
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap', marginBottom: '10px' }}>
+                  <div style={{ fontSize: '17px', fontWeight: 700, color: 'var(--gray-900)' }}>
+                    {step.label}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px', flexShrink: 0 }}>
+                    <span style={{
+                      fontSize: '18px', fontWeight: 800, fontFamily: 'var(--mono)',
+                      color: '#0a2318',
+                    }}>
+                      {step.price}
                     </span>
-                  )}
+                    {step.priceNote && (
+                      <span style={{ fontSize: '11px', color: 'var(--gray-400)', fontStyle: 'italic' }}>
+                        {step.priceNote}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div style={{ fontSize: '14px', color: 'var(--gray-500)', lineHeight: 1.7 }}>
+                  {step.text}
                 </div>
               </div>
             </div>
