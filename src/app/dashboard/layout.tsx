@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import NavBar from '@/components/NavBar'
 import DevRoleSwitcher from '@/components/DevRoleSwitcher'
 import { getEffectiveMemberRole, type MemberRole } from '@/lib/getEffectiveMemberRole'
+import DashboardShell from './DashboardShell'
 
 export const dynamic = 'force-dynamic'
 
@@ -52,11 +53,13 @@ export default async function DashboardLayout({
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', overflowX: 'hidden' }}>
       <NavBar user={user} profile={profile} memberRole={effectiveRole} />
-      <main className="dashboard-main" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-        {children}
-      </main>
-      {/* Always mounted — component fetches own role client-side and hides if not system_admin */}
-      <DevRoleSwitcher viewAs={effectiveRole} isOverridden={isOverridden} />
+      <DashboardShell userRole={effectiveRole} isAdmin={isAdmin}>
+        <main className="dashboard-main" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+          {children}
+        </main>
+        {/* Always mounted — component fetches own role client-side and hides if not system_admin */}
+        <DevRoleSwitcher viewAs={effectiveRole} isOverridden={isOverridden} />
+      </DashboardShell>
     </div>
   )
 }

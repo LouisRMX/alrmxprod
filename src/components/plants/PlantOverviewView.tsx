@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { calcLossRange } from '@/lib/calculations'
+import { useSetChatContext } from '@/context/ChatContext'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -336,6 +337,11 @@ export default function PlantOverviewView({ plants, customerName, isDemo, demoPl
     : null
   const totalGap = plants.reduce((s, p) => s + (p.assessment?.ebitda_monthly ?? 0), 0)
   const totalRecovered = plants.reduce((s, p) => s + (p.assessment?.recoveredMonthly ?? 0), 0)
+
+  useSetChatContext({
+    pageType: 'plants',
+    portfolioSummary: { totalPlants: plants.length, avgScore, totalGap, totalRecovered },
+  })
   const atRisk = plants.filter(p => {
     const score = p.assessment?.overall
     return score !== null && score !== undefined && score < 60

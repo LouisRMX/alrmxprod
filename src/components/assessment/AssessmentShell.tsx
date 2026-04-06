@@ -14,6 +14,7 @@ import SimulatorView from './simulator/SimulatorView'
 import TrackingTab from './tracking/TrackingTab'
 import GpsUploadView from '@/components/gps-upload/GpsUploadView'
 import { useIsMobile } from '@/hooks/useIsMobile'
+import { useSetChatContext } from '@/context/ChatContext'
 
 export interface DemoBannerProps {
   show: boolean
@@ -109,6 +110,33 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
 
   const meta = useMemo(() => ({ season }), [season])
   const calcResult: CalcResult = useMemo(() => calc(answers, meta, overrides), [answers, meta, overrides])
+
+  // Push current assessment context to the global chat assistant
+  useSetChatContext({
+    pageType: 'assessment',
+    plantName: plant,
+    plantCountry: country,
+    assessmentId,
+    assessmentPhase: phase,
+    overall: calcResult.overall,
+    scores: {
+      prod:     calcResult.scores.prod,
+      dispatch: calcResult.scores.dispatch,
+      fleet:    calcResult.scores.fleet,
+      quality:  calcResult.scores.quality,
+    },
+    bottleneck:       calcResult.bottleneck,
+    ebitdaMonthly:    calcResult.capLeakMonthly + calcResult.turnaroundLeakMonthly
+                      + calcResult.rejectLeakMonthly + calcResult.partialLeakMonthly
+                      + calcResult.surplusLeakMonthly,
+    hiddenRevMonthly: calcResult.hiddenRevMonthly,
+    turnaroundMin:    calcResult.ta,
+    targetTA:         calcResult.TARGET_TA,
+    dispatchMin:      calcResult.dispatchMin,
+    rejectPct:        calcResult.rejectPct,
+    trucks:           calcResult.trucks,
+  })
+
   const baselineCalcResult: CalcResult | null = useMemo(
     () => baselineData ? calc(baselineData.answers, meta) : null,
     [baselineData, meta]
