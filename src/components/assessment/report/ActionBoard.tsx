@@ -35,6 +35,8 @@ interface ActionBoardProps {
   assessmentId: string
   customerId: string
   focusActions: string[]
+  /** Parallel array: first checklist step for each focusAction (null if none) */
+  boardFirstSteps?: (string | null)[]
   canEdit: boolean
   financialBottleneck?: string | null
   recoverable?: number
@@ -62,19 +64,22 @@ function initials(name: string | null | undefined, email: string): string {
 
 // ── Mock data for demo ────────────────────────────────────────────────────────
 
-function makeDemoItems(focusActions: string[]): ActionItem[] {
-  return focusActions.filter(Boolean).map((text, i) => ({
-    id: `demo-${i}`,
-    assessment_id: 'demo',
-    text,
-    status: 'todo',
-    assignee_id: null,
-    assignee: null,
-    source: 'ai',
-    value: null,
-    checklist: [],
-    created_at: new Date().toISOString(),
-  }))
+function makeDemoItems(focusActions: string[], boardFirstSteps?: (string | null)[]): ActionItem[] {
+  return focusActions.filter(Boolean).map((text, i) => {
+    const firstStep = boardFirstSteps?.[i]
+    return {
+      id: `demo-${i}`,
+      assessment_id: 'demo',
+      text,
+      status: 'todo',
+      assignee_id: null,
+      assignee: null,
+      source: 'ai',
+      value: null,
+      checklist: firstStep ? [{ id: `ci-demo-${i}-0`, text: firstStep, done: false }] : [],
+      created_at: new Date().toISOString(),
+    }
+  })
 }
 
 const DEMO_MEMBERS: BoardMember[] = [
@@ -773,7 +778,7 @@ const iconBtnStyle: React.CSSProperties = {
 
 // ── Main ActionBoard ──────────────────────────────────────────────────────────
 
-export default function ActionBoard({ assessmentId, customerId, focusActions, canEdit, financialBottleneck, recoverable, calcResult, answers }: ActionBoardProps) {
+export default function ActionBoard({ assessmentId, customerId, focusActions, boardFirstSteps, canEdit, financialBottleneck, recoverable, calcResult, answers }: ActionBoardProps) {
   const isDemo = assessmentId === 'demo'
   const supabase = createClient()
 
@@ -799,7 +804,7 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, ca
   useEffect(() => {
     if (isDemo) {
       setMembers(DEMO_MEMBERS)
-      setItems(makeDemoItems(focusActions))
+      setItems(makeDemoItems(focusActions, boardFirstSteps))
       setLoading(false)
       return
     }
@@ -839,11 +844,13 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, ca
 
       // AI pre-population: if no items yet and focusActions available
       if (normalizedItems.length === 0 && focusActions.filter(Boolean).length > 0) {
-        const toInsert = focusActions.filter(Boolean).map(text => ({
-          assessment_id: assessmentId,
-          text,
-          status: 'todo' as const,
-        }))
+        const toInsert = focusActions.filter(Boolean).map((text, i) => {
+          const firstStep = boardFirstSteps?.[i]
+          const checklist: ChecklistItem[] = firstStep
+            ? [{ id: `ci-init-${i}-0`, text: firstStep, done: false }]
+            : []
+          return { assessment_id: assessmentId, text, status: 'todo' as const, checklist }
+        })
         const { data: inserted } = await supabase
           .from('action_items')
           .insert(toInsert)

@@ -3100,23 +3100,26 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
 
   const showBoard = userRole !== 'operator'
 
-  // Board actions: use admin-curated focusActions if set, otherwise auto-generate.
-  // Bottleneck issues come first (they block everything else), then fill remaining
-  // slots with highest-impact independent issues.
-  const boardActions = (focusActions?.filter(Boolean).length ?? 0) > 0
-    ? focusActions!.filter(Boolean)
-    : (() => {
-        const withAction = issues.filter(i => i.action && i.loss > 0)
-        const bottleneckFirst = withAction
-          .filter(i => i.category === 'bottleneck')
-          .sort((a, b) => b.loss - a.loss)
-        const independent = withAction
-          .filter(i => i.category !== 'bottleneck')
-          .sort((a, b) => b.loss - a.loss)
-        return [...bottleneckFirst, ...independent]
-          .slice(0, 3)
-          .map(i => i.action!)
-      })()
+  // Board items: use goal as card title, action as first checklist step.
+  // Bottleneck issues first, then highest-impact independent issues.
+  // Admin-curated focusActions fall back to goal-less titles.
+  const boardItems: { text: string; firstStep?: string }[] = (() => {
+    if ((focusActions?.filter(Boolean).length ?? 0) > 0) {
+      return focusActions!.filter(Boolean).map(text => ({ text }))
+    }
+    const withAction = issues.filter(i => i.action && i.loss > 0)
+    const bottleneckFirst = withAction
+      .filter(i => i.category === 'bottleneck')
+      .sort((a, b) => b.loss - a.loss)
+    const independent = withAction
+      .filter(i => i.category !== 'bottleneck')
+      .sort((a, b) => b.loss - a.loss)
+    return [...bottleneckFirst, ...independent]
+      .slice(0, 3)
+      .map(i => ({ text: i.goal ?? i.action!, firstStep: i.goal ? i.action : undefined }))
+  })()
+  // Keep string[] for the focusActions prop (ActionBoard pre-population)
+  const boardActions = boardItems.map(i => i.text)
 
   return (
     <div style={{
@@ -3373,6 +3376,7 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
           assessmentId={assessmentId}
           customerId={customerId ?? ''}
           focusActions={boardActions}
+          boardFirstSteps={boardItems.map(i => i.firstStep ?? null)}
           canEdit={userRole !== 'owner'}
           financialBottleneck={financialBottleneck}
           recoverable={primaryBottleneckLoss}
@@ -3393,6 +3397,7 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
           assessmentId={assessmentId}
           customerId={customerId ?? ''}
           focusActions={boardActions}
+          boardFirstSteps={boardItems.map(i => i.firstStep ?? null)}
           canEdit={userRole !== 'owner'}
           financialBottleneck={financialBottleneck}
           recoverable={primaryBottleneckLoss}

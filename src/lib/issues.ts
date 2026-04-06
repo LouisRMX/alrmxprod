@@ -9,6 +9,8 @@ export interface Issue {
   sev: 'red' | 'amber'
   pin: boolean
   t: string
+  /** High-level goal title shown as the action card title (e.g. "Improve dispatch time") */
+  goal?: string
   action: string
   rec: string
   loss: number
@@ -66,6 +68,7 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
     issues.push({
       sev: 'red', pin: true, category: 'bottleneck', dimension: 'Fleet',
       t: `Truck turnaround ${r.ta} min — ${Math.round((r.ta - r.TARGET_TA) / r.TARGET_TA * 100)}% above ${r.TARGET_TA}-min target${taDemandNote}`,
+      goal: 'Reduce truck turnaround time',
       action: 'Require site readiness confirmation before trucks depart',
       rec: taLossDeferred
         ? `Site waiting time (${r.taSiteWaitMin} min) is the identified primary cause — see finding below for dollar impact.`
@@ -106,6 +109,7 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
     issues.push({
       sev: 'red', pin: bn === 'Dispatch', category: 'bottleneck', dimension: 'Dispatch',
       t: `Dispatch score ${r.scores.dispatch}/100 — primary bottleneck`,
+      goal: 'Improve dispatch time',
       action: dispatchAction,
       rec: dispRec,
       loss,
@@ -116,6 +120,7 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
       issues.push({
         sev: 'amber', pin: false, category: 'bottleneck', dimension: 'Fleet',
         t: `Truck turnaround ${r.ta} min — ${Math.round((r.ta - r.TARGET_TA) / r.TARGET_TA * 100)}% above ${r.TARGET_TA}-min target (included in dispatch estimate)`,
+        goal: 'Reduce truck turnaround time',
         action: 'Require site readiness confirmation before trucks depart',
         rec: 'Trucks should only depart when the site confirms readiness. Fastest lever inside the dispatch bottleneck.',
         loss: 0,
@@ -126,6 +131,7 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
     issues.push({
       sev: 'red', pin: bn === 'Fleet', category: 'bottleneck', dimension: 'Fleet',
       t: `Truck turnaround ${r.ta} min — ${Math.round((r.ta - r.TARGET_TA) / r.TARGET_TA * 100)}% above ${r.TARGET_TA}-min target${taDemandNote}`,
+      goal: 'Reduce truck turnaround time',
       action: 'Require site readiness confirmation before trucks depart',
       rec: taLossDeferred
         ? `Site waiting time (${r.taSiteWaitMin} min) is the identified primary cause — see finding below for dollar impact.`
@@ -149,6 +155,7 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
       pin: !demandGated && bn === 'Production',
       category: 'bottleneck', dimension: 'Production',
       t: `Plant running at ${Math.round(r.util * 100)}% — ${Math.round((r.utilisationTarget - r.util * 100))} points below ${r.utilisationTarget}% target${demandGated ? ' (demand-limited)' : ''}`,
+      goal: demandGated ? 'Grow order volume' : 'Increase plant utilisation',
       action: demandGated ? 'Grow sales pipeline before optimising throughput' : 'Map peak demand window and pre-stage batching 30 min before',
       rec: demandGated
         ? 'Plant has operational headroom but current volume reflects available orders. Focus on sales and pricing before investing in throughput improvements.'
@@ -188,6 +195,7 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
       issues.push({
         sev: 'amber', pin: false, category: 'independent', dimension: 'Quality',
         t: `${Math.round(r.rejectPct)}% rejection — plant-side quality losses`,
+        goal: 'Reduce rejection rate',
         action: 'Calibrate water-cement ratio sensors and run slump test on every load before dispatch',
         rec: `Plant-side rejections (~${plantPct}% of total) are caused by batching, dosing, or mix quality failures. Each rejected load wastes $${Math.round(r.materialCostPerM3 || r.contribSafe)}/m³ in raw materials. Fix: monthly sensor calibration and mandatory slump testing at dispatch.`,
         loss: r.rejectPlantSideLoss,
@@ -200,6 +208,7 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
       issues.push({
         sev: 'amber', pin: false, category: 'independent', dimension: 'Quality',
         t: `${Math.round(r.rejectPct)}% rejection — site and customer-side losses`,
+        goal: 'Fix customer-side rejections',
         action: 'Implement pre-departure site readiness confirmation and enforce demurrage clause after 45 min on site',
         rec: `Customer-side rejections (~${customerPct}% of total) are caused by site unreadiness, pump delays, or contractor refusals. The fix is contract enforcement and dispatch protocol — not batch control. A pre-departure confirmation call and an enforced demurrage clause address this directly.`,
         loss: r.rejectCustomerSideLoss,
