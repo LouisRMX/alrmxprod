@@ -2142,20 +2142,7 @@ function FullReportDrawer({
 
           <Divider />
 
-          {/* 4. ACTION PLAN */}
-          <AISection
-            title="Action Plan"
-            text={texts.actions}
-            generating={generating === 'actions'}
-            onGenerate={() => onGenerate('actions')}
-            onSave={t => onSave('actions', t)}
-            minHeight={80}
-            readOnly={readOnly}
-          />
-
-          <Divider />
-
-          {/* 5. SUPPORTING FINDINGS — evidence, not introduction */}
+          {/* 4. SUPPORTING FINDINGS — evidence, not introduction */}
           {issues.filter(i => i.loss > 0 || i.category === 'bottleneck').length > 0 && (
             <div style={{ marginBottom: '24px' }}>
               <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#9b9b9b', marginBottom: '10px', paddingLeft: '2px' }}>
@@ -3010,8 +2997,8 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
       })
   }, [assessmentId, supabase])
 
-  const hasAllSections = !!(texts.executive && texts.diagnosis && texts.actions)
-  const hasAnySections = !!(texts.executive || texts.diagnosis || texts.actions)
+  const hasAllSections = !!(texts.executive && texts.diagnosis)
+  const hasAnySections = !!(texts.executive || texts.diagnosis)
 
   // Build context for AI generation
   // totalLoss already applies bottleneck logic (max of overlapping, not sum) — use this, not raw sum
@@ -3099,7 +3086,7 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
   }, [assessmentId, aiContext])
 
   const generateAll = useCallback(async (demoOverride = false) => {
-    for (const section of ['executive', 'diagnosis', 'actions']) {
+    for (const section of ['executive', 'diagnosis']) {
       await generate(section, demoOverride)
     }
   }, [generate])
