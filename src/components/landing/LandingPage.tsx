@@ -269,17 +269,17 @@ function HowItWorks() {
     {
       num: '1',
       label: 'Remote diagnostic',
-      text: 'We collect your operational data and calculate the estimated revenue gap across your operations. The output is a quantified business case: what you are losing, where, and why. It scopes the engagement and sets the baseline for everything that follows.',
+      text: 'Before you commit to anything, we calculate the estimated revenue gap across your operations from your own data. You get a quantified business case: what you are losing, where, and why. This tells you whether an on-site engagement is worth it. No commitment required.',
     },
     {
       num: '2',
       label: 'On-site validation',
-      text: 'We visit your plant to confirm the numbers, recalibrate the scope, and identify what data alone cannot capture. Output: a validated diagnosis, a refined financial picture, and a prioritized action plan specific to your operation.',
+      text: 'We visit your plant to confirm the numbers, recalibrate the scope, and identify what data alone cannot capture. The output is a validated diagnosis and a prioritized action plan. This protects you from investing in improvements or systems in the wrong places, or solving the wrong problems.',
     },
     {
       num: '3',
       label: 'Continuous improvement',
-      text: 'KPIs tracked weekly against the documented baseline. Improvements logged, progress visible, ongoing sparring on what to act on next. This is where results compound and the engagement pays for itself repeatedly.',
+      text: 'KPIs tracked weekly against the documented baseline. Improvements logged, progress visible, ongoing sparring on what to act on next. This phase ensures that your investment in phases 1 and 2 keeps paying back. Not just once, but repeatedly.',
     },
   ]
 
