@@ -269,7 +269,7 @@ function HowItWorks() {
     {
       num: '1',
       label: 'Discovery Report',
-      price: '$3,499',
+      price: '$3,000',
       text: 'We calculate the revenue gap across your operations from your own data. You get a quantified business case: what you are losing and where. The on-site visit confirms why. If the numbers justify a full on-site engagement, you go in knowing exactly what you are fixing.',
     },
     {
@@ -282,8 +282,8 @@ function HowItWorks() {
     {
       num: '3',
       label: 'Continuous improvements',
-      price: '$2,499 / month',
-      priceNote: '$1,999 / month per additional plant',
+      price: '$2,500 / month',
+      priceNote: '$2,000 / month per additional plant',
       text: 'KPIs tracked weekly against the documented baseline. Includes a monthly accountability session and two on-site business reviews per year. This phase turns the engagement into a compounding asset. Every month builds on the last.',
     },
   ]
