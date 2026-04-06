@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import type { CalcResult, Answers } from '@/lib/calculations'
+import { calcLossRange, type CalcResult, type Answers } from '@/lib/calculations'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -364,7 +364,7 @@ function CardDetailModal({
             borderRadius: '8px', padding: '10px 14px', marginBottom: '16px',
           }}>
             <div style={{ fontSize: '13px', fontWeight: 700, color: '#16a34a', marginBottom: formula ? '4px' : 0 }}>
-              Fixing this recovers ~${Math.round(lossMonthly / 1000)}k/month
+              {(() => { const { low, high } = calcLossRange(lossMonthly); return `Fixing this recovers $${Math.round(low / 1000)}k–$${Math.round(high / 1000)}k/month` })()}
             </div>
             {formula && (
               <div style={{ fontSize: '11px', color: '#4ade80', fontFamily: 'monospace', lineHeight: 1.5 }}>
@@ -885,7 +885,7 @@ function TaskCard({
           background: '#f0fdf4', border: '1px solid #bbf7d0',
           borderRadius: '4px', padding: '1px 6px', marginBottom: '5px',
         }}>
-          Fix = ~${Math.round(lossMonthly / 1000)}k/month
+          {(() => { const { low, high } = calcLossRange(lossMonthly); return `Fix = $${Math.round(low / 1000)}k–$${Math.round(high / 1000)}k/mo` })()}
         </div>
       )}
 

@@ -1123,11 +1123,16 @@ function ImpactHook({ bnLoss, bnDailyLoss, totalLoss, calcResult, issues, financ
         </div>
         {bnLoss > 0 ? (
           <>
-            <div style={{ fontSize: isMobile ? '32px' : '40px', fontWeight: 800, color: '#1a6644', lineHeight: 1, letterSpacing: '-1px', marginBottom: '4px' }}>
-              {fmtK(bnLoss)}<span style={{ fontSize: '17px', fontWeight: 500, color: '#5aaa82', marginLeft: '8px' }}>/ month</span>
-            </div>
-            <div style={{ fontSize: '13px', color: '#7ab89a', marginBottom: '20px' }}>
-              ≈ {fmtK(bnDailyLoss)} per day
+            {(() => {
+              const { low, high } = calcLossRange(bnLoss)
+              return (
+                <div style={{ fontSize: isMobile ? '26px' : '32px', fontWeight: 800, color: '#1a6644', lineHeight: 1, letterSpacing: '-1px', marginBottom: '4px' }}>
+                  {fmtK(low)}–{fmtK(high)}<span style={{ fontSize: '15px', fontWeight: 500, color: '#5aaa82', marginLeft: '8px' }}>/ month</span>
+                </div>
+              )
+            })()}
+            <div style={{ fontSize: '12px', color: '#7ab89a', marginBottom: '20px' }}>
+              midpoint {fmtK(bnLoss)} · ≈ {fmtK(bnDailyLoss)} per day
             </div>
 
             {driverLabel && (
@@ -2252,13 +2257,23 @@ function FullReportDrawer({
                   </div>
                   <div style={{ padding: '16px 20px', background: '#fff5f5', borderRight: isMobile ? 'none' : '1px solid #e8e8e6', borderBottom: isMobile ? '1px solid #e8e8e6' : 'none' }}>
                     <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.3px', textTransform: 'uppercase', color: '#c0a0a0', marginBottom: '4px' }}>Total recoverable</div>
-                    <div style={{ fontSize: '28px', fontWeight: 800, color: '#cc3333', lineHeight: 1, letterSpacing: '-1px' }}>{fmtK(totalLoss)}</div>
-                    <div style={{ fontSize: '10px', color: '#c09090', marginTop: '2px' }}>per month</div>
+                    {(() => {
+                      const { low, high } = calcLossRange(totalLoss)
+                      return (
+                        <>
+                          <div style={{ fontSize: '22px', fontWeight: 800, color: '#cc3333', lineHeight: 1, letterSpacing: '-1px' }}>{fmtK(low)}–{fmtK(high)}</div>
+                          <div style={{ fontSize: '10px', color: '#c09090', marginTop: '2px' }}>per month est.</div>
+                        </>
+                      )
+                    })()}
                   </div>
                   <div style={{ padding: '16px 20px', background: '#fafafa' }}>
                     <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.3px', textTransform: 'uppercase', color: '#aaa', marginBottom: '4px' }}>Primary constraint</div>
                     <div style={{ fontSize: '22px', fontWeight: 800, color: '#111', lineHeight: 1.1, letterSpacing: '-0.3px' }}>{bottleneckLabel}</div>
-                    <div style={{ fontSize: '10px', color: '#aaa', marginTop: '2px' }}>{fmtK(bnLossDrawer)} / month</div>
+                    {(() => {
+                      const { low, high } = calcLossRange(bnLossDrawer)
+                      return <div style={{ fontSize: '10px', color: '#aaa', marginTop: '2px' }}>{fmtK(low)}–{fmtK(high)} / mo</div>
+                    })()}
                   </div>
                 </div>
                 {/* Snapshot bullets */}
@@ -2794,7 +2809,7 @@ function ScoreGrid({ calcResult, financialBottleneck, issues, onSwitchToTracking
         ],
         outcome: [
           'Dispatch time reduced to <15 min',
-          `Recovery of up to ${fmtK(bnLoss)} / month`,
+          `Recovery of ${fmtK(calcLossRange(bnLoss).low)}–${fmtK(calcLossRange(bnLoss).high)} / month`,
         ],
       }
       case 'Fleet': return {
@@ -2807,7 +2822,7 @@ function ScoreGrid({ calcResult, financialBottleneck, issues, onSwitchToTracking
         ],
         outcome: [
           `Turnaround reduced to ${calcResult.TARGET_TA} min`,
-          `Recovery of up to ${fmtK(bnLoss)} / month`,
+          `Recovery of ${fmtK(calcLossRange(bnLoss).low)}–${fmtK(calcLossRange(bnLoss).high)} / month`,
         ],
       }
       case 'Quality': return {
@@ -2820,7 +2835,7 @@ function ScoreGrid({ calcResult, financialBottleneck, issues, onSwitchToTracking
         ],
         outcome: [
           'Rejection rate reduced below 3%',
-          `Recovery of up to ${fmtK(bnLoss)} / month`,
+          `Recovery of ${fmtK(calcLossRange(bnLoss).low)}–${fmtK(calcLossRange(bnLoss).high)} / month`,
         ],
       }
       case 'Production': return {
@@ -2833,7 +2848,7 @@ function ScoreGrid({ calcResult, financialBottleneck, issues, onSwitchToTracking
         ],
         outcome: [
           'Utilisation increased to 92%+',
-          `Recovery of up to ${fmtK(bnLoss)} / month`,
+          `Recovery of ${fmtK(calcLossRange(bnLoss).low)}–${fmtK(calcLossRange(bnLoss).high)} / month`,
         ],
       }
       default: return null

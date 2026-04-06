@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useCallback } from 'react'
-import type { CalcResult, Answers } from '@/lib/calculations'
+import { calcLossRange, type CalcResult, type Answers } from '@/lib/calculations'
 import { buildIssues, getFinancialBottleneck, type Issue } from '@/lib/issues'
 
 // ── One-Page Summary PDF ───────────────────────────────────────────────────
@@ -114,21 +114,23 @@ export function SummaryPDFButton({ calcResult, answers, meta, focusActions, anal
         </div>
 
         {/* Total recoverable chip */}
-        {totalLoss > 0 && (
-          <div style={{ background: '#fef3c7', border: '1px solid #fbbf24', borderRadius: '10px', padding: '18px 24px', marginBottom: '24px', textAlign: 'center' }}>
-            <div style={{ fontSize: '11px', color: '#92400e', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
-              Total recoverable per month
-            </div>
-            <div style={{ fontSize: '36px', fontWeight: 700, fontFamily: "'DM Mono', monospace", color: '#b45309' }}>
-              ${totalLoss.toLocaleString()}
-            </div>
-            {financialBottleneck && (
-              <div style={{ fontSize: '11px', color: '#92400e', marginTop: '4px' }}>
-                Primary driver: {financialBottleneck}
+        {totalLoss > 0 && (() => {
+          const { low, high } = calcLossRange(totalLoss)
+          const fmtLocal = (n: number) => '$' + Math.round(n / 1000) + 'k'
+          return (
+            <div style={{ background: '#fef3c7', border: '1px solid #fbbf24', borderRadius: '10px', padding: '18px 24px', marginBottom: '24px', textAlign: 'center' }}>
+              <div style={{ fontSize: '11px', color: '#92400e', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
+                Total recoverable per month
               </div>
-            )}
-          </div>
-        )}
+              <div style={{ fontSize: '32px', fontWeight: 700, fontFamily: "'DM Mono', monospace", color: '#b45309' }}>
+                {fmtLocal(low)}–{fmtLocal(high)}
+              </div>
+              <div style={{ fontSize: '11px', color: '#92400e', marginTop: '4px' }}>
+                midpoint {fmtLocal(totalLoss)}{financialBottleneck ? ` · driver: ${financialBottleneck}` : ''}
+              </div>
+            </div>
+          )
+        })()}
 
         {/* Top 3 losses table */}
         {topIssues.length > 0 && (
@@ -153,8 +155,8 @@ export function SummaryPDFButton({ calcResult, answers, meta, focusActions, anal
                     <td style={{ padding: '10px 12px', fontSize: '11px', color: '#4b5563', verticalAlign: 'top', lineHeight: 1.4 }}>
                       {issue.t}
                     </td>
-                    <td style={{ padding: '10px 12px', fontSize: '12px', fontWeight: 700, fontFamily: "'DM Mono', monospace", color: '#c0392b', textAlign: 'right', verticalAlign: 'top', whiteSpace: 'nowrap' }}>
-                      ${issue.loss.toLocaleString()}
+                    <td style={{ padding: '10px 12px', fontSize: '11px', fontWeight: 700, fontFamily: "'DM Mono', monospace", color: '#c0392b', textAlign: 'right', verticalAlign: 'top', whiteSpace: 'nowrap' }}>
+                      {(() => { const { low, high } = calcLossRange(issue.loss); return `$${Math.round(low / 1000)}k–$${Math.round(high / 1000)}k` })()}
                     </td>
                   </tr>
                 ))}
@@ -363,23 +365,27 @@ export default function ExportPDF({ calcResult, answers, meta, report }: ExportP
         </div>
 
         {/* Opening hook */}
-        {totalLoss > 0 && (
-          <div style={{ background: '#FDE8E6', border: '1px solid #F5B7B1', borderRadius: '8px', padding: '14px 18px', marginBottom: '20px', textAlign: 'center' }}>
-            <div style={{ fontSize: '13px', fontWeight: 600, color: '#C0392B', lineHeight: 1.5 }}>
-              This plant has a potential <span style={{ fontFamily: "'DM Mono', monospace" }}>${Math.round(totalLoss / 22).toLocaleString()}</span> per working day to recover.
+        {totalLoss > 0 && (() => {
+          const { low, high } = calcLossRange(totalLoss)
+          const fmtK = (n: number) => '$' + Math.round(n / 1000) + 'k'
+          return (
+            <div style={{ background: '#FDE8E6', border: '1px solid #F5B7B1', borderRadius: '8px', padding: '14px 18px', marginBottom: '20px', textAlign: 'center' }}>
+              <div style={{ fontSize: '13px', fontWeight: 600, color: '#C0392B', lineHeight: 1.5 }}>
+                This plant has <span style={{ fontFamily: "'DM Mono', monospace" }}>{fmtK(low)}–{fmtK(high)}</span> per month to recover.
+              </div>
+              <div style={{ fontSize: '11px', color: '#6b6b6b', marginTop: '3px' }}>
+                midpoint {fmtK(totalLoss)}/month · {fmtK(totalLoss * 12)}/year, contingent on order book
+              </div>
             </div>
-            <div style={{ fontSize: '11px', color: '#6b6b6b', marginTop: '3px' }}>
-              ${totalLoss.toLocaleString()}/month · ${(totalLoss * 12).toLocaleString()}/year — contingent on order book
-            </div>
-          </div>
-        )}
+          )
+        })()}
 
         {/* Headline numbers */}
         <div style={{ display: 'flex', gap: '10px', marginBottom: '24px' }}>
           <div style={{ flex: 1, background: totalLoss > 0 ? '#FDE8E6' : '#f4f4f4', borderRadius: '8px', padding: '14px 16px', border: `1px solid ${totalLoss > 0 ? '#F5B7B1' : '#e0e0e0'}` }}>
             <div style={{ fontSize: '10px', color: '#6b6b6b', fontWeight: 500, textTransform: 'uppercase' }}>Potential cost of inaction</div>
-            <div style={{ fontSize: '22px', fontWeight: 600, fontFamily: "'DM Mono', monospace", color: totalLoss > 0 ? '#C0392B' : '#6b6b6b', marginTop: '2px' }}>
-              {totalLoss > 0 ? fmt(totalLoss) + '/mo' : '—'}
+            <div style={{ fontSize: '18px', fontWeight: 600, fontFamily: "'DM Mono', monospace", color: totalLoss > 0 ? '#C0392B' : '#6b6b6b', marginTop: '2px' }}>
+              {totalLoss > 0 ? (() => { const { low, high } = calcLossRange(totalLoss); return `$${Math.round(low / 1000)}k–$${Math.round(high / 1000)}k/mo` })() : '—'}
             </div>
             <div style={{ fontSize: '9px', color: '#9b9b9b', marginTop: '3px' }}>assumes sufficient demand</div>
           </div>
