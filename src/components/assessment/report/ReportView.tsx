@@ -3328,7 +3328,6 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
           assessmentId={assessmentId}
           customerId={customerId ?? ''}
           focusActions={boardActions}
-          boardFirstSteps={boardItems.map(i => i.firstStep ?? null)}
           canEdit={userRole !== 'owner'}
           financialBottleneck={financialBottleneck}
           recoverable={primaryBottleneckLoss}
@@ -3349,7 +3348,6 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
           assessmentId={assessmentId}
           customerId={customerId ?? ''}
           focusActions={boardActions}
-          boardFirstSteps={boardItems.map(i => i.firstStep ?? null)}
           canEdit={userRole !== 'owner'}
           financialBottleneck={financialBottleneck}
           recoverable={primaryBottleneckLoss}
