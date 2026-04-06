@@ -37,6 +37,7 @@ interface ActionBoardProps {
   focusActions: string[]
   focusActionLosses?: number[]
   focusActionDimensions?: (string | null)[]
+  focusActionFormulas?: (string | null)[]
   canEdit: boolean
   financialBottleneck?: string | null
   recoverable?: number
@@ -120,6 +121,8 @@ function CardDetailModal({
   calcResult,
   answers,
   financialBottleneck,
+  lossMonthly,
+  formula,
   onClose,
   onEdit,
   onSaveNotes,
@@ -134,6 +137,8 @@ function CardDetailModal({
   calcResult?: CalcResult
   answers?: Answers
   financialBottleneck?: string | null
+  lossMonthly?: number
+  formula?: string | null
   onClose: () => void
   onEdit: (id: string, text: string) => void
   onSaveNotes: (id: string, value: string) => void
@@ -361,6 +366,23 @@ function CardDetailModal({
           }}>
             AI
           </span>
+        )}
+
+        {/* Financial summary */}
+        {lossMonthly && lossMonthly >= 1000 && (
+          <div style={{
+            background: '#f0fdf4', border: '1px solid #bbf7d0',
+            borderRadius: '8px', padding: '10px 14px', marginBottom: '16px',
+          }}>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: '#16a34a', marginBottom: formula ? '4px' : 0 }}>
+              Fixing this recovers ~${Math.round(lossMonthly / 1000)}k/month
+            </div>
+            {formula && (
+              <div style={{ fontSize: '11px', color: '#4ade80', fontFamily: 'monospace', lineHeight: 1.5 }}>
+                {formula}
+              </div>
+            )}
+          </div>
         )}
 
         {/* Title */}
@@ -975,7 +997,7 @@ const iconBtnStyle: React.CSSProperties = {
 
 // ── Main ActionBoard ──────────────────────────────────────────────────────────
 
-export default function ActionBoard({ assessmentId, customerId, focusActions, focusActionLosses, focusActionDimensions, canEdit, financialBottleneck, recoverable, calcResult, answers }: ActionBoardProps) {
+export default function ActionBoard({ assessmentId, customerId, focusActions, focusActionLosses, focusActionDimensions, focusActionFormulas, canEdit, financialBottleneck, recoverable, calcResult, answers }: ActionBoardProps) {
   const isDemo = assessmentId === 'demo'
   const supabase = createClient()
 
@@ -1004,6 +1026,12 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, fo
     focusActions.forEach((text, i) => { m[text] = focusActionDimensions?.[i] ?? null })
     return m
   }, [focusActions, focusActionDimensions])
+
+  const formulaMap = useMemo(() => {
+    const m: Record<string, string | null> = {}
+    focusActions.forEach((text, i) => { m[text] = focusActionFormulas?.[i] ?? null })
+    return m
+  }, [focusActions, focusActionFormulas])
 
   useEffect(() => {
     if (showAdd) addInputRef.current?.focus()
@@ -1236,6 +1264,8 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, fo
           calcResult={calcResult}
           answers={answers}
           financialBottleneck={financialBottleneck}
+          lossMonthly={lossMap[selectedItem.text]}
+          formula={formulaMap[selectedItem.text]}
           onClose={() => setSelectedItemId(null)}
           onEdit={editItem}
           onSaveNotes={saveNotes}

@@ -3216,9 +3216,9 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
 
   // Board items: bottleneck issues first, then highest-impact independent issues.
   // Admin-curated focusActions fall back to goal-less titles without loss data.
-  const boardItemsWithMeta: { text: string; lossMonthly: number; dimension: string | null }[] = (() => {
+  const boardItemsWithMeta: { text: string; lossMonthly: number; dimension: string | null; formula: string | null }[] = (() => {
     if ((focusActions?.filter(Boolean).length ?? 0) > 0) {
-      return focusActions!.filter(Boolean).map(text => ({ text, lossMonthly: 0, dimension: null }))
+      return focusActions!.filter(Boolean).map(text => ({ text, lossMonthly: 0, dimension: null, formula: null }))
     }
     const withAction = issues.filter(i => i.action && i.loss > 0)
     const bottleneckFirst = withAction
@@ -3229,11 +3229,12 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
       .sort((a, b) => b.loss - a.loss)
     return [...bottleneckFirst, ...independent]
       .slice(0, 3)
-      .map(i => ({ text: i.goal ?? i.action!, lossMonthly: i.loss, dimension: i.dimension ?? null }))
+      .map(i => ({ text: i.goal ?? i.action!, lossMonthly: i.loss, dimension: i.dimension ?? null, formula: i.formula ?? null }))
   })()
   const boardActions = boardItemsWithMeta.map(i => i.text)
   const boardActionLosses = boardItemsWithMeta.map(i => i.lossMonthly)
   const boardActionDimensions = boardItemsWithMeta.map(i => i.dimension)
+  const boardActionFormulas = boardItemsWithMeta.map(i => i.formula)
 
   return (
     <div style={{
@@ -3474,6 +3475,7 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
           focusActions={boardActions}
           focusActionLosses={boardActionLosses}
           focusActionDimensions={boardActionDimensions}
+          focusActionFormulas={boardActionFormulas}
           canEdit={userRole !== 'owner'}
           financialBottleneck={financialBottleneck}
           recoverable={primaryBottleneckLoss}
@@ -3496,6 +3498,7 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
           focusActions={boardActions}
           focusActionLosses={boardActionLosses}
           focusActionDimensions={boardActionDimensions}
+          focusActionFormulas={boardActionFormulas}
           canEdit={userRole !== 'owner'}
           financialBottleneck={financialBottleneck}
           recoverable={primaryBottleneckLoss}
