@@ -106,11 +106,27 @@ function Hero() {
           <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.5)', margin: '0 0 14px', lineHeight: 1.5 }}>
             Let us walk you through a plant case and show how losses are identified and recovered.
           </p>
-          <a href="#contact" style={{
-            display: 'inline-flex', alignItems: 'center', gap: '8px',
-            background: 'var(--green)', color: '#fff', textDecoration: 'none',
-            padding: '12px 22px', borderRadius: '9px', fontSize: '14px', fontWeight: 600,
-          }}>
+          <a
+            href="#contact"
+            onMouseEnter={e => {
+              (e.currentTarget as HTMLAnchorElement).style.background = '#22c55e'
+              ;(e.currentTarget as HTMLAnchorElement).style.boxShadow = '0 0 28px rgba(74,222,128,0.45)'
+              ;(e.currentTarget as HTMLAnchorElement).style.transform = 'translateY(-1px)'
+            }}
+            onMouseLeave={e => {
+              (e.currentTarget as HTMLAnchorElement).style.background = 'var(--green)'
+              ;(e.currentTarget as HTMLAnchorElement).style.boxShadow = '0 0 18px rgba(74,222,128,0.25)'
+              ;(e.currentTarget as HTMLAnchorElement).style.transform = 'translateY(0)'
+            }}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: '10px',
+              background: 'var(--green)', color: '#fff', textDecoration: 'none',
+              padding: '15px 28px', borderRadius: '10px', fontSize: '15px', fontWeight: 700,
+              boxShadow: '0 0 18px rgba(74,222,128,0.25)',
+              transition: 'background .15s, box-shadow .15s, transform .15s',
+              letterSpacing: '0.01em',
+            }}
+          >
             Book a 20-min walkthrough →
           </a>
         </div>
