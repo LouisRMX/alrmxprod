@@ -2725,32 +2725,6 @@ function ScoreGrid({ calcResult, financialBottleneck, issues, onSwitchToTracking
                 </div>
               </div>
 
-              {/* Next 7 days */}
-              <div style={{ marginBottom: '14px' }}>
-                <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#aaa', marginBottom: '8px' }}>Next 7 days</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  {bnDetail.startHere.map((bullet, i) => (
-                    <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-                      <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#1a6644', flexShrink: 0, marginTop: '7px' }} />
-                      <span style={{ fontSize: '13px', color: '#444', lineHeight: 1.5 }}>{bullet}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* CTA */}
-              {onSwitchToTracking && (
-                <>
-                  <div style={{ borderTop: '1px solid #e2e2de', marginBottom: '14px' }} />
-                  <button onClick={onSwitchToTracking} style={{
-                    background: 'none', border: 'none', padding: '0',
-                    fontSize: '13px', fontWeight: 600, color: '#1a6644',
-                    cursor: 'pointer', textAlign: 'left',
-                  }}>
-                    Start 90-day tracking →
-                  </button>
-                </>
-              )}
             </>
           )}
         </div>

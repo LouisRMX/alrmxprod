@@ -900,7 +900,7 @@ function TaskCard({
               }} />
             </div>
             <span style={{ fontSize: '10px', color: complete ? 'var(--green)' : '#64748b', fontWeight: 500 }}>
-              {done}/{total}
+              {done}/{total} steps
             </span>
           </div>
         )
@@ -923,7 +923,7 @@ function TaskCard({
           </div>
         ) : (
           <span style={{ fontSize: '11px', color: 'var(--gray-300)', fontStyle: 'italic' }}>
-            {canEdit ? 'Click to open' : 'Unassigned'}
+            Unassigned
           </span>
         )}
 
