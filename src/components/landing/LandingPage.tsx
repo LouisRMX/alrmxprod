@@ -111,7 +111,7 @@ function Hero() {
             background: 'var(--green)', color: '#fff', textDecoration: 'none',
             padding: '12px 22px', borderRadius: '9px', fontSize: '14px', fontWeight: 600,
           }}>
-            Book a demo session →
+            Book a 20-min walkthrough →
           </a>
         </div>
 
@@ -279,21 +279,21 @@ function HowItWorks() {
       num: '1',
       label: 'Discovery Report',
       price: '$3,000',
-      text: 'We calculate the revenue gap across your operations from your own data. You get a quantified business case: what you are losing and where. The on-site visit confirms why. If the numbers justify a full on-site engagement, you go in knowing exactly what you are fixing.',
+      text: 'You get a quantified business case showing exactly where you are losing money and how much is recoverable. The on-site visit confirms why. If the numbers justify a full on-site engagement, you go in knowing exactly what you are fixing.',
     },
     {
       num: '2',
       label: 'On-site assessment',
       price: '$15,000',
       priceNote: 'excl. travel & accommodation',
-      text: 'We visit your plant to confirm the numbers, identify what data alone cannot capture, and build the prioritized action plan with your team. The output is a validated diagnosis you can act on immediately. This protects you from investing in improvements or systems in the wrong places, or solving the wrong problems.',
+      text: 'We visit your plant to confirm the numbers, identify what data alone cannot capture, and build the prioritized action plan with your team. The output is a validated diagnosis you can act on immediately. This protects you from investing in improvements or systems in the wrong places, or solving the wrong problems. This ensures you focus only on improvements with proven financial impact.',
     },
     {
       num: '3',
       label: 'Continuous improvements',
       price: '$2,500 / month',
       priceNote: '$2,000 / month per additional plant',
-      text: 'KPIs tracked weekly against the documented baseline. Includes a monthly accountability session and two on-site business reviews per year. This phase turns the engagement into a compounding asset. Every month builds on the last.',
+      text: 'KPIs tracked weekly against the documented baseline. Includes a monthly accountability session and two on-site business reviews per year. This phase turns the engagement into a compounding asset. Every month builds on the last. This phase ensures improvements are implemented, tracked, and translated into measurable financial results, not just plans.',
     },
   ]
 
