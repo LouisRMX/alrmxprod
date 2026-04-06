@@ -101,27 +101,27 @@ function Hero() {
           </div>
 
           <h1 style={{
-            fontSize: 'clamp(28px, 3.5vw, 46px)', fontWeight: 800,
-            color: '#fff', lineHeight: 1.1, letterSpacing: '-1px',
+            fontSize: 'clamp(28px, 3.5vw, 48px)', fontWeight: 400,
+            fontFamily: 'var(--serif)',
+            color: '#fff', lineHeight: 1.15, letterSpacing: '-0.5px',
             margin: '0 0 18px',
           }}>
-            Operational losses in ready-mix plants are rarely visible.
-            <span style={{ color: '#4ade80' }}> They are always calculable.</span>
+            Identify and eliminate hidden operational losses
+            <span style={{ color: '#4ade80' }}> in your ready-mix plant.</span>
           </h1>
 
           <p style={{
             fontSize: 'clamp(14px, 1.6vw, 16px)', color: 'rgba(255,255,255,0.6)',
             lineHeight: 1.6, margin: '0 0 28px',
           }}>
-            We calculate the exact monthly dollar cost of your turnaround time, dispatch delay,
-            and rejection rate — based on your plant&apos;s own data. Before anyone visits the site.
+            We quantify the monthly financial impact and show exactly where and how to act.
           </p>
 
           <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 36px', display: 'flex', flexDirection: 'column', gap: '9px' }}>
             {[
-              'Monthly revenue leakage per dimension — in dollars',
-              'Primary bottleneck ranked by financial impact',
-              'Clear actions with a 90-day tracking baseline',
+              'Quantified revenue leakage across your operation ($ / month)',
+              'Clear identification of your true bottleneck',
+              'Focused actions with measurable tracking and improvement',
             ].map(text => (
               <li key={text} style={{ display: 'flex', alignItems: 'flex-start', gap: '9px' }}>
                 <span style={{ color: '#4ade80', fontSize: '15px', flexShrink: 0, marginTop: '1px' }}>✓</span>
@@ -156,7 +156,7 @@ function Hero() {
               <span style={{ fontSize: '42px', fontWeight: 800, color: '#fff', lineHeight: 1, letterSpacing: '-2px', fontFamily: 'var(--mono)' }}>$359k</span>
               <span style={{ fontSize: '16px', color: 'rgba(255,255,255,0.4)', fontWeight: 500 }}>/mo</span>
             </div>
-            <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)' }}>Total operational gap — 3 plants</div>
+            <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)' }}>Total operational gap, 3 plants</div>
           </div>
 
           {/* Connector */}
@@ -215,7 +215,7 @@ function Problem() {
   const items = [
     {
       label: 'Fleet turnaround',
-      text: 'Cycle time runs above benchmark. Each excess minute has a monthly cost — it is rarely calculated.',
+      text: 'Cycle time runs above benchmark. Each excess minute has a monthly cost. It is rarely calculated.',
     },
     {
       label: 'Dispatch delay',
@@ -308,7 +308,7 @@ function Diagnostic() {
           Five dimensions. Specific numbers. Calculated from your own data.
         </h2>
         <p style={{ fontSize: '15px', color: 'var(--gray-500)', lineHeight: 1.6, margin: '0 0 36px', maxWidth: '520px' }}>
-          Every dimension produces a monthly dollar figure — not a qualitative finding.
+          Every dimension produces a monthly dollar figure. Not a qualitative finding.
           Based on your plant&apos;s operational data, not industry averages.
         </p>
 
@@ -356,7 +356,7 @@ function HowItWorks() {
     {
       num: '1',
       label: 'Remote diagnostic',
-      text: 'You answer structured questions about your operations. The diagnostic calculates monthly losses across all five dimensions — dispatch, turnaround, utilization, fleet, quality — from your own data. Output is immediate. No site visit required.',
+      text: 'You answer structured questions about your operations. The diagnostic calculates monthly losses across all five dimensions: dispatch, turnaround, utilization, fleet, quality. From your own data. Output is immediate. No site visit required.',
     },
     {
       num: '2',
@@ -407,7 +407,7 @@ function HowItWorks() {
           <span style={{ color: 'var(--green)', flexShrink: 0, marginTop: '1px' }}>↳</span>
           <div style={{ fontSize: '13px', color: 'var(--gray-500)', lineHeight: 1.6 }}>
             <strong style={{ color: 'var(--gray-700)' }}>Optional: 90-day improvement tracking.</strong>{' '}
-            Baseline documented at assessment. KPIs logged weekly. Improvement measured against real numbers — not estimates.
+            Baseline documented at assessment. KPIs logged weekly. Improvement measured against real numbers, not estimates.
           </div>
         </div>
       </div>
@@ -423,7 +423,7 @@ function WhatYouReceive() {
     'Primary bottleneck identified and ranked by monthly financial impact',
     'Revenue leakage in $ per dimension per month',
     'Lost production volume in m³',
-    'Prioritized improvement actions — specific to your operation',
+    'Prioritized improvement actions, specific to your operation',
     '90-day tracking baseline with weekly KPI structure',
   ]
 
@@ -437,7 +437,7 @@ function WhatYouReceive() {
       <div style={{ maxWidth: '760px', margin: '0 auto' }}>
         <Eyebrow text="What you receive" color="var(--green)" />
         <h2 style={{ ...h2Style, color: '#0a3d26' }}>
-          Deliverables — not observations.
+          Deliverables. Not observations.
         </h2>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px', marginTop: '8px' }}>
@@ -520,7 +520,7 @@ function Contact() {
           Book a 20-min walkthrough
         </h2>
         <p style={{ fontSize: '15px', color: 'rgba(255,255,255,0.5)', margin: '0 0 32px', lineHeight: 1.6 }}>
-          We run the diagnostic live on your plant&apos;s data. You see your numbers — turnaround cost, dispatch gap, bottleneck — before we finish the call.
+          We run the diagnostic live on your plant&apos;s data. You see your numbers before we finish the call: turnaround cost, dispatch gap, bottleneck.
         </p>
 
         {status === 'sent' ? (
@@ -566,7 +566,7 @@ function Contact() {
               <textarea
                 required value={message}
                 onChange={e => setMessage(e.target.value)}
-                placeholder="Tell us about your plant — location, number of trucks, daily output, or any specific concern."
+                placeholder="Tell us about your plant: location, number of trucks, daily output, or any specific concern."
                 rows={4}
                 style={{ ...inputStyle, resize: 'vertical' }}
               />
@@ -574,7 +574,7 @@ function Contact() {
 
             {status === 'error' && (
               <div style={{ fontSize: '13px', color: '#f87171' }}>
-                Something went wrong — please try again or email directly at Louishellmann@gmail.com
+                Something went wrong. Please try again or email directly at Louishellmann@gmail.com
               </div>
             )}
 
@@ -615,7 +615,7 @@ const FAQS = [
   },
   {
     q: 'Can this work across a portfolio of plants?',
-    a: 'Yes. Each plant is assessed independently. Portfolio output — which plant carries the highest recoverable margin — is available as a summary view.',
+    a: 'Yes. Each plant is assessed independently. Portfolio output (which plant carries the highest recoverable margin) is available as a summary view.',
   },
   {
     q: 'What happens after the on-site visit?',
