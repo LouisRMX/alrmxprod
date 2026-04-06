@@ -878,29 +878,33 @@ function TaskCard({
         </div>
       )}
 
-      {/* Checklist progress chip */}
-      {item.checklist.length > 0 && (() => {
-        const done = item.checklist.filter(ci => ci.done).length
-        const total = item.checklist.length
-        const complete = done === total
-        return (
-          <div style={{ marginTop: '5px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-            <div style={{
-              width: '50px', height: '3px', borderRadius: '2px',
-              background: 'var(--gray-100)', overflow: 'hidden',
-            }}>
+      {/* Checklist steps inline */}
+      {item.checklist.length > 0 && (
+        <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          {item.checklist.map(ci => (
+            <div key={ci.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
               <div style={{
-                height: '100%', borderRadius: '2px',
-                background: complete ? 'var(--green)' : 'var(--phase-workshop)',
-                width: `${(done / total) * 100}%`,
-              }} />
+                width: '13px', height: '13px', borderRadius: '3px', flexShrink: 0, marginTop: '1px',
+                border: ci.done ? 'none' : '1.5px solid var(--gray-300)',
+                background: ci.done ? 'var(--green)' : 'transparent',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                {ci.done && (
+                  <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+                    <path d="M1.5 4L3 5.5L6.5 2" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                )}
+              </div>
+              <span style={{
+                fontSize: '12px', lineHeight: 1.4, color: ci.done ? 'var(--gray-300)' : 'var(--gray-700)',
+                textDecoration: ci.done ? 'line-through' : 'none',
+              }}>
+                {ci.text}
+              </span>
             </div>
-            <span style={{ fontSize: '10px', color: complete ? 'var(--green)' : '#64748b', fontWeight: 500 }}>
-              {done}/{total} steps
-            </span>
-          </div>
-        )
-      })()}
+          ))}
+        </div>
+      )}
 
       {/* Footer: assignee chip (read-only) + delete */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '8px', gap: '6px' }}>
