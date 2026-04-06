@@ -268,18 +268,23 @@ function HowItWorks() {
   const steps = [
     {
       num: '1',
-      label: 'Remote diagnostic',
-      text: 'Before you commit to anything, we calculate the estimated revenue gap across your operations from your own data. You get a quantified business case: what you are losing, where, and why. This tells you whether an on-site engagement is worth it. No commitment required.',
+      label: 'Discovery Report',
+      price: '$3,499',
+      text: 'We calculate the estimated revenue gap across your operations from your own data. You get a quantified business case: what you are losing and where. The on-site visit confirms why. If the numbers justify a full on-site engagement, you go in knowing exactly what you are fixing.',
     },
     {
       num: '2',
-      label: 'On-site validation',
+      label: 'On-site assessment',
+      price: '$15,000',
+      priceNote: 'excl. travel & accommodation',
       text: 'We visit your plant to confirm the numbers, recalibrate the scope, and identify what data alone cannot capture. The output is a validated diagnosis and a prioritized action plan. This protects you from investing in improvements or systems in the wrong places, or solving the wrong problems.',
     },
     {
       num: '3',
       label: 'Continuous improvement',
-      text: 'KPIs tracked weekly against the documented baseline. Improvements logged, progress visible, ongoing sparring on what to act on next. This phase ensures that your investment in phases 1 and 2 keeps paying back. Not just once, but repeatedly.',
+      price: '$3,500 / month',
+      priceNote: '$2,000 / month per additional plant',
+      text: 'KPIs tracked weekly against the documented baseline. Includes platform access, a weekly online session, and two on-site business reviews per year. This phase ensures that your investment in phases 1 and 2 keeps paying back. Not just once, but repeatedly.',
     },
   ]
 
@@ -311,8 +316,22 @@ function HowItWorks() {
                 <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--gray-900)', marginBottom: '6px' }}>
                   {step.label}
                 </div>
-                <div style={{ fontSize: '14px', color: 'var(--gray-500)', lineHeight: 1.6, maxWidth: '560px' }}>
+                <div style={{ fontSize: '14px', color: 'var(--gray-500)', lineHeight: 1.6, maxWidth: '560px', marginBottom: '10px' }}>
                   {step.text}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                  <span style={{
+                    fontSize: '12px', fontWeight: 500, fontFamily: 'var(--mono)',
+                    color: 'var(--green)', background: 'var(--green-pale)',
+                    padding: '2px 8px', borderRadius: '4px',
+                  }}>
+                    {step.price}
+                  </span>
+                  {step.priceNote && (
+                    <span style={{ fontSize: '11px', color: 'var(--gray-500)', fontStyle: 'italic' }}>
+                      {step.priceNote}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
