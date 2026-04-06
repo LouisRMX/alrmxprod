@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { CalcResult, Answers } from '@/lib/calculations'
 
@@ -35,6 +35,8 @@ interface ActionBoardProps {
   assessmentId: string
   customerId: string
   focusActions: string[]
+  focusActionLosses?: number[]
+  focusActionDimensions?: (string | null)[]
   canEdit: boolean
   financialBottleneck?: string | null
   recoverable?: number
@@ -791,6 +793,8 @@ function TaskCard({
   item,
   canEdit,
   isDragging,
+  lossMonthly,
+  dimension,
   onDragStart,
   onDragEnd,
   onDelete,
@@ -799,6 +803,8 @@ function TaskCard({
   item: ActionItem
   canEdit: boolean
   isDragging: boolean
+  lossMonthly?: number
+  dimension?: string | null
   onDragStart: (id: string) => void
   onDragEnd: () => void
   onDelete: (id: string) => void
@@ -838,7 +844,7 @@ function TaskCard({
     >
       {/* Top row: badges */}
       {(item.source === 'ai' || item.status === 'in_progress') && (
-        <div style={{ marginBottom: '5px', display: 'flex', gap: '5px' }}>
+        <div style={{ marginBottom: '5px', display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
           {item.source === 'ai' && (
             <span style={{
               fontSize: '10px', fontWeight: 600, letterSpacing: '0.5px',
@@ -846,6 +852,15 @@ function TaskCard({
               padding: '1px 5px', borderRadius: '3px',
             }}>
               AI
+            </span>
+          )}
+          {item.source === 'ai' && dimension && (
+            <span style={{
+              fontSize: '10px', fontWeight: 600, letterSpacing: '0.5px',
+              color: '#64748b', background: '#f1f5f9',
+              padding: '1px 5px', borderRadius: '3px',
+            }}>
+              {dimension === 'Fleet' ? 'Logistics' : dimension}
             </span>
           )}
           {item.status === 'in_progress' && (
@@ -857,6 +872,18 @@ function TaskCard({
               In progress
             </span>
           )}
+        </div>
+      )}
+
+      {/* Financial recovery chip */}
+      {lossMonthly && lossMonthly >= 1000 && (
+        <div style={{
+          display: 'inline-flex', alignItems: 'center', gap: '3px',
+          fontSize: '11px', fontWeight: 700, color: '#16a34a',
+          background: '#f0fdf4', border: '1px solid #bbf7d0',
+          borderRadius: '4px', padding: '1px 6px', marginBottom: '5px',
+        }}>
+          Fix = ~${Math.round(lossMonthly / 1000)}k/month
         </div>
       )}
 
@@ -948,7 +975,7 @@ const iconBtnStyle: React.CSSProperties = {
 
 // ── Main ActionBoard ──────────────────────────────────────────────────────────
 
-export default function ActionBoard({ assessmentId, customerId, focusActions, canEdit, financialBottleneck, recoverable, calcResult, answers }: ActionBoardProps) {
+export default function ActionBoard({ assessmentId, customerId, focusActions, focusActionLosses, focusActionDimensions, canEdit, financialBottleneck, recoverable, calcResult, answers }: ActionBoardProps) {
   const isDemo = assessmentId === 'demo'
   const supabase = createClient()
 
@@ -964,6 +991,19 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, ca
   const addInputRef = useRef<HTMLInputElement>(null)
 
   const selectedItem = selectedItemId ? (items.find(i => i.id === selectedItemId) ?? null) : null
+
+  // Build text → loss/dimension lookup from seed metadata (for cards matching their original text)
+  const lossMap = useMemo(() => {
+    const m: Record<string, number> = {}
+    focusActions.forEach((text, i) => { if (focusActionLosses?.[i]) m[text] = focusActionLosses[i] })
+    return m
+  }, [focusActions, focusActionLosses])
+
+  const dimMap = useMemo(() => {
+    const m: Record<string, string | null> = {}
+    focusActions.forEach((text, i) => { m[text] = focusActionDimensions?.[i] ?? null })
+    return m
+  }, [focusActions, focusActionDimensions])
 
   useEffect(() => {
     if (showAdd) addInputRef.current?.focus()
@@ -1238,7 +1278,7 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, ca
           .sort((a, b) => {
             if (a.status === 'in_progress' && b.status !== 'in_progress') return -1
             if (b.status === 'in_progress' && a.status !== 'in_progress') return 1
-            return 0
+            return (lossMap[b.text] ?? 0) - (lossMap[a.text] ?? 0)
           })
         const doneCount = items.filter(i => i.status === 'done').length
         const visible = showAll ? openItems : openItems.slice(0, 3)
@@ -1261,6 +1301,8 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, ca
                   item={item}
                   canEdit={canEdit}
                   isDragging={dragId === item.id}
+                  lossMonthly={lossMap[item.text]}
+                  dimension={dimMap[item.text]}
                   onDragStart={setDragId}
                   onDragEnd={() => setDragId(null)}
                   onDelete={deleteItem}
