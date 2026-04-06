@@ -40,17 +40,8 @@ function Nav() {
         height: '56px',
       }}>
         {/* Logo */}
-        <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div style={{
-            width: '28px', height: '28px', borderRadius: '6px',
-            background: 'var(--green)', display: 'flex', alignItems: 'center',
-            justifyContent: 'center',
-          }}>
-            <span style={{ color: '#fff', fontSize: '13px', fontWeight: 700, fontFamily: 'var(--mono)' }}>al</span>
-          </div>
-          <span style={{ fontSize: '15px', fontWeight: 700, color: 'var(--gray-900)', letterSpacing: '-0.3px' }}>
-            alRMX
-          </span>
+        <Link href="/" style={{ textDecoration: 'none' }}>
+          <span style={{ fontSize: '19px', fontFamily: 'var(--serif)', fontWeight: 400, color: 'var(--gray-900)', letterSpacing: '-0.2px' }}>al</span><span style={{ fontSize: '17px', fontFamily: 'var(--font)', fontWeight: 800, color: 'var(--green)', letterSpacing: '-0.5px' }}>RMX</span>
         </Link>
 
         {/* Right nav */}
@@ -665,15 +656,8 @@ function Footer() {
         flexWrap: 'wrap', gap: '16px',
       }}>
         {/* Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div style={{
-            width: '24px', height: '24px', borderRadius: '5px',
-            background: 'var(--green)', display: 'flex', alignItems: 'center',
-            justifyContent: 'center',
-          }}>
-            <span style={{ color: '#fff', fontSize: '11px', fontWeight: 700, fontFamily: 'var(--mono)' }}>al</span>
-          </div>
-          <span style={{ fontSize: '13px', fontWeight: 700, color: 'rgba(255,255,255,0.7)' }}>alRMX</span>
+        <div>
+          <span style={{ fontSize: '18px', fontFamily: 'var(--serif)', fontWeight: 400, color: 'rgba(255,255,255,0.5)', letterSpacing: '-0.2px' }}>al</span><span style={{ fontSize: '16px', fontFamily: 'var(--font)', fontWeight: 800, color: '#4ade80', letterSpacing: '-0.5px' }}>RMX</span>
         </div>
 
         {/* Links */}
