@@ -47,12 +47,6 @@ function initials(name: string | null | undefined, email: string): string {
   return email.slice(0, 2).toUpperCase()
 }
 
-function nextStatus(s: ActionItem['status']): ActionItem['status'] {
-  return s === 'todo' ? 'in_progress' : 'done'
-}
-function prevStatus(s: ActionItem['status']): ActionItem['status'] {
-  return s === 'done' ? 'in_progress' : 'todo'
-}
 
 // ── Mock data for demo ────────────────────────────────────────────────────────
 
@@ -101,7 +95,9 @@ function TaskCard({
   item,
   members,
   canEdit,
-  onMove,
+  isDragging,
+  onDragStart,
+  onDragEnd,
   onAssign,
   onEdit,
   onDelete,
@@ -109,7 +105,9 @@ function TaskCard({
   item: ActionItem
   members: BoardMember[]
   canEdit: boolean
-  onMove: (id: string, dir: 'forward' | 'back') => void
+  isDragging: boolean
+  onDragStart: (id: string) => void
+  onDragEnd: () => void
   onAssign: (id: string, userId: string | null) => void
   onEdit: (id: string, text: string) => void
   onDelete: (id: string) => void
@@ -146,14 +144,21 @@ function TaskCard({
   const assigneeLabel = assignee?.full_name || assignee?.email || null
 
   return (
-    <div style={{
-      background: 'var(--white)',
-      border: '1px solid var(--border)',
-      borderRadius: '8px',
-      padding: '10px 12px',
-      marginBottom: '8px',
-      position: 'relative',
-    }}>
+    <div
+      draggable={canEdit && !editing}
+      onDragStart={(e) => { e.dataTransfer.setData('text/plain', item.id); onDragStart(item.id) }}
+      onDragEnd={onDragEnd}
+      style={{
+        background: 'var(--white)',
+        border: '1px solid var(--border)',
+        borderRadius: '8px',
+        padding: '10px 12px',
+        marginBottom: '8px',
+        position: 'relative',
+        opacity: isDragging ? 0.4 : 1,
+        cursor: canEdit && !editing ? 'grab' : 'default',
+        transition: 'opacity 0.15s',
+      }}>
       {/* Source badge */}
       {item.source === 'ai' && (
         <span style={{
@@ -268,32 +273,14 @@ function TaskCard({
           )}
         </div>
 
-        {/* Move + delete */}
+        {/* Delete */}
         {canEdit && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '2px', flexShrink: 0 }}>
-            {item.status !== 'todo' && (
-              <button
-                type="button"
-                onClick={() => onMove(item.id, 'back')}
-                title="Move back"
-                style={iconBtnStyle}
-              >←</button>
-            )}
-            {item.status !== 'done' && (
-              <button
-                type="button"
-                onClick={() => onMove(item.id, 'forward')}
-                title="Move forward"
-                style={iconBtnStyle}
-              >→</button>
-            )}
-            <button
-              type="button"
-              onClick={() => onDelete(item.id)}
-              title="Delete"
-              style={{ ...iconBtnStyle, color: 'var(--red)' }}
-            >×</button>
-          </div>
+          <button
+            type="button"
+            onClick={() => onDelete(item.id)}
+            title="Delete"
+            style={{ ...iconBtnStyle, color: 'var(--red)', flexShrink: 0 }}
+          >×</button>
         )}
       </div>
     </div>
@@ -320,6 +307,8 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, ca
   const [toast, setToast] = useState<string | null>(null)
   const [addingText, setAddingText] = useState('')
   const [showAdd, setShowAdd] = useState(false)
+  const [dragId, setDragId] = useState<string | null>(null)
+  const [dragOverCol, setDragOverCol] = useState<ActionItem['status'] | null>(null)
   const addInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -427,15 +416,10 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, ca
     }
   }
 
-  async function moveItem(id: string, dir: 'forward' | 'back') {
-    const item = items.find(i => i.id === id)
-    if (!item) return
-    const newStatus = dir === 'forward' ? nextStatus(item.status) : prevStatus(item.status)
-
-    setItems(prev => prev.map(i => i.id === id ? { ...i, status: newStatus } : i))
-
+  async function moveItem(id: string, targetStatus: ActionItem['status']) {
+    setItems(prev => prev.map(i => i.id === id ? { ...i, status: targetStatus } : i))
     if (!isDemo) {
-      await supabase.from('action_items').update({ status: newStatus }).eq('id', id)
+      await supabase.from('action_items').update({ status: targetStatus }).eq('id', id)
     }
   }
 
@@ -488,8 +472,20 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, ca
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
         {COLUMNS.map(col => {
           const colItems = items.filter(i => i.status === col.key)
+          const isOver = dragOverCol === col.key && dragId !== null
           return (
-            <div key={col.key}>
+            <div
+              key={col.key}
+              onDragOver={(e) => { e.preventDefault(); if (dragId) setDragOverCol(col.key) }}
+              onDragLeave={() => setDragOverCol(null)}
+              onDrop={(e) => {
+                e.preventDefault()
+                const id = e.dataTransfer.getData('text/plain')
+                if (id) moveItem(id, col.key)
+                setDragOverCol(null)
+                setDragId(null)
+              }}
+            >
               {/* Column header */}
               <div style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -508,29 +504,40 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, ca
                 </span>
               </div>
 
-              {/* Cards */}
-              {colItems.length === 0 ? (
-                <div style={{
-                  border: '1px dashed var(--border)', borderRadius: '8px',
-                  padding: '16px', textAlign: 'center',
-                  fontSize: '12px', color: 'var(--gray-300)',
-                }}>
-                  Empty
-                </div>
-              ) : (
-                colItems.map(item => (
-                  <TaskCard
-                    key={item.id}
-                    item={item}
-                    members={members}
-                    canEdit={canEdit}
-                    onMove={moveItem}
-                    onAssign={assignItem}
-                    onEdit={editItem}
-                    onDelete={deleteItem}
-                  />
-                ))
-              )}
+              {/* Drop zone / cards */}
+              <div style={{
+                minHeight: '48px',
+                borderRadius: '8px',
+                border: isOver ? '2px dashed var(--green)' : '2px solid transparent',
+                background: isOver ? 'var(--green-pale)' : 'transparent',
+                transition: 'border-color 0.1s, background 0.1s',
+                padding: isOver ? '4px' : '0',
+              }}>
+                {colItems.length === 0 && !isOver ? (
+                  <div style={{
+                    border: '1px dashed var(--border)', borderRadius: '8px',
+                    padding: '16px', textAlign: 'center',
+                    fontSize: '12px', color: 'var(--gray-300)',
+                  }}>
+                    Empty
+                  </div>
+                ) : (
+                  colItems.map(item => (
+                    <TaskCard
+                      key={item.id}
+                      item={item}
+                      members={members}
+                      canEdit={canEdit}
+                      isDragging={dragId === item.id}
+                      onDragStart={setDragId}
+                      onDragEnd={() => { setDragId(null); setDragOverCol(null) }}
+                      onAssign={assignItem}
+                      onEdit={editItem}
+                      onDelete={deleteItem}
+                    />
+                  ))
+                )}
+              </div>
 
               {/* Add task — only on To Do column */}
               {col.key === 'todo' && canEdit && (
