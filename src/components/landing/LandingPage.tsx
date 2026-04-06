@@ -79,15 +79,15 @@ function Hero() {
             color: '#fff', lineHeight: 1.15, letterSpacing: '-0.5px',
             margin: '0 0 18px',
           }}>
-            Identify and eliminate hidden operational losses
-            <span style={{ color: '#4ade80' }}> in your ready-mix plant.</span>
+            Turn operational inefficiencies into measurable profit
+            <span style={{ color: '#4ade80' }}> at your ready-mix plant.</span>
           </h1>
 
           <p style={{
             fontSize: 'clamp(14px, 1.6vw, 16px)', color: '#fff',
             lineHeight: 1.6, margin: '0 0 28px',
           }}>
-            We quantify the monthly financial impact and show exactly where and how to act.
+            We show where you lose money, what to fix first, and how much it is worth.
           </p>
 
           <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 36px', display: 'flex', flexDirection: 'column', gap: '9px' }}>
@@ -129,7 +129,7 @@ function Hero() {
               <span style={{ fontSize: '42px', fontWeight: 800, color: '#fff', lineHeight: 1, letterSpacing: '-2px', fontFamily: 'var(--mono)' }}>$359k</span>
               <span style={{ fontSize: '16px', color: 'rgba(255,255,255,0.4)', fontWeight: 500 }}>/mo</span>
             </div>
-            <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)' }}>Total operational gap, 3 plants</div>
+            <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)' }}>= 18% of total capacity lost</div>
           </div>
 
           {/* Connector */}
@@ -156,7 +156,10 @@ function Hero() {
                 <span style={{ fontSize: '13px', fontWeight: 700, color: 'rgba(255,255,255,0.6)', fontFamily: 'var(--mono)' }}>41 min</span>
               </div>
             </div>
-            <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', marginTop: '10px', borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: '10px' }}>$108k revenue at risk /mo</div>
+            <div style={{ marginTop: '10px', borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: '10px' }}>
+              <span style={{ fontSize: '15px', fontWeight: 700, color: '#fff', fontFamily: 'var(--mono)' }}>$108k</span>
+              <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.45)', marginLeft: '5px' }}>revenue at risk /mo</span>
+            </div>
           </div>
 
           {/* Connector */}
