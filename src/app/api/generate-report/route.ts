@@ -184,6 +184,21 @@ This pre-assessment has established the financial picture based on what the plan
   })
 }
 
+function buildQualContext(ctx: Record<string, unknown>): string {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const a = (ctx.answers ?? {}) as Record<string, string>
+  const lines: string[] = []
+  if (a.dispatch_tool)    lines.push(`Dispatch tool in use: "${a.dispatch_tool}"`)
+  if (a.route_clustering) lines.push(`Route clustering practice: "${a.route_clustering}"`)
+  if (a.site_wait_reason) lines.push(`Named cause of site wait: "${a.site_wait_reason}"`)
+  if (a.reject_reason)    lines.push(`Named cause of rejections: "${a.reject_reason}"`)
+  if (a.slump_test)       lines.push(`Slump test practice: "${a.slump_test}"`)
+  if (a.calibration)      lines.push(`Calibration practice: "${a.calibration}"`)
+  if (a.plant_idle)       lines.push(`Plant idle pattern: "${a.plant_idle}"`)
+  if (!lines.length) return ''
+  return `\nOPERATIONS CONTEXT (use these exact names when referencing tools or causes):\n${lines.join('\n')}`
+}
+
 function buildMarketContext(b: BenchmarkContext): string {
   return `
 MARKET CONTEXT (${b.n} comparable plants — similar fleet size and delivery radius):
@@ -239,7 +254,7 @@ Rejection rate: ${ctx.rejectPct ?? '—'}% (target: <3%)${ctx.rejectPlantFractio
   → Plant-side: ~${ctx.rejectPlantFraction}% of rejections ($${ctx.rejectPlantSideLoss}/month) — batch/dosing/mix quality
   → Customer-side: ~${100 - (ctx.rejectPlantFraction as number)}% of rejections ($${ctx.rejectCustomerSideLoss}/month) — site unreadiness/pump delays/contractor` : ''}
 Utilisation: ${ctx.utilPct}% (target: 85%)
-Fleet: ${ctx.trucks} trucks
+Fleet: ${ctx.trucks} trucks${buildQualContext(ctx)}
 ${benchmarks ? buildMarketContext(benchmarks) : ''}
 WRITE EXACTLY THREE PARAGRAPHS. No headings. No bullets. No labels.
 
@@ -331,7 +346,7 @@ Rejection rate: ${ctx.rejectPct ?? '—'}% (target: <3%)${ctx.rejectPlantFractio
   → Customer-side: ~${100 - (ctx.rejectPlantFraction as number)}% ($${ctx.rejectCustomerSideLoss}/month) — site/pump/contractor` : ''}
 Utilisation: ${ctx.utilPct}% (target: 85%)
 Fleet: ${ctx.trucks} trucks
-Scores — constraint: ${bottleneck} ${scores?.[bottleneck.toLowerCase() as keyof typeof scores] ?? (bottleneck === 'Fleet' ? scores?.logistics : null) ?? '—'}/100 | secondary: ${secondaryDims}
+Scores — constraint: ${bottleneck} ${scores?.[bottleneck.toLowerCase() as keyof typeof scores] ?? (bottleneck === 'Fleet' ? scores?.logistics : null) ?? '—'}/100 | secondary: ${secondaryDims}${buildQualContext(ctx)}
 ${benchmarks ? buildMarketContext(benchmarks) : ''}
 WRITE 3–4 PARAGRAPHS. No headings. No bullet points. No findings. No metric listings.
 
@@ -395,7 +410,8 @@ Sentence 3: A concrete suggestion for maintaining this performance — a monitor
 - Short sentences. One idea per sentence.
 - Do not use sales pitch language: propose, recommend, our team, we would like to.
 - Warm, direct, experienced. The consultant has seen this pattern before.
-- All analysis is based on reported input data. Do not present conclusions as absolute facts. Frame insights as data-consistent interpretations of the reported metrics.`
+- All analysis is based on reported input data. Do not present conclusions as absolute facts. Frame insights as data-consistent interpretations of the reported metrics.
+- If OPERATIONS CONTEXT names a tool, cause, or practice, use that exact name when writing actions that address it. Generic phrasing ("use a better system", "address the root cause") is not allowed when the specific name is known.`
 
   const topIssues = issues
     .filter(i => i.loss > 0)
@@ -422,7 +438,7 @@ Total recoverable: up to $${ctx.totalLossMonthly}/month
 Overall score: ${ctx.overall}/100
 Turnaround: ${ctx.turnaround} min (target: ${ctx.targetTA} min)
 Dispatch time: ${ctx.dispatchMin ?? '—'} min (target: 15 min)
-Rejection rate: ${ctx.rejectPct ?? '—'}% (target: <3%)
+Rejection rate: ${ctx.rejectPct ?? '—'}% (target: <3%)${buildQualContext(ctx)}
 
 IMMEDIATE ACTIONS from the data (use these, add operational detail):
 ${immediateActions.join('\n')}
