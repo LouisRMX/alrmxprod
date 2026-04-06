@@ -804,7 +804,7 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, ca
       {/* Board header */}
       <div style={{ marginBottom: '16px' }}>
         <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.8px', color: 'var(--gray-500)', textTransform: 'uppercase', marginBottom: '8px' }}>
-          This Week
+          Action List
         </div>
 
         {/* Bottleneck bridge line */}
