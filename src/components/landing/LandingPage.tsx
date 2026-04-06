@@ -217,11 +217,6 @@ function Diagnostic() {
     },
     {
       num: '04',
-      label: 'Fleet availability',
-      text: 'Breakdown frequency, maintenance structure, unplanned idle time. Operational disruption cost.',
-    },
-    {
-      num: '05',
       label: 'Quality / rejection rate',
       text: 'Rejection percentage, material write-off at cost price, dominant cause identification.',
     },
@@ -232,7 +227,7 @@ function Diagnostic() {
       <div style={{ maxWidth: '760px', margin: '0 auto' }}>
         <Eyebrow text="The diagnostic" />
         <h2 style={h2Style}>
-          Five dimensions. Specific numbers. Calculated from your own data.
+          Four dimensions. Specific numbers. Calculated from your own data.
         </h2>
         <p style={{ fontSize: '15px', color: 'var(--gray-500)', lineHeight: 1.6, margin: '0 0 36px', maxWidth: '520px' }}>
           Every dimension produces a monthly dollar figure. Not a qualitative finding.
