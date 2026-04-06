@@ -3386,10 +3386,7 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
         <FocusActionsEditor assessmentId={assessmentId} initial={focusActions} issues={issues} />
       )}
 
-      {/* 0b. MANAGER NEXT STEPS — shown first for managers when report is released */}
-      {userRole === 'manager' && reportReleased && (
-        <ManagerNextSteps issues={issues} focusActions={focusActions} onSwitchToTracking={onSwitchToTracking} />
-      )}
+      {/* 0b. MANAGER NEXT STEPS — removed; content merged into Action Board */}
 
       {/* 1. SCORE GRID (ImpactHook merged in) */}
       <ScoreGrid calcResult={calcResult} financialBottleneck={financialBottleneck} issues={issues} onSwitchToTracking={onSwitchToTracking} />
@@ -3492,6 +3489,8 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
           customerId={customerId ?? ''}
           focusActions={focusActions?.filter(Boolean) ?? []}
           canEdit={userRole !== 'owner'}
+          financialBottleneck={financialBottleneck}
+          recoverable={primaryBottleneckLoss}
         />
       </div>
     )}
@@ -3508,6 +3507,8 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
           customerId={customerId ?? ''}
           focusActions={focusActions?.filter(Boolean) ?? []}
           canEdit={userRole !== 'owner'}
+          financialBottleneck={financialBottleneck}
+          recoverable={primaryBottleneckLoss}
         />
       </div>
     )}

@@ -28,6 +28,8 @@ interface ActionBoardProps {
   customerId: string
   focusActions: string[]
   canEdit: boolean
+  financialBottleneck?: string | null
+  recoverable?: number
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -530,11 +532,10 @@ function TaskCard({
         {item.text}
       </div>
 
-      {/* Description indicator */}
+      {/* Inline subtitle: first line of description */}
       {item.value && (
-        <div style={{ marginTop: '4px', fontSize: '11px', color: 'var(--gray-300)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <span style={{ fontSize: '13px', lineHeight: 1 }}>&#9776;</span>
-          <span>Description</span>
+        <div style={{ marginTop: '4px', fontSize: '11px', color: '#64748b', lineHeight: 1.4 }}>
+          {item.value.split('\n')[0].slice(0, 90)}{item.value.split('\n')[0].length > 90 ? '…' : ''}
         </div>
       )}
 
@@ -583,7 +584,7 @@ const iconBtnStyle: React.CSSProperties = {
 
 // ── Main ActionBoard ──────────────────────────────────────────────────────────
 
-export default function ActionBoard({ assessmentId, customerId, focusActions, canEdit }: ActionBoardProps) {
+export default function ActionBoard({ assessmentId, customerId, focusActions, canEdit, financialBottleneck, recoverable }: ActionBoardProps) {
   const isDemo = assessmentId === 'demo'
   const supabase = createClient()
 
@@ -800,8 +801,29 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, ca
         />
       )}
 
-      <div style={{ fontSize: '12px', fontWeight: 700, letterSpacing: '0.8px', color: 'var(--gray-500)', textTransform: 'uppercase', marginBottom: '14px' }}>
-        Action Board
+      {/* Board header */}
+      <div style={{ marginBottom: '16px' }}>
+        <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.8px', color: 'var(--gray-500)', textTransform: 'uppercase', marginBottom: '8px' }}>
+          This Week
+        </div>
+
+        {/* Bottleneck bridge line */}
+        {financialBottleneck && recoverable && recoverable > 0 && (
+          <div style={{
+            background: 'var(--white)',
+            border: '1px solid var(--border)',
+            borderLeft: '3px solid var(--green)',
+            borderRadius: '7px',
+            padding: '9px 12px',
+          }}>
+            <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--gray-900)', marginBottom: '2px' }}>
+              Primary constraint: {financialBottleneck === 'Fleet' ? 'Logistics' : financialBottleneck}
+            </div>
+            <div style={{ fontSize: '11px', color: '#64748b' }}>
+              Fixing this recovers ~${Math.round(recoverable / 1000)}k/month
+            </div>
+          </div>
+        )}
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
