@@ -215,6 +215,8 @@ function CardDetailModal({
   const [editingCiText, setEditingCiText] = useState('')
   const [addingStep, setAddingStep] = useState(false)
   const [newStepText, setNewStepText] = useState('')
+  const [dragCiIdx, setDragCiIdx] = useState<number | null>(null)
+  const [dragOverCiIdx, setDragOverCiIdx] = useState<number | null>(null)
 
   async function generateChecklist() {
     setGeneratingChecklist(true)
@@ -280,6 +282,27 @@ function CardDetailModal({
     onUpdateChecklist(item.id, [...item.checklist, { id: `ci-${Date.now()}`, text: trimmed, done: false }])
     setNewStepText('')
     setAddingStep(false)
+  }
+
+  function handleCiDragStart(idx: number) {
+    setDragCiIdx(idx)
+  }
+  function handleCiDragOver(e: React.DragEvent, idx: number) {
+    e.preventDefault()
+    setDragOverCiIdx(idx)
+  }
+  function handleCiDrop(toIdx: number) {
+    if (dragCiIdx === null || dragCiIdx === toIdx) {
+      setDragCiIdx(null); setDragOverCiIdx(null); return
+    }
+    const arr = [...item.checklist]
+    const [moved] = arr.splice(dragCiIdx, 1)
+    arr.splice(toIdx, 0, moved)
+    onUpdateChecklist(item.id, arr)
+    setDragCiIdx(null); setDragOverCiIdx(null)
+  }
+  function handleCiDragEnd() {
+    setDragCiIdx(null); setDragOverCiIdx(null)
   }
 
   const checklistDone = item.checklist.filter(ci => ci.done).length
@@ -587,12 +610,28 @@ function CardDetailModal({
           {item.checklist.map((ci, idx) => (
             <div
               key={ci.id}
+              draggable={canEdit && editingCiId !== ci.id}
+              onDragStart={() => handleCiDragStart(idx)}
+              onDragOver={e => handleCiDragOver(e, idx)}
+              onDrop={() => handleCiDrop(idx)}
+              onDragEnd={handleCiDragEnd}
               style={{
                 display: 'flex', alignItems: 'flex-start', gap: '8px',
                 padding: '6px 0',
                 borderBottom: idx < item.checklist.length - 1 ? '1px solid var(--gray-100)' : 'none',
+                borderTop: dragOverCiIdx === idx && dragCiIdx !== null && dragCiIdx !== idx
+                  ? '2px solid var(--green)' : '2px solid transparent',
+                opacity: dragCiIdx === idx ? 0.4 : 1,
+                transition: 'opacity 0.15s',
               }}
             >
+              {canEdit && (
+                <span style={{
+                  flexShrink: 0, color: 'var(--gray-300)', fontSize: '13px',
+                  marginTop: '2px', cursor: 'grab', userSelect: 'none', lineHeight: 1,
+                }}>⠿</span>
+              )}
+
               <button
                 type="button"
                 onClick={() => toggleChecklistItem(ci.id)}
@@ -644,43 +683,17 @@ function CardDetailModal({
               )}
 
               {canEdit && (
-                <div style={{ display: 'flex', gap: '1px', flexShrink: 0, marginTop: '1px' }}>
-                  <button
-                    type="button"
-                    onClick={() => moveCi(idx, -1)}
-                    disabled={idx === 0}
-                    title="Move up"
-                    style={{
-                      width: '18px', height: '18px', padding: 0, border: 'none',
-                      background: 'none', cursor: idx === 0 ? 'default' : 'pointer',
-                      color: idx === 0 ? 'var(--gray-200)' : 'var(--gray-400)',
-                      fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}
-                  >▲</button>
-                  <button
-                    type="button"
-                    onClick={() => moveCi(idx, 1)}
-                    disabled={idx === item.checklist.length - 1}
-                    title="Move down"
-                    style={{
-                      width: '18px', height: '18px', padding: 0, border: 'none',
-                      background: 'none', cursor: idx === item.checklist.length - 1 ? 'default' : 'pointer',
-                      color: idx === item.checklist.length - 1 ? 'var(--gray-200)' : 'var(--gray-400)',
-                      fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}
-                  >▼</button>
-                  <button
-                    type="button"
-                    onClick={() => deleteCi(ci.id)}
-                    title="Delete step"
-                    style={{
-                      width: '18px', height: '18px', padding: 0, border: 'none',
-                      background: 'none', cursor: 'pointer',
-                      color: 'var(--gray-300)', fontSize: '14px',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}
-                  >×</button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => deleteCi(ci.id)}
+                  title="Delete step"
+                  style={{
+                    width: '18px', height: '18px', padding: 0, border: 'none',
+                    background: 'none', cursor: 'pointer', flexShrink: 0,
+                    color: 'var(--gray-300)', fontSize: '14px',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}
+                >×</button>
               )}
             </div>
           ))}

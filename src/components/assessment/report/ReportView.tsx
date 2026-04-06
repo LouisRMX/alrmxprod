@@ -1765,6 +1765,8 @@ function NextImprovements({ issues }: { issues: Issue[] }) {
 
 // ── Indicative notice ─────────────────────────────────────────────────────
 function IndicativeNotice() {
+  const [open, setOpen] = useState(false)
+
   const gaps = [
     {
       label: 'Dosing and batch variance',
@@ -1794,45 +1796,55 @@ function IndicativeNotice() {
 
   return (
     <div style={{ marginBottom: '16px', border: '1px solid #e8e8e6', borderRadius: '12px', overflow: 'hidden' }}>
-      <div style={{
-        padding: '13px 20px', borderBottom: '1px solid #e8e8e6',
-        display: 'flex', alignItems: 'center', gap: '10px',
-      }}>
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center', gap: '10px',
+          padding: '13px 20px', background: 'none', border: 'none',
+          cursor: 'pointer', fontFamily: 'var(--font)', textAlign: 'left',
+          borderBottom: open ? '1px solid #e8e8e6' : 'none',
+        }}
+      >
         <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#f59e0b', flexShrink: 0 }} />
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: '13px', fontWeight: 600, color: '#1a1a1a' }}>
-            Indicative assessment — based on reported data
-          </span>
-          <span style={{ fontSize: '11px', color: '#999' }}>
-            6 data points require physical verification
-          </span>
-        </div>
-      </div>
-      <div>
-        {gaps.map((gap, i) => (
-          <div key={i} style={{
-            display: 'flex', alignItems: 'flex-start', gap: '12px',
-            padding: '10px 20px',
-            borderBottom: i < gaps.length - 1 ? '1px solid #f5f5f3' : 'none',
-          }}>
-            <div style={{
-              width: '5px', height: '5px', borderRadius: '50%',
-              background: '#d1d1ce', flexShrink: 0, marginTop: '7px',
-            }} />
-            <div style={{ fontSize: '12px', lineHeight: 1.5, color: '#555' }}>
-              <span style={{ fontWeight: 600, color: '#333' }}>{gap.label} — </span>
-              {gap.detail}
-            </div>
+        <span style={{ fontSize: '13px', fontWeight: 600, color: '#1a1a1a' }}>
+          Indicative assessment — based on reported data
+        </span>
+        <span style={{ fontSize: '11px', color: '#999', marginLeft: '2px' }}>
+          6 data points require physical verification
+        </span>
+        <span style={{ marginLeft: 'auto', fontSize: '10px', color: '#bbb' }}>{open ? '↑' : '↓'}</span>
+      </button>
+
+      {open && (
+        <>
+          <div>
+            {gaps.map((gap, i) => (
+              <div key={i} style={{
+                display: 'flex', alignItems: 'flex-start', gap: '12px',
+                padding: '10px 20px',
+                borderBottom: i < gaps.length - 1 ? '1px solid #f5f5f3' : 'none',
+              }}>
+                <div style={{
+                  width: '5px', height: '5px', borderRadius: '50%',
+                  background: '#d1d1ce', flexShrink: 0, marginTop: '7px',
+                }} />
+                <div style={{ fontSize: '12px', lineHeight: 1.5, color: '#555' }}>
+                  <span style={{ fontWeight: 600, color: '#333' }}>{gap.label} — </span>
+                  {gap.detail}
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
-      <div style={{
-        padding: '11px 20px', background: '#fafaf9',
-        borderTop: '1px solid #e8e8e6',
-        fontSize: '12px', color: '#888', lineHeight: 1.5,
-      }}>
-        A physical assessment verifies these figures directly — typically closing the gap between indicative and actual loss by 20–40%.
-      </div>
+          <div style={{
+            padding: '11px 20px', background: '#fafaf9',
+            borderTop: '1px solid #e8e8e6',
+            fontSize: '12px', color: '#888', lineHeight: 1.5,
+          }}>
+            A physical assessment verifies these figures directly — typically closing the gap between indicative and actual loss by 20–40%.
+          </div>
+        </>
+      )}
     </div>
   )
 }
@@ -3290,7 +3302,10 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
       {/* 5. NEXT IMPROVEMENTS (collapsed) */}
       <NextImprovements issues={issues} />
 
-      {/* 6. INDICATIVE NOTICE */}
+      {/* 6. GCC PEER COMPARISON */}
+      {totalLoss > 0 && <BenchmarkPositioning calcResult={calcResult} answers={answers} />}
+
+      {/* 7. INDICATIVE NOTICE (collapsed by default) */}
       <IndicativeNotice />
 
       {/* Full report CTA */}
@@ -3312,15 +3327,6 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
             <span style={{ fontSize: '20px', color: 'rgba(255,255,255,0.6)' }}>›</span>
           </button>
         </div>
-      )}
-
-      {/* Pre-assessment cards (workshop phase) */}
-      {phase === 'workshop' && totalLoss > 0 && (
-        <>
-          <BenchmarkPositioning calcResult={calcResult} answers={answers} />
-          <StartThisWeek calcResult={calcResult} answers={answers} />
-          <WhatWeWillMeasure calcResult={calcResult} answers={answers} />
-        </>
       )}
 
       {/* Assumptions Panel (admin) */}
