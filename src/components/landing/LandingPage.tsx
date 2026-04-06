@@ -236,7 +236,7 @@ function Diagnostic() {
         </h2>
         <p style={{ fontSize: '15px', color: 'var(--gray-500)', lineHeight: 1.6, margin: '0 0 36px', maxWidth: '520px' }}>
           Every dimension produces a monthly dollar figure. Not a qualitative finding.
-          Based on your plant&apos;s operational data, not industry averages.
+          Based on data you provide during the assessment.
         </p>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
