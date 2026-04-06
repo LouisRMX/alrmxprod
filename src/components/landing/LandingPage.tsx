@@ -270,21 +270,21 @@ function HowItWorks() {
       num: '1',
       label: 'Discovery Report',
       price: '$3,499',
-      text: 'We calculate the estimated revenue gap across your operations from your own data. You get a quantified business case: what you are losing and where. The on-site visit confirms why. If the numbers justify a full on-site engagement, you go in knowing exactly what you are fixing.',
+      text: 'We calculate the revenue gap across your operations from your own data. You get a quantified business case: what you are losing and where. The on-site visit confirms why. If the numbers justify a full on-site engagement, you go in knowing exactly what you are fixing.',
     },
     {
       num: '2',
       label: 'On-site assessment',
       price: '$15,000',
       priceNote: 'excl. travel & accommodation',
-      text: 'We visit your plant to confirm the numbers, recalibrate the scope, and identify what data alone cannot capture. The output is a validated diagnosis and a prioritized action plan. This protects you from investing in improvements or systems in the wrong places, or solving the wrong problems.',
+      text: 'We visit your plant to confirm the numbers, identify what data alone cannot capture, and build the prioritized action plan with your team. The output is a validated diagnosis you can act on immediately. This protects you from investing in improvements or systems in the wrong places, or solving the wrong problems.',
     },
     {
       num: '3',
       label: 'Continuous improvements',
       price: '$2,499 / month',
       priceNote: '$1,999 / month per additional plant',
-      text: 'KPIs tracked weekly against the documented baseline. Includes platform access, a monthly online session, and two on-site business reviews per year. This phase turns the engagement into a compounding asset. Every month builds on the last.',
+      text: 'KPIs tracked weekly against the documented baseline. Includes a monthly accountability session and two on-site business reviews per year. This phase turns the engagement into a compounding asset. Every month builds on the last.',
     },
   ]
 
