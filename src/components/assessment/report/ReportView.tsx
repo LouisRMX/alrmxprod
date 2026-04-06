@@ -3267,7 +3267,7 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
     <div style={{
       flex: 1,
       display: 'grid',
-      gridTemplateColumns: (!isMobile && showBoard) ? '1fr 300px' : '1fr',
+      gridTemplateColumns: (!isMobile && showBoard) ? '1fr 380px' : '1fr',
       overflow: isMobile ? 'auto' : 'hidden',
     }}>
     <div style={{ overflowY: 'auto', padding: isMobile ? '12px' : '20px', paddingBottom: '60px' }}>
