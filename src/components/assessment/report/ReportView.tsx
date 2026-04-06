@@ -2868,12 +2868,17 @@ function ScoreGrid({ calcResult, financialBottleneck, issues, onSwitchToTracking
                 </div>
               </div>
             </div>
-            {bnLoss > 0 && (
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '22px', fontWeight: 800, color: '#1a1a1a', lineHeight: 1, letterSpacing: '-1px' }}>{fmtK(bnLoss)}<span style={{ fontSize: '13px', fontWeight: 500, color: '#888', marginLeft: '4px' }}>/mo</span></div>
-                <div style={{ fontSize: '11px', color: '#aaa', marginTop: '2px' }}>≈ {fmtK(bnDailyLoss)} / day</div>
-              </div>
-            )}
+            {bnLoss > 0 && (() => {
+              const { low, high } = calcLossRange(bnLoss)
+              return (
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: '22px', fontWeight: 800, color: '#1a1a1a', lineHeight: 1, letterSpacing: '-1px' }}>
+                    {fmtK(low)}–{fmtK(high)}<span style={{ fontSize: '13px', fontWeight: 500, color: '#888', marginLeft: '4px' }}>/mo</span>
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#aaa', marginTop: '2px' }}>≈ {fmtK(bnDailyLoss)} / day (midpoint)</div>
+                </div>
+              )
+            })()}
           </div>
 
           {bnDetail && (
