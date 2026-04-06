@@ -12,11 +12,8 @@ export default function LandingPage() {
     <div style={{ fontFamily: 'var(--font)', color: 'var(--gray-900)', background: 'var(--white)', overflowX: 'hidden' }}>
       <Nav />
       <Hero />
-      <Problem />
-      <Diagnostic />
       <HowItWorks />
-      <WhatYouReceive />
-      <Credibility />
+      <Diagnostic />
       <Contact />
       <FAQ />
       <Footer />
@@ -185,66 +182,6 @@ function Hero() {
   )
 }
 
-// ── Problem ───────────────────────────────────────────────────────────────────
-
-function Problem() {
-  const items = [
-    {
-      label: 'Fleet turnaround',
-      text: 'Cycle time runs above benchmark. Each excess minute has a monthly cost. It is rarely calculated.',
-    },
-    {
-      label: 'Dispatch delay',
-      text: 'Order-to-truck takes two to three times longer than it should. The margin impact is invisible on any report.',
-    },
-    {
-      label: 'Utilization gap',
-      text: 'Plant runs below installed capacity while the bottleneck goes unidentified.',
-    },
-    {
-      label: 'Rejection write-offs',
-      text: 'Rejected loads absorbed at full material cost. Root cause untracked. Loss continues every month.',
-    },
-    {
-      label: 'No documented baseline',
-      text: 'No way to measure whether any intervention actually worked. Improvement is assumed, not proven.',
-    },
-  ]
-
-  return (
-    <section style={{ background: 'var(--white)', padding: 'clamp(64px, 8vw, 96px) 24px' }}>
-      <div style={{ maxWidth: '760px', margin: '0 auto' }}>
-        <Eyebrow text="The problem" />
-        <h2 style={h2Style}>
-          Most plants absorb the cost without knowing the number.
-        </h2>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
-          {items.map((item, i) => (
-            <div key={item.label} style={{
-              display: 'flex', gap: '16px', alignItems: 'flex-start',
-              padding: '20px 0',
-              borderBottom: i < items.length - 1 ? '1px solid var(--border)' : 'none',
-            }}>
-              <div style={{
-                width: '8px', height: '8px', borderRadius: '50%',
-                background: 'var(--warning)', flexShrink: 0, marginTop: '7px',
-              }} />
-              <div>
-                <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--gray-900)', marginBottom: '3px' }}>
-                  {item.label}
-                </div>
-                <div style={{ fontSize: '14px', color: 'var(--gray-500)', lineHeight: 1.6 }}>
-                  {item.text}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  )
-}
-
 // ── Diagnostic ────────────────────────────────────────────────────────────────
 
 function Diagnostic() {
@@ -332,12 +269,17 @@ function HowItWorks() {
     {
       num: '1',
       label: 'Remote diagnostic',
-      text: 'You answer structured questions about your operations. The diagnostic calculates monthly losses across all five dimensions: dispatch, turnaround, utilization, fleet, quality. From your own data. Output is immediate. No site visit required.',
+      text: 'We collect your operational data and calculate the exact monthly cost across five dimensions. The output is a quantified business case: what you are losing, where, and why. It scopes the engagement and sets the baseline for everything that follows.',
     },
     {
       num: '2',
       label: 'On-site validation',
-      text: 'Physical visit to confirm findings, observe actual dispatch and batch cycles, and identify what the numbers alone cannot capture. Output: validated diagnosis and a prioritized action plan.',
+      text: 'We visit your plant to confirm the numbers, recalibrate the scope, and identify what data alone cannot capture. Output: a validated diagnosis, a refined financial picture, and a prioritized action plan specific to your operation.',
+    },
+    {
+      num: '3',
+      label: 'Continuous improvement',
+      text: 'KPIs tracked weekly against the documented baseline. Improvements logged, progress visible, ongoing sparring on what to act on next. This is where results compound and the engagement pays for itself repeatedly.',
     },
   ]
 
@@ -345,7 +287,10 @@ function HowItWorks() {
     <section style={{ background: 'var(--white)', padding: 'clamp(64px, 8vw, 96px) 24px' }}>
       <div style={{ maxWidth: '760px', margin: '0 auto' }}>
         <Eyebrow text="How it works" />
-        <h2 style={h2Style}>Three phases. No long lead time.</h2>
+        <h2 style={h2Style}>3 Phases</h2>
+        <p style={{ fontSize: '15px', color: 'var(--gray-500)', lineHeight: 1.6, margin: '-12px 0 24px' }}>
+          Time to value in a few weeks.
+        </p>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0', marginTop: '8px' }}>
           {steps.map((step, i) => (
@@ -374,85 +319,6 @@ function HowItWorks() {
           ))}
         </div>
 
-        {/* 90-day tracking note */}
-        <div style={{
-          marginTop: '24px', padding: '14px 18px',
-          background: 'var(--gray-50)', border: '1px solid var(--border)',
-          borderRadius: '8px', display: 'flex', gap: '12px', alignItems: 'flex-start',
-        }}>
-          <span style={{ color: 'var(--green)', flexShrink: 0, marginTop: '1px' }}>↳</span>
-          <div style={{ fontSize: '13px', color: 'var(--gray-500)', lineHeight: 1.6 }}>
-            <strong style={{ color: 'var(--gray-700)' }}>Optional: 90-day improvement tracking.</strong>{' '}
-            Baseline documented at assessment. KPIs logged weekly. Improvement measured against real numbers, not estimates.
-          </div>
-        </div>
-      </div>
-    </section>
-  )
-}
-
-// ── What you receive ──────────────────────────────────────────────────────────
-
-function WhatYouReceive() {
-  const items = [
-    'Scored assessment across five operational dimensions',
-    'Primary bottleneck identified and ranked by monthly financial impact',
-    'Revenue leakage in $ per dimension per month',
-    'Lost production volume in m³',
-    'Prioritized improvement actions, specific to your operation',
-    '90-day tracking baseline with weekly KPI structure',
-  ]
-
-  return (
-    <section style={{
-      background: 'var(--green-pale)',
-      borderTop: '1px solid var(--tooltip-border)',
-      borderBottom: '1px solid var(--tooltip-border)',
-      padding: 'clamp(64px, 8vw, 96px) 24px',
-    }}>
-      <div style={{ maxWidth: '760px', margin: '0 auto' }}>
-        <Eyebrow text="What you receive" color="var(--green)" />
-        <h2 style={{ ...h2Style, color: '#0a3d26' }}>
-          Deliverables. Not observations.
-        </h2>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px', marginTop: '8px' }}>
-          {items.map(item => (
-            <div key={item} style={{
-              display: 'flex', alignItems: 'flex-start', gap: '10px',
-              background: 'var(--white)', border: '1px solid var(--tooltip-border)',
-              borderRadius: '8px', padding: '14px 16px',
-            }}>
-              <span style={{ color: 'var(--green)', fontSize: '15px', flexShrink: 0, marginTop: '1px' }}>✓</span>
-              <span style={{ fontSize: '13px', color: 'var(--gray-700)', lineHeight: 1.5, fontWeight: 500 }}>{item}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  )
-}
-
-// ── Credibility ───────────────────────────────────────────────────────────────
-
-function Credibility() {
-  return (
-    <section style={{ background: 'var(--white)', padding: 'clamp(56px, 7vw, 80px) 24px' }}>
-      <div style={{
-        maxWidth: '600px', margin: '0 auto', textAlign: 'center',
-      }}>
-        <div style={{
-          width: '40px', height: '2px', background: 'var(--green)',
-          margin: '0 auto 28px',
-        }} />
-        <p style={{
-          fontSize: 'clamp(16px, 2vw, 19px)', color: 'var(--gray-700)',
-          lineHeight: 1.65, fontStyle: 'italic', margin: 0,
-        }}>
-          Built on a combination of 20+ years of operational experience
-          inside cement and concrete plants in the GCC, and a structured
-          background in manufacturing diagnostics and operational improvement.
-        </p>
       </div>
     </section>
   )
@@ -495,8 +361,11 @@ function Contact() {
         }}>
           Book a 20-min walkthrough
         </h2>
-        <p style={{ fontSize: '15px', color: 'rgba(255,255,255,0.5)', margin: '0 0 32px', lineHeight: 1.6 }}>
+        <p style={{ fontSize: '15px', color: 'rgba(255,255,255,0.5)', margin: '0 0 8px', lineHeight: 1.6 }}>
           We run the diagnostic live on your plant&apos;s data. You see your numbers before we finish the call: turnaround cost, dispatch gap, bottleneck.
+        </p>
+        <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.3)', margin: '0 0 32px', lineHeight: 1.6, fontStyle: 'italic' }}>
+          20+ years in GCC cement and concrete operations. Built on real plant floor experience, not academic benchmarks.
         </p>
 
         {status === 'sent' ? (
