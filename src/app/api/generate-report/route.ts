@@ -50,47 +50,47 @@ export async function POST(req: NextRequest) {
   // Skip when demoOverride === true (user has changed inputs and wants a live generation)
   if (assessmentId === 'demo' && !demoOverride) {
     const DEMO_TEXTS: Record<string, string> = {
-      executive: `At 32 minutes, order-to-dispatch is more than double the 15-minute target — a gap of this size indicates the dispatch sequence is reactive rather than pre-planned, with trucks prepared after orders arrive rather than before.
+      executive: `At 32 minutes, order-to-dispatch is more than double the 15-minute target. A gap this wide points to a reactive sequence — the current spreadsheet-and-WhatsApp workflow cannot pace 86 daily departures without building queues, because each order is confirmed and loaded after arrival rather than batched ahead of the shift.
 
-A 17-minute excess on every departure compounds across the shift: combined with a 112-minute turnaround, each late departure delays the return and reload, reducing the number of cycles the fleet can complete. During the summer peak — when sites reject loads that arrive outside slump specification — the cost of each delayed departure is higher still.
+The delay carries through every cycle. With turnaround already at 112 minutes — 28 minutes above the 84-minute target for suburban Riyadh — each late departure adds to the return delay rather than absorbing it. The fleet runs fewer cycles than its 17 operative trucks would allow if departures started on schedule. During summer, the compounding effect is sharper: loads batched before 09:00 that spend 32 minutes waiting for dispatch arrive outside slump specification, driving the 3.5% rejection rate.
 
-Dispatch is the binding constraint because it directly gates how many cycles the fleet completes, regardless of other improvements. The 3.5% rejection rate is a real cost but affects a fraction of loads and does not limit throughput on its own. Fixing dispatch unlocks throughput across the entire 20-truck fleet; fixing quality or utilisation alone does not.`,
+Dispatch is the binding constraint because it gates every other metric simultaneously. Fleet turnaround is partly a downstream consequence — trucks that leave late face the same site conditions regardless of what changes at the delivery end. The rejection rate from heat and slump loss in transit is a real cost, but it cannot be resolved by fixing dispatch alone; it requires a separate retarder protocol. Fixing dispatch unlocks throughput across all 17 operative trucks without additional fleet investment. No other single change does that.`,
 
-      diagnosis: `The dispatch constraint reduces the number of productive cycles the fleet can complete each shift — not because trucks are unavailable, but because each departure starts late and the delay carries through every subsequent cycle. At 20 trucks on a 112-minute cycle, a 17-minute departure excess represents roughly 1.3 fewer completed deliveries per truck per day, compressing output without any reduction in fleet size or plant capacity.
+      diagnosis: `The dispatch gap does not just delay individual loads — it compresses the number of cycles each truck completes in a shift. At 86 deliveries per day across 17 operative trucks, a 17-minute average departure excess means each truck finishes fewer cycles than the 112-minute turnaround would otherwise allow. The effect accumulates within each truck's daily sequence: the first late departure pushes the second, and so on through the shift.
 
-Fleet turnaround at 112 minutes is 28 minutes above the 84-minute benchmark for suburban Saudi delivery zones. Site wait time is the single largest component, driven by uncoordinated site handover and no demurrage enforcement. Turnaround cannot improve meaningfully until departures are on time — a truck leaving late arrives late and returns late, regardless of what happens at the site.
+Quality at 70/100 and a 3.5% rejection rate represent the second pressure point. The identified cause — heat and slump loss during transit, concentrated in loads batched before 09:00 that arrive outside specification at peak summer sites — is both a plant-side and a logistics problem. Batching earlier is not a fix if trucks still queue before departure; the load ages in the drum while the spreadsheet-WhatsApp sequence resolves. This requires two separate interventions: a dispatch improvement that reduces pre-departure wait, and a targeted retarder protocol for early morning summer loads.
 
-Quality at 70/100 and a 3.5% rejection rate are real costs, particularly during summer months when heat-related slump loss compounds the long cycle time. Production at 82/100 appears constrained, but utilisation is high precisely because the plant is producing to fill a queue that dispatch has already delayed.
+Fleet turnaround at 112 minutes sits 28 minutes above target. Site wait at 52 minutes — 17 minutes above the 35-minute benchmark — is the largest single component. Reducing site wait requires pre-departure readiness confirmation, which depends on a more controlled dispatch sequence. The two constraints are linked: dispatch improvement is a precondition for meaningful turnaround reduction, not a parallel track.
 
-If the dispatch gap closes to 15 minutes, the fleet recovers the cycle capacity to complete its target delivery volume within the existing shift. Turnaround improves as a secondary effect. No additional trucks or plant capacity are required — the throughput is already latent in the existing fleet.`,
+If dispatch closes to 15 minutes, trucks begin each cycle with the full shift available. Turnaround improvement follows as a secondary effect — trucks that arrive on schedule face less accumulated delay from earlier queues. The 82/100 production score and high utilisation are not the constraint; the plant is already producing to fill a queue that dispatch has delayed. No fleet changes are required; the capacity is available in the existing 17 operative trucks.`,
 
       actions: `Immediate — this week
-1. Dispatch pre-loading protocol: Before the morning shift starts, pre-load 3 trucks with the most likely first orders of the day. The dispatcher confirms which three before the first order arrives. Done when the morning queue time drops below 20 minutes.
+1. Pre-load the first two trucks before shift start: The dispatcher confirms the two most likely first orders by 06:45 each morning using the existing order list. Batch operator loads before 07:00. Done when both trucks depart within 15 minutes of shift start for five consecutive days.
 
-2. Retarder protocol for summer loads: Flag all loads with expected site arrival after 10:00 AM during June–September. Batch plant operator confirms retarder addition before drum rotation starts. Done when the protocol is written and signed off by the batch supervisor.
+2. Retarder protocol for early summer loads: All loads batched before 09:00 during June-September receive a standard retarder dose. Batch operator confirms addition before drum rotation. Done when the protocol is written, signed by the batch supervisor, and applied to every qualifying load for one week.
 
-3. Site-readiness confirmation: No truck dispatches until the site foreman sends a readiness message — WhatsApp, logged by time. The dispatcher holds the truck if no confirmation within 5 minutes of expected departure. Done when 90% of dispatches have a logged confirmation.
+3. Site-readiness confirmation before dispatch: No truck departs until the site foreman sends a confirmation via the existing WhatsApp line, time-logged by the dispatcher. Trucks held if no confirmation within five minutes of scheduled departure. Done when 80% of daily dispatches have a logged confirmation time.
 
-4. Order-to-dispatch tracking: Write the dispatch time on a whiteboard for every order — target 15 minutes, actual time, dispatcher initials. Review at end of shift. Done when the board is filled daily for one full week.
+4. Dispatch time log: The dispatcher records actual order-to-dispatch time for every load on a whiteboard — target 15 minutes, actual time, dispatcher initials. Reviewed at end of shift. Done when the board is completed for five consecutive days.
 
-5. Rejection liability conversation: Identify the three contractors with the highest return rates. Have one direct conversation per week about shared liability on rejected loads. Done when at least one contractor acknowledges the clause in writing.
+5. Rejection liability: Identify the three contractors with the highest return rates from the past month. Discuss the demurrage clause directly. Done when at least one contractor acknowledges it in writing.
 
 Short-term — weeks 2 to 4
-1. Zone-based dispatch sequencing: Group consecutive orders by delivery area. The dispatcher fills a truck with two same-zone deliveries where possible. Reduces transit distance per cycle by an estimated 8–12 minutes for the suburban Saudi delivery pattern. Done when the dispatcher can describe the zone logic without prompting.
+1. Replace the WhatsApp group with individual driver SMS: The dispatcher sends departure instructions directly to each driver rather than posting to the group. Eliminates read-receipt ambiguity and removes manual spreadsheet steps from the current sequence. Done when the dispatcher runs five consecutive shifts without the group for internal dispatch coordination.
 
-2. Weekly turnaround log: Record average turnaround time per shift for one full week. Identify whether the delay is occurring at the plant exit, at the delivery site, or in transit. Done when the log shows 5 consecutive days of data.
+2. Zone-based morning batching: Group the first 12 orders of each shift by delivery zone. Dispatcher fills trucks with same-zone loads where possible, reducing average transit distance per cycle. Done when the dispatcher applies the zone sequence to three consecutive morning shifts without prompting.
 
-3. Preventive maintenance schedule: 4 breakdowns last month on a 20-truck fleet is above benchmark. Set a 4-week rotating service schedule for all trucks. Done when the schedule is posted and the first two trucks have been through it.
+3. Enforce demurrage on one load: Select the next rejected load from a contractor with a signed clause. Issue the invoice. Done when the contractor receives it.
 
 Validation — months 1 to 3
-1. Dispatch time monthly average: Target 15 minutes by week 6. Track using the daily whiteboard log. If the average has not moved below 20 minutes by week 4, the pre-loading protocol is not being followed — investigate why.
+1. Dispatch time weekly average: Target below 20 minutes by week 4, below 15 minutes by week 6. Track using the dispatcher's daily log. If week 4 average has not moved, the pre-loading protocol is not being followed consistently — check which shift is lagging.
 
-2. Turnaround improvement: Target 84 minutes average by week 8. A 28-minute reduction is achievable through dispatch and site-readiness protocol alone — no fleet investment required. Track one full week of timestamped cycles.
+2. Turnaround: Target 84 minutes by week 8. A 28-minute reduction is achievable through dispatch improvement and site-readiness protocol alone — no fleet changes required. Track using timestamped departure and return logs, one full week per month.
 
-3. 90-day tracking programme: Enrol in the tracking module to log turnaround and dispatch times weekly. After 8 weeks, the data supports a before-and-after case showing the exact financial recovery. This is the evidence base for any future decisions about fleet expansion or contract renegotiation.
+3. Rejection rate: Target below 2.5% by month 3. If summer heat loads remain above 3%, the retarder protocol is not being applied consistently — pull batch records for loads departing before 09:00.
 
 Next Step
-This pre-assessment has established the financial picture based on what the plant reports about itself: up to $85,000/month in recoverable margin, concentrated in dispatch and turnaround. What it cannot tell us is where in the 112-minute turnaround the time is actually being lost — whether the 32-minute dispatch figure reflects a consistent pattern or a peak-hour average, and whether rejections are primarily a plant-side dosing issue or a customer site-readiness issue. An on-site visit answers those three questions in half a day and produces a findings report the plant manager can act on the same week.`,
+This assessment has established the financial picture based on what Al-Noor reports about itself: up to $115,000 per month in recoverable margin, concentrated in dispatch and its downstream effect on turnaround. What it cannot confirm is where in the 112-minute turnaround the time is physically being lost, whether the 32-minute dispatch figure holds across all shifts or peaks on specific days, and whether the summer rejection pattern is driven primarily by batching time or by transit distance to particular sites. An on-site half-day answers those three questions and produces a findings report the plant manager can act on the same week.`,
     }
     const text = DEMO_TEXTS[type]
     if (!text) return NextResponse.json({ error: 'Invalid report type' }, { status: 400 })
