@@ -3100,6 +3100,16 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
 
   const showBoard = userRole !== 'operator'
 
+  // Board actions: use admin-curated focusActions if set, otherwise auto-generate
+  // top-3 from issues engine sorted by financial impact
+  const boardActions = (focusActions?.filter(Boolean).length ?? 0) > 0
+    ? focusActions!.filter(Boolean)
+    : issues
+        .filter(i => i.action && i.loss > 0)
+        .sort((a, b) => b.loss - a.loss)
+        .slice(0, 3)
+        .map(i => i.action!)
+
   return (
     <div style={{
       flex: 1,
@@ -3354,7 +3364,7 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
         <ActionBoard
           assessmentId={assessmentId}
           customerId={customerId ?? ''}
-          focusActions={focusActions?.filter(Boolean) ?? []}
+          focusActions={boardActions}
           canEdit={userRole !== 'owner'}
           financialBottleneck={financialBottleneck}
           recoverable={primaryBottleneckLoss}
@@ -3372,7 +3382,7 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
         <ActionBoard
           assessmentId={assessmentId}
           customerId={customerId ?? ''}
-          focusActions={focusActions?.filter(Boolean) ?? []}
+          focusActions={boardActions}
           canEdit={userRole !== 'owner'}
           financialBottleneck={financialBottleneck}
           recoverable={primaryBottleneckLoss}
