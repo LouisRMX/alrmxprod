@@ -43,7 +43,8 @@ export default async function PlantsPage() {
       assessments(
         id, date, phase, overall, scores, bottleneck,
         ebitda_monthly, report_released,
-        tracking_configs(id, started_at)
+        tracking_configs(id, started_at),
+        plant_benchmarks(turnaround_min, dispatch_min, reject_pct, util_pct)
       )
     `)
     .order('name', { ascending: true })
@@ -86,6 +87,12 @@ export default async function PlantsPage() {
     // Scores — handle both 'logistics' and 'fleet' key names
     const raw = latest.scores as Record<string, number | null> | null
 
+    // Benchmark KPI data (saved separately when assessment is scored)
+    const bmArr = Array.isArray((latest as any).plant_benchmarks)
+      ? (latest as any).plant_benchmarks
+      : ((latest as any).plant_benchmarks ? [(latest as any).plant_benchmarks] : [])
+    const bm = bmArr[0] ?? null
+
     return {
       id: plant.id,
       name: plant.name,
@@ -105,6 +112,12 @@ export default async function PlantsPage() {
         ebitda_monthly: latest.ebitda_monthly ?? null,
         report_released: latest.report_released ?? false,
         trackingWeek,
+        kpi: bm ? {
+          turnaroundMin: bm.turnaround_min ?? null,
+          dispatchMin:   bm.dispatch_min   ?? null,
+          rejectPct:     bm.reject_pct     ?? null,
+          utilPct:       bm.util_pct       ?? null,
+        } : null,
       },
     }
   })

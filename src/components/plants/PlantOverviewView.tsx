@@ -1,9 +1,8 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useMemo } from 'react'
 import Link from 'next/link'
 import { useIsMobile } from '@/hooks/useIsMobile'
-import { calcLossRange } from '@/lib/calculations'
 import { useSetChatContext } from '@/context/ChatContext'
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -15,21 +14,27 @@ export interface PlantAssessmentData {
   scores: {
     prod: number | null
     dispatch: number | null
-    logistics: number | null   // field name used by CalcResult (also stored as 'fleet' in older rows)
-    fleet: number | null       // fallback
+    logistics: number | null
+    fleet: number | null
     quality: number | null
   } | null
   bottleneck: string | null
   constraintDetail?: string | null
   ebitda_monthly: number | null
   report_released: boolean
-  trackingWeek: number | null  // pre-computed from started_at
+  trackingWeek: number | null
   recoveredMonthly?: number | null
   trackingImprovement?: {
     turnaroundDelta: number
     dispatchDelta: number
     weekOf: number
     weekTotal: number
+  } | null
+  kpi?: {
+    turnaroundMin: number | null
+    dispatchMin: number | null
+    rejectPct: number | null
+    utilPct: number | null
   } | null
 }
 
@@ -38,65 +43,52 @@ export interface PlantCardData {
   name: string
   country: string
   assessment: PlantAssessmentData | null
-  assessmentHref?: string   // override link (used by demo to point all cards to /demo)
+  assessmentHref?: string
 }
-
-type SortKey = 'score_asc' | 'score_desc' | 'gap' | 'name'
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-function scoreColor(s: number | null): string {
-  if (s === null) return 'var(--gray-300)'
-  if (s >= 80) return 'var(--phase-complete)'
-  if (s >= 60) return '#d97706'
-  return 'var(--red)'
+const BOTTLENECK_LABELS: Record<string, string> = {
+  dispatch: 'Dispatch',
+  fleet:    'Fleet',
+  quality:  'Quality',
+  prod:     'Production',
 }
 
-function scoreBg(s: number | null): string {
-  if (s === null) return 'var(--gray-50)'
-  if (s >= 80) return 'var(--phase-complete-bg)'
-  if (s >= 60) return '#fffaf2'
-  return 'var(--error-bg)'
+function urgencyBorder(overall: number | null): string {
+  if (overall === null) return 'var(--border)'
+  if (overall >= 80) return '#2a9d6e'
+  if (overall >= 60) return '#c96a00'
+  return '#cc3333'
 }
 
-function fmt(n: number | null): string {
-  if (!n) return '—'
+function fmtGap(n: number): string {
   if (n >= 1_000_000) return '$' + (n / 1_000_000).toFixed(1) + 'M'
-  if (n >= 1_000) return '$' + Math.round(n / 1_000) + 'k'
-  return '$' + Math.round(n)
+  return '$' + Math.round(n / 1_000) + 'k'
 }
 
-// ── MiniBar ────────────────────────────────────────────────────────────────
-
-function MiniBar({ label, value }: { label: string; value: number | null }) {
-  const color = scoreColor(value)
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px' }}>
-      <span style={{
-        fontSize: '10px', color: 'var(--gray-400)',
-        width: '62px', flexShrink: 0, lineHeight: 1.2,
-      }}>
-        {label}
-      </span>
-      <div style={{
-        flex: 1, height: '4px', background: 'var(--gray-100)',
-        borderRadius: '2px', overflow: 'hidden',
-      }}>
-        {value !== null && (
-          <div style={{
-            width: `${Math.min(100, value)}%`, height: '100%',
-            background: color, borderRadius: '2px',
-          }} />
-        )}
-      </div>
-      <span style={{
-        fontSize: '10px', fontFamily: 'var(--mono)', fontWeight: 600,
-        color, width: '22px', textAlign: 'right', flexShrink: 0,
-      }}>
-        {value !== null ? value : '—'}
-      </span>
-    </div>
-  )
+function rootCauseLine(bottleneck: string | null, kpi: PlantAssessmentData['kpi']): string | null {
+  if (!bottleneck || !kpi) return null
+  switch (bottleneck) {
+    case 'dispatch':
+      return kpi.dispatchMin != null
+        ? `Orders leave ${Math.round(kpi.dispatchMin)} min after receipt — target 15 min`
+        : null
+    case 'fleet':
+      return kpi.turnaroundMin != null
+        ? `Trucks return in ${Math.round(kpi.turnaroundMin)} min per round trip`
+        : null
+    case 'quality':
+      return kpi.rejectPct != null
+        ? `${kpi.rejectPct}% of loads rejected on arrival — target 1.7%`
+        : null
+    case 'prod':
+      return kpi.utilPct != null
+        ? `${Math.round(kpi.utilPct)}% utilisation — target 85%`
+        : null
+    default:
+      return null
+  }
 }
 
 // ── PhaseBadge ─────────────────────────────────────────────────────────────
@@ -108,7 +100,7 @@ function PhaseBadge({ phase }: { phase: string }) {
     onsite:            { label: 'On-site',        bg: 'var(--phase-onsite-bg)',    color: 'var(--phase-onsite)' },
     complete:          { label: 'Complete',       bg: 'var(--phase-complete-bg)', color: 'var(--phase-complete)' },
   }
-  const c = cfg[phase] || cfg.workshop
+  const c = cfg[phase] ?? cfg.workshop
   return (
     <span style={{
       fontSize: '10px', fontWeight: 600, padding: '2px 7px',
@@ -121,159 +113,117 @@ function PhaseBadge({ phase }: { phase: string }) {
 
 // ── PlantCard ──────────────────────────────────────────────────────────────
 
-function PlantCard({ plant, isMobile }: { plant: PlantCardData; isMobile: boolean }) {
-  const [hovered, setHovered] = useState(false)
+function PlantCard({ plant }: { plant: PlantCardData }) {
   const a = plant.assessment
+  const href = plant.assessmentHref ?? (a ? `/dashboard/assess/${a.id}` : undefined)
 
-  // Compute href: override → explicit assessment link
-  const href = plant.assessmentHref
-    ?? (a ? `/dashboard/assess/${a.id}` : undefined)
+  const borderColor = urgencyBorder(a?.overall ?? null)
+  const bnKey       = a?.bottleneck ?? null
+  const bnLabel     = bnKey ? (BOTTLENECK_LABELS[bnKey] ?? bnKey) : null
+  const bnScore     = bnKey ? (a?.scores?.[bnKey as keyof typeof a.scores] ?? a?.scores?.['logistics' as keyof typeof a.scores] ?? null) : null
+  const rootCause   = rootCauseLine(bnKey, a?.kpi ?? null)
 
-  // Normalize fleet score — older DB rows may use 'fleet' key
-  const fleetScore = a?.scores?.logistics ?? a?.scores?.fleet ?? null
-
-  const cardStyle: React.CSSProperties = {
-    background: 'var(--white)',
-    border: `1px solid ${hovered && href ? 'var(--green)' : 'var(--border)'}`,
-    borderRadius: '12px',
-    padding: isMobile ? '14px 16px' : '18px 20px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '10px',
-    boxShadow: hovered && href ? '0 2px 12px rgba(15,110,86,0.09)' : 'none',
-    transition: 'border-color .15s, box-shadow .15s',
-    cursor: href ? 'pointer' : 'default',
-    textDecoration: 'none',
-    color: 'inherit',
-  }
-
-  const inner = (
-    <div
-      style={cardStyle}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+  const card = (
+    <div style={{
+      background: 'var(--white)',
+      border: '1px solid var(--border)',
+      borderLeft: `4px solid ${borderColor}`,
+      borderRadius: '12px',
+      padding: '18px 20px',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '0',
+      transition: 'box-shadow .15s',
+    }}
+      className="plant-card"
     >
-      {/* Header: name + country */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
-        <div style={{
-          fontSize: isMobile ? '13px' : '14px', fontWeight: 600,
-          color: 'var(--gray-900)', lineHeight: 1.3, flex: 1,
-        }}>
-          {plant.name}
+      {/* Row 1: name + gap */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', marginBottom: '4px' }}>
+        <div>
+          <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--gray-900)', lineHeight: 1.2 }}>
+            {plant.name}
+          </div>
+          <div style={{ fontSize: '12px', color: 'var(--gray-400)', marginTop: '2px' }}>
+            {plant.country}
+          </div>
         </div>
-        <span style={{
-          fontSize: '10px', color: 'var(--gray-400)',
-          flexShrink: 0, fontFamily: 'var(--mono)',
-          background: 'var(--gray-50)', padding: '2px 6px', borderRadius: '4px',
-        }}>
-          {plant.country}
-        </span>
+        {a?.ebitda_monthly ? (
+          <div style={{ textAlign: 'right', flexShrink: 0 }}>
+            <div style={{
+              fontSize: '20px', fontWeight: 700, fontFamily: 'var(--mono)',
+              color: '#cc3333', lineHeight: 1,
+            }}>
+              {fmtGap(a.ebitda_monthly)}
+            </div>
+            <div style={{ fontSize: '11px', color: 'var(--gray-400)', marginTop: '1px' }}>/ month</div>
+          </div>
+        ) : null}
       </div>
 
-      {/* Body */}
+      {/* Divider */}
+      <div style={{ borderTop: '1px solid var(--border)', margin: '12px 0' }} />
+
+      {/* Row 2: bottleneck + root cause */}
       {!a || a.overall === null ? (
-        /* No score yet (workshop / no assessment) */
-        <div style={{ padding: '10px 0' }}>
-          <PhaseBadge phase={a?.phase || 'workshop'} />
+        <div>
+          <PhaseBadge phase={a?.phase ?? 'workshop'} />
           <div style={{ fontSize: '12px', color: 'var(--gray-400)', marginTop: '8px' }}>
-            {a ? 'Assessment in progress — data being collected' : 'No assessment yet'}
+            {a ? 'Assessment in progress' : 'No assessment yet'}
           </div>
         </div>
+      ) : bnLabel ? (
+        <div style={{ marginBottom: '4px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '5px' }}>
+            <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--gray-800)' }}>
+              {bnLabel} bottleneck
+            </span>
+            {bnScore != null && (
+              <span style={{
+                fontSize: '11px', fontWeight: 600, padding: '1px 6px',
+                borderRadius: '4px', background: 'var(--gray-100)',
+                color: 'var(--gray-500)', fontFamily: 'var(--mono)',
+              }}>
+                {bnScore}
+              </span>
+            )}
+          </div>
+          {rootCause && (
+            <div style={{ fontSize: '12px', color: 'var(--gray-500)', lineHeight: 1.4 }}>
+              {rootCause}
+            </div>
+          )}
+        </div>
       ) : (
-        <>
-          {/* Score circle + mini bars */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '10px' : '14px' }}>
-            {/* Circle */}
-            <div style={{
-              width: isMobile ? '52px' : '58px',
-              height: isMobile ? '52px' : '58px',
-              borderRadius: '50%', flexShrink: 0,
-              border: `3px solid ${scoreColor(a.overall)}`,
-              background: scoreBg(a.overall),
-              display: 'flex', flexDirection: 'column',
-              alignItems: 'center', justifyContent: 'center',
-            }}>
-              <span style={{
-                fontSize: isMobile ? '18px' : '20px', fontWeight: 700,
-                color: scoreColor(a.overall), lineHeight: 1,
-              }}>
-                {a.overall}
-              </span>
-              <span style={{ fontSize: '9px', color: 'var(--gray-400)' }}>/100</span>
-            </div>
-            {/* Bars */}
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <MiniBar label="Production" value={a.scores?.prod ?? null} />
-              <MiniBar label="Dispatch"   value={a.scores?.dispatch ?? null} />
-              <MiniBar label="Fleet"      value={fleetScore} />
-              <MiniBar label="Quality"    value={a.scores?.quality ?? null} />
-            </div>
-          </div>
-
-          {/* Financial gap + bottleneck */}
-          <div style={{
-            display: 'flex', alignItems: 'center',
-            justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '3px', flexWrap: 'wrap' }}>
-              {a.ebitda_monthly ? (() => {
-                const { low, high } = calcLossRange(a.ebitda_monthly)
-                const fmtR = (n: number) => '$' + Math.round(n / 1000) + 'k'
-                return (
-                  <>
-                    <span style={{ fontSize: isMobile ? '15px' : '17px', fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--red)' }}>
-                      {fmtR(low)}–{fmtR(high)}
-                    </span>
-                    <span style={{ fontSize: '11px', color: 'var(--gray-400)' }}>/mo gap</span>
-                  </>
-                )
-              })() : (
-                <span style={{ fontSize: isMobile ? '16px' : '18px', fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--gray-300)' }}>—</span>
-              )}
-            </div>
-            {a.bottleneck && (
-              <span style={{
-                fontSize: '10px', fontWeight: 600, padding: '2px 7px',
-                borderRadius: '4px', background: 'var(--error-bg)', color: 'var(--red)',
-              }}>
-                ⚡ {a.bottleneck === 'Fleet' ? 'Logistics' : a.bottleneck}
-              </span>
-            )}
-          </div>
-
-          {/* Status badges */}
-          <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', alignItems: 'center' }}>
-            <PhaseBadge phase={a.phase} />
-            {a.trackingWeek !== null && (
-              <span style={{
-                fontSize: '10px', fontWeight: 600, padding: '2px 7px', borderRadius: '4px',
-                background: a.trackingWeek >= 13 ? 'var(--phase-complete-bg)' : 'var(--phase-onsite-bg)',
-                color: a.trackingWeek >= 13 ? 'var(--phase-complete)' : 'var(--phase-onsite)',
-              }}>
-                {a.trackingWeek >= 13 ? '✓ Tracked' : `Wk ${a.trackingWeek}/13`}
-              </span>
-            )}
-            {a.report_released && (
-              <span style={{
-                fontSize: '10px', fontWeight: 600, padding: '2px 7px', borderRadius: '4px',
-                background: 'var(--phase-complete-bg)', color: 'var(--phase-complete)',
-              }}>
-                ● Report
-              </span>
-            )}
-          </div>
-        </>
+        <div style={{ fontSize: '13px', color: 'var(--gray-500)' }}>
+          No bottleneck identified
+        </div>
       )}
 
-      {/* Footer arrow */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 'auto', paddingTop: '2px' }}>
+      {/* Row 3: badges + view link */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '14px' }}>
+        <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', alignItems: 'center' }}>
+          {a && <PhaseBadge phase={a.phase} />}
+          {a?.trackingWeek != null && (
+            <span style={{
+              fontSize: '10px', fontWeight: 600, padding: '2px 7px', borderRadius: '4px',
+              background: a.trackingWeek >= 13 ? 'var(--phase-complete-bg)' : 'var(--phase-onsite-bg)',
+              color: a.trackingWeek >= 13 ? 'var(--phase-complete)' : 'var(--phase-onsite)',
+            }}>
+              {a.trackingWeek >= 13 ? '✓ Tracked' : `Wk ${a.trackingWeek}/13`}
+            </span>
+          )}
+          {a?.report_released && (
+            <span style={{
+              fontSize: '10px', fontWeight: 600, padding: '2px 7px', borderRadius: '4px',
+              background: 'var(--phase-complete-bg)', color: 'var(--phase-complete)',
+            }}>
+              ● Report
+            </span>
+          )}
+        </div>
         {href ? (
-          <span style={{
-            fontSize: '12px', fontWeight: 600,
-            color: hovered ? 'var(--green)' : 'var(--gray-400)',
-            transition: 'color .15s',
-          }}>
-            View →
+          <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--green)', whiteSpace: 'nowrap' }}>
+            View report →
           </span>
         ) : (
           <span style={{ fontSize: '11px', color: 'var(--gray-300)' }}>Pending</span>
@@ -282,10 +232,10 @@ function PlantCard({ plant, isMobile }: { plant: PlantCardData; isMobile: boolea
     </div>
   )
 
-  if (!href) return inner
+  if (!href) return card
   return (
     <Link href={href} style={{ textDecoration: 'none', display: 'block' }}>
-      {inner}
+      {card}
     </Link>
   )
 }
@@ -302,62 +252,32 @@ interface PlantOverviewViewProps {
 
 export default function PlantOverviewView({ plants, customerName, isDemo, demoPlantCount, onDemoPlantCountChange }: PlantOverviewViewProps) {
   const isMobile = useIsMobile()
-  const [sort, setSort] = useState<SortKey>('score_asc')
 
-  // ── Sort ──
-  const sorted = useMemo(() => {
-    return [...plants].sort((a, b) => {
-      if (sort === 'score_asc') {
-        const sa = a.assessment?.overall ?? null
-        const sb = b.assessment?.overall ?? null
-        if (sa === null && sb === null) return 0
-        if (sa === null) return 1
-        if (sb === null) return -1
-        return sa - sb
-      }
-      if (sort === 'score_desc') {
-        const sa = a.assessment?.overall ?? null
-        const sb = b.assessment?.overall ?? null
-        if (sa === null && sb === null) return 0
-        if (sa === null) return 1
-        if (sb === null) return -1
-        return sb - sa
-      }
-      if (sort === 'gap') {
-        return (b.assessment?.ebitda_monthly ?? 0) - (a.assessment?.ebitda_monthly ?? 0)
-      }
-      return a.name.localeCompare(b.name)
-    })
-  }, [plants, sort])
+  // Always sorted by gap descending — worst plant first
+  const sorted = useMemo(() =>
+    [...plants].sort((a, b) =>
+      (b.assessment?.ebitda_monthly ?? 0) - (a.assessment?.ebitda_monthly ?? 0)
+    ),
+    [plants]
+  )
 
-  // ── Summary stats ──
-  const withScore = plants.filter(p => p.assessment?.overall !== null && p.assessment !== null)
+  // Portfolio summary for chat context
+  const withScore = plants.filter(p => p.assessment?.overall != null)
   const avgScore = withScore.length > 0
     ? Math.round(withScore.reduce((s, p) => s + p.assessment!.overall!, 0) / withScore.length)
     : null
-  const totalGap = plants.reduce((s, p) => s + (p.assessment?.ebitda_monthly ?? 0), 0)
+  const totalGap       = plants.reduce((s, p) => s + (p.assessment?.ebitda_monthly ?? 0), 0)
   const totalRecovered = plants.reduce((s, p) => s + (p.assessment?.recoveredMonthly ?? 0), 0)
 
   useSetChatContext({
     pageType: 'plants',
     portfolioSummary: { totalPlants: plants.length, avgScore, totalGap, totalRecovered },
   })
-  const atRisk = plants.filter(p => {
-    const score = p.assessment?.overall
-    return score !== null && score !== undefined && score < 60
-  }).length
-
-  const SORT_OPTS: { key: SortKey; label: string }[] = [
-    { key: 'score_asc',  label: 'Risk first' },
-    { key: 'score_desc', label: 'Best first' },
-    { key: 'gap',        label: 'Biggest gap' },
-    { key: 'name',       label: 'A–Z' },
-  ]
 
   return (
     <div style={{
       padding: isMobile ? '16px 14px' : '28px 32px',
-      maxWidth: '1100px', margin: '0 auto',
+      maxWidth: '780px', margin: '0 auto',
     }}>
 
       {/* Demo banner */}
@@ -366,8 +286,8 @@ export default function PlantOverviewView({ plants, customerName, isDemo, demoPl
           background: '#f0f9ff', border: '1px solid #bae6fd',
           borderRadius: '8px', padding: '10px 16px', marginBottom: '20px',
           fontSize: '12px', color: '#0369a1',
-          display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap',
-          justifyContent: 'space-between',
+          display: 'flex', gap: '10px', alignItems: 'center',
+          flexWrap: 'wrap', justifyContent: 'space-between',
         }}>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             <span style={{ flexShrink: 0 }}>🎯</span>
@@ -410,138 +330,52 @@ export default function PlantOverviewView({ plants, customerName, isDemo, demoPl
           {customerName || 'My Plants'}
         </h1>
         <p style={{ fontSize: '13px', color: 'var(--gray-500)' }}>
-          {plants.length} plant{plants.length !== 1 ? 's' : ''} · Performance overview
+          {plants.length} plant{plants.length !== 1 ? 's' : ''}
         </p>
       </div>
 
-      {/* Summary chips */}
+      {/* Summary chips — 2 max */}
       <div style={{
-        display: 'grid',
-        gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
-        gap: '10px', marginBottom: '20px',
+        display: 'flex', gap: '10px', marginBottom: '24px', flexWrap: 'wrap',
       }}>
-        {/* Plants chip */}
-        <div style={{ background: 'var(--white)', border: '1px solid var(--border)', borderRadius: '10px', padding: isMobile ? '12px 14px' : '14px 18px' }}>
-          <div style={{ fontSize: '10px', color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: '5px' }}>Plants</div>
-          <div style={{ fontSize: isMobile ? '18px' : '22px', fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--gray-900)', lineHeight: 1 }}>{plants.length}</div>
-        </div>
-
-        {/* Total gap chip — visually dominant */}
-        <div style={{
-          background: totalGap > 0 ? '#fff3f3' : 'var(--white)',
-          border: `1px solid ${totalGap > 0 ? '#fcc' : 'var(--border)'}`,
-          borderRadius: '10px', padding: isMobile ? '12px 14px' : '14px 18px',
-        }}>
-          <div style={{ fontSize: '10px', color: totalGap > 0 ? '#e06060' : 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: '4px', fontWeight: 600 }}>
-            Total gap
-          </div>
-          {totalGap > 0 ? (() => {
-            const { low, high } = calcLossRange(totalGap)
-            const fmtR = (n: number) => '$' + Math.round(n / 1000) + 'k'
-            return (
-              <div>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
-                  <span style={{ fontSize: isMobile ? '20px' : '24px', fontWeight: 800, fontFamily: 'var(--mono)', color: 'var(--red)', lineHeight: 1 }}>
-                    {fmtR(low)}–{fmtR(high)}
-                  </span>
-                  <span style={{ fontSize: '12px', color: '#e06060', fontWeight: 500 }}>/mo</span>
-                </div>
-                <div style={{ fontSize: '10px', color: '#ccc', marginTop: '3px' }}>mid {fmt(totalGap)}</div>
-              </div>
-            )
-          })() : <span style={{ fontSize: isMobile ? '24px' : '30px', fontWeight: 800, fontFamily: 'var(--mono)', color: 'var(--gray-300)', lineHeight: 1 }}>—</span>}
-        </div>
-
-        {/* Recovered chip */}
-        <div style={{
-          background: totalRecovered > 0 ? 'var(--phase-complete-bg)' : 'var(--white)',
-          border: `1px solid ${totalRecovered > 0 ? 'var(--phase-complete)' : 'var(--border)'}`,
-          borderRadius: '10px', padding: isMobile ? '12px 14px' : '14px 18px',
-        }}>
-          <div style={{ fontSize: '10px', color: totalRecovered > 0 ? 'var(--phase-complete)' : 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: '4px', fontWeight: 600 }}>
-            Recovered
-          </div>
-          {totalRecovered > 0 ? (() => {
-            const { low, high } = calcLossRange(totalRecovered)
-            const fmtR = (n: number) => '$' + Math.round(n / 1000) + 'k'
-            return (
-              <div>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
-                  <span style={{ fontSize: isMobile ? '20px' : '24px', fontWeight: 800, fontFamily: 'var(--mono)', color: 'var(--phase-complete)', lineHeight: 1 }}>
-                    {fmtR(low)}–{fmtR(high)}
-                  </span>
-                  <span style={{ fontSize: '12px', color: 'var(--phase-complete)', fontWeight: 500 }}>/mo</span>
-                </div>
-                <div style={{ fontSize: '10px', color: '#ccc', marginTop: '3px' }}>mid {fmt(totalRecovered)}</div>
-              </div>
-            )
-          })() : <span style={{ fontSize: isMobile ? '18px' : '22px', fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--gray-300)', lineHeight: 1 }}>—</span>}
-        </div>
-
-        {/* At-risk chip */}
-        <div style={{
-          background: atRisk > 0 ? '#fff8ed' : 'var(--white)',
-          border: `1px solid ${atRisk > 0 ? '#f5c842' : 'var(--border)'}`,
-          borderRadius: '10px', padding: isMobile ? '12px 14px' : '14px 18px',
-        }}>
-          <div style={{ fontSize: '10px', color: atRisk > 0 ? '#b07a00' : 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: '5px', fontWeight: 600 }}>
-            {atRisk > 0 ? 'Need attention' : 'Status'}
-          </div>
-          {atRisk > 0 ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: isMobile ? '24px' : '30px', fontWeight: 800, fontFamily: 'var(--mono)', color: '#c07000', lineHeight: 1 }}>{atRisk}</span>
-              <span style={{ fontSize: '11px', color: '#b07a00', fontWeight: 500, lineHeight: 1.3 }}>plant{atRisk !== 1 ? 's' : ''}<br />below 60</span>
+        {/* Total gap */}
+        {totalGap > 0 && (
+          <div style={{
+            background: '#fff3f3', border: '1px solid #fcc',
+            borderRadius: '10px', padding: '14px 20px', flex: '1', minWidth: '140px',
+          }}>
+            <div style={{ fontSize: '10px', fontWeight: 600, color: '#e06060', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: '5px' }}>
+              Total gap
             </div>
-          ) : (
-            <div style={{ fontSize: isMobile ? '18px' : '22px', fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--phase-complete)', lineHeight: 1 }}>✓ On track</div>
-          )}
-        </div>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+              <span style={{ fontSize: isMobile ? '22px' : '26px', fontWeight: 800, fontFamily: 'var(--mono)', color: 'var(--red)', lineHeight: 1 }}>
+                {fmtGap(totalGap)}
+              </span>
+              <span style={{ fontSize: '12px', color: '#e06060', fontWeight: 500 }}>/month</span>
+            </div>
+          </div>
+        )}
+
+        {/* Recovered — only shown when > 0 */}
+        {totalRecovered > 0 && (
+          <div style={{
+            background: 'var(--phase-complete-bg)', border: '1px solid var(--phase-complete)',
+            borderRadius: '10px', padding: '14px 20px', flex: '1', minWidth: '140px',
+          }}>
+            <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--phase-complete)', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: '5px' }}>
+              Recovered
+            </div>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+              <span style={{ fontSize: isMobile ? '22px' : '26px', fontWeight: 800, fontFamily: 'var(--mono)', color: 'var(--phase-complete)', lineHeight: 1 }}>
+                {fmtGap(totalRecovered)}
+              </span>
+              <span style={{ fontSize: '12px', color: 'var(--phase-complete)', fontWeight: 500 }}>/month</span>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* At-risk alert */}
-      {atRisk > 0 && (
-        <div style={{
-          background: 'var(--error-bg)', border: '1px solid var(--error-border)',
-          borderRadius: '8px', padding: '10px 16px', marginBottom: '20px',
-          fontSize: '13px', color: 'var(--red)',
-          display: 'flex', gap: '8px', alignItems: 'center',
-        }}>
-          <span>⚠</span>
-          <span>
-            <strong>{atRisk} plant{atRisk !== 1 ? 's' : ''}</strong> scoring below 60
-            — prioritise these first. Click to see the full diagnosis.
-          </span>
-        </div>
-      )}
-
-      {/* Sort controls */}
-      <div style={{
-        display: 'flex', gap: '6px', marginBottom: '20px',
-        flexWrap: 'wrap', alignItems: 'center',
-      }}>
-        <span style={{ fontSize: '11px', color: 'var(--gray-400)', marginRight: '2px' }}>
-          Sort:
-        </span>
-        {SORT_OPTS.map(opt => (
-          <button
-            key={opt.key}
-            onClick={() => setSort(opt.key)}
-            type="button"
-            style={{
-              padding: '5px 12px', borderRadius: '20px',
-              fontSize: '11px', fontWeight: 500,
-              border: `1px solid ${sort === opt.key ? 'var(--green)' : 'var(--border)'}`,
-              background: sort === opt.key ? 'var(--green-light)' : 'var(--white)',
-              color: sort === opt.key ? 'var(--green)' : 'var(--gray-500)',
-              cursor: 'pointer', fontFamily: 'var(--font)', transition: 'all .1s',
-            }}
-          >
-            {opt.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Cards grid */}
+      {/* Plant cards — single column, sorted by gap */}
       {plants.length === 0 ? (
         <div style={{
           background: 'var(--white)', border: '1px solid var(--border)',
@@ -555,19 +389,16 @@ export default function PlantOverviewView({ plants, customerName, isDemo, demoPl
           </div>
         </div>
       ) : (
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: isMobile
-            ? '1fr'
-            : 'repeat(auto-fill, minmax(300px, 1fr))',
-          gap: isMobile ? '10px' : '14px',
-          alignItems: 'start',
-        }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {sorted.map(plant => (
-            <PlantCard key={plant.id} plant={plant} isMobile={isMobile} />
+            <PlantCard key={plant.id} plant={plant} />
           ))}
         </div>
       )}
+
+      <style>{`
+        .plant-card:hover { box-shadow: 0 2px 12px rgba(15,110,86,0.08); }
+      `}</style>
     </div>
   )
 }
