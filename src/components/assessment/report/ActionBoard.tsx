@@ -356,17 +356,6 @@ function CardDetailModal({
           ×
         </button>
 
-        {/* AI badge */}
-        {item.source === 'ai' && (
-          <span style={{
-            fontSize: '10px', fontWeight: 600, letterSpacing: '0.5px',
-            color: 'var(--phase-workshop)', background: 'var(--phase-workshop-bg)',
-            padding: '2px 6px', borderRadius: '3px',
-            display: 'inline-block', marginBottom: '10px',
-          }}>
-            AI
-          </span>
-        )}
 
         {/* Financial summary */}
         {lossMonthly && lossMonthly >= 1000 && (
@@ -865,18 +854,9 @@ function TaskCard({
       onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}
     >
       {/* Top row: badges */}
-      {(item.source === 'ai' || item.status === 'in_progress') && (
+      {(dimension || item.status === 'in_progress') && (
         <div style={{ marginBottom: '5px', display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
-          {item.source === 'ai' && (
-            <span style={{
-              fontSize: '10px', fontWeight: 600, letterSpacing: '0.5px',
-              color: 'var(--phase-workshop)', background: 'var(--phase-workshop-bg)',
-              padding: '1px 5px', borderRadius: '3px',
-            }}>
-              AI
-            </span>
-          )}
-          {item.source === 'ai' && dimension && (
+          {dimension && (
             <span style={{
               fontSize: '10px', fontWeight: 600, letterSpacing: '0.5px',
               color: '#64748b', background: '#f1f5f9',
