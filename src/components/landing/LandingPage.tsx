@@ -103,6 +103,9 @@ function Hero() {
             ))}
           </ul>
 
+          <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.5)', margin: '0 0 14px', lineHeight: 1.5 }}>
+            Let us walk you through a plant case and show how losses are identified and recovered.
+          </p>
           <a href="#contact" style={{
             display: 'inline-flex', alignItems: 'center', gap: '8px',
             background: 'var(--green)', color: '#fff', textDecoration: 'none',
