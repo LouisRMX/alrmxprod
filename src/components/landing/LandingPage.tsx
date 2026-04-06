@@ -392,10 +392,10 @@ function Contact() {
           color: '#fff', lineHeight: 1.2, letterSpacing: '-0.5px',
           margin: '0 0 12px',
         }}>
-          Book a 20-min walkthrough
+          Book a demo session
         </h2>
         <p style={{ fontSize: '15px', color: 'rgba(255,255,255,0.5)', margin: '0 0 8px', lineHeight: 1.6 }}>
-          We run the diagnostic live on your plant&apos;s data. You see your numbers before we finish the call: turnaround cost, dispatch gap, bottleneck.
+          We walk you through a real plant case. You see exactly how losses are identified, what the bottleneck is, and what it costs.
         </p>
         <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.3)', margin: '0 0 32px', lineHeight: 1.6, fontStyle: 'italic' }}>
           20+ years in GCC cement and concrete operations. Built on real plant floor experience, not academic benchmarks.
