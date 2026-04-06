@@ -153,7 +153,7 @@ function trackingContext(a: PlantAssessmentData): { text: string; color: string 
 
 // ── PlantCard ──────────────────────────────────────────────────────────────
 
-function PlantCard({ plant, portfolioTotalGap }: { plant: PlantCardData; portfolioTotalGap: number }) {
+function PlantCard({ plant, portfolioTotalGap, dimBests }: { plant: PlantCardData; portfolioTotalGap: number; dimBests: DimBests }) {
   const a = plant.assessment
   const href = plant.assessmentHref ?? (a ? `/dashboard/assess/${a.id}` : undefined)
 
@@ -167,6 +167,13 @@ function PlantCard({ plant, portfolioTotalGap }: { plant: PlantCardData; portfol
   const gapPct       = portfolioTotalGap > 0 && (a?.ebitda_monthly ?? 0) > 0
     ? Math.round((a!.ebitda_monthly! / portfolioTotalGap) * 100)
     : null
+
+  // Cross-plant benchmark: best performer in this plant's bottleneck dimension
+  const bnDim         = bnKey ? KPI_DIMS.find(d => d.bnKey === bnKey) ?? null : null
+  const myKpiValue    = bnDim && a?.kpi?.[bnDim.key] != null ? a.kpi[bnDim.key] as number : null
+  const bestForBn     = bnKey ? (dimBests[bnKey] ?? null) : null
+  const showBenchmark = bestForBn != null && bestForBn.name !== plant.name && bnDim != null && myKpiValue != null
+  const gapFromBest   = showBenchmark && bnDim ? Math.abs(myKpiValue! - bestForBn!.value) : 0
 
   const card = (
     <div style={{
@@ -227,6 +234,29 @@ function PlantCard({ plant, portfolioTotalGap }: { plant: PlantCardData; portfol
           {implication && (
             <div style={{ fontSize: '11px', color: '#c96a00', marginTop: '3px', fontWeight: 500 }}>
               {implication}
+            </div>
+          )}
+          {showBenchmark && bnDim && (
+            <div style={{
+              fontSize: '11px', color: 'var(--gray-500)', marginTop: '8px',
+              paddingTop: '8px', borderTop: '1px dashed var(--border)',
+              display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap',
+            }}>
+              <span style={{ fontWeight: 600, color: '#1a6644' }}>Portfolio best:</span>
+              <span style={{ fontFamily: 'var(--mono)', fontWeight: 700, color: '#1a6644' }}>
+                {bnDim.unit === '%' ? `${bestForBn!.value.toFixed(1)}%` : `${Math.round(bestForBn!.value)} min`}
+              </span>
+              <span>{bestForBn!.name}</span>
+              <span style={{ color: 'var(--gray-300)' }}>·</span>
+              <span>
+                you: {bnDim.unit === '%' ? `${myKpiValue!.toFixed(1)}%` : `${Math.round(myKpiValue!)} min`}
+              </span>
+              <span style={{
+                fontSize: '10px', fontWeight: 600, padding: '1px 5px', borderRadius: '3px',
+                background: '#fff8ed', color: '#c96a00', border: '1px solid #f5cba0', flexShrink: 0,
+              }}>
+                {bnDim.unit === '%' ? `${gapFromBest.toFixed(1)}pp gap` : `${Math.round(gapFromBest)} min gap`}
+              </span>
             </div>
           )}
         </div>
@@ -306,147 +336,9 @@ const KPI_DIMS: KpiDim[] = [
   { key: 'utilPct',       label: 'Utilisation',      unit: '%',   target: 85,  lowerIsBetter: false, bnKey: 'prod'     },
 ]
 
-interface KpiPoint {
-  name:       string
-  value:      number
-  gapMonthly: number
-  bottleneck: string | null
-}
+// Best performer per bottleneck dimension — keyed by bnKey ('fleet', 'dispatch', etc.)
+type DimBests = Record<string, { name: string; value: number }>
 
-function crossPlantNarrative(dim: KpiDim, best: KpiPoint, worst: KpiPoint, gapUnits: number): string {
-  const g = dim.unit === '%' ? `${gapUnits.toFixed(1)} percentage points` : `${Math.round(gapUnits)} minutes`
-  switch (dim.bnKey) {
-    case 'fleet':
-      return `${worst.name}'s trucks are ${g} slower per trip. Ask ${best.name}'s manager what changed in their fleet routing.`
-    case 'dispatch':
-      return `${worst.name} takes ${g} longer from order to departure. Ask ${best.name}'s manager about their dispatch protocol.`
-    case 'quality':
-      return `${worst.name}'s rejection rate is ${g} higher. Ask ${best.name}'s manager how they handle mix design and retarder dosage.`
-    case 'prod':
-      return `${best.name} utilises their plant ${g} more. Ask ${best.name}'s manager about their scheduling approach.`
-    default:
-      return ''
-  }
-}
-
-function CrossPlantInsights({ plants }: { plants: PlantCardData[] }) {
-  const insights = useMemo(() => {
-    return KPI_DIMS.flatMap(dim => {
-      const points: KpiPoint[] = plants
-        .filter(p => p.assessment?.kpi?.[dim.key] != null)
-        .map(p => ({
-          name:       p.name,
-          value:      p.assessment!.kpi![dim.key] as number,
-          gapMonthly: p.assessment!.ebitda_monthly ?? 0,
-          bottleneck: p.assessment!.bottleneck ?? null,
-        }))
-
-      if (points.length < 2) return []
-
-      const sorted = [...points].sort((a, b) =>
-        dim.lowerIsBetter ? a.value - b.value : b.value - a.value
-      )
-      const best  = sorted[0]
-      const worst = sorted[sorted.length - 1]
-
-      const gapUnits = dim.lowerIsBetter ? worst.value - best.value : best.value - worst.value
-      const minGap   = dim.unit === '%' ? 0.5 : 5
-      if (gapUnits < minGap) return []
-
-      // Financial transfer value: fraction of worst plant's gap recoverable by matching best
-      let transferValue: number | null = null
-      if (worst.bottleneck === dim.bnKey && worst.gapMonthly > 0) {
-        const totalExcess = dim.lowerIsBetter ? worst.value - dim.target : dim.target - worst.value
-        if (totalExcess > 0) {
-          transferValue = Math.round(worst.gapMonthly * Math.min(gapUnits / totalExcess, 1))
-        }
-      }
-
-      return [{ dim, best, worst, gapUnits, transferValue }]
-    })
-  }, [plants])
-
-  if (insights.length === 0) return null
-
-  const fmtVal = (dim: KpiDim, v: number) =>
-    dim.unit === '%' ? `${v.toFixed(1)}%` : `${Math.round(v)} min`
-
-  return (
-    <div style={{ marginBottom: '28px' }}>
-      <div style={{ marginBottom: '10px' }}>
-        <div style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--gray-400)' }}>
-          Cross-plant performance gaps
-        </div>
-        <div style={{ fontSize: '12px', color: 'var(--gray-500)', marginTop: '2px' }}>
-          Where one plant can learn from another
-        </div>
-      </div>
-
-      <div style={{
-        background: 'var(--white)', border: '1px solid var(--border)',
-        borderRadius: '10px', overflow: 'hidden',
-      }}>
-        {insights.map(({ dim, best, worst, gapUnits, transferValue }, idx) => (
-          <div key={dim.key} style={{
-            padding: '14px 18px',
-            borderBottom: idx < insights.length - 1 ? '1px solid var(--border)' : 'none',
-          }}>
-            {/* Dimension label */}
-            <div style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--gray-400)', marginBottom: '8px' }}>
-              {dim.label}
-            </div>
-
-            {/* Best → Worst row */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              {/* Best */}
-              <span style={{ fontSize: '11px', color: '#1a6644', fontWeight: 600, flexShrink: 0 }}>✓</span>
-              <span style={{ fontSize: '13px', fontWeight: 700, color: '#1a6644', fontFamily: 'var(--mono)', flexShrink: 0 }}>
-                {fmtVal(dim, best.value)}
-              </span>
-              <span style={{ fontSize: '12px', color: 'var(--gray-500)', flexShrink: 0 }}>
-                {best.name}
-              </span>
-
-              {/* Arrow + gap */}
-              <span style={{ fontSize: '11px', color: 'var(--gray-300)', flexShrink: 0 }}>—</span>
-              <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--gray-400)', flexShrink: 0 }}>
-                {dim.unit === '%'
-                  ? `${gapUnits.toFixed(1)}pp gap`
-                  : `${Math.round(gapUnits)} min gap`}
-              </span>
-              <span style={{ fontSize: '11px', color: 'var(--gray-300)', flexShrink: 0 }}>—</span>
-
-              {/* Worst */}
-              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--red)', fontFamily: 'var(--mono)', flexShrink: 0 }}>
-                {fmtVal(dim, worst.value)}
-              </span>
-              <span style={{ fontSize: '12px', color: 'var(--gray-500)', flexShrink: 0 }}>
-                {worst.name}
-              </span>
-
-              {/* Transfer value chip */}
-              {transferValue != null && transferValue > 5000 && (
-                <span style={{
-                  fontSize: '11px', fontWeight: 600,
-                  padding: '2px 7px', borderRadius: '4px',
-                  background: '#f0faf5', color: '#1a6644', border: '1px solid #b6e2ce',
-                  marginLeft: 'auto', flexShrink: 0,
-                }}>
-                  ~{fmtGap(transferValue)}/mo if matched
-                </span>
-              )}
-            </div>
-
-            {/* Narrative */}
-            <div style={{ fontSize: '12px', color: 'var(--gray-500)', marginTop: '6px', lineHeight: 1.5 }}>
-              {crossPlantNarrative(dim, best, worst, gapUnits)}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
 
 // ── PlantOverviewView ──────────────────────────────────────────────────────
 
@@ -468,6 +360,22 @@ export default function PlantOverviewView({ plants, customerName, isDemo, demoPl
     ),
     [plants]
   )
+
+  // Best performer per KPI dimension — used for inline cross-plant comparison in each card
+  const dimBests = useMemo<DimBests>(() => {
+    const result: DimBests = {}
+    for (const dim of KPI_DIMS) {
+      const points = plants
+        .filter(p => p.assessment?.kpi?.[dim.key] != null)
+        .map(p => ({ name: p.name, value: p.assessment!.kpi![dim.key] as number }))
+      if (points.length < 2) continue
+      const best = [...points].sort((a, b) =>
+        dim.lowerIsBetter ? a.value - b.value : b.value - a.value
+      )[0]
+      result[dim.bnKey] = best
+    }
+    return result
+  }, [plants])
 
   // Portfolio summary for chat context
   const withScore = plants.filter(p => p.assessment?.overall != null)
@@ -583,9 +491,6 @@ export default function PlantOverviewView({ plants, customerName, isDemo, demoPl
         )}
       </div>
 
-      {/* Cross-plant benchmarks */}
-      {plants.length >= 2 && <CrossPlantInsights plants={plants} />}
-
       {/* Plant cards — single column, sorted by gap */}
       {plants.length === 0 ? (
         <div style={{
@@ -602,7 +507,7 @@ export default function PlantOverviewView({ plants, customerName, isDemo, demoPl
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {sorted.map(plant => (
-            <PlantCard key={plant.id} plant={plant} portfolioTotalGap={totalGap} />
+            <PlantCard key={plant.id} plant={plant} portfolioTotalGap={totalGap} dimBests={dimBests} />
           ))}
         </div>
       )}
