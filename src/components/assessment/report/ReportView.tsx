@@ -2897,21 +2897,28 @@ function ScoreGrid({ calcResult, financialBottleneck, issues, onSwitchToTracking
         </div>
       )}
 
-      {/* Other scores — muted, capped at 2 cols on mobile */}
+      {/* Other scores — compact single row */}
       {others.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : `repeat(${Math.min(others.length, 3)}, 1fr)`, gap: '8px', marginBottom: '8px' }}>
-          {others.map(d => {
+        <div style={{
+          display: 'flex', gap: '0', marginBottom: '4px',
+          background: '#f9faf9', border: '1px solid #e8e8e6', borderRadius: '10px',
+          overflow: 'hidden',
+        }}>
+          {others.map((d, i) => {
             const s = Math.round(d.score)
             const status = s >= 80 ? 'On track' : s >= 60 ? 'Needs attention' : 'At risk'
             const statusColor = s >= 80 ? '#2a9d6e' : s >= 60 ? '#c96a00' : '#cc3333'
             return (
               <div key={d.key} style={{
-                background: '#f9faf9', border: '1px solid #e8e8e6', borderRadius: '12px',
-                padding: '14px 12px', textAlign: 'center',
+                flex: 1, display: 'flex', alignItems: 'center', gap: '8px',
+                padding: '10px 14px',
+                borderLeft: i > 0 ? '1px solid #e8e8e6' : 'none',
               }}>
-                <div style={{ fontSize: '28px', fontWeight: 700, color: '#888', lineHeight: 1, marginBottom: '2px' }}>{s}</div>
-                <div style={{ fontSize: '12px', color: '#aaa', fontWeight: 500, marginBottom: '4px' }}>{d.label}</div>
-                <div style={{ fontSize: '10px', fontWeight: 600, color: statusColor }}>{status}</div>
+                <div style={{ fontSize: '20px', fontWeight: 700, color: '#999', lineHeight: 1, letterSpacing: '-0.5px' }}>{s}</div>
+                <div>
+                  <div style={{ fontSize: '11px', color: '#888', fontWeight: 500, lineHeight: 1.2 }}>{d.label}</div>
+                  <div style={{ fontSize: '10px', fontWeight: 600, color: statusColor, marginTop: '2px' }}>{status}</div>
+                </div>
               </div>
             )
           })}
