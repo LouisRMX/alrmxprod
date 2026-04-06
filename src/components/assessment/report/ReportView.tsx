@@ -2921,70 +2921,6 @@ function SimulatorDrawer({ open, onClose, calcResult }: {
   )
 }
 
-// ── Focus Actions Editor (admin) ────────────────────────────────────────────
-
-function FocusActionsEditor({ assessmentId, initial, issues }: {
-  assessmentId: string
-  initial: string[] | null | undefined
-  issues: Issue[]
-}) {
-  const supabase = createClient()
-  const topActions = [...issues]
-    .filter(i => i.action && i.loss > 0)
-    .sort((a, b) => b.loss - a.loss)
-    .slice(0, 3)
-    .map(i => i.action!)
-
-  const [actions, setActions] = useState<[string, string, string]>(() => {
-    const src = initial && initial.length > 0 ? initial : topActions
-    return [src[0] ?? '', src[1] ?? '', src[2] ?? '']
-  })
-  const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
-
-  async function handleSave() {
-    setSaving(true)
-    const vals = actions.filter(a => a.trim())
-    await supabase.from('assessments').update({ focus_actions: vals.length ? vals : null }).eq('id', assessmentId)
-    setSaving(false)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2500)
-  }
-
-  return (
-    <div style={{ background: 'var(--white)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '16px 20px', marginBottom: '16px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-        <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '.6px' }}>
-          Manager focus board
-        </div>
-        <div style={{ fontSize: '10px', color: 'var(--gray-400)' }}>Visible to manager after report release</div>
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '12px' }}>
-        {([0, 1, 2] as const).map(i => (
-          <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-            <span style={{ fontSize: '10px', fontWeight: 700, color: '#0F6E56', background: '#f0faf6', border: '1px solid #b5dfc9', borderRadius: '3px', padding: '3px 6px', flexShrink: 0, marginTop: '8px', whiteSpace: 'nowrap' }}>
-              {i === 0 ? 'Week 1' : i === 1 ? 'Weeks 2–3' : 'Month 2–3'}
-            </span>
-            <input
-              value={actions[i]}
-              onChange={e => setActions(prev => { const n = [...prev] as [string,string,string]; n[i] = e.target.value; return n })}
-              placeholder={topActions[i] ?? `Action ${i + 1}`}
-              style={{ flex: 1, padding: '7px 10px', border: '1px solid var(--border)', borderRadius: '6px', fontSize: '12px', fontFamily: 'var(--font)', color: 'var(--gray-800)', background: 'var(--white)' }}
-            />
-          </div>
-        ))}
-      </div>
-      <button
-        onClick={handleSave}
-        disabled={saving}
-        style={{ padding: '6px 16px', background: saved ? 'var(--phase-complete)' : 'var(--green)', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer', fontFamily: 'var(--font)', transition: 'background .2s' }}
-      >
-        {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save focus board'}
-      </button>
-    </div>
-  )
-}
-
 // ── Main component ─────────────────────────────────────────────────────────
 interface ReportViewProps {
   calcResult: CalcResult
@@ -3317,10 +3253,6 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
         </div>
       )}
 
-      {/* 0a. ADMIN: Focus board editor */}
-      {isAdmin && calcResult.overall !== null && (
-        <FocusActionsEditor assessmentId={assessmentId} initial={focusActions} issues={issues} />
-      )}
 
 
       {/* 1. SCORE GRID (ImpactHook merged in) */}
