@@ -2985,70 +2985,6 @@ function FocusActionsEditor({ assessmentId, initial, issues }: {
   )
 }
 
-// ── Manager Next Steps Banner ───────────────────────────────────────────────
-
-function ManagerNextSteps({ issues, focusActions, onSwitchToTracking }: {
-  issues: Issue[]
-  focusActions?: string[] | null
-  onSwitchToTracking?: () => void
-}) {
-  // Prefer Louis's curated focus actions; fall back to auto-generated from issues
-  const hasFocusActions = focusActions && focusActions.length > 0
-  const actionIssues = hasFocusActions ? [] : [...issues]
-    .filter(i => i.action && i.loss > 0)
-    .sort((a, b) => b.loss - a.loss)
-    .slice(0, 3)
-
-  const displayActions: string[] = hasFocusActions
-    ? focusActions!
-    : actionIssues.map(i => i.action!)
-
-  if (displayActions.length === 0) return null
-
-  const TIMEFRAMES = ['Week 1', 'Weeks 2–3', 'Month 2–3']
-
-  return (
-    <div style={{
-      background: '#0F6E56', borderRadius: 'var(--radius)',
-      padding: '20px 24px', marginBottom: '20px',
-    }}>
-      <div style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.55)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '14px' }}>
-        Your next steps
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
-        {displayActions.map((action, i) => (
-          <div key={i} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-            <span style={{
-              fontSize: '9px', fontWeight: 700, color: '#0F6E56',
-              background: 'rgba(255,255,255,0.9)', borderRadius: '3px',
-              padding: '2px 6px', flexShrink: 0, marginTop: '1px', whiteSpace: 'nowrap',
-            }}>
-              {TIMEFRAMES[i]}
-            </span>
-            <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.9)', lineHeight: 1.4 }}>
-              {action}
-            </span>
-          </div>
-        ))}
-      </div>
-      {onSwitchToTracking && (
-        <button
-          type="button"
-          onClick={onSwitchToTracking}
-          style={{
-            padding: '8px 18px', background: 'rgba(255,255,255,0.15)',
-            border: '1px solid rgba(255,255,255,0.3)',
-            borderRadius: '7px', fontSize: '12px', fontWeight: 600,
-            color: '#fff', cursor: 'pointer', fontFamily: 'var(--font)',
-          }}
-        >
-          Set up 90-day tracking →
-        </button>
-      )}
-    </div>
-  )
-}
-
 // ── Main component ─────────────────────────────────────────────────────────
 interface ReportViewProps {
   calcResult: CalcResult
@@ -3386,7 +3322,6 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
         <FocusActionsEditor assessmentId={assessmentId} initial={focusActions} issues={issues} />
       )}
 
-      {/* 0b. MANAGER NEXT STEPS — removed; content merged into Action Board */}
 
       {/* 1. SCORE GRID (ImpactHook merged in) */}
       <ScoreGrid calcResult={calcResult} financialBottleneck={financialBottleneck} issues={issues} onSwitchToTracking={onSwitchToTracking} />
