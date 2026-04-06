@@ -18,7 +18,7 @@ export default async function AssessmentPage({
     .select(`
       *,
       plant:plants(
-        name, country,
+        name, country, customer_id,
         customer:customers(name, contact_email)
       ),
       analyst:profiles(full_name),

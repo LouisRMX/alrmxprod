@@ -11,7 +11,7 @@ import { useIsMobile } from '@/hooks/useIsMobile'
 interface Assessment {
   id: string
   phase: string
-  plant: { name: string; country: string; customer?: { name: string } }
+  plant: { name: string; country: string; customer_id?: string; customer?: { name: string } }
   analyst: { full_name: string }
   date: string
   season: string
@@ -359,6 +359,7 @@ export default function AssessmentTool({
           plant={assessment.plant?.name}
           date={assessment.date}
           assessmentId={assessment.id}
+          customerId={assessment.plant?.customer_id ?? ''}
           report={assessment.report}
           reportReleased={reportReleased}
           isAdmin={isAdmin}

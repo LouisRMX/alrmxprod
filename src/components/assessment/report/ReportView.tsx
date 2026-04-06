@@ -12,6 +12,7 @@ import { useIsMobile } from '@/hooks/useIsMobile'
 import { stripMarkdown } from '@/lib/stripMarkdown'
 import FindingCard from './FindingCard'
 import ExportPDF from './ExportPDF'
+import ActionBoard from './ActionBoard'
 import type { DemoBannerProps } from '@/components/assessment/AssessmentShell'
 
 function fmt(n: number): string {
@@ -3055,6 +3056,7 @@ interface ReportViewProps {
   meta?: { country?: string; plant?: string; date?: string }
   report: { executive?: string; diagnosis?: string; actions?: string } | null
   assessmentId: string
+  customerId?: string
   reportReleased?: boolean
   isAdmin?: boolean
   overrides?: CalcOverrides
@@ -3066,7 +3068,7 @@ interface ReportViewProps {
   focusActions?: string[] | null
 }
 
-export default function ReportView({ calcResult, answers, meta, report, assessmentId, reportReleased, isAdmin, overrides, onOverrideChange, phase, onSwitchToTracking, demoBanner, userRole, focusActions }: ReportViewProps) {
+export default function ReportView({ calcResult, answers, meta, report, assessmentId, customerId, reportReleased, isAdmin, overrides, onOverrideChange, phase, onSwitchToTracking, demoBanner, userRole, focusActions }: ReportViewProps) {
   const isMobile = useIsMobile()
   const supabase = createClient()
   const issues = buildIssues(calcResult, answers, meta)
@@ -3224,8 +3226,16 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
     (calcResult.dispatchMin ?? 0) > 15
   )
 
+  const showBoard = userRole !== 'operator'
+
   return (
-    <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '12px' : '20px', paddingBottom: '60px' }}>
+    <div style={{
+      flex: 1,
+      display: 'grid',
+      gridTemplateColumns: (!isMobile && showBoard) ? '1fr 300px' : '1fr',
+      overflow: isMobile ? 'auto' : 'hidden',
+    }}>
+    <div style={{ overflowY: 'auto', padding: isMobile ? '12px' : '20px', paddingBottom: '60px' }}>
 
       {/* Demo regenerate banner — shown when user edits answers away from defaults */}
       {demoBanner?.show && (
@@ -3466,6 +3476,41 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
         financialBottleneck={financialBottleneck}
         readOnly={!isAdmin}
       />
+
+    </div>
+
+    {/* Right panel: Action Board */}
+    {showBoard && !isMobile && (
+      <div style={{
+        borderLeft: '1px solid var(--border)',
+        overflowY: 'auto',
+        background: 'var(--gray-50)',
+        padding: '20px 16px',
+      }}>
+        <ActionBoard
+          assessmentId={assessmentId}
+          customerId={customerId ?? ''}
+          focusActions={focusActions?.filter(Boolean) ?? []}
+          canEdit={userRole !== 'owner'}
+        />
+      </div>
+    )}
+
+    {/* Mobile: Action Board stacked below */}
+    {showBoard && isMobile && (
+      <div style={{
+        borderTop: '1px solid var(--border)',
+        background: 'var(--gray-50)',
+        padding: '16px',
+      }}>
+        <ActionBoard
+          assessmentId={assessmentId}
+          customerId={customerId ?? ''}
+          focusActions={focusActions?.filter(Boolean) ?? []}
+          canEdit={userRole !== 'owner'}
+        />
+      </div>
+    )}
 
     </div>
   )

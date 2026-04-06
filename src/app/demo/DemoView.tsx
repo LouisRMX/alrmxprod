@@ -121,6 +121,13 @@ const ONSITE_ANSWERS: Answers = {
   summer_prod_drop:   '20 to 30% — significant drop during June–September',
 }
 
+// Focus actions — curated from on-site findings (seeded into ActionBoard for demo)
+const DEMO_FOCUS_ACTIONS = [
+  'Implement dispatch SOP: order-to-dispatch under 20 min. Pre-load 3 trucks before first orders and assign a dedicated dispatcher with a fixed zone map.',
+  'Enforce demurrage clause: 45-min site limit with $25/15-min charge. Communicate to top 3 contractors this week.',
+  'Run turnaround audit: time-stamp 5 full truck cycles and map where the 112 minutes goes before committing to further actions.',
+]
+
 // Report — only available after on-site visit
 const ONSITE_REPORT = {
   executive:
@@ -457,6 +464,7 @@ export default function DemoView({ userRole = null, isOverridden = false }: Demo
             plant="Al-Noor RMX"
             date="2025-06-15"
             assessmentId="demo"
+            customerId="demo-customer"
             report={demoPhase === 'onsite' ? ONSITE_REPORT : null}
             reportReleased={demoPhase === 'onsite'}
             isAdmin={!userRole}
@@ -466,6 +474,7 @@ export default function DemoView({ userRole = null, isOverridden = false }: Demo
             demoBanner={demoBanner}
             hideModeTabs
             requestMode={demoView as AssessmentMode}
+            focusActions={demoPhase === 'onsite' ? DEMO_FOCUS_ACTIONS : null}
           />
         </div>
       )}

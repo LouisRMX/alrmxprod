@@ -31,6 +31,7 @@ interface AssessmentShellProps {
   plant?: string
   date?: string
   assessmentId: string
+  customerId?: string
   report?: { executive?: string; diagnosis?: string; actions?: string } | null
   reportReleased?: boolean
   isAdmin?: boolean
@@ -68,7 +69,7 @@ interface AssessmentShellProps {
   focusActions?: string[] | null
 }
 
-export default function AssessmentShell({ initialAnswers, phase, season, country, plant, date, assessmentId, report, reportReleased, isAdmin, userRole, onSave, baseline, requestMode, onAnswersChange, demoBanner, extraTab, hideModeTabs, focusActions }: AssessmentShellProps) {
+export default function AssessmentShell({ initialAnswers, phase, season, country, plant, date, assessmentId, customerId, report, reportReleased, isAdmin, userRole, onSave, baseline, requestMode, onAnswersChange, demoBanner, extraTab, hideModeTabs, focusActions }: AssessmentShellProps) {
   const [answers, setAnswers] = useState<Answers>(initialAnswers)
   const [currentSection, setCurrentSection] = useState(0)
   // Owner starts on report (they have no questions tab)
@@ -270,6 +271,7 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
           meta={{ country, plant, date }}
           report={report ?? null}
           assessmentId={assessmentId}
+          customerId={customerId ?? ''}
           reportReleased={reportReleased}
           isAdmin={isAdmin}
           overrides={overrides}
