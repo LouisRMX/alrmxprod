@@ -211,6 +211,10 @@ function CardDetailModal({
 
   const [generatingChecklist, setGeneratingChecklist] = useState(false)
   const [checklistError, setChecklistError] = useState<string | null>(null)
+  const [editingCiId, setEditingCiId] = useState<string | null>(null)
+  const [editingCiText, setEditingCiText] = useState('')
+  const [addingStep, setAddingStep] = useState(false)
+  const [newStepText, setNewStepText] = useState('')
 
   async function generateChecklist() {
     setGeneratingChecklist(true)
@@ -242,6 +246,40 @@ function CardDetailModal({
     if (updated.length > 0 && updated.every(ci => ci.done) && item.status !== 'done') {
       onMove(item.id, 'done')
     }
+  }
+
+  function startEditCi(ci: ChecklistItem) {
+    setEditingCiId(ci.id)
+    setEditingCiText(ci.text)
+  }
+
+  function commitCiEdit(ciId: string) {
+    const trimmed = editingCiText.trim()
+    const original = item.checklist.find(ci => ci.id === ciId)?.text
+    if (trimmed && trimmed !== original) {
+      onUpdateChecklist(item.id, item.checklist.map(ci => ci.id === ciId ? { ...ci, text: trimmed } : ci))
+    }
+    setEditingCiId(null)
+  }
+
+  function moveCi(idx: number, dir: -1 | 1) {
+    const arr = [...item.checklist]
+    const target = idx + dir
+    if (target < 0 || target >= arr.length) return
+    ;[arr[idx], arr[target]] = [arr[target], arr[idx]]
+    onUpdateChecklist(item.id, arr)
+  }
+
+  function deleteCi(ciId: string) {
+    onUpdateChecklist(item.id, item.checklist.filter(ci => ci.id !== ciId))
+  }
+
+  function commitNewStep() {
+    const trimmed = newStepText.trim()
+    if (!trimmed) return
+    onUpdateChecklist(item.id, [...item.checklist, { id: `ci-${Date.now()}`, text: trimmed, done: false }])
+    setNewStepText('')
+    setAddingStep(false)
   }
 
   const checklistDone = item.checklist.filter(ci => ci.done).length
@@ -550,8 +588,8 @@ function CardDetailModal({
             <div
               key={ci.id}
               style={{
-                display: 'flex', alignItems: 'flex-start', gap: '10px',
-                padding: '7px 0',
+                display: 'flex', alignItems: 'flex-start', gap: '8px',
+                padding: '6px 0',
                 borderBottom: idx < item.checklist.length - 1 ? '1px solid var(--gray-100)' : 'none',
               }}
             >
@@ -561,7 +599,7 @@ function CardDetailModal({
                 disabled={!canEdit}
                 style={{
                   width: '16px', height: '16px', borderRadius: '3px', flexShrink: 0,
-                  marginTop: '1px',
+                  marginTop: '2px',
                   border: ci.done ? 'none' : '1.5px solid var(--gray-300)',
                   background: ci.done ? 'var(--green)' : 'transparent',
                   cursor: canEdit ? 'pointer' : 'default',
@@ -571,18 +609,140 @@ function CardDetailModal({
               >
                 {ci.done ? '✓' : ''}
               </button>
-              <span style={{
-                fontSize: '12px', lineHeight: 1.5,
-                color: ci.done ? 'var(--gray-400)' : 'var(--gray-900)',
-                textDecoration: ci.done ? 'line-through' : 'none',
-                flex: 1,
-              }}>
-                {ci.text}
-              </span>
+
+              {editingCiId === ci.id ? (
+                <input
+                  autoFocus
+                  type="text"
+                  value={editingCiText}
+                  onChange={e => setEditingCiText(e.target.value)}
+                  onBlur={() => commitCiEdit(ci.id)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') { e.preventDefault(); commitCiEdit(ci.id) }
+                    if (e.key === 'Escape') setEditingCiId(null)
+                  }}
+                  style={{
+                    flex: 1, fontSize: '12px', lineHeight: 1.5,
+                    border: '1px solid var(--green)', borderRadius: '4px',
+                    padding: '1px 6px', fontFamily: 'var(--font)',
+                    outline: 'none', color: 'var(--gray-900)',
+                  }}
+                />
+              ) : (
+                <span
+                  onClick={() => canEdit && startEditCi(ci)}
+                  title={canEdit ? 'Click to edit' : undefined}
+                  style={{
+                    fontSize: '12px', lineHeight: 1.5, flex: 1,
+                    color: ci.done ? 'var(--gray-400)' : 'var(--gray-900)',
+                    textDecoration: ci.done ? 'line-through' : 'none',
+                    cursor: canEdit ? 'text' : 'default',
+                  }}
+                >
+                  {ci.text}
+                </span>
+              )}
+
+              {canEdit && (
+                <div style={{ display: 'flex', gap: '1px', flexShrink: 0, marginTop: '1px' }}>
+                  <button
+                    type="button"
+                    onClick={() => moveCi(idx, -1)}
+                    disabled={idx === 0}
+                    title="Move up"
+                    style={{
+                      width: '18px', height: '18px', padding: 0, border: 'none',
+                      background: 'none', cursor: idx === 0 ? 'default' : 'pointer',
+                      color: idx === 0 ? 'var(--gray-200)' : 'var(--gray-400)',
+                      fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}
+                  >▲</button>
+                  <button
+                    type="button"
+                    onClick={() => moveCi(idx, 1)}
+                    disabled={idx === item.checklist.length - 1}
+                    title="Move down"
+                    style={{
+                      width: '18px', height: '18px', padding: 0, border: 'none',
+                      background: 'none', cursor: idx === item.checklist.length - 1 ? 'default' : 'pointer',
+                      color: idx === item.checklist.length - 1 ? 'var(--gray-200)' : 'var(--gray-400)',
+                      fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}
+                  >▼</button>
+                  <button
+                    type="button"
+                    onClick={() => deleteCi(ci.id)}
+                    title="Delete step"
+                    style={{
+                      width: '18px', height: '18px', padding: 0, border: 'none',
+                      background: 'none', cursor: 'pointer',
+                      color: 'var(--gray-300)', fontSize: '14px',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}
+                  >×</button>
+                </div>
+              )}
             </div>
           ))}
 
-          {checklistTotal === 0 && !generatingChecklist && canEdit && (
+          {/* Add step */}
+          {canEdit && (
+            addingStep ? (
+              <div style={{ display: 'flex', gap: '6px', marginTop: '8px', alignItems: 'center' }}>
+                <input
+                  autoFocus
+                  type="text"
+                  value={newStepText}
+                  onChange={e => setNewStepText(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') { e.preventDefault(); commitNewStep() }
+                    if (e.key === 'Escape') { setAddingStep(false); setNewStepText('') }
+                  }}
+                  placeholder="Describe the step..."
+                  style={{
+                    flex: 1, fontSize: '12px',
+                    border: '1px solid var(--border)', borderRadius: '5px',
+                    padding: '5px 8px', fontFamily: 'var(--font)',
+                    outline: 'none', color: 'var(--gray-900)',
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={commitNewStep}
+                  style={{
+                    padding: '5px 10px', fontSize: '11px', fontWeight: 600,
+                    background: 'var(--green)', color: '#fff',
+                    border: 'none', borderRadius: '5px', cursor: 'pointer',
+                    fontFamily: 'var(--font)',
+                  }}
+                >Add</button>
+                <button
+                  type="button"
+                  onClick={() => { setAddingStep(false); setNewStepText('') }}
+                  style={{
+                    padding: '4px 7px', fontSize: '14px',
+                    background: 'none', color: 'var(--gray-400)',
+                    border: 'none', cursor: 'pointer',
+                  }}
+                >×</button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setAddingStep(true)}
+                style={{
+                  marginTop: '8px', padding: '5px 0', fontSize: '12px',
+                  color: 'var(--gray-400)', background: 'none', border: 'none',
+                  cursor: 'pointer', fontFamily: 'var(--font)',
+                  display: 'flex', alignItems: 'center', gap: '4px',
+                }}
+              >
+                <span style={{ fontSize: '14px', lineHeight: 1 }}>+</span> Add step
+              </button>
+            )
+          )}
+
+          {checklistTotal === 0 && !generatingChecklist && canEdit && !addingStep && (
             <div style={{
               fontSize: '12px', color: 'var(--gray-300)', fontStyle: 'italic',
               padding: '8px 0',
