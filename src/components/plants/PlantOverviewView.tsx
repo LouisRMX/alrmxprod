@@ -24,6 +24,7 @@ export interface PlantAssessmentData {
   report_released: boolean
   trackingWeek: number | null
   recoveredMonthly?: number | null
+  primaryActionStatus?: 'todo' | 'in_progress' | 'done' | null
   trackingImprovement?: {
     turnaroundDelta: number
     dispatchDelta: number
@@ -91,24 +92,22 @@ function rootCauseLine(bottleneck: string | null, kpi: PlantAssessmentData['kpi'
   }
 }
 
-// ── PhaseBadge ─────────────────────────────────────────────────────────────
+// ── Action status chip ─────────────────────────────────────────────────────
 
-function PhaseBadge({ phase }: { phase: string }) {
-  const cfg: Record<string, { label: string; bg: string; color: string }> = {
-    workshop:          { label: 'Workshop',       bg: 'var(--phase-workshop-bg)',  color: 'var(--phase-workshop)' },
-    workshop_complete: { label: 'Pre-assessment', bg: 'var(--phase-workshop-bg)',  color: 'var(--phase-workshop)' },
-    onsite:            { label: 'On-site',        bg: 'var(--phase-onsite-bg)',    color: 'var(--phase-onsite)' },
-    complete:          { label: 'Complete',       bg: 'var(--phase-complete-bg)', color: 'var(--phase-complete)' },
-  }
-  const c = cfg[phase] ?? cfg.workshop
-  return (
-    <span style={{
-      fontSize: '10px', fontWeight: 600, padding: '2px 7px',
-      borderRadius: '4px', background: c.bg, color: c.color,
-    }}>
-      {c.label}
-    </span>
-  )
+const ACTION_STATUS_CFG = {
+  todo:        { label: 'Not started', bg: '#fff3f3', color: '#cc3333', border: '#fcc' },
+  in_progress: { label: 'In progress', bg: '#fff8ed', color: '#c96a00', border: '#f5cba0' },
+  done:        { label: 'Done',        bg: '#f0faf5', color: '#1a6644', border: '#b6e2ce' },
+} as const
+
+// ── Direction signal ───────────────────────────────────────────────────────
+
+function directionSignal(ti: PlantAssessmentData['trackingImprovement']): { arrow: string; color: string } | null {
+  if (!ti) return null
+  const delta = ti.turnaroundDelta
+  if (delta < -5)  return { arrow: '↑', color: '#1a6644' }
+  if (delta > 5)   return { arrow: '↓', color: '#cc3333' }
+  return               { arrow: '→', color: 'var(--gray-400)' }
 }
 
 // ── PlantCard ──────────────────────────────────────────────────────────────
@@ -120,8 +119,10 @@ function PlantCard({ plant }: { plant: PlantCardData }) {
   const borderColor = urgencyBorder(a?.overall ?? null)
   const bnKey       = a?.bottleneck ?? null
   const bnLabel     = bnKey ? (BOTTLENECK_LABELS[bnKey] ?? bnKey) : null
-  const bnScore     = bnKey ? (a?.scores?.[bnKey as keyof typeof a.scores] ?? a?.scores?.['logistics' as keyof typeof a.scores] ?? null) : null
   const rootCause   = rootCauseLine(bnKey, a?.kpi ?? null)
+
+  const actionCfg   = a?.primaryActionStatus ? ACTION_STATUS_CFG[a.primaryActionStatus] : null
+  const direction   = directionSignal(a?.trackingImprovement ?? null)
 
   const card = (
     <div style={{
@@ -165,27 +166,15 @@ function PlantCard({ plant }: { plant: PlantCardData }) {
 
       {/* Row 2: bottleneck + root cause */}
       {!a || a.overall === null ? (
-        <div>
-          <PhaseBadge phase={a?.phase ?? 'workshop'} />
-          <div style={{ fontSize: '12px', color: 'var(--gray-400)', marginTop: '8px' }}>
-            {a ? 'Assessment in progress' : 'No assessment yet'}
-          </div>
+        <div style={{ fontSize: '12px', color: 'var(--gray-400)' }}>
+          {a ? 'Assessment in progress' : 'No assessment yet'}
         </div>
       ) : bnLabel ? (
         <div style={{ marginBottom: '4px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '5px' }}>
+          <div style={{ marginBottom: '5px' }}>
             <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--gray-800)' }}>
               {bnLabel} bottleneck
             </span>
-            {bnScore != null && (
-              <span style={{
-                fontSize: '11px', fontWeight: 600, padding: '1px 6px',
-                borderRadius: '4px', background: 'var(--gray-100)',
-                color: 'var(--gray-500)', fontFamily: 'var(--mono)',
-              }}>
-                {bnScore}
-              </span>
-            )}
           </div>
           {rootCause && (
             <div style={{ fontSize: '12px', color: 'var(--gray-500)', lineHeight: 1.4 }}>
@@ -199,25 +188,21 @@ function PlantCard({ plant }: { plant: PlantCardData }) {
         </div>
       )}
 
-      {/* Row 3: badges + view link */}
+      {/* Row 3: action status + direction + view link */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '14px' }}>
-        <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', alignItems: 'center' }}>
-          {a && <PhaseBadge phase={a.phase} />}
-          {a?.trackingWeek != null && (
+        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+          {actionCfg && (
             <span style={{
               fontSize: '10px', fontWeight: 600, padding: '2px 7px', borderRadius: '4px',
-              background: a.trackingWeek >= 13 ? 'var(--phase-complete-bg)' : 'var(--phase-onsite-bg)',
-              color: a.trackingWeek >= 13 ? 'var(--phase-complete)' : 'var(--phase-onsite)',
+              background: actionCfg.bg, color: actionCfg.color,
+              border: `1px solid ${actionCfg.border}`,
             }}>
-              {a.trackingWeek >= 13 ? '✓ Tracked' : `Wk ${a.trackingWeek}/13`}
+              {actionCfg.label}
             </span>
           )}
-          {a?.report_released && (
-            <span style={{
-              fontSize: '10px', fontWeight: 600, padding: '2px 7px', borderRadius: '4px',
-              background: 'var(--phase-complete-bg)', color: 'var(--phase-complete)',
-            }}>
-              ● Report
+          {direction && (
+            <span style={{ fontSize: '13px', fontWeight: 700, color: direction.color }}>
+              {direction.arrow}
             </span>
           )}
         </div>
