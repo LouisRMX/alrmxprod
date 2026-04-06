@@ -3100,15 +3100,23 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
 
   const showBoard = userRole !== 'operator'
 
-  // Board actions: use admin-curated focusActions if set, otherwise auto-generate
-  // top-3 from issues engine sorted by financial impact
+  // Board actions: use admin-curated focusActions if set, otherwise auto-generate.
+  // Bottleneck issues come first (they block everything else), then fill remaining
+  // slots with highest-impact independent issues.
   const boardActions = (focusActions?.filter(Boolean).length ?? 0) > 0
     ? focusActions!.filter(Boolean)
-    : issues
-        .filter(i => i.action && i.loss > 0)
-        .sort((a, b) => b.loss - a.loss)
-        .slice(0, 3)
-        .map(i => i.action!)
+    : (() => {
+        const withAction = issues.filter(i => i.action && i.loss > 0)
+        const bottleneckFirst = withAction
+          .filter(i => i.category === 'bottleneck')
+          .sort((a, b) => b.loss - a.loss)
+        const independent = withAction
+          .filter(i => i.category !== 'bottleneck')
+          .sort((a, b) => b.loss - a.loss)
+        return [...bottleneckFirst, ...independent]
+          .slice(0, 3)
+          .map(i => i.action!)
+      })()
 
   return (
     <div style={{
