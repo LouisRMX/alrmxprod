@@ -108,7 +108,7 @@ function Hero() {
             background: 'var(--green)', color: '#fff', textDecoration: 'none',
             padding: '12px 22px', borderRadius: '9px', fontSize: '14px', fontWeight: 600,
           }}>
-            Book a strategy session →
+            Book a demo session →
           </a>
         </div>
 
