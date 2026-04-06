@@ -241,6 +241,10 @@ function CardDetailModal({
     }
   }
 
+  // Auto-generate on first open if checklist is empty
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (item.checklist.length === 0 && canEdit && calcResult) generateChecklist() }, [])
+
   function toggleChecklistItem(ciId: string) {
     const updated = item.checklist.map(ci => ci.id === ciId ? { ...ci, done: !ci.done } : ci)
     onUpdateChecklist(item.id, updated)
@@ -564,25 +568,6 @@ function CardDetailModal({
                 </span>
               )}
             </div>
-            {canEdit && (
-              <button
-                type="button"
-                onClick={generateChecklist}
-                disabled={generatingChecklist}
-                style={{
-                  fontSize: '11px', fontWeight: 600,
-                  color: generatingChecklist ? 'var(--gray-400)' : 'var(--phase-workshop)',
-                  background: 'var(--phase-workshop-bg)',
-                  border: '1px solid var(--phase-workshop)',
-                  borderRadius: '5px', padding: '3px 10px',
-                  cursor: generatingChecklist ? 'not-allowed' : 'pointer',
-                  fontFamily: 'var(--font)',
-                  opacity: generatingChecklist ? 0.7 : 1,
-                }}
-              >
-                {generatingChecklist ? 'Generating…' : '✦ Generate steps'}
-              </button>
-            )}
           </div>
 
           {checklistError && (
@@ -854,16 +839,27 @@ function TaskCard({
       onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)')}
       onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}
     >
-      {/* Top row: source badge */}
-      {item.source === 'ai' && (
-        <div style={{ marginBottom: '5px' }}>
-          <span style={{
-            fontSize: '10px', fontWeight: 600, letterSpacing: '0.5px',
-            color: 'var(--phase-workshop)', background: 'var(--phase-workshop-bg)',
-            padding: '1px 5px', borderRadius: '3px',
-          }}>
-            AI
-          </span>
+      {/* Top row: badges */}
+      {(item.source === 'ai' || item.status === 'in_progress') && (
+        <div style={{ marginBottom: '5px', display: 'flex', gap: '5px' }}>
+          {item.source === 'ai' && (
+            <span style={{
+              fontSize: '10px', fontWeight: 600, letterSpacing: '0.5px',
+              color: 'var(--phase-workshop)', background: 'var(--phase-workshop-bg)',
+              padding: '1px 5px', borderRadius: '3px',
+            }}>
+              AI
+            </span>
+          )}
+          {item.status === 'in_progress' && (
+            <span style={{
+              fontSize: '10px', fontWeight: 600, letterSpacing: '0.5px',
+              color: '#3b82f6', background: '#eff6ff',
+              padding: '1px 5px', borderRadius: '3px',
+            }}>
+              In progress
+            </span>
+          )}
         </div>
       )}
 
@@ -962,7 +958,7 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, bo
   const [addingText, setAddingText] = useState('')
   const [showAdd, setShowAdd] = useState(false)
   const [dragId, setDragId] = useState<string | null>(null)
-  const [dragOverCol, setDragOverCol] = useState<ActionItem['status'] | null>(null)
+  const [showAll, setShowAll] = useState(false)
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
   const addInputRef = useRef<HTMLInputElement>(null)
 
@@ -1210,124 +1206,114 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, bo
         )}
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-        {COLUMNS.map(col => {
-          const colItems = items.filter(i => i.status === col.key)
-          const isOver = dragOverCol === col.key && dragId !== null
-          return (
-            <div
-              key={col.key}
-              onDragOver={(e) => { e.preventDefault(); if (dragId) setDragOverCol(col.key) }}
-              onDragLeave={() => setDragOverCol(null)}
-              onDrop={(e) => {
-                e.preventDefault()
-                const id = e.dataTransfer.getData('text/plain')
-                if (id) moveItem(id, col.key)
-                setDragOverCol(null)
-                setDragId(null)
-              }}
-            >
-              {/* Column header */}
-              <div style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                marginBottom: '8px',
-              }}>
-                <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                  {col.label}
-                </span>
-                <span style={{
-                  fontSize: '11px', fontWeight: 600,
-                  color: col.key === 'done' ? 'var(--phase-complete)' : 'var(--gray-300)',
-                  background: col.key === 'done' ? 'var(--phase-complete-bg)' : 'var(--gray-100)',
-                  padding: '1px 7px', borderRadius: '10px',
-                }}>
-                  {colItems.length}
-                </span>
-              </div>
+      {/* Flat open task list — top 3 visible, rest hidden */}
+      {(() => {
+        const openItems = items
+          .filter(i => i.status !== 'done')
+          .sort((a, b) => {
+            if (a.status === 'in_progress' && b.status !== 'in_progress') return -1
+            if (b.status === 'in_progress' && a.status !== 'in_progress') return 1
+            return 0
+          })
+        const doneCount = items.filter(i => i.status === 'done').length
+        const visible = showAll ? openItems : openItems.slice(0, 3)
+        const hiddenCount = openItems.length - 3
 
-              {/* Drop zone / cards */}
+        return (
+          <div>
+            {openItems.length === 0 ? (
               <div style={{
-                minHeight: '48px',
-                borderRadius: '8px',
-                border: isOver ? '2px dashed var(--green)' : '2px solid transparent',
-                background: isOver ? 'var(--green-pale)' : 'transparent',
-                transition: 'border-color 0.1s, background 0.1s',
-                padding: isOver ? '4px' : '0',
+                border: '1px dashed var(--border)', borderRadius: '8px',
+                padding: '16px', textAlign: 'center',
+                fontSize: '12px', color: 'var(--gray-300)',
               }}>
-                {colItems.length === 0 && !isOver ? (
-                  <div style={{
-                    border: '1px dashed var(--border)', borderRadius: '8px',
-                    padding: '16px', textAlign: 'center',
-                    fontSize: '12px', color: 'var(--gray-300)',
-                  }}>
-                    Empty
-                  </div>
-                ) : (
-                  colItems.map(item => (
-                    <TaskCard
-                      key={item.id}
-                      item={item}
-                      canEdit={canEdit}
-                      isDragging={dragId === item.id}
-                      onDragStart={setDragId}
-                      onDragEnd={() => { setDragId(null); setDragOverCol(null) }}
-                      onDelete={deleteItem}
-                      onOpenModal={() => setSelectedItemId(item.id)}
+                No open tasks
+              </div>
+            ) : (
+              visible.map(item => (
+                <TaskCard
+                  key={item.id}
+                  item={item}
+                  canEdit={canEdit}
+                  isDragging={dragId === item.id}
+                  onDragStart={setDragId}
+                  onDragEnd={() => setDragId(null)}
+                  onDelete={deleteItem}
+                  onOpenModal={() => setSelectedItemId(item.id)}
+                />
+              ))
+            )}
+
+            {!showAll && hiddenCount > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowAll(true)}
+                style={{
+                  width: '100%', padding: '6px', background: 'none',
+                  border: '1px dashed var(--border)', borderRadius: '7px',
+                  fontSize: '12px', color: 'var(--gray-500)', cursor: 'pointer',
+                  fontFamily: 'var(--font)', marginBottom: '6px',
+                }}
+              >
+                +{hiddenCount} more task{hiddenCount !== 1 ? 's' : ''}
+              </button>
+            )}
+
+            {/* Add task */}
+            {canEdit && (
+              <div style={{ marginTop: '6px' }}>
+                {showAdd ? (
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <input
+                      ref={addInputRef}
+                      value={addingText}
+                      onChange={e => setAddingText(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') addItem(); if (e.key === 'Escape') { setShowAdd(false); setAddingText('') } }}
+                      placeholder="Task description..."
+                      style={{
+                        flex: 1, fontSize: '13px', padding: '7px 10px',
+                        border: '1px solid var(--green)', borderRadius: '7px',
+                        fontFamily: 'var(--font)', outline: 'none',
+                        color: 'var(--gray-900)',
+                      }}
                     />
-                  ))
-                )}
-              </div>
-
-              {/* Add task — only on To Do column */}
-              {col.key === 'todo' && canEdit && (
-                <div style={{ marginTop: '6px' }}>
-                  {showAdd ? (
-                    <div style={{ display: 'flex', gap: '6px' }}>
-                      <input
-                        ref={addInputRef}
-                        value={addingText}
-                        onChange={e => setAddingText(e.target.value)}
-                        onKeyDown={e => { if (e.key === 'Enter') addItem(); if (e.key === 'Escape') { setShowAdd(false); setAddingText('') } }}
-                        placeholder="Task description..."
-                        style={{
-                          flex: 1, fontSize: '13px', padding: '7px 10px',
-                          border: '1px solid var(--green)', borderRadius: '7px',
-                          fontFamily: 'var(--font)', outline: 'none',
-                          color: 'var(--gray-900)',
-                        }}
-                      />
-                      <button
-                        type="button"
-                        onClick={addItem}
-                        style={{
-                          padding: '7px 12px', background: 'var(--green)', color: '#fff',
-                          border: 'none', borderRadius: '7px', fontSize: '13px',
-                          cursor: 'pointer', fontFamily: 'var(--font)', fontWeight: 600,
-                        }}
-                      >
-                        Add
-                      </button>
-                    </div>
-                  ) : (
                     <button
                       type="button"
-                      onClick={() => setShowAdd(true)}
+                      onClick={addItem}
                       style={{
-                        width: '100%', padding: '7px', background: 'none',
-                        border: '1px dashed var(--border)', borderRadius: '7px',
-                        fontSize: '12px', color: 'var(--gray-500)', cursor: 'pointer',
-                        fontFamily: 'var(--font)',
+                        padding: '7px 12px', background: 'var(--green)', color: '#fff',
+                        border: 'none', borderRadius: '7px', fontSize: '13px',
+                        cursor: 'pointer', fontFamily: 'var(--font)', fontWeight: 600,
                       }}
                     >
-                      + Add task
+                      Add
                     </button>
-                  )}
-                </div>
-              )}
-            </div>
-          )
-        })}
-      </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setShowAdd(true)}
+                    style={{
+                      width: '100%', padding: '7px', background: 'none',
+                      border: '1px dashed var(--border)', borderRadius: '7px',
+                      fontSize: '12px', color: 'var(--gray-500)', cursor: 'pointer',
+                      fontFamily: 'var(--font)',
+                    }}
+                  >
+                    + Add task
+                  </button>
+                )}
+              </div>
+            )}
+
+            {doneCount > 0 && (
+              <div style={{ marginTop: '10px', fontSize: '11px', color: 'var(--gray-300)', textAlign: 'center' }}>
+                {doneCount} done
+              </div>
+            )}
+          </div>
+        )
+      })()}
     </div>
   )
 }
