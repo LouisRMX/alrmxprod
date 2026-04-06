@@ -3225,21 +3225,6 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
           )}
         </div>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          {hasSliders && (
-            <button
-              type="button"
-              onClick={() => setSimulatorOpen(true)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '6px',
-                padding: '7px 16px',
-                background: 'var(--white)', border: '1px solid var(--border)',
-                borderRadius: '8px', fontSize: '12px', fontWeight: 600,
-                color: 'var(--gray-700)', cursor: 'pointer', fontFamily: 'var(--font)',
-              }}
-            >
-              ⟳ Simulate recovery
-            </button>
-          )}
           <button
             type="button"
             onClick={() => setDrawerOpen(true)}
