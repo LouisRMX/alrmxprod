@@ -14,6 +14,7 @@ import OwnerReportView from './report/OwnerReportView'
 import SimulatorView from './simulator/SimulatorView'
 import TrackingTab from './tracking/TrackingTab'
 import GpsUploadView from '@/components/gps-upload/GpsUploadView'
+import TripUploadShell from '@/components/trips/TripUploadShell'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { useSetChatContext } from '@/context/ChatContext'
 
@@ -95,9 +96,9 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
   // operator = questions + track (data input only)
   // null/admin = full access
   const allowedModes = useMemo((): AssessmentMode[] => {
-    if (userRole === 'owner')    return ['report', 'simulator', 'track']
-    if (userRole === 'operator') return ['questions', 'track']
-    return ['questions', 'report', 'simulator', 'track', 'gps']
+    if (userRole === 'owner')    return ['report', 'simulator', 'track', 'trips']
+    if (userRole === 'operator') return ['questions', 'track', 'trips']
+    return ['questions', 'report', 'simulator', 'track', 'gps', 'trips']
   }, [userRole])
 
   const canEdit = !userRole || userRole === 'manager' || userRole === 'operator'
@@ -218,7 +219,7 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
         />
       )}
 
-      {(mode === 'questions' || mode === 'gps') && !guidedMode && (
+      {(mode === 'questions' || mode === 'gps' || mode === 'trips') && !guidedMode && (
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
           {/* Sidebar — hidden on mobile, hidden for owner role */}
           {showSidebar && !isMobile && (
@@ -300,6 +301,24 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
                 assessmentId={assessmentId}
                 isAdmin={isAdmin}
               />
+            )}
+
+            {mode === 'trips' && (
+              <div style={{ padding: isMobile ? '16px 14px' : '28px 32px' }}>
+                <div style={{ marginBottom: '20px' }}>
+                  <h2 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--gray-900)', marginBottom: '3px' }}>
+                    Trip analysis
+                  </h2>
+                  <p style={{ fontSize: '13px', color: 'var(--gray-500)' }}>
+                    Upload daily dispatch records to measure turnaround against the {Math.round(calcResult.TARGET_TA)}-minute target.
+                  </p>
+                </div>
+                <TripUploadShell
+                  assessmentId={assessmentId}
+                  targetTAMin={calcResult.TARGET_TA}
+                  perMinTACoeff={calcResult.perMinTACoeff}
+                />
+              </div>
             )}
           </div>
         </div>

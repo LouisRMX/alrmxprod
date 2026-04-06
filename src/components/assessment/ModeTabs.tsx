@@ -2,7 +2,7 @@
 
 import { useIsMobile } from '@/hooks/useIsMobile'
 
-export type AssessmentMode = 'questions' | 'report' | 'simulator' | 'track' | 'gps' | 'submit'
+export type AssessmentMode = 'questions' | 'report' | 'simulator' | 'track' | 'gps' | 'trips' | 'submit'
 
 interface ModeTabsProps {
   activeMode: AssessmentMode
@@ -17,6 +17,7 @@ const TABS: { mode: AssessmentMode; label: string; shortLabel: string }[] = [
   { mode: 'simulator', label: 'Simulator',  shortLabel: 'Sim' },
   { mode: 'track',     label: '90-day Track', shortLabel: 'Track' },
   { mode: 'gps',       label: 'GPS Data',   shortLabel: 'GPS' },
+  { mode: 'trips',     label: 'Trips',      shortLabel: 'Trips' },
 ]
 
 export default function ModeTabs({ activeMode, onSwitch, allowedModes, extraTab }: ModeTabsProps) {
