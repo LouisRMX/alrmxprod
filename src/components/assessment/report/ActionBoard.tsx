@@ -13,6 +13,7 @@ interface ActionItem {
   assignee_id: string | null
   assignee?: { full_name: string | null; email: string } | null
   source: 'ai' | 'manual'
+  value: string | null
   created_at: string
 }
 
@@ -47,7 +48,6 @@ function initials(name: string | null | undefined, email: string): string {
   return email.slice(0, 2).toUpperCase()
 }
 
-
 // ── Mock data for demo ────────────────────────────────────────────────────────
 
 function makeDemoItems(focusActions: string[]): ActionItem[] {
@@ -59,6 +59,7 @@ function makeDemoItems(focusActions: string[]): ActionItem[] {
     assignee_id: null,
     assignee: null,
     source: 'ai',
+    value: null,
     created_at: new Date().toISOString(),
   }))
 }
@@ -89,44 +90,71 @@ function Toast({ message, onDone }: { message: string; onDone: () => void }) {
   )
 }
 
-// ── Card ──────────────────────────────────────────────────────────────────────
+// ── Card Detail Modal ─────────────────────────────────────────────────────────
 
-function TaskCard({
+const STATUS_COLOR: Record<ActionItem['status'], string> = {
+  todo: '#94a3b8',
+  in_progress: '#3b82f6',
+  done: 'var(--green)',
+}
+
+function CardDetailModal({
   item,
   members,
   canEdit,
-  isDragging,
-  onDragStart,
-  onDragEnd,
-  onAssign,
+  onClose,
   onEdit,
+  onSaveNotes,
+  onAssign,
+  onMove,
   onDelete,
 }: {
   item: ActionItem
   members: BoardMember[]
   canEdit: boolean
-  isDragging: boolean
-  onDragStart: (id: string) => void
-  onDragEnd: () => void
-  onAssign: (id: string, userId: string | null) => void
+  onClose: () => void
   onEdit: (id: string, text: string) => void
+  onSaveNotes: (id: string, value: string) => void
+  onAssign: (id: string, userId: string | null) => void
+  onMove: (id: string, status: ActionItem['status']) => void
   onDelete: (id: string) => void
 }) {
-  const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState(item.text)
+  const [titleDraft, setTitleDraft] = useState(item.text)
+  const [editingTitle, setEditingTitle] = useState(false)
+  const [notesDraft, setNotesDraft] = useState(item.value ?? '')
   const [showAssignee, setShowAssignee] = useState(false)
-  const inputRef = useRef<HTMLTextAreaElement>(null)
-  const dropdownRef = useRef<HTMLDivElement>(null)
+  const backdropRef = useRef<HTMLDivElement>(null)
+  const titleInputRef = useRef<HTMLTextAreaElement>(null)
+  const assigneeDropdownRef = useRef<HTMLDivElement>(null)
+
+  // Keep notesDraft in sync if item.value changes externally
+  const prevItemId = useRef(item.id)
+  useEffect(() => {
+    if (prevItemId.current !== item.id) {
+      setNotesDraft(item.value ?? '')
+      setTitleDraft(item.text)
+      prevItemId.current = item.id
+    }
+  }, [item.id, item.value, item.text])
 
   useEffect(() => {
-    if (editing) inputRef.current?.focus()
-  }, [editing])
+    if (editingTitle) titleInputRef.current?.focus()
+  }, [editingTitle])
+
+  // Escape key to close
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [onClose])
 
   // Close assignee dropdown on outside click
   useEffect(() => {
     if (!showAssignee) return
     function handleClick(e: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+      if (assigneeDropdownRef.current && !assigneeDropdownRef.current.contains(e.target as Node)) {
         setShowAssignee(false)
       }
     }
@@ -134,10 +162,19 @@ function TaskCard({
     return () => document.removeEventListener('mousedown', handleClick)
   }, [showAssignee])
 
-  function commitEdit() {
-    const trimmed = draft.trim()
+  function handleBackdropClick(e: React.MouseEvent<HTMLDivElement>) {
+    if (e.target === backdropRef.current) onClose()
+  }
+
+  function commitTitle() {
+    const trimmed = titleDraft.trim()
     if (trimmed && trimmed !== item.text) onEdit(item.id, trimmed)
-    setEditing(false)
+    else setTitleDraft(item.text)
+    setEditingTitle(false)
+  }
+
+  function handleNotesBlur() {
+    if (notesDraft !== (item.value ?? '')) onSaveNotes(item.id, notesDraft)
   }
 
   const assignee = item.assignee
@@ -145,9 +182,298 @@ function TaskCard({
 
   return (
     <div
-      draggable={canEdit && !editing}
+      ref={backdropRef}
+      onClick={handleBackdropClick}
+      style={{
+        position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+        background: 'rgba(0,0,0,0.55)', zIndex: 1000,
+        display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+        padding: '16px', overflowY: 'auto',
+        fontFamily: 'var(--font)',
+      }}
+    >
+      <div style={{
+        background: 'var(--white)', borderRadius: '12px',
+        width: '100%', maxWidth: '540px',
+        maxHeight: 'calc(100vh - 64px)',
+        boxShadow: '0 12px 40px rgba(0,0,0,0.24)',
+        position: 'relative',
+        padding: '24px',
+        overflowY: 'auto',
+      }}>
+        {/* Close button */}
+        <button
+          type="button"
+          onClick={onClose}
+          style={{
+            position: 'absolute', top: '14px', right: '14px',
+            width: '28px', height: '28px', borderRadius: '50%',
+            background: 'var(--gray-100)', border: 'none', cursor: 'pointer',
+            fontSize: '18px', color: 'var(--gray-500)', lineHeight: 1,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontFamily: 'var(--font)',
+          }}
+        >
+          ×
+        </button>
+
+        {/* AI badge */}
+        {item.source === 'ai' && (
+          <span style={{
+            fontSize: '10px', fontWeight: 600, letterSpacing: '0.5px',
+            color: 'var(--phase-workshop)', background: 'var(--phase-workshop-bg)',
+            padding: '2px 6px', borderRadius: '3px',
+            display: 'inline-block', marginBottom: '10px',
+          }}>
+            AI
+          </span>
+        )}
+
+        {/* Title */}
+        {editingTitle ? (
+          <textarea
+            ref={titleInputRef}
+            value={titleDraft}
+            onChange={e => setTitleDraft(e.target.value)}
+            onBlur={commitTitle}
+            onKeyDown={e => {
+              if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commitTitle() }
+              if (e.key === 'Escape') { setTitleDraft(item.text); setEditingTitle(false) }
+            }}
+            style={{
+              width: '100%', fontSize: '16px', fontWeight: 600, lineHeight: 1.4,
+              border: '1px solid var(--green)', borderRadius: '6px',
+              padding: '6px 8px', fontFamily: 'var(--font)',
+              resize: 'none', outline: 'none',
+              color: 'var(--gray-900)', marginBottom: '18px',
+            }}
+            rows={2}
+          />
+        ) : (
+          <h2
+            onClick={() => canEdit && setEditingTitle(true)}
+            title={canEdit ? 'Click to edit' : undefined}
+            style={{
+              fontSize: '16px', fontWeight: 600, lineHeight: 1.4,
+              color: 'var(--gray-900)', margin: '0 0 18px 0',
+              cursor: canEdit ? 'text' : 'default',
+              paddingRight: '32px',
+            }}
+          >
+            {item.text}
+          </h2>
+        )}
+
+        {/* Body: Description + Sidebar */}
+        <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
+
+          {/* Left: Description */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{
+              fontSize: '11px', fontWeight: 600, textTransform: 'uppercase',
+              letterSpacing: '0.5px', color: 'var(--gray-500)', marginBottom: '6px',
+            }}>
+              Description
+            </div>
+            <textarea
+              value={notesDraft}
+              onChange={e => setNotesDraft(e.target.value)}
+              onBlur={handleNotesBlur}
+              placeholder={canEdit ? 'Add a description...' : 'No description.'}
+              readOnly={!canEdit}
+              style={{
+                width: '100%', minHeight: '110px', fontSize: '13px', lineHeight: 1.6,
+                border: '1px solid var(--border)', borderRadius: '7px',
+                padding: '8px 10px', fontFamily: 'var(--font)',
+                resize: 'vertical', outline: 'none',
+                color: 'var(--gray-900)',
+                background: canEdit ? 'var(--white)' : 'var(--gray-50)',
+              }}
+            />
+          </div>
+
+          {/* Right: Status + Assignee */}
+          <div style={{ width: '148px', flexShrink: 0 }}>
+
+            {/* Status */}
+            <div style={{ marginBottom: '18px' }}>
+              <div style={{
+                fontSize: '11px', fontWeight: 600, textTransform: 'uppercase',
+                letterSpacing: '0.5px', color: 'var(--gray-500)', marginBottom: '6px',
+              }}>
+                Status
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                {COLUMNS.map(col => (
+                  <button
+                    key={col.key}
+                    type="button"
+                    onClick={() => canEdit && onMove(item.id, col.key)}
+                    style={{
+                      padding: '6px 10px', fontSize: '12px', fontWeight: 500,
+                      border: '1.5px solid',
+                      borderColor: item.status === col.key ? STATUS_COLOR[col.key] : 'var(--border)',
+                      borderRadius: '6px',
+                      background: item.status === col.key ? STATUS_COLOR[col.key] : 'transparent',
+                      color: item.status === col.key ? '#fff' : 'var(--gray-600)',
+                      cursor: canEdit ? 'pointer' : 'default',
+                      fontFamily: 'var(--font)', textAlign: 'left',
+                      transition: 'background 0.1s, border-color 0.1s',
+                    }}
+                  >
+                    {col.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Assignee */}
+            <div>
+              <div style={{
+                fontSize: '11px', fontWeight: 600, textTransform: 'uppercase',
+                letterSpacing: '0.5px', color: 'var(--gray-500)', marginBottom: '6px',
+              }}>
+                Assignee
+              </div>
+              <div ref={assigneeDropdownRef} style={{ position: 'relative' }}>
+                <button
+                  type="button"
+                  onClick={() => canEdit && setShowAssignee(p => !p)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '6px',
+                    width: '100%', padding: '7px 9px',
+                    background: 'var(--gray-50)', border: '1px solid var(--border)',
+                    borderRadius: '7px', cursor: canEdit ? 'pointer' : 'default',
+                    fontFamily: 'var(--font)',
+                  }}
+                >
+                  {assigneeLabel ? (
+                    <>
+                      <span style={{
+                        width: '20px', height: '20px', borderRadius: '50%',
+                        background: 'var(--green)', color: '#fff',
+                        fontSize: '9px', fontWeight: 700,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        flexShrink: 0,
+                      }}>
+                        {initials(assignee?.full_name, assignee?.email ?? '')}
+                      </span>
+                      <span style={{ fontSize: '11px', color: 'var(--gray-900)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {assigneeLabel}
+                      </span>
+                    </>
+                  ) : (
+                    <span style={{ fontSize: '11px', color: 'var(--gray-400)' }}>
+                      {canEdit ? 'Assign...' : 'Unassigned'}
+                    </span>
+                  )}
+                </button>
+
+                {showAssignee && (
+                  <div style={{
+                    position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10,
+                    background: 'var(--white)', border: '1px solid var(--border)',
+                    borderRadius: '8px', padding: '4px',
+                    boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+                    marginTop: '4px',
+                  }}>
+                    <button
+                      type="button"
+                      onClick={() => { onAssign(item.id, null); setShowAssignee(false) }}
+                      style={{
+                        display: 'block', width: '100%', textAlign: 'left',
+                        padding: '7px 10px', fontSize: '12px', color: 'var(--gray-500)',
+                        background: 'none', border: 'none', cursor: 'pointer',
+                        fontFamily: 'var(--font)', borderRadius: '5px',
+                      }}
+                    >
+                      Unassign
+                    </button>
+                    {members.map(m => (
+                      <button
+                        key={m.user_id}
+                        type="button"
+                        onClick={() => { onAssign(item.id, m.user_id); setShowAssignee(false) }}
+                        style={{
+                          display: 'block', width: '100%', textAlign: 'left',
+                          padding: '7px 10px', fontSize: '12px', color: 'var(--gray-900)',
+                          background: item.assignee_id === m.user_id ? 'var(--green-pale)' : 'none',
+                          border: 'none', cursor: 'pointer',
+                          fontFamily: 'var(--font)', borderRadius: '5px',
+                        }}
+                      >
+                        {m.profile?.full_name || m.profile?.email}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer: delete */}
+        {canEdit && (
+          <div style={{
+            marginTop: '20px', paddingTop: '16px',
+            borderTop: '1px solid var(--border)',
+            display: 'flex', justifyContent: 'flex-end',
+          }}>
+            <button
+              type="button"
+              onClick={() => { onDelete(item.id); onClose() }}
+              style={{
+                padding: '6px 14px', fontSize: '12px', fontWeight: 500,
+                color: 'var(--red)', background: 'none',
+                border: '1px solid var(--red)', borderRadius: '6px',
+                cursor: 'pointer', fontFamily: 'var(--font)',
+              }}
+            >
+              Delete task
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Card ──────────────────────────────────────────────────────────────────────
+
+function TaskCard({
+  item,
+  canEdit,
+  isDragging,
+  onDragStart,
+  onDragEnd,
+  onDelete,
+  onOpenModal,
+}: {
+  item: ActionItem
+  canEdit: boolean
+  isDragging: boolean
+  onDragStart: (id: string) => void
+  onDragEnd: () => void
+  onDelete: (id: string) => void
+  onOpenModal: () => void
+}) {
+  const assignee = item.assignee
+  const assigneeLabel = assignee?.full_name || assignee?.email || null
+  const mouseDownPos = useRef<{ x: number; y: number } | null>(null)
+
+  return (
+    <div
+      draggable={canEdit}
       onDragStart={(e) => { e.dataTransfer.setData('text/plain', item.id); onDragStart(item.id) }}
       onDragEnd={onDragEnd}
+      onMouseDown={(e) => { mouseDownPos.current = { x: e.clientX, y: e.clientY } }}
+      onMouseUp={(e) => {
+        if (!mouseDownPos.current) return
+        const dx = Math.abs(e.clientX - mouseDownPos.current.x)
+        const dy = Math.abs(e.clientY - mouseDownPos.current.y)
+        mouseDownPos.current = null
+        if (dx < 6 && dy < 6) onOpenModal()
+      }}
       style={{
         background: 'var(--white)',
         border: '1px solid var(--border)',
@@ -156,128 +482,68 @@ function TaskCard({
         marginBottom: '8px',
         position: 'relative',
         opacity: isDragging ? 0.4 : 1,
-        cursor: canEdit && !editing ? 'grab' : 'default',
-        transition: 'opacity 0.15s',
-      }}>
-      {/* Source badge */}
+        cursor: canEdit ? 'grab' : 'pointer',
+        transition: 'opacity 0.15s, box-shadow 0.12s',
+        userSelect: 'none',
+      }}
+      onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)')}
+      onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}
+    >
+      {/* Top row: source badge */}
       {item.source === 'ai' && (
-        <span style={{
-          fontSize: '10px', fontWeight: 600, letterSpacing: '0.5px',
-          color: 'var(--phase-workshop)', background: 'var(--phase-workshop-bg)',
-          padding: '1px 5px', borderRadius: '3px',
-          display: 'inline-block', marginBottom: '5px',
-        }}>
-          AI
-        </span>
+        <div style={{ marginBottom: '5px' }}>
+          <span style={{
+            fontSize: '10px', fontWeight: 600, letterSpacing: '0.5px',
+            color: 'var(--phase-workshop)', background: 'var(--phase-workshop-bg)',
+            padding: '1px 5px', borderRadius: '3px',
+          }}>
+            AI
+          </span>
+        </div>
       )}
 
       {/* Text */}
-      {editing ? (
-        <textarea
-          ref={inputRef}
-          value={draft}
-          onChange={e => setDraft(e.target.value)}
-          onBlur={commitEdit}
-          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commitEdit() } if (e.key === 'Escape') { setDraft(item.text); setEditing(false) } }}
-          style={{
-            width: '100%', fontSize: '13px', lineHeight: 1.5,
-            border: '1px solid var(--green)', borderRadius: '5px',
-            padding: '4px 6px', fontFamily: 'var(--font)',
-            resize: 'none', outline: 'none', minHeight: '56px',
-          }}
-          rows={2}
-        />
-      ) : (
-        <div
-          onClick={() => canEdit && setEditing(true)}
-          style={{
-            fontSize: '13px', lineHeight: 1.5, color: 'var(--gray-900)',
-            cursor: canEdit ? 'text' : 'default',
-            wordBreak: 'break-word',
-          }}
-        >
-          {item.text}
+      <div style={{
+        fontSize: '13px', lineHeight: 1.5, color: 'var(--gray-900)',
+        wordBreak: 'break-word',
+      }}>
+        {item.text}
+      </div>
+
+      {/* Description indicator */}
+      {item.value && (
+        <div style={{ marginTop: '4px', fontSize: '11px', color: 'var(--gray-300)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <span style={{ fontSize: '13px', lineHeight: 1 }}>&#9776;</span>
+          <span>Description</span>
         </div>
       )}
 
-      {/* Footer: assignee + actions */}
+      {/* Footer: assignee chip (read-only) + delete */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '8px', gap: '6px' }}>
-        {/* Assignee */}
-        <div ref={dropdownRef} style={{ position: 'relative' }}>
-          <button
-            type="button"
-            onClick={() => canEdit && setShowAssignee(p => !p)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '5px',
-              background: 'none', border: 'none', cursor: canEdit ? 'pointer' : 'default',
-              padding: 0, fontFamily: 'var(--font)',
-            }}
-          >
-            {assigneeLabel ? (
-              <>
-                <span style={{
-                  width: '20px', height: '20px', borderRadius: '50%',
-                  background: 'var(--green)', color: '#fff',
-                  fontSize: '9px', fontWeight: 700,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  flexShrink: 0,
-                }}>
-                  {initials(assignee?.full_name, assignee?.email ?? '')}
-                </span>
-                <span style={{ fontSize: '11px', color: 'var(--gray-700)' }}>{assigneeLabel}</span>
-              </>
-            ) : (
-              <span style={{ fontSize: '11px', color: 'var(--gray-300)', fontStyle: 'italic' }}>
-                {canEdit ? 'Assign...' : 'Unassigned'}
-              </span>
-            )}
-          </button>
-
-          {showAssignee && (
-            <div style={{
-              position: 'absolute', bottom: '100%', left: 0, zIndex: 100,
-              background: 'var(--white)', border: '1px solid var(--border)',
-              borderRadius: '8px', padding: '4px',
-              boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
-              minWidth: '180px',
+        {assigneeLabel ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <span style={{
+              width: '18px', height: '18px', borderRadius: '50%',
+              background: 'var(--green)', color: '#fff',
+              fontSize: '9px', fontWeight: 700,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              flexShrink: 0,
             }}>
-              <button
-                type="button"
-                onClick={() => { onAssign(item.id, null); setShowAssignee(false) }}
-                style={{
-                  display: 'block', width: '100%', textAlign: 'left',
-                  padding: '7px 10px', fontSize: '12px', color: 'var(--gray-500)',
-                  background: 'none', border: 'none', cursor: 'pointer',
-                  fontFamily: 'var(--font)', borderRadius: '5px',
-                }}
-              >
-                Unassign
-              </button>
-              {members.map(m => (
-                <button
-                  key={m.user_id}
-                  type="button"
-                  onClick={() => { onAssign(item.id, m.user_id); setShowAssignee(false) }}
-                  style={{
-                    display: 'block', width: '100%', textAlign: 'left',
-                    padding: '7px 10px', fontSize: '12px', color: 'var(--gray-900)',
-                    background: item.assignee_id === m.user_id ? 'var(--green-pale)' : 'none',
-                    border: 'none', cursor: 'pointer',
-                    fontFamily: 'var(--font)', borderRadius: '5px',
-                  }}
-                >
-                  {m.profile?.full_name || m.profile?.email}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+              {initials(assignee?.full_name, assignee?.email ?? '')}
+            </span>
+            <span style={{ fontSize: '11px', color: 'var(--gray-700)' }}>{assigneeLabel}</span>
+          </div>
+        ) : (
+          <span style={{ fontSize: '11px', color: 'var(--gray-300)', fontStyle: 'italic' }}>
+            {canEdit ? 'Click to open' : 'Unassigned'}
+          </span>
+        )}
 
-        {/* Delete */}
         {canEdit && (
           <button
             type="button"
-            onClick={() => onDelete(item.id)}
+            onMouseDown={(e) => e.stopPropagation()}
+            onMouseUp={(e) => { e.stopPropagation(); onDelete(item.id) }}
             title="Delete"
             style={{ ...iconBtnStyle, color: 'var(--red)', flexShrink: 0 }}
           >×</button>
@@ -309,7 +575,10 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, ca
   const [showAdd, setShowAdd] = useState(false)
   const [dragId, setDragId] = useState<string | null>(null)
   const [dragOverCol, setDragOverCol] = useState<ActionItem['status'] | null>(null)
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
   const addInputRef = useRef<HTMLInputElement>(null)
+
+  const selectedItem = selectedItemId ? (items.find(i => i.id === selectedItemId) ?? null) : null
 
   useEffect(() => {
     if (showAdd) addInputRef.current?.focus()
@@ -320,8 +589,7 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, ca
   useEffect(() => {
     if (isDemo) {
       setMembers(DEMO_MEMBERS)
-      const seeded = makeDemoItems(focusActions)
-      setItems(seeded)
+      setItems(makeDemoItems(focusActions))
       setLoading(false)
       return
     }
@@ -330,7 +598,7 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, ca
       const [{ data: itemData }, { data: memberData }] = await Promise.all([
         supabase
           .from('action_items')
-          .select('*, assignee:profiles!assignee_id(full_name, email)')
+          .select('*')
           .eq('assessment_id', assessmentId)
           .order('created_at', { ascending: true }),
         supabase
@@ -339,16 +607,22 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, ca
           .eq('customer_id', customerId),
       ])
 
-      const normalizedItems: ActionItem[] = (itemData ?? []).map((row: ActionItem & { assignee: unknown }) => ({
-        ...row,
-        assignee: Array.isArray(row.assignee) ? row.assignee[0] ?? null : row.assignee,
-      }))
-
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const normalizedMembers: BoardMember[] = (memberData ?? []).map((m: any) => ({
         ...m,
         profile: Array.isArray(m.profile) ? m.profile[0] ?? null : m.profile,
       }))
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const normalizedItems: ActionItem[] = (itemData ?? []).map((row: any) => {
+        const member = normalizedMembers.find(m => m.user_id === row.assignee_id)
+        return {
+          ...row,
+          source: (row.source ?? 'manual') as 'ai' | 'manual',
+          value: row.value ?? null,
+          assignee: member?.profile ?? null,
+        }
+      })
 
       setMembers(normalizedMembers)
 
@@ -358,16 +632,18 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, ca
           assessment_id: assessmentId,
           text,
           status: 'todo' as const,
-          source: 'ai' as const,
         }))
         const { data: inserted } = await supabase
           .from('action_items')
           .insert(toInsert)
-          .select('*, assignee:profiles!assignee_id(full_name, email)')
+          .select('*')
         if (inserted) {
-          setItems(inserted.map((row: ActionItem & { assignee: unknown }) => ({
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          setItems(inserted.map((row: any) => ({
             ...row,
-            assignee: Array.isArray(row.assignee) ? row.assignee[0] ?? null : row.assignee,
+            source: (row.source ?? 'manual') as 'ai' | 'manual',
+            value: row.value ?? null,
+            assignee: null,
           })))
           setToast('Tasks created from report findings')
         }
@@ -399,6 +675,7 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, ca
         assignee_id: null,
         assignee: null,
         source: 'manual',
+        value: null,
         created_at: new Date().toISOString(),
       }
       setItems(prev => [...prev, newItem])
@@ -407,12 +684,31 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, ca
 
     const { data } = await supabase
       .from('action_items')
-      .insert({ assessment_id: assessmentId, text, status: 'todo', source: 'manual' })
-      .select('*, assignee:profiles!assignee_id(full_name, email)')
+      .insert({ assessment_id: assessmentId, text, status: 'todo' })
+      .select('*')
       .single()
     if (data) {
-      const row = data as ActionItem & { assignee: unknown }
-      setItems(prev => [...prev, { ...row, assignee: Array.isArray(row.assignee) ? row.assignee[0] ?? null : row.assignee }])
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const row = data as any
+      setItems(prev => [...prev, {
+        ...row,
+        source: (row.source ?? 'manual') as 'ai' | 'manual',
+        value: row.value ?? null,
+        assignee: null,
+      }])
+    } else {
+      // Optimistic fallback if insert succeeded but select failed
+      setItems(prev => [...prev, {
+        id: `optimistic-${Date.now()}`,
+        assessment_id: assessmentId,
+        text,
+        status: 'todo' as const,
+        assignee_id: null,
+        assignee: null,
+        source: 'manual' as const,
+        value: null,
+        created_at: new Date().toISOString(),
+      }])
     }
   }
 
@@ -425,13 +721,11 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, ca
 
   async function assignItem(id: string, userId: string | null) {
     const member = userId ? members.find(m => m.user_id === userId) : null
-
     setItems(prev => prev.map(i => i.id === id ? {
       ...i,
       assignee_id: userId,
       assignee: member?.profile ?? null,
     } : i))
-
     if (!isDemo) {
       await supabase.from('action_items').update({ assignee_id: userId }).eq('id', id)
     }
@@ -441,6 +735,13 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, ca
     setItems(prev => prev.map(i => i.id === id ? { ...i, text } : i))
     if (!isDemo) {
       await supabase.from('action_items').update({ text }).eq('id', id)
+    }
+  }
+
+  async function saveNotes(id: string, value: string) {
+    setItems(prev => prev.map(i => i.id === id ? { ...i, value } : i))
+    if (!isDemo) {
+      await supabase.from('action_items').update({ value }).eq('id', id)
     }
   }
 
@@ -464,6 +765,20 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, ca
   return (
     <div style={{ fontFamily: 'var(--font)' }}>
       {toast && <Toast message={toast} onDone={() => setToast(null)} />}
+
+      {selectedItem && (
+        <CardDetailModal
+          item={selectedItem}
+          members={members}
+          canEdit={canEdit}
+          onClose={() => setSelectedItemId(null)}
+          onEdit={editItem}
+          onSaveNotes={saveNotes}
+          onAssign={assignItem}
+          onMove={moveItem}
+          onDelete={deleteItem}
+        />
+      )}
 
       <div style={{ fontSize: '12px', fontWeight: 700, letterSpacing: '0.8px', color: 'var(--gray-500)', textTransform: 'uppercase', marginBottom: '14px' }}>
         Action Board
@@ -526,14 +841,12 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, ca
                     <TaskCard
                       key={item.id}
                       item={item}
-                      members={members}
                       canEdit={canEdit}
                       isDragging={dragId === item.id}
                       onDragStart={setDragId}
                       onDragEnd={() => { setDragId(null); setDragOverCol(null) }}
-                      onAssign={assignItem}
-                      onEdit={editItem}
                       onDelete={deleteItem}
+                      onOpenModal={() => setSelectedItemId(item.id)}
                     />
                   ))
                 )}
