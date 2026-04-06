@@ -10,6 +10,7 @@ import SectionView from './SectionView'
 import ScoreLivePanel from './ScoreLivePanel'
 import GuidedMode from './guided/GuidedMode'
 import ReportView from './report/ReportView'
+import OwnerReportView from './report/OwnerReportView'
 import SimulatorView from './simulator/SimulatorView'
 import TrackingTab from './tracking/TrackingTab'
 import GpsUploadView from '@/components/gps-upload/GpsUploadView'
@@ -304,7 +305,21 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
         </div>
       )}
 
-      {mode === 'report' && (
+      {mode === 'report' && userRole === 'owner' && (
+        <OwnerReportView
+          calcResult={calcResult}
+          answers={answers}
+          meta={{ country, plant, date }}
+          report={report ?? null}
+          reportReleased={reportReleased}
+          isAdmin={isAdmin}
+          phase={phase}
+          focusActions={focusActions}
+          baselineData={baselineData && baselineCalcResult ? { ...baselineData, calcResult: baselineCalcResult } : undefined}
+        />
+      )}
+
+      {mode === 'report' && userRole !== 'owner' && (
         <ReportView
           calcResult={calcResult}
           answers={answers}
