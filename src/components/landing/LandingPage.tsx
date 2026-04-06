@@ -201,7 +201,7 @@ function Hero() {
               Recovered
             </div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginBottom: '4px' }}>
-              <span style={{ fontSize: '42px', fontWeight: 800, color: '#4ade80', lineHeight: 1, letterSpacing: '-2px', fontFamily: 'var(--mono)', textShadow: '0 0 28px rgba(74,222,128,0.6)' }}>$85k</span>
+              <span style={{ fontSize: '42px', fontWeight: 800, color: '#4ade80', lineHeight: 1, letterSpacing: '-2px', fontFamily: 'var(--mono)', textShadow: '0 0 16px rgba(74,222,128,0.25)' }}>$85k</span>
               <span style={{ fontSize: '16px', color: 'rgba(74,222,128,0.7)', fontWeight: 500 }}>/mo</span>
             </div>
             <div style={{ fontSize: '12px', color: 'rgba(74,222,128,0.7)' }}>After 12 weeks of tracking</div>
