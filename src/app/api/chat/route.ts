@@ -184,12 +184,17 @@ export async function POST(req: NextRequest) {
         trackSpend(user.id)
 
         // Log question to Supabase (non-fatal — never breaks the chat response)
+        // Anonymize: store only pageType + country, never plant names or financial figures
+        const sanitizedContext = pageContext ? {
+          pageType: pageContext.pageType,
+          country: pageContext.plantCountry ?? null,
+        } : null
         try {
           await supabase.from('chat_questions').insert({
             user_id: user.id,
             question: question.trim(),
             answer: fullAnswer,
-            page_context: pageContext ?? null,
+            page_context: sanitizedContext,
           })
         } catch (logErr) {
           console.warn('[chat] Failed to log question:', logErr)

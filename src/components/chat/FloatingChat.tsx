@@ -349,7 +349,7 @@ export default function FloatingChat({ userRole, isAdmin }: FloatingChatProps) {
               marginTop: '6px', fontSize: '10px',
               color: 'var(--gray-300)', textAlign: 'center',
             }}>
-              Powered by Claude
+              Powered by Claude · Questions are logged
             </div>
           </div>
         </div>
