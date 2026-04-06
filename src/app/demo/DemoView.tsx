@@ -332,10 +332,10 @@ export default function DemoView({ userRole = null, isOverridden = false }: Demo
 
   // Allowed modes per role — mirrors AssessmentShell logic
   const allowedModes: AssessmentMode[] = userRole === 'owner'
-    ? ['report', 'simulator', 'track']
+    ? ['report', 'simulator', 'track', 'trips']
     : userRole === 'operator'
-    ? ['track']
-    : ['questions', 'report', 'simulator', 'track']
+    ? ['track', 'trips']
+    : ['questions', 'report', 'simulator', 'track', 'trips']
 
   // Everyone starts on All plants by default
   const defaultView: 'plants' | AssessmentMode =
