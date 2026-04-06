@@ -68,8 +68,8 @@ export function checkRateLimit(userId: string, config: RateLimitConfig): RateLim
 
 // ── Daily Spend Cap ──────────────────────────────────────────────────────────
 
-/** Default daily spend cap per organization in USD */
-export const DEFAULT_DAILY_CAP_USD = 3.0
+/** Default daily spend cap per user in USD */
+export const DEFAULT_DAILY_CAP_USD = 0.30
 
 /** Estimated cost per AI call in USD (Sonnet 4, ~1500 tokens output at $3/M out) */
 export const ESTIMATED_COST_PER_CALL = 0.05
