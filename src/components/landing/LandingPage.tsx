@@ -69,7 +69,7 @@ function Nav() {
 function Hero() {
   return (
     <section style={{
-      background: '#0a1a13',
+      background: '#0a2318',
       padding: 'clamp(56px, 8vw, 96px) 24px clamp(64px, 9vw, 112px)',
     }}>
       <div style={{
@@ -80,17 +80,6 @@ function Hero() {
 
         {/* ── Left: text ── */}
         <div>
-          <div style={{
-            display: 'inline-flex', alignItems: 'center', gap: '7px',
-            background: 'rgba(15,110,86,0.25)', border: '1px solid rgba(15,110,86,0.4)',
-            borderRadius: '20px', padding: '4px 12px', marginBottom: '28px',
-          }}>
-            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#4ade80', flexShrink: 0 }} />
-            <span style={{ fontSize: '11px', fontWeight: 600, color: '#86efac', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
-              Ready-mix concrete operations
-            </span>
-          </div>
-
           <h1 style={{
             fontSize: 'clamp(28px, 3.5vw, 48px)', fontWeight: 400,
             fontFamily: 'var(--serif)',
@@ -102,7 +91,7 @@ function Hero() {
           </h1>
 
           <p style={{
-            fontSize: 'clamp(14px, 1.6vw, 16px)', color: 'rgba(255,255,255,0.6)',
+            fontSize: 'clamp(14px, 1.6vw, 16px)', color: '#fff',
             lineHeight: 1.6, margin: '0 0 28px',
           }}>
             We quantify the monthly financial impact and show exactly where and how to act.
@@ -116,7 +105,7 @@ function Hero() {
             ].map(text => (
               <li key={text} style={{ display: 'flex', alignItems: 'flex-start', gap: '9px' }}>
                 <span style={{ color: '#4ade80', fontSize: '15px', flexShrink: 0, marginTop: '1px' }}>✓</span>
-                <span style={{ fontSize: '14px', color: 'rgba(255,255,255,0.75)', lineHeight: 1.5 }}>{text}</span>
+                <span style={{ fontSize: '14px', color: '#fff', lineHeight: 1.5 }}>{text}</span>
               </li>
             ))}
           </ul>
@@ -501,7 +490,7 @@ function Contact() {
   }
 
   return (
-    <section id="contact" style={{ background: '#0a1a13', padding: 'clamp(64px, 9vw, 100px) 24px' }}>
+    <section id="contact" style={{ background: '#0a2318', padding: 'clamp(64px, 9vw, 100px) 24px' }}>
       <div style={{ maxWidth: '520px', margin: '0 auto' }}>
         <h2 style={{
           fontSize: 'clamp(24px, 4vw, 34px)', fontWeight: 800,
@@ -646,7 +635,7 @@ function FAQ() {
 function Footer() {
   return (
     <footer style={{
-      background: '#0a1a13',
+      background: '#0a2318',
       padding: '40px 24px',
       borderTop: '1px solid rgba(255,255,255,0.06)',
     }}>
