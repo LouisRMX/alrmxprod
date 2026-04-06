@@ -519,7 +519,7 @@ function CardDetailModal({
                   opacity: generatingChecklist ? 0.7 : 1,
                 }}
               >
-                {generatingChecklist ? 'Generating…' : checklistTotal > 0 ? '↻ Regenerate' : '✦ Generate steps'}
+                {generatingChecklist ? 'Generating…' : '✦ Generate steps'}
               </button>
             )}
           </div>
