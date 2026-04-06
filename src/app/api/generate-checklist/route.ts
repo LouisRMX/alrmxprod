@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
-import { checkRateLimit, checkSpendCap, trackSpend } from '@/lib/rate-limit'
+import { checkRateLimit, checkSpendCap, trackSpend, ESTIMATED_COST_HAIKU } from '@/lib/rate-limit'
 import { NextRequest, NextResponse } from 'next/server'
 
 const anthropic = new Anthropic({
@@ -160,7 +160,7 @@ export async function POST(req: NextRequest) {
       messages: [{ role: 'user', content: prompt }],
     })
 
-    trackSpend(user.id)
+    trackSpend(user.id, ESTIMATED_COST_HAIKU)
 
     const raw = message.content[0].type === 'text' ? message.content[0].text.trim() : '[]'
 

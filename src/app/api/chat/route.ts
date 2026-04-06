@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
-import { checkRateLimit, checkSpendCap, trackSpend } from '@/lib/rate-limit'
+import { checkRateLimit, checkSpendCap, trackSpend, ESTIMATED_COST_HAIKU } from '@/lib/rate-limit'
 import { NextRequest, NextResponse } from 'next/server'
 import type { ChatPageContext } from '@/context/ChatContext'
 
@@ -181,7 +181,7 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        trackSpend(user.id)
+        trackSpend(user.id, ESTIMATED_COST_HAIKU)
 
         // Log question to Supabase (non-fatal — never breaks the chat response)
         // Anonymize: store only pageType + country, never plant names or financial figures

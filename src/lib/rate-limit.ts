@@ -71,8 +71,11 @@ export function checkRateLimit(userId: string, config: RateLimitConfig): RateLim
 /** Default daily spend cap per organization in USD */
 export const DEFAULT_DAILY_CAP_USD = 3.0
 
-/** Estimated cost per AI call in USD (Sonnet 4, ~1500 tokens output) */
+/** Estimated cost per AI call in USD (Sonnet 4, ~1500 tokens output at $3/M out) */
 export const ESTIMATED_COST_PER_CALL = 0.05
+
+/** Estimated cost per AI call in USD (Haiku 4.5, 600 tokens in + 600 out at $0.80/$4 per M) */
+export const ESTIMATED_COST_HAIKU = 0.003
 
 export interface SpendCapResult {
   allowed: boolean
