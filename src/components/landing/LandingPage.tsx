@@ -281,7 +281,7 @@ function HowItWorks() {
     },
     {
       num: '3',
-      label: 'Continuous improvement',
+      label: 'Continuous improvements',
       price: '$3,500 / month',
       priceNote: '$2,000 / month per additional plant',
       text: 'KPIs tracked weekly against the documented baseline. Includes platform access, a weekly online session, and two on-site business reviews per year. This phase ensures that your investment in phases 1 and 2 keeps paying back. Not just once, but repeatedly.',
