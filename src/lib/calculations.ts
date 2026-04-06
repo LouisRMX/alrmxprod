@@ -466,8 +466,13 @@ export function calc(answers: Answers, meta?: { season?: string }, overrides?: C
   // Partial load analysis
   const partialLoad = +(a.partial_load_size ?? 0) || 0
   const partialRatio = partialLoad > 0 && mixCap > 0 ? partialLoad / mixCap : 1
+  // partialLoadPct: fraction of deliveries that are partial loads (0-100).
+  // If not answered, conservative default = 30% to avoid overstating.
+  // The old formula multiplied by ALL deliveries — overstated by 3-5x.
+  const partialLoadPct = Math.min(100, Math.max(0, +(a.partial_load_pct ?? 0) || 0))
+  const partialLoadFraction = partialLoadPct > 0 ? partialLoadPct / 100 : 0.30
   const partialLeakMonthly = (partialLoad > 0 && partialLoad < mixCap * 0.80 && delDay > 0 && contribSafe > 0)
-    ? Math.round((mixCap - partialLoad) * delDay * contribSafe * (opD / 12)) : 0
+    ? Math.round((mixCap - partialLoad) * delDay * partialLoadFraction * contribSafe * (opD / 12)) : 0
 
   // Surplus concrete waste
   const SURPLUS_MID_MAP: Record<string, number> = {

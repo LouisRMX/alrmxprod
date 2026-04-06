@@ -117,6 +117,7 @@ function CardDetailModal({
   canEdit,
   calcResult,
   answers,
+  financialBottleneck,
   onClose,
   onEdit,
   onSaveNotes,
@@ -130,6 +131,7 @@ function CardDetailModal({
   canEdit: boolean
   calcResult?: CalcResult
   answers?: Answers
+  financialBottleneck?: string | null
   onClose: () => void
   onEdit: (id: string, text: string) => void
   onSaveNotes: (id: string, value: string) => void
@@ -220,7 +222,7 @@ function CardDetailModal({
       const res = await fetch('/api/generate-checklist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: item.text, calcResult, answers }),
+        body: JSON.stringify({ action: item.text, calcResult, answers, financialBottleneck }),
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
@@ -1152,7 +1154,7 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, ca
           const res = await fetch('/api/generate-checklist', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: item.text, calcResult, answers }),
+            body: JSON.stringify({ action: item.text, calcResult, answers, financialBottleneck }),
           })
           if (!res.ok) return
           const checklist: ChecklistItem[] = await res.json()
@@ -1193,6 +1195,7 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, ca
           canEdit={canEdit}
           calcResult={calcResult}
           answers={answers}
+          financialBottleneck={financialBottleneck}
           onClose={() => setSelectedItemId(null)}
           onEdit={editItem}
           onSaveNotes={saveNotes}
@@ -1222,7 +1225,7 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, ca
               Primary constraint: {financialBottleneck === 'Fleet' ? 'Logistics' : financialBottleneck}
             </div>
             <div style={{ fontSize: '11px', color: '#64748b' }}>
-              Fixing this recovers ~${Math.round(recoverable / 1000)}k/month
+              Fixing this recovers ${Math.round(recoverable * 0.7 / 1000)}k–${Math.round(recoverable * 1.3 / 1000)}k/month
             </div>
           </div>
         )}

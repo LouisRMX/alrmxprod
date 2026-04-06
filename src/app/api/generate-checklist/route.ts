@@ -11,13 +11,17 @@ const RATE_LIMIT = { maxRequests: 30, windowSeconds: 60 }
 
 // Build a rich, plant-specific context string from calcResult + answers.
 // Only include lines with real values — no undefined/NaN/null.
-function buildPlantContext(calcResult: Record<string, unknown>, answers: Record<string, string>): string {
+function buildPlantContext(calcResult: Record<string, unknown>, answers: Record<string, string>, financialBottleneck?: string | null): string {
   const lines: string[] = []
 
   const scores = calcResult.scores as Record<string, number> | undefined
 
-  // Bottleneck & scores
-  if (calcResult.bottleneck)  lines.push(`Primary bottleneck: ${calcResult.bottleneck}`)
+  // Bottleneck & scores — prefer financialBottleneck (highest dollar loss) over score-based bottleneck
+  const primaryBottleneck = financialBottleneck || calcResult.bottleneck
+  if (primaryBottleneck) lines.push(`Primary bottleneck: ${primaryBottleneck}`)
+  if (financialBottleneck && calcResult.bottleneck && financialBottleneck !== calcResult.bottleneck) {
+    lines.push(`Note: ${calcResult.bottleneck} has the lowest score but ${financialBottleneck} drives the highest financial loss — prioritise ${financialBottleneck}`)
+  }
   if (calcResult.overall != null) lines.push(`Overall score: ${Math.round(calcResult.overall as number)}/100`)
   if (scores?.dispatch != null) lines.push(`Dispatch score: ${Math.round(scores.dispatch)}/100`)
   if (scores?.logistics != null) lines.push(`Fleet/Logistics score: ${Math.round(scores.logistics)}/100`)
@@ -128,12 +132,12 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  const { action, calcResult, answers } = await req.json()
+  const { action, calcResult, answers, financialBottleneck } = await req.json()
   if (!action || !calcResult) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   }
 
-  const plantContext = buildPlantContext(calcResult, answers ?? {})
+  const plantContext = buildPlantContext(calcResult, answers ?? {}, financialBottleneck)
   const prompt = buildPrompt(action, plantContext)
 
   try {

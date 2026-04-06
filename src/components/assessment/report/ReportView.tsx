@@ -848,10 +848,18 @@ function FinancialHeadline({ totalLoss, dailyLoss, calcResult }: {
           {fmt(totalLoss)}{' '}
           <span style={{ fontSize: '16px', fontWeight: 500, color: '#e88' }}>/ month</span>
         </div>
-        <div style={{ fontSize: '11px', color: '#9b9b9b', marginTop: '6px' }}>
+        {(() => {
+          const range = calcLossRange(totalLoss)
+          return (
+            <div style={{ fontSize: '11px', color: '#bbb', marginTop: '2px' }}>
+              est. range {fmt(range.low)}–{fmt(range.high)} / month
+            </div>
+          )
+        })()}
+        <div style={{ fontSize: '11px', color: '#9b9b9b', marginTop: '4px' }}>
           {calcResult.demandSufficient === false
             ? 'demand-constrained — operational cost saving only'
-            : `${fmt(dailyLoss)} every working day — based on current operational data`}
+            : `${fmt(dailyLoss)} every working day — based on reported data`}
         </div>
       </div>
       <div style={{ textAlign: 'right', flexShrink: 0 }}>
@@ -934,9 +942,17 @@ function ImpactHook({ bnLoss, bnDailyLoss, totalLoss, calcResult, issues, financ
         <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.4px', textTransform: 'uppercase', color: '#999', marginBottom: '8px' }}>
           {driverLabel ? `${driverLabel} — ` : ''}{calcResult.demandSufficient === false ? 'Margin improvement potential' : 'Estimated revenue leakage'}
         </div>
-        <div style={{ fontSize: isMobile ? '32px' : '48px', fontWeight: 800, color: '#1a1a1a', lineHeight: 1, letterSpacing: '-1px', marginBottom: '4px' }}>
+        <div style={{ fontSize: isMobile ? '32px' : '48px', fontWeight: 800, color: '#1a1a1a', lineHeight: 1, letterSpacing: '-1px', marginBottom: '2px' }}>
           {fmtK(bnLoss)}<span style={{ fontSize: isMobile ? '15px' : '20px', fontWeight: 500, color: '#888', marginLeft: '8px' }}>/ month</span>
         </div>
+        {(() => {
+          const range = calcLossRange(bnLoss)
+          return (
+            <div style={{ fontSize: '11px', color: '#ccc', marginBottom: '4px' }}>
+              est. range {fmtK(range.low)}–{fmtK(range.high)} / month
+            </div>
+          )
+        })()}
         <div style={{ fontSize: '13px', color: '#aaa', marginBottom: '16px' }}>
           ≈ {fmtK(bnDailyLoss)} per day
         </div>
@@ -948,6 +964,22 @@ function ImpactHook({ bnLoss, bnDailyLoss, totalLoss, calcResult, issues, financ
         {driverMetric && (
           <div style={{ fontSize: '12px', color: '#aaa' }}>{driverMetric}</div>
         )}
+        {(() => {
+          const scoreBn = calcResult.bottleneck
+          const finBn = financialBottleneck
+          if (!scoreBn || !finBn || scoreBn === finBn) return null
+          const scoreBnLabel = scoreBn === 'Fleet' ? 'Logistics' : scoreBn
+          const finBnLabel = finBn === 'Fleet' ? 'Logistics' : finBn
+          const scoreVal = scoreBn === 'Fleet' ? calcResult.scores.logistics
+            : scoreBn === 'Dispatch' ? calcResult.scores.dispatch
+            : scoreBn === 'Quality' ? calcResult.scores.quality
+            : calcResult.scores.prod
+          return (
+            <div style={{ fontSize: '11px', color: '#bbb', marginTop: '6px', fontStyle: 'italic' }}>
+              {scoreBnLabel} has the lowest score ({scoreVal != null ? Math.round(scoreVal) : '?'}/100) — {finBnLabel} drives the largest financial loss and is prioritised
+            </div>
+          )
+        })()}
         {liveBenchmarks && liveBenchmarks.n >= 3 && (() => {
           // Show relevant benchmark for the primary bottleneck
           const bTag = financialBottleneck === 'Fleet'
