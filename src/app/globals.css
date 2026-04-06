@@ -54,6 +54,20 @@ body {
   min-height: 100vh;
 }
 
+/* Landing page responsive */
+.landing-hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  gap: clamp(32px, 5vw, 80px);
+  align-items: center;
+}
+
+@media (max-width: 768px) {
+  .landing-hero-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Bottom tab bar spacing on mobile */
 @media (max-width: 640px) {
   .dashboard-main {

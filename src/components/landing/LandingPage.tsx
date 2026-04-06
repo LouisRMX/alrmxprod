@@ -72,11 +72,7 @@ function Hero() {
       background: '#0a2318',
       padding: 'clamp(56px, 8vw, 96px) 24px clamp(64px, 9vw, 112px)',
     }}>
-      <div style={{
-        maxWidth: '1120px', margin: '0 auto',
-        display: 'grid', gridTemplateColumns: 'minmax(0,1.1fr) minmax(0,0.9fr)',
-        gap: 'clamp(32px, 5vw, 80px)', alignItems: 'center',
-      }}>
+      <div className="landing-hero-grid" style={{ maxWidth: '1120px', margin: '0 auto' }}>
 
         {/* ── Left: text ── */}
         <div>
