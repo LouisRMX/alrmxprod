@@ -156,6 +156,10 @@ function Hero() {
                 <span style={{ fontSize: '13px', fontWeight: 700, color: 'rgba(255,255,255,0.6)', fontFamily: 'var(--mono)' }}>41 min</span>
               </div>
             </div>
+            <div style={{ marginTop: '10px', display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'rgba(251,146,60,0.12)', border: '1px solid rgba(251,146,60,0.25)', borderRadius: '6px', padding: '4px 10px' }}>
+              <span style={{ fontSize: '13px', fontWeight: 700, color: '#fb923c', fontFamily: 'var(--mono)' }}>+22 min</span>
+              <span style={{ fontSize: '11px', color: 'rgba(251,146,60,0.7)' }}>behind your best plant</span>
+            </div>
             <div style={{ marginTop: '10px', borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: '10px' }}>
               <span style={{ fontSize: '15px', fontWeight: 700, color: '#fff', fontFamily: 'var(--mono)' }}>$108k</span>
               <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.45)', marginLeft: '5px' }}>revenue at risk /mo</span>
