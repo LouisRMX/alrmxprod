@@ -94,10 +94,19 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
       ? `Weakest factor: ${weakest.label} (${weakest.val}/100) — start here. Full breakdown: ${breakdown}${taSuffix}`
       : `Review dispatch process across all four factors.${taSuffix}`
 
+    const DISPATCH_ACTION: Record<string, string> = {
+      'Order to dispatch':  'Assign dedicated dispatcher 07:00–10:00 — enforce under 15 min order-to-departure',
+      'Route clustering':   'Implement zone routing — group deliveries by area before assigning trucks',
+      'Plant idle time':    'Pre-assign morning trucks to orders before shift start — eliminate plant waiting',
+      'Dispatch tool':      'Replace phone/WhatsApp dispatching with a live shared spreadsheet — one person owns updates',
+    }
+    const dispatchAction = (weakest && DISPATCH_ACTION[weakest.label])
+      || 'Assign dedicated dispatcher for peak window — target under 15 min order-to-departure'
+
     issues.push({
       sev: 'red', pin: bn === 'Dispatch', category: 'bottleneck', dimension: 'Dispatch',
       t: `Dispatch score ${r.scores.dispatch}/100 — primary bottleneck`,
-      action: 'Measure order-to-dispatch time daily — target under 15 min',
+      action: dispatchAction,
       rec: dispRec,
       loss,
       formula: `Turnaround loss (${fmt(taLossBase)}${r.demandSufficient === false ? ' cost-only' : ''}) + 35% of capacity gap (${fmt(Math.round(r.capLeakMonthly * 0.35))})`,
