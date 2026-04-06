@@ -808,6 +808,115 @@ function BottleneckSlider({ calcResult, dimension }: {
   )
 }
 
+// ── Calc Basis Panel ───────────────────────────────────────────────────────
+function CalcBasisPanel({ calcResult, answers }: { calcResult: CalcResult; answers: Answers }) {
+  const [open, setOpen] = useState(false)
+
+  const items: { label: string; value: string; estimated: boolean }[] = []
+
+  if (calcResult.price > 0) {
+    if (calcResult.marginIncomplete) {
+      items.push({
+        label: 'Contribution margin',
+        value: `~$${calcResult.contribSafe}/m³ (35% of price — material costs not fully entered)`,
+        estimated: true,
+      })
+    } else {
+      items.push({
+        label: 'Contribution margin',
+        value: `$${calcResult.contribSafe}/m³ (${Math.round(calcResult.marginRatio * 100)}% of price)`,
+        estimated: false,
+      })
+    }
+  }
+
+  if (calcResult.dispatchMin) {
+    items.push({
+      label: 'Dispatch time',
+      value: `${calcResult.dispatchMin} min — midpoint of selected range`,
+      estimated: true,
+    })
+  }
+
+  if (calcResult.ta > 0) {
+    items.push({
+      label: 'Turnaround time',
+      value: `${calcResult.ta} min — midpoint of selected range`,
+      estimated: true,
+    })
+  }
+
+  if (!(+(answers.working_days_month ?? 0))) {
+    items.push({
+      label: 'Working days',
+      value: `${calcResult.workingDaysMonth}/month (standard assumption)`,
+      estimated: true,
+    })
+  }
+
+  if (!(+(answers.partial_load_pct ?? 0)) && calcResult.partialLeakMonthly > 0) {
+    items.push({
+      label: 'Partial load fraction',
+      value: '30% of deliveries (default — no measurement entered)',
+      estimated: true,
+    })
+  }
+
+  const estimatedCount = items.filter(i => i.estimated).length
+  if (items.length === 0) return null
+
+  return (
+    <div style={{ marginBottom: '12px' }}>
+      <button
+        type="button"
+        onClick={() => setOpen(p => !p)}
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center', gap: '6px',
+          padding: '8px 12px',
+          background: open ? 'var(--white)' : 'var(--gray-50)',
+          border: '1px solid var(--border)',
+          borderRadius: open ? '8px 8px 0 0' : '8px',
+          cursor: 'pointer', fontFamily: 'var(--font)', fontSize: '11px',
+          color: 'var(--gray-500)', textAlign: 'left',
+        }}
+      >
+        <span style={{ color: estimatedCount > 0 ? '#b45309' : '#16a34a' }}>ⓘ</span>
+        <span style={{ flex: 1 }}>
+          {estimatedCount > 0
+            ? `${estimatedCount} estimated input${estimatedCount !== 1 ? 's' : ''} — figures are indicative`
+            : 'All key inputs measured'}
+        </span>
+        <span style={{ fontSize: '10px', color: 'var(--gray-400)' }}>{open ? '▲' : '▼'}</span>
+      </button>
+
+      {open && (
+        <div style={{
+          border: '1px solid var(--border)', borderTop: 'none',
+          borderRadius: '0 0 8px 8px', background: 'var(--white)',
+          padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: '7px',
+        }}>
+          {items.map((item, i) => (
+            <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+              <span style={{ color: item.estimated ? '#d97706' : '#16a34a', fontSize: '12px', flexShrink: 0, marginTop: '1px', fontWeight: 700 }}>
+                {item.estimated ? '~' : '✓'}
+              </span>
+              <div>
+                <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--gray-700)' }}>{item.label}: </span>
+                <span style={{ fontSize: '11px', color: 'var(--gray-500)' }}>{item.value}</span>
+              </div>
+            </div>
+          ))}
+          {estimatedCount > 0 && (
+            <div style={{ fontSize: '10px', color: 'var(--gray-400)', marginTop: '4px', borderTop: '1px solid var(--border)', paddingTop: '6px' }}>
+              Replace estimated values with site measurements for precise figures.
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Financial Headline ─────────────────────────────────────────────────────
 function FinancialHeadline({ totalLoss, dailyLoss, calcResult }: {
   totalLoss: number
@@ -3265,6 +3374,9 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
       )}
 
 
+
+      {/* Calc basis panel — collapsed by default */}
+      {totalLoss > 0 && <CalcBasisPanel calcResult={calcResult} answers={answers} />}
 
       {/* 1. SCORE GRID (ImpactHook merged in) */}
       <ScoreGrid calcResult={calcResult} financialBottleneck={financialBottleneck} issues={issues} onSwitchToTracking={onSwitchToTracking} />
