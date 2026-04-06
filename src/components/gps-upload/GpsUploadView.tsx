@@ -288,9 +288,9 @@ export default function GpsUploadView({ assessmentId, isAdmin, onUploadComplete 
             GPS Fleet Data
           </h2>
           <p style={{ fontSize: '13px', color: 'var(--gray-500)', lineHeight: '1.6' }}>
-            Upload a fleet management CSV export to automatically calculate turnaround time,
-            site waiting time, and return load rate — and include a Logistics Intelligence
-            section in the report.
+            One-time upload during the assessment. Provide a GPS or fleet management export
+            to replace estimated turnaround figures with real historical data and add a
+            Logistics section to the diagnostic report.
           </p>
         </div>
 

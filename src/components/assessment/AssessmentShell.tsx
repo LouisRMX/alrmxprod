@@ -310,7 +310,9 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
                     Trip analysis
                   </h2>
                   <p style={{ fontSize: '13px', color: 'var(--gray-500)' }}>
-                    Upload daily dispatch records to measure turnaround against the {Math.round(calcResult.TARGET_TA)}-minute target.
+                    Daily operational monitoring. Upload a simple CSV with truck dispatch and return times
+                    to see turnaround vs the {Math.round(calcResult.TARGET_TA)}-minute target and estimated daily loss.
+                    No GPS hardware required.
                   </p>
                 </div>
                 <TripUploadShell
