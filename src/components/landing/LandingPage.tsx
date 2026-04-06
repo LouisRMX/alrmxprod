@@ -129,8 +129,8 @@ function Hero() {
               Identified
             </div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginBottom: '4px' }}>
-              <span style={{ fontSize: '42px', fontWeight: 800, color: '#fff', lineHeight: 1, letterSpacing: '-2px', fontFamily: 'var(--mono)' }}>$359k</span>
-              <span style={{ fontSize: '16px', color: 'rgba(255,255,255,0.4)', fontWeight: 500 }}>/mo</span>
+              <span style={{ fontSize: '42px', fontWeight: 800, color: '#fff', lineHeight: 1, letterSpacing: '-2px', fontFamily: 'var(--mono)', textShadow: '0 0 32px rgba(255,255,255,0.35)' }}>$359k</span>
+              <span style={{ fontSize: '16px', color: 'rgba(255,255,255,0.6)', fontWeight: 500 }}>/mo</span>
             </div>
             <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)' }}>= 18% of total capacity lost</div>
           </div>
@@ -174,20 +174,21 @@ function Hero() {
 
           {/* Card 3 — Recovered */}
           <div style={{
-            background: 'rgba(74,222,128,0.06)',
-            border: '1px solid rgba(74,222,128,0.2)',
-            borderLeft: '3px solid #4ade80',
+            background: 'rgba(74,222,128,0.1)',
+            border: '1px solid rgba(74,222,128,0.35)',
+            borderLeft: '4px solid #4ade80',
             borderRadius: '12px',
             padding: '20px 24px',
+            boxShadow: '0 0 28px rgba(74,222,128,0.12)',
           }}>
-            <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.5px', textTransform: 'uppercase', color: 'rgba(74,222,128,0.6)', marginBottom: '10px' }}>
+            <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.5px', textTransform: 'uppercase', color: '#4ade80', marginBottom: '10px' }}>
               Recovered
             </div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginBottom: '4px' }}>
-              <span style={{ fontSize: '42px', fontWeight: 800, color: '#4ade80', lineHeight: 1, letterSpacing: '-2px', fontFamily: 'var(--mono)' }}>$85k</span>
-              <span style={{ fontSize: '16px', color: 'rgba(74,222,128,0.5)', fontWeight: 500 }}>/mo</span>
+              <span style={{ fontSize: '42px', fontWeight: 800, color: '#4ade80', lineHeight: 1, letterSpacing: '-2px', fontFamily: 'var(--mono)', textShadow: '0 0 28px rgba(74,222,128,0.6)' }}>$85k</span>
+              <span style={{ fontSize: '16px', color: 'rgba(74,222,128,0.7)', fontWeight: 500 }}>/mo</span>
             </div>
-            <div style={{ fontSize: '12px', color: 'rgba(74,222,128,0.55)' }}>After 12 weeks of tracking</div>
+            <div style={{ fontSize: '12px', color: 'rgba(74,222,128,0.7)' }}>After 12 weeks of tracking</div>
           </div>
 
         </div>
