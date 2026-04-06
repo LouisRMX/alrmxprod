@@ -19,9 +19,10 @@ export default async function DemoPage() {
 
   const cookieStore = await cookies()
   const raw = isAdmin ? cookieStore.get('viewAs')?.value : undefined
-  const userRole: MemberRole | null =
-    raw === 'owner' || raw === 'manager' || raw === 'operator' ? raw : null
-  const isOverridden = userRole !== null
+  // Non-admin users see the owner experience by default — the demo is for plant owners
+  const userRole: MemberRole =
+    raw === 'owner' || raw === 'manager' || raw === 'operator' ? raw : 'owner'
+  const isOverridden = raw === 'owner' || raw === 'manager' || raw === 'operator'
 
   return (
     <Suspense>
