@@ -499,6 +499,33 @@ function WeeklyInput({ config, entries, currentWeek, isAdmin, onLogged }: {
   const [di, setDi] = useState('')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [tripSuggestion, setTripSuggestion] = useState<{ avgMin: number; uploadCount: number } | null>(null)
+
+  // Fetch trip_records for the selected week's date range
+  useEffect(() => {
+    async function fetchTripSuggestion() {
+      if (!config.started_at) return
+      const start = new Date(config.started_at)
+      start.setDate(start.getDate() + (selectedWeek - 1) * 7)
+      const end = new Date(start)
+      end.setDate(end.getDate() + 7)
+      const weekStart = start.toISOString().slice(0, 10)
+      const weekEnd   = end.toISOString().slice(0, 10)
+
+      const { data } = await supabase
+        .from('trip_records')
+        .select('turnaround_s, trip_date')
+        .eq('assessment_id', config.assessment_id)
+        .gte('trip_date', weekStart)
+        .lt('trip_date', weekEnd)
+
+      if (!data || data.length === 0) { setTripSuggestion(null); return }
+      const avgS = data.reduce((sum: number, r: { turnaround_s: number }) => sum + r.turnaround_s, 0) / data.length
+      const dates = new Set(data.map((r: { trip_date: string }) => r.trip_date))
+      setTripSuggestion({ avgMin: Math.round(avgS / 60), uploadCount: dates.size })
+    }
+    fetchTripSuggestion()
+  }, [selectedWeek, config.assessment_id, config.started_at, supabase])
 
   const weekEntry = entries.find(e => e.week_number === selectedWeek)
 
@@ -579,6 +606,25 @@ function WeeklyInput({ config, entries, currentWeek, isAdmin, onLogged }: {
             />
             <span style={{ fontSize: '12px', color: 'var(--gray-400)' }}>min</span>
           </div>
+          {tripSuggestion && (
+            <div style={{ marginTop: '7px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '11px', color: 'var(--gray-400)' }}>
+                {tripSuggestion.uploadCount} day{tripSuggestion.uploadCount > 1 ? 's' : ''} of trip data: avg {tripSuggestion.avgMin} min
+              </span>
+              <button
+                type="button"
+                onClick={() => setTa(String(tripSuggestion.avgMin))}
+                style={{
+                  fontSize: '11px', fontWeight: 600, padding: '2px 8px',
+                  borderRadius: '5px', border: '1px solid var(--green)',
+                  background: 'none', color: 'var(--green)', cursor: 'pointer',
+                  fontFamily: 'var(--font)',
+                }}
+              >
+                Use
+              </button>
+            </div>
+          )}
         </div>
         {config.baseline_dispatch_min != null && (
           <div>
