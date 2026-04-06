@@ -12,79 +12,86 @@ const RATE_LIMIT = { maxRequests: 30, windowSeconds: 60 }
 // Build a rich, plant-specific context string from calcResult + answers.
 // Only include lines with real values — no undefined/NaN/null.
 function buildPlantContext(calcResult: Record<string, unknown>, answers: Record<string, string>, financialBottleneck?: string | null): string {
-  const lines: string[] = []
+  const numbers: string[] = []
+  const qualitative: string[] = []
 
   const scores = calcResult.scores as Record<string, number> | undefined
 
-  // Bottleneck & scores — prefer financialBottleneck (highest dollar loss) over score-based bottleneck
+  // Bottleneck
   const primaryBottleneck = financialBottleneck || calcResult.bottleneck
-  if (primaryBottleneck) lines.push(`Primary bottleneck: ${primaryBottleneck}`)
+  if (primaryBottleneck) numbers.push(`Primary bottleneck: ${primaryBottleneck}`)
   if (financialBottleneck && calcResult.bottleneck && financialBottleneck !== calcResult.bottleneck) {
-    lines.push(`Note: ${calcResult.bottleneck} has the lowest score but ${financialBottleneck} drives the highest financial loss — prioritise ${financialBottleneck}`)
+    numbers.push(`Note: ${calcResult.bottleneck} has the lowest score but ${financialBottleneck} drives the highest financial loss`)
   }
-  if (calcResult.overall != null) lines.push(`Overall score: ${Math.round(calcResult.overall as number)}/100`)
-  if (scores?.dispatch != null) lines.push(`Dispatch score: ${Math.round(scores.dispatch)}/100`)
-  if (scores?.logistics != null) lines.push(`Fleet/Logistics score: ${Math.round(scores.logistics)}/100`)
-  if (scores?.quality != null) lines.push(`Quality score: ${Math.round(scores.quality)}/100`)
-  if (scores?.prod != null) lines.push(`Production score: ${Math.round(scores.prod)}/100`)
 
-  // Fleet
-  if (calcResult.trucks) lines.push(`Trucks: ${calcResult.trucks}`)
-  if (calcResult.delDay) lines.push(`Deliveries per day: ${Math.round(calcResult.delDay as number)}`)
-  if (calcResult.util != null) lines.push(`Fleet utilisation: ${Math.round((calcResult.util as number) * 100)}%`)
-  if (calcResult.radius) lines.push(`Delivery radius: ${calcResult.radius} km`)
+  // Scores
+  if (calcResult.overall != null) numbers.push(`Overall score: ${Math.round(calcResult.overall as number)}/100`)
+  if (scores?.dispatch != null) numbers.push(`Dispatch score: ${Math.round(scores.dispatch)}/100`)
+  if (scores?.logistics != null) numbers.push(`Fleet/Logistics score: ${Math.round(scores.logistics)}/100`)
+  if (scores?.quality != null) numbers.push(`Quality score: ${Math.round(scores.quality)}/100`)
+  if (scores?.prod != null) numbers.push(`Production score: ${Math.round(scores.prod)}/100`)
 
-  // Dispatch
-  if (calcResult.dispatchMin != null) lines.push(`Measured order-to-dispatch: ${calcResult.dispatchMin} min (target: 15 min)`)
-  if (answers.order_to_dispatch) lines.push(`Order-to-dispatch (reported): ${answers.order_to_dispatch}`)
-  if (answers.dispatch_tool) lines.push(`Dispatch tool: ${answers.dispatch_tool}`)
-  if (answers.route_clustering) lines.push(`Route clustering: ${answers.route_clustering}`)
-  if (answers.plant_idle) lines.push(`Plant idle time: ${answers.plant_idle}`)
+  // Fleet numbers
+  if (calcResult.trucks) numbers.push(`Trucks: ${calcResult.trucks}`)
+  if (calcResult.delDay) numbers.push(`Deliveries per day: ${Math.round(calcResult.delDay as number)}`)
+  if (calcResult.util != null) numbers.push(`Fleet utilisation: ${Math.round((calcResult.util as number) * 100)}%`)
+  if (calcResult.radius) numbers.push(`Delivery radius: ${calcResult.radius} km`)
 
-  // Turnaround
+  // Dispatch numbers
+  if (calcResult.dispatchMin != null) numbers.push(`Order-to-dispatch: ${calcResult.dispatchMin} min (target: 15 min)`)
+
+  // Turnaround numbers
   if (calcResult.ta) {
     const ta = Math.round(calcResult.ta as number)
     const targetTA = calcResult.TARGET_TA as number
     const excess = calcResult.excessMin as number
-    lines.push(`Turnaround: ${ta} min (target: ${targetTA} min${excess > 0 ? `, ${excess} min excess` : ''})`)
+    numbers.push(`Turnaround: ${ta} min (target: ${targetTA} min${excess > 0 ? `, ${excess} min excess` : ''})`)
   }
   if (calcResult.siteWait && (calcResult.siteWait as number) > 0) {
     const sw = Math.round(calcResult.siteWait as number)
-    lines.push(`Site wait: ~${sw} min (benchmark: 35 min${sw > 35 ? `, ${sw - 35} min excess` : ''})`)
+    numbers.push(`Site wait: ~${sw} min (benchmark: 35 min${sw > 35 ? `, ${sw - 35} min excess` : ''})`)
   }
   if (calcResult.washoutMin && (calcResult.washoutMin as number) > 0) {
     const wm = Math.round(calcResult.washoutMin as number)
-    lines.push(`Washout time: ~${wm} min (benchmark: 12 min${wm > 12 ? `, ${wm - 12} min excess` : ''})`)
+    numbers.push(`Washout time: ~${wm} min (benchmark: 12 min${wm > 12 ? `, ${wm - 12} min excess` : ''})`)
   }
-  if (answers.site_wait_reason) lines.push(`Site wait reason: ${answers.site_wait_reason}`)
-  if (answers.turnaround) lines.push(`Turnaround (reported): ${answers.turnaround}`)
 
-  // Quality
+  // Quality numbers
   if (calcResult.rejectPct != null) {
-    lines.push(`Reject rate: ${(calcResult.rejectPct as number).toFixed(1)}% (target: <3%)`)
+    numbers.push(`Reject rate: ${(calcResult.rejectPct as number).toFixed(1)}% (target: <3%)`)
   }
   if (calcResult.rejectPlantFraction != null && (calcResult.rejectPct as number) > 0) {
     const pf = Math.round((calcResult.rejectPlantFraction as number) * 100)
-    lines.push(`Plant-side rejections: ~${pf}% ($${Math.round((calcResult.rejectPlantSideLoss as number) / 1000)}k/month) — batch/dosing/mix quality`)
-    lines.push(`Customer-side rejections: ~${100 - pf}% ($${Math.round((calcResult.rejectCustomerSideLoss as number) / 1000)}k/month) — site unreadiness/pump delays`)
-  }
-  if (answers.reject_reason) lines.push(`Reject reason: ${answers.reject_reason}`)
-  if (answers.slump_test) lines.push(`Slump test practice: ${answers.slump_test}`)
-  if (answers.calibration) lines.push(`Calibration: ${answers.calibration}`)
-
-  // Production
-  if (calcResult.demandSufficient != null) {
-    lines.push(`Demand context: ${calcResult.demandSufficient === true ? 'Operations-limited — demand is sufficient, throughput is the constraint' : calcResult.demandSufficient === false ? 'Demand-limited — not enough orders to fill capacity' : 'Unknown'}`)
+    numbers.push(`Plant-side rejections: ~${pf}% ($${Math.round((calcResult.rejectPlantSideLoss as number) / 1000)}k/month)`)
+    numbers.push(`Customer-side rejections: ~${100 - pf}% ($${Math.round((calcResult.rejectCustomerSideLoss as number) / 1000)}k/month)`)
   }
 
-  // Financial
+  // Demand + financial
+  if (calcResult.demandSufficient === false) numbers.push(`Demand context: demand-limited — not enough orders to fill capacity`)
+  if (calcResult.demandSufficient === true) numbers.push(`Demand context: operations-limited — demand is sufficient, throughput is the constraint`)
   if (calcResult.hiddenRevMonthly) {
-    lines.push(`Monthly revenue recoverable: $${Math.round((calcResult.hiddenRevMonthly as number) / 1000)}k`)
+    numbers.push(`Monthly revenue recoverable: $${Math.round((calcResult.hiddenRevMonthly as number) / 1000)}k`)
   }
 
-  return lines
-    .filter(l => !l.includes('undefined') && !l.includes('NaN') && !l.match(/:\s*null/))
-    .join('\n')
+  // Qualitative — named tools, causes, practices
+  if (answers.dispatch_tool) qualitative.push(`Dispatch tool in use: "${answers.dispatch_tool}"`)
+  if (answers.route_clustering) qualitative.push(`Route clustering: "${answers.route_clustering}"`)
+  if (answers.plant_idle) qualitative.push(`Plant idle time pattern: "${answers.plant_idle}"`)
+  if (answers.site_wait_reason) qualitative.push(`Named cause of site wait: "${answers.site_wait_reason}"`)
+  if (answers.reject_reason) qualitative.push(`Named cause of rejections: "${answers.reject_reason}"`)
+  if (answers.slump_test) qualitative.push(`Slump test practice: "${answers.slump_test}"`)
+  if (answers.calibration) qualitative.push(`Calibration practice: "${answers.calibration}"`)
+  if (answers.order_to_dispatch) qualitative.push(`Order-to-dispatch (self-reported): "${answers.order_to_dispatch}"`)
+
+  const clean = (lines: string[]) =>
+    lines.filter(l => !l.includes('undefined') && !l.includes('NaN') && !l.match(/:\s*null/))
+
+  const parts: string[] = []
+  const cleanNums = clean(numbers)
+  const cleanQual = clean(qualitative)
+  if (cleanNums.length) parts.push(`NUMBERS:\n${cleanNums.join('\n')}`)
+  if (cleanQual.length) parts.push(`OPERATIONS CONTEXT (named tools, causes, practices — use these exact names in relevant steps):\n${cleanQual.join('\n')}`)
+  return parts.join('\n\n')
 }
 
 function buildPrompt(action: string, plantContext: string): string {
@@ -94,18 +101,24 @@ Generate exactly 5 action steps for a plant manager to implement this specific t
 
 TASK: "${action}"
 
-PLANT DATA — use these exact numbers, do not invent data:
+PLANT DATA — do not invent data, use only what is below:
 ${plantContext}
 
 RULES — strictly enforced:
-1. Every step must reference at least one specific number from the plant data above (minutes, trucks, %, deliveries/day, or $).
-2. Steps are chronological — step 1 is done before step 2.
-3. Steps are executable in the next 2 weeks — no long-term projects.
-4. Banned phrases: "implement best practices", "train staff", "set up a process", "monitor performance", "consider", "review", "improve", "optimize".
-5. Each step: maximum 18 words.
-6. If a step could apply to any plant in the world, it is too generic — rewrite it.
-7. Final step must be a measurable verification with a specific target number from the plant data.
-8. Write for a plant manager who knows the operation — skip the obvious.
+1. Every step must reference at least one specific number from NUMBERS (minutes, trucks, %, deliveries/day, or $).
+2. If OPERATIONS CONTEXT lists a named tool, cause, or practice, that exact name MUST appear in the step that addresses it. Example: if dispatch tool is "WhatsApp groups", write "Replace WhatsApp group dispatch with…" not "use a better system".
+3. Steps are chronological — step 1 is done before step 2.
+4. Steps are executable in the next 2 weeks — no long-term projects.
+5. Banned words and phrases: "implement best practices", "train staff", "set up a process", "monitor performance", "consider", "review", "improve", "optimize", "ensure", "leverage".
+6. Each step: maximum 18 words.
+7. If a step could apply to any plant in the world, it is too generic — rewrite it.
+8. Final step must be a measurable verification with a specific target number from the plant data.
+
+GOOD example (site_wait_reason = "Pump crew not ready on arrival"):
+"Call pump crew 30 min before truck departure — target site wait under 35 min"
+
+BAD example of the same step:
+"Ensure site is ready before trucks depart" (no named cause, no number)
 
 Return ONLY valid JSON. No markdown fences, no explanation, no other text.
 Format: [{"text": "Step text here", "done": false}, ...]`
