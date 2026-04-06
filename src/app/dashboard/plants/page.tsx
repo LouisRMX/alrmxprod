@@ -45,7 +45,7 @@ export default async function PlantsPage() {
         ebitda_monthly, report_released,
         tracking_configs(id, started_at),
         plant_benchmarks(turnaround_min, dispatch_min, reject_pct, util_pct),
-        action_items(status)
+        action_items(id, text, status)
       )
     `)
     .order('name', { ascending: true })
@@ -94,8 +94,8 @@ export default async function PlantsPage() {
       : ((latest as any).plant_benchmarks ? [(latest as any).plant_benchmarks] : [])
     const bm = bmArr[0] ?? null
 
-    // Action items: derive primary status from all items on this assessment
-    const actionItems: Array<{ status: string }> = Array.isArray((latest as any).action_items)
+    // Action items: derive primary status + top pending action text
+    const actionItems: Array<{ id: string; text: string; status: string }> = Array.isArray((latest as any).action_items)
       ? (latest as any).action_items
       : ((latest as any).action_items ? [(latest as any).action_items] : [])
 
@@ -105,6 +105,12 @@ export default async function PlantsPage() {
       const allDone       = actionItems.every(i => i.status === 'done')
       primaryActionStatus = hasInProgress ? 'in_progress' : allDone ? 'done' : 'todo'
     }
+
+    // Top action: prefer in_progress → first todo
+    const topAction: string | null =
+      actionItems.find(i => i.status === 'in_progress')?.text ??
+      actionItems.find(i => i.status === 'todo')?.text ??
+      null
 
     return {
       id: plant.id,
@@ -126,6 +132,7 @@ export default async function PlantsPage() {
         report_released: latest.report_released ?? false,
         trackingWeek,
         primaryActionStatus,
+        topAction,
         kpi: bm ? {
           turnaroundMin: bm.turnaround_min ?? null,
           dispatchMin:   bm.dispatch_min   ?? null,

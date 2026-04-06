@@ -25,6 +25,7 @@ export interface PlantAssessmentData {
   trackingWeek: number | null
   recoveredMonthly?: number | null
   primaryActionStatus?: 'todo' | 'in_progress' | 'done' | null
+  topAction?: string | null
   trackingImprovement?: {
     turnaroundDelta: number
     dispatchDelta: number
@@ -100,29 +101,72 @@ const ACTION_STATUS_CFG = {
   done:        { label: 'Done',        bg: '#f0faf5', color: '#1a6644', border: '#b6e2ce' },
 } as const
 
-// ── Direction signal ───────────────────────────────────────────────────────
+// ── Implication coefficient ────────────────────────────────────────────────
+// "Every X units improved = ~$Yk / month" — makes the gap concrete
 
-function directionSignal(ti: PlantAssessmentData['trackingImprovement']): { arrow: string; color: string } | null {
-  if (!ti) return null
-  const delta = ti.turnaroundDelta
-  if (delta < -5)  return { arrow: '↑', color: '#1a6644' }
-  if (delta > 5)   return { arrow: '↓', color: '#cc3333' }
-  return               { arrow: '→', color: 'var(--gray-400)' }
+function implicationLine(bottleneck: string | null, kpi: PlantAssessmentData['kpi'], gapMonthly: number): string | null {
+  if (!bottleneck || !kpi || gapMonthly <= 0) return null
+  switch (bottleneck) {
+    case 'fleet': {
+      const excess = kpi.turnaroundMin != null ? Math.round(kpi.turnaroundMin) - 90 : 0
+      if (excess <= 10) return null
+      const per10 = Math.round(gapMonthly / excess * 10 / 1000)
+      return per10 > 0 ? `Every 10 min saved = ~$${per10}k / month` : null
+    }
+    case 'dispatch': {
+      const excess = kpi.dispatchMin != null ? Math.round(kpi.dispatchMin) - 15 : 0
+      if (excess <= 3) return null
+      const per5 = Math.round(gapMonthly / excess * 5 / 1000)
+      return per5 > 0 ? `Every 5 min faster = ~$${per5}k / month` : null
+    }
+    case 'quality': {
+      const excess = kpi.rejectPct != null ? kpi.rejectPct - 1.7 : 0
+      if (excess <= 0.3) return null
+      const per1 = Math.round(gapMonthly / excess / 1000)
+      return per1 > 0 ? `Every 1% fewer rejections = ~$${per1}k / month` : null
+    }
+    case 'prod': {
+      const excess = kpi.utilPct != null ? 85 - kpi.utilPct : 0
+      if (excess <= 2) return null
+      const per5 = Math.round(gapMonthly / excess * 5 / 1000)
+      return per5 > 0 ? `Every 5% utilisation gain = ~$${per5}k / month` : null
+    }
+    default: return null
+  }
+}
+
+// ── Tracking context ───────────────────────────────────────────────────────
+
+function trackingContext(a: PlantAssessmentData): { text: string; color: string } | null {
+  const ti = a.trackingImprovement
+  if (ti) {
+    const delta = ti.turnaroundDelta
+    if (delta < -5)  return { text: `↑ ${Math.abs(Math.round(delta))} min faster · Wk ${ti.weekOf}/${ti.weekTotal}`, color: '#1a6644' }
+    if (delta > 5)   return { text: `↓ ${Math.round(delta)} min slower · Wk ${ti.weekOf}/${ti.weekTotal}`,        color: '#cc3333' }
+    return                 { text: `Flat this week · Wk ${ti.weekOf}/${ti.weekTotal}`,                             color: 'var(--gray-400)' }
+  }
+  if (a.trackingWeek != null) {
+    return { text: `Wk ${a.trackingWeek} of 13 — tracking in progress`, color: 'var(--gray-400)' }
+  }
+  return null
 }
 
 // ── PlantCard ──────────────────────────────────────────────────────────────
 
-function PlantCard({ plant }: { plant: PlantCardData }) {
+function PlantCard({ plant, portfolioTotalGap }: { plant: PlantCardData; portfolioTotalGap: number }) {
   const a = plant.assessment
   const href = plant.assessmentHref ?? (a ? `/dashboard/assess/${a.id}` : undefined)
 
-  const borderColor = urgencyBorder(a?.overall ?? null)
-  const bnKey       = a?.bottleneck ?? null
-  const bnLabel     = bnKey ? (BOTTLENECK_LABELS[bnKey] ?? bnKey) : null
-  const rootCause   = rootCauseLine(bnKey, a?.kpi ?? null)
-
-  const actionCfg   = a?.primaryActionStatus ? ACTION_STATUS_CFG[a.primaryActionStatus] : null
-  const direction   = directionSignal(a?.trackingImprovement ?? null)
+  const borderColor  = urgencyBorder(a?.overall ?? null)
+  const bnKey        = a?.bottleneck ?? null
+  const bnLabel      = bnKey ? (BOTTLENECK_LABELS[bnKey] ?? bnKey) : null
+  const cause        = rootCauseLine(bnKey, a?.kpi ?? null)
+  const implication  = implicationLine(bnKey, a?.kpi ?? null, a?.ebitda_monthly ?? 0)
+  const trackCtx     = a ? trackingContext(a) : null
+  const actionCfg    = a?.primaryActionStatus ? ACTION_STATUS_CFG[a.primaryActionStatus] : null
+  const gapPct       = portfolioTotalGap > 0 && (a?.ebitda_monthly ?? 0) > 0
+    ? Math.round((a!.ebitda_monthly! / portfolioTotalGap) * 100)
+    : null
 
   const card = (
     <div style={{
@@ -133,13 +177,12 @@ function PlantCard({ plant }: { plant: PlantCardData }) {
       padding: '18px 20px',
       display: 'flex',
       flexDirection: 'column',
-      gap: '0',
       transition: 'box-shadow .15s',
     }}
       className="plant-card"
     >
       {/* Row 1: name + gap */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', marginBottom: '4px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', marginBottom: '12px' }}>
         <div>
           <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--gray-900)', lineHeight: 1.2 }}>
             {plant.name}
@@ -156,62 +199,80 @@ function PlantCard({ plant }: { plant: PlantCardData }) {
             }}>
               {fmtGap(a.ebitda_monthly)}
             </div>
-            <div style={{ fontSize: '11px', color: 'var(--gray-400)', marginTop: '1px' }}>/ month</div>
+            <div style={{ fontSize: '11px', color: 'var(--gray-400)', marginTop: '2px' }}>
+              / month{gapPct != null ? ` · ${gapPct}% of gap` : ''}
+            </div>
           </div>
         ) : null}
       </div>
 
       {/* Divider */}
-      <div style={{ borderTop: '1px solid var(--border)', margin: '12px 0' }} />
+      <div style={{ borderTop: '1px solid var(--border)', marginBottom: '12px' }} />
 
-      {/* Row 2: bottleneck + root cause */}
+      {/* Bottleneck + root cause + implication */}
       {!a || a.overall === null ? (
         <div style={{ fontSize: '12px', color: 'var(--gray-400)' }}>
           {a ? 'Assessment in progress' : 'No assessment yet'}
         </div>
       ) : bnLabel ? (
-        <div style={{ marginBottom: '4px' }}>
-          <div style={{ marginBottom: '5px' }}>
-            <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--gray-800)' }}>
-              {bnLabel} bottleneck
-            </span>
+        <div style={{ marginBottom: '10px' }}>
+          <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--gray-800)', marginBottom: '4px' }}>
+            {bnLabel} bottleneck
           </div>
-          {rootCause && (
-            <div style={{ fontSize: '12px', color: 'var(--gray-500)', lineHeight: 1.4 }}>
-              {rootCause}
+          {cause && (
+            <div style={{ fontSize: '12px', color: 'var(--gray-500)', lineHeight: 1.5 }}>
+              {cause}
+            </div>
+          )}
+          {implication && (
+            <div style={{ fontSize: '11px', color: '#c96a00', marginTop: '3px', fontWeight: 500 }}>
+              {implication}
             </div>
           )}
         </div>
       ) : (
-        <div style={{ fontSize: '13px', color: 'var(--gray-500)' }}>
+        <div style={{ fontSize: '13px', color: 'var(--gray-500)', marginBottom: '10px' }}>
           No bottleneck identified
         </div>
       )}
 
-      {/* Row 3: action status + direction + view link */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '14px' }}>
-        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+      {/* Next action */}
+      {a?.topAction && (
+        <div style={{
+          fontSize: '12px', color: 'var(--gray-700)', lineHeight: 1.5,
+          padding: '8px 10px', borderRadius: '6px',
+          background: 'var(--gray-50)', border: '1px solid var(--border)',
+          marginBottom: '10px',
+        }}>
+          <span style={{ fontWeight: 600, color: 'var(--gray-500)', marginRight: '4px' }}>Next:</span>
+          {a.topAction}
+        </div>
+      )}
+
+      {/* Bottom row: status chip + tracking context + view link */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '2px' }}>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', minWidth: 0 }}>
           {actionCfg && (
             <span style={{
               fontSize: '10px', fontWeight: 600, padding: '2px 7px', borderRadius: '4px',
               background: actionCfg.bg, color: actionCfg.color,
-              border: `1px solid ${actionCfg.border}`,
+              border: `1px solid ${actionCfg.border}`, flexShrink: 0,
             }}>
               {actionCfg.label}
             </span>
           )}
-          {direction && (
-            <span style={{ fontSize: '13px', fontWeight: 700, color: direction.color }}>
-              {direction.arrow}
+          {trackCtx && (
+            <span style={{ fontSize: '11px', color: trackCtx.color, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {trackCtx.text}
             </span>
           )}
         </div>
         {href ? (
-          <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--green)', whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--green)', whiteSpace: 'nowrap', flexShrink: 0, marginLeft: '8px' }}>
             View report →
           </span>
         ) : (
-          <span style={{ fontSize: '11px', color: 'var(--gray-300)' }}>Pending</span>
+          <span style={{ fontSize: '11px', color: 'var(--gray-300)', flexShrink: 0 }}>Pending</span>
         )}
       </div>
     </div>
@@ -376,7 +437,7 @@ export default function PlantOverviewView({ plants, customerName, isDemo, demoPl
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {sorted.map(plant => (
-            <PlantCard key={plant.id} plant={plant} />
+            <PlantCard key={plant.id} plant={plant} portfolioTotalGap={totalGap} />
           ))}
         </div>
       )}
