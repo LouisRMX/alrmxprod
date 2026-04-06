@@ -392,13 +392,29 @@ function Contact() {
           color: '#fff', lineHeight: 1.2, letterSpacing: '-0.5px',
           margin: '0 0 12px',
         }}>
-          Book a demo session
+          Book a 20-min walkthrough
         </h2>
-        <p style={{ fontSize: '15px', color: 'rgba(255,255,255,0.5)', margin: '0 0 8px', lineHeight: 1.6 }}>
-          We walk you through a real plant case. You see exactly how losses are identified, what the bottleneck is, and what it costs.
+        <p style={{ fontSize: '15px', color: 'rgba(255,255,255,0.5)', margin: '0 0 20px', lineHeight: 1.6 }}>
+          We walk you through a demo-plant case and show exactly how losses are identified, prioritized, and turned into measurable profit.
         </p>
+        <p style={{ fontSize: '13px', fontWeight: 600, color: 'rgba(255,255,255,0.4)', margin: '0 0 10px', textTransform: 'uppercase', letterSpacing: '.06em' }}>
+          You will see
+        </p>
+        <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 28px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {[
+            'How data is collected',
+            'Where capacity is typically lost',
+            'How bottlenecks are identified',
+            'How actions are prioritized based on financial impact',
+          ].map(item => (
+            <li key={item} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+              <span style={{ color: '#4ade80', fontSize: '14px', flexShrink: 0, marginTop: '2px' }}>✓</span>
+              <span style={{ fontSize: '14px', color: 'rgba(255,255,255,0.55)', lineHeight: 1.5 }}>{item}</span>
+            </li>
+          ))}
+        </ul>
         <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.3)', margin: '0 0 32px', lineHeight: 1.6, fontStyle: 'italic' }}>
-          20+ years in GCC cement and concrete operations. Built on real plant floor experience, not academic benchmarks.
+          Built on 20+ years of GCC cement and concrete experience.
         </p>
 
         {status === 'sent' ? (
