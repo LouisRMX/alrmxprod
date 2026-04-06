@@ -177,6 +177,14 @@ function CardDetailModal({
     if (notesDraft !== (item.value ?? '')) onSaveNotes(item.id, notesDraft)
   }
 
+  function handleSave() {
+    const trimmed = titleDraft.trim()
+    if (trimmed && trimmed !== item.text) onEdit(item.id, trimmed)
+    if (notesDraft !== (item.value ?? '')) onSaveNotes(item.id, notesDraft)
+    setEditingTitle(false)
+    onClose()
+  }
+
   const assignee = item.assignee
   const assigneeLabel = assignee?.full_name || assignee?.email || null
 
@@ -412,12 +420,12 @@ function CardDetailModal({
           </div>
         </div>
 
-        {/* Footer: delete */}
+        {/* Footer: save + delete */}
         {canEdit && (
           <div style={{
             marginTop: '20px', paddingTop: '16px',
             borderTop: '1px solid var(--border)',
-            display: 'flex', justifyContent: 'flex-end',
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
           }}>
             <button
               type="button"
@@ -430,6 +438,18 @@ function CardDetailModal({
               }}
             >
               Delete task
+            </button>
+            <button
+              type="button"
+              onClick={handleSave}
+              style={{
+                padding: '6px 16px', fontSize: '12px', fontWeight: 600,
+                color: '#fff', background: 'var(--green)',
+                border: 'none', borderRadius: '6px',
+                cursor: 'pointer', fontFamily: 'var(--font)',
+              }}
+            >
+              Save
             </button>
           </div>
         )}
