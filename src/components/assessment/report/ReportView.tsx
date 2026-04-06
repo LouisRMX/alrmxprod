@@ -3376,6 +3376,8 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
           canEdit={userRole !== 'owner'}
           financialBottleneck={financialBottleneck}
           recoverable={primaryBottleneckLoss}
+          calcResult={calcResult}
+          answers={answers}
         />
       </div>
     )}
@@ -3394,6 +3396,8 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
           canEdit={userRole !== 'owner'}
           financialBottleneck={financialBottleneck}
           recoverable={primaryBottleneckLoss}
+          calcResult={calcResult}
+          answers={answers}
         />
       </div>
     )}

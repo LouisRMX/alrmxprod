@@ -2,8 +2,15 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import type { CalcResult, Answers } from '@/lib/calculations'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
+
+interface ChecklistItem {
+  id: string
+  text: string
+  done: boolean
+}
 
 interface ActionItem {
   id: string
@@ -14,6 +21,7 @@ interface ActionItem {
   assignee?: { full_name: string | null; email: string } | null
   source: 'ai' | 'manual'
   value: string | null
+  checklist: ChecklistItem[]
   created_at: string
 }
 
@@ -30,6 +38,8 @@ interface ActionBoardProps {
   canEdit: boolean
   financialBottleneck?: string | null
   recoverable?: number
+  calcResult?: CalcResult
+  answers?: Answers
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -62,6 +72,7 @@ function makeDemoItems(focusActions: string[]): ActionItem[] {
     assignee: null,
     source: 'ai',
     value: null,
+    checklist: [],
     created_at: new Date().toISOString(),
   }))
 }
@@ -104,22 +115,28 @@ function CardDetailModal({
   item,
   members,
   canEdit,
+  calcResult,
+  answers,
   onClose,
   onEdit,
   onSaveNotes,
   onAssign,
   onMove,
   onDelete,
+  onUpdateChecklist,
 }: {
   item: ActionItem
   members: BoardMember[]
   canEdit: boolean
+  calcResult?: CalcResult
+  answers?: Answers
   onClose: () => void
   onEdit: (id: string, text: string) => void
   onSaveNotes: (id: string, value: string) => void
   onAssign: (id: string, userId: string | null) => void
   onMove: (id: string, status: ActionItem['status']) => void
   onDelete: (id: string) => void
+  onUpdateChecklist: (id: string, checklist: ChecklistItem[]) => void
 }) {
   const [titleDraft, setTitleDraft] = useState(item.text)
   const [editingTitle, setEditingTitle] = useState(false)
@@ -186,6 +203,44 @@ function CardDetailModal({
     setEditingTitle(false)
     onClose()
   }
+
+  const [generatingChecklist, setGeneratingChecklist] = useState(false)
+  const [checklistError, setChecklistError] = useState<string | null>(null)
+
+  async function generateChecklist() {
+    setGeneratingChecklist(true)
+    setChecklistError(null)
+    try {
+      const res = await fetch('/api/generate-checklist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: item.text, calcResult, answers }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        setChecklistError(err.error ?? 'Generation failed')
+        return
+      }
+      const checklist: ChecklistItem[] = await res.json()
+      onUpdateChecklist(item.id, checklist)
+    } catch {
+      setChecklistError('Generation failed — please try again')
+    } finally {
+      setGeneratingChecklist(false)
+    }
+  }
+
+  function toggleChecklistItem(ciId: string) {
+    const updated = item.checklist.map(ci => ci.id === ciId ? { ...ci, done: !ci.done } : ci)
+    onUpdateChecklist(item.id, updated)
+    // Auto-advance to Done when all steps complete
+    if (updated.length > 0 && updated.every(ci => ci.done) && item.status !== 'done') {
+      onMove(item.id, 'done')
+    }
+  }
+
+  const checklistDone = item.checklist.filter(ci => ci.done).length
+  const checklistTotal = item.checklist.length
 
   const assignee = item.assignee
   const assigneeLabel = assignee?.full_name || assignee?.email || null
@@ -422,6 +477,116 @@ function CardDetailModal({
           </div>
         </div>
 
+        {/* Checklist */}
+        <div style={{ marginTop: '20px' }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            marginBottom: '10px',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--gray-500)' }}>
+                Steps
+              </div>
+              {checklistTotal > 0 && (
+                <span style={{
+                  fontSize: '11px', fontWeight: 600,
+                  color: checklistDone === checklistTotal ? 'var(--green)' : 'var(--gray-500)',
+                  background: checklistDone === checklistTotal ? 'var(--green-pale)' : 'var(--gray-100)',
+                  padding: '1px 7px', borderRadius: '10px',
+                }}>
+                  {checklistDone}/{checklistTotal}
+                </span>
+              )}
+            </div>
+            {canEdit && (
+              <button
+                type="button"
+                onClick={generateChecklist}
+                disabled={generatingChecklist}
+                style={{
+                  fontSize: '11px', fontWeight: 600,
+                  color: generatingChecklist ? 'var(--gray-400)' : 'var(--phase-workshop)',
+                  background: 'var(--phase-workshop-bg)',
+                  border: '1px solid var(--phase-workshop)',
+                  borderRadius: '5px', padding: '3px 10px',
+                  cursor: generatingChecklist ? 'not-allowed' : 'pointer',
+                  fontFamily: 'var(--font)',
+                  opacity: generatingChecklist ? 0.7 : 1,
+                }}
+              >
+                {generatingChecklist ? 'Generating…' : checklistTotal > 0 ? '↻ Regenerate' : '✦ Generate steps'}
+              </button>
+            )}
+          </div>
+
+          {checklistError && (
+            <div style={{ fontSize: '11px', color: 'var(--red)', marginBottom: '8px' }}>
+              {checklistError}
+            </div>
+          )}
+
+          {/* Progress bar */}
+          {checklistTotal > 0 && (
+            <div style={{
+              height: '3px', borderRadius: '2px',
+              background: 'var(--gray-100)', marginBottom: '10px', overflow: 'hidden',
+            }}>
+              <div style={{
+                height: '100%', borderRadius: '2px',
+                background: checklistDone === checklistTotal ? 'var(--green)' : 'var(--phase-workshop)',
+                width: `${(checklistDone / checklistTotal) * 100}%`,
+                transition: 'width 0.3s',
+              }} />
+            </div>
+          )}
+
+          {/* Checklist items */}
+          {item.checklist.map((ci, idx) => (
+            <div
+              key={ci.id}
+              style={{
+                display: 'flex', alignItems: 'flex-start', gap: '10px',
+                padding: '7px 0',
+                borderBottom: idx < item.checklist.length - 1 ? '1px solid var(--gray-100)' : 'none',
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => toggleChecklistItem(ci.id)}
+                disabled={!canEdit}
+                style={{
+                  width: '16px', height: '16px', borderRadius: '3px', flexShrink: 0,
+                  marginTop: '1px',
+                  border: ci.done ? 'none' : '1.5px solid var(--gray-300)',
+                  background: ci.done ? 'var(--green)' : 'transparent',
+                  cursor: canEdit ? 'pointer' : 'default',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: '#fff', fontSize: '10px', fontWeight: 700,
+                }}
+              >
+                {ci.done ? '✓' : ''}
+              </button>
+              <span style={{
+                fontSize: '12px', lineHeight: 1.5,
+                color: ci.done ? 'var(--gray-400)' : 'var(--gray-900)',
+                textDecoration: ci.done ? 'line-through' : 'none',
+                flex: 1,
+              }}>
+                {ci.text}
+              </span>
+            </div>
+          ))}
+
+          {checklistTotal === 0 && !generatingChecklist && canEdit && (
+            <div style={{
+              fontSize: '12px', color: 'var(--gray-300)', fontStyle: 'italic',
+              padding: '8px 0',
+            }}>
+              No steps yet. Click Generate steps to create a specific action plan.
+            </div>
+          )}
+        </div>
+
         {/* Footer: save + delete */}
         {canEdit && (
           <div style={{
@@ -539,6 +704,30 @@ function TaskCard({
         </div>
       )}
 
+      {/* Checklist progress chip */}
+      {item.checklist.length > 0 && (() => {
+        const done = item.checklist.filter(ci => ci.done).length
+        const total = item.checklist.length
+        const complete = done === total
+        return (
+          <div style={{ marginTop: '5px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <div style={{
+              width: '50px', height: '3px', borderRadius: '2px',
+              background: 'var(--gray-100)', overflow: 'hidden',
+            }}>
+              <div style={{
+                height: '100%', borderRadius: '2px',
+                background: complete ? 'var(--green)' : 'var(--phase-workshop)',
+                width: `${(done / total) * 100}%`,
+              }} />
+            </div>
+            <span style={{ fontSize: '10px', color: complete ? 'var(--green)' : '#64748b', fontWeight: 500 }}>
+              {done}/{total}
+            </span>
+          </div>
+        )
+      })()}
+
       {/* Footer: assignee chip (read-only) + delete */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '8px', gap: '6px' }}>
         {assigneeLabel ? (
@@ -584,7 +773,7 @@ const iconBtnStyle: React.CSSProperties = {
 
 // ── Main ActionBoard ──────────────────────────────────────────────────────────
 
-export default function ActionBoard({ assessmentId, customerId, focusActions, canEdit, financialBottleneck, recoverable }: ActionBoardProps) {
+export default function ActionBoard({ assessmentId, customerId, focusActions, canEdit, financialBottleneck, recoverable, calcResult, answers }: ActionBoardProps) {
   const isDemo = assessmentId === 'demo'
   const supabase = createClient()
 
@@ -641,6 +830,7 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, ca
           ...row,
           source: (row.source ?? 'manual') as 'ai' | 'manual',
           value: row.value ?? null,
+          checklist: Array.isArray(row.checklist) ? row.checklist : [],
           assignee: member?.profile ?? null,
         }
       })
@@ -664,6 +854,7 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, ca
             ...row,
             source: (row.source ?? 'manual') as 'ai' | 'manual',
             value: row.value ?? null,
+            checklist: Array.isArray(row.checklist) ? row.checklist : [],
             assignee: null,
           })))
           setToast('Tasks created from report findings')
@@ -697,6 +888,7 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, ca
         assignee: null,
         source: 'manual',
         value: null,
+        checklist: [],
         created_at: new Date().toISOString(),
       }
       setItems(prev => [...prev, newItem])
@@ -715,6 +907,7 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, ca
         ...row,
         source: (row.source ?? 'manual') as 'ai' | 'manual',
         value: row.value ?? null,
+        checklist: Array.isArray(row.checklist) ? row.checklist : [],
         assignee: null,
       }])
     } else {
@@ -728,6 +921,7 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, ca
         assignee: null,
         source: 'manual' as const,
         value: null,
+        checklist: [],
         created_at: new Date().toISOString(),
       }])
     }
@@ -766,6 +960,13 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, ca
     }
   }
 
+  async function updateChecklist(id: string, checklist: ChecklistItem[]) {
+    setItems(prev => prev.map(i => i.id === id ? { ...i, checklist } : i))
+    if (!isDemo) {
+      await supabase.from('action_items').update({ checklist }).eq('id', id)
+    }
+  }
+
   async function deleteItem(id: string) {
     setItems(prev => prev.filter(i => i.id !== id))
     if (!isDemo) {
@@ -792,12 +993,15 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, ca
           item={selectedItem}
           members={members}
           canEdit={canEdit}
+          calcResult={calcResult}
+          answers={answers}
           onClose={() => setSelectedItemId(null)}
           onEdit={editItem}
           onSaveNotes={saveNotes}
           onAssign={assignItem}
           onMove={moveItem}
           onDelete={deleteItem}
+          onUpdateChecklist={updateChecklist}
         />
       )}
 
