@@ -90,8 +90,10 @@ export default function FloatingChat({ userRole, isAdmin }: FloatingChatProps) {
     setError(null)
 
     // Snapshot of completed history before we add the new turn
+    // Cap at 10 messages (5 turns) to keep token usage bounded
     const historySnapshot = messages
       .filter(m => !m.streaming)
+      .slice(-10)
       .map(m => ({ role: m.role, content: m.content }))
 
     setMessages(prev => [
@@ -221,6 +223,9 @@ export default function FloatingChat({ userRole, isAdmin }: FloatingChatProps) {
               </div>
               <div style={{ fontSize: '11px', color: 'var(--gray-400)', marginTop: '1px' }}>
                 {plantSubtitle}
+              </div>
+              <div style={{ fontSize: '10px', color: 'var(--gray-300)', marginTop: '2px' }}>
+                AI estimates. Verify before acting.
               </div>
             </div>
             <button

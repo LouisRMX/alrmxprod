@@ -15,7 +15,8 @@ export default function DashboardShell({ children, userRole, isAdmin }: Dashboar
   return (
     <ChatProvider>
       {children}
-      <FloatingChat userRole={userRole} isAdmin={isAdmin} />
+      {/* Operators do data entry only — no access to financial intelligence via chat */}
+      {userRole !== 'operator' && <FloatingChat userRole={userRole} isAdmin={isAdmin} />}
     </ChatProvider>
   )
 }
