@@ -11,8 +11,9 @@ import { useBenchmarks } from '@/hooks/useBenchmarks'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { stripMarkdown } from '@/lib/stripMarkdown'
 import FindingCard from './FindingCard'
-import ExportPDF from './ExportPDF'
+import ExportPDF, { SummaryPDFButton } from './ExportPDF'
 import ActionBoard from './ActionBoard'
+import ComparisonBanner from './ComparisonBanner'
 import type { DemoBannerProps } from '@/components/assessment/AssessmentShell'
 
 function fmt(n: number): string {
@@ -810,9 +811,9 @@ function BottleneckSlider({ calcResult, dimension }: {
 
 // ── Calc Basis Panel ───────────────────────────────────────────────────────
 function CalcBasisPanel({ calcResult, answers }: { calcResult: CalcResult; answers: Answers }) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(true)
 
-  const items: { label: string; value: string; estimated: boolean }[] = []
+  const items: { label: string; value: string; estimated: boolean; hint?: string }[] = []
 
   if (calcResult.price > 0) {
     if (calcResult.marginIncomplete) {
@@ -820,6 +821,7 @@ function CalcBasisPanel({ calcResult, answers }: { calcResult: CalcResult; answe
         label: 'Contribution margin',
         value: `~$${calcResult.contribSafe}/m³ (35% of price — material costs not fully entered)`,
         estimated: true,
+        hint: 'Enter cement, aggregate and admix costs in section 1 of the assessment',
       })
     } else {
       items.push({
@@ -835,6 +837,7 @@ function CalcBasisPanel({ calcResult, answers }: { calcResult: CalcResult; answe
       label: 'Dispatch time',
       value: `${calcResult.dispatchMin} min — midpoint of selected range`,
       estimated: true,
+      hint: 'Record order receipt vs. batch start time for 20 orders to get an actual average',
     })
   }
 
@@ -843,6 +846,7 @@ function CalcBasisPanel({ calcResult, answers }: { calcResult: CalcResult; answe
       label: 'Turnaround time',
       value: `${calcResult.ta} min — midpoint of selected range`,
       estimated: true,
+      hint: 'Log truck departure and yard return for 10 trips this week, take the average',
     })
   }
 
@@ -893,7 +897,7 @@ function CalcBasisPanel({ calcResult, answers }: { calcResult: CalcResult; answe
         <div style={{
           border: '1px solid var(--border)', borderTop: 'none',
           borderRadius: '0 0 8px 8px', background: 'var(--white)',
-          padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: '7px',
+          padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: '9px',
         }}>
           {items.map((item, i) => (
             <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
@@ -903,12 +907,17 @@ function CalcBasisPanel({ calcResult, answers }: { calcResult: CalcResult; answe
               <div>
                 <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--gray-700)' }}>{item.label}: </span>
                 <span style={{ fontSize: '11px', color: 'var(--gray-500)' }}>{item.value}</span>
+                {item.hint && (
+                  <div style={{ fontSize: '10px', color: '#b45309', marginTop: '2px' }}>
+                    How to measure: {item.hint}
+                  </div>
+                )}
               </div>
             </div>
           ))}
           {estimatedCount > 0 && (
-            <div style={{ fontSize: '10px', color: 'var(--gray-400)', marginTop: '4px', borderTop: '1px solid var(--border)', paddingTop: '6px' }}>
-              Replace estimated values with site measurements for precise figures.
+            <div style={{ fontSize: '10px', color: 'var(--gray-400)', marginTop: '2px', borderTop: '1px solid var(--border)', paddingTop: '6px' }}>
+              Measure the actual figures and update them in the assessment — your recovery estimate will recalculate automatically.
             </div>
           )}
         </div>
@@ -2101,6 +2110,8 @@ interface FullReportDrawerProps {
   phase?: Phase
   financialBottleneck: string | null
   readOnly?: boolean
+  focusActions?: string[]
+  isFollowup?: boolean
 }
 
 function FullReportDrawer({
@@ -2110,6 +2121,7 @@ function FullReportDrawer({
   issues, primaryBottleneckLoss,
   logisticsText, gpsAvgTA,
   totalLoss, isAdmin, phase, financialBottleneck, readOnly,
+  focusActions, isFollowup,
 }: FullReportDrawerProps) {
   const isMobile = useIsMobile()
   const plantName = meta?.plant || 'Full Report'
@@ -2171,6 +2183,20 @@ function FullReportDrawer({
               </button>
             )}
             <ExportPDF calcResult={calcResult} answers={answers} meta={meta} report={texts} />
+            <SummaryPDFButton calcResult={calcResult} answers={answers} meta={meta} focusActions={focusActions ?? []} />
+            {isAdmin && !isFollowup && assessmentId !== 'demo' && (
+              <a
+                href={`/dashboard/assess/new?baseline_id=${assessmentId}`}
+                style={{
+                  padding: '8px 16px', background: 'var(--white)', color: 'var(--gray-700)',
+                  border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', fontWeight: 500,
+                  cursor: 'pointer', fontFamily: 'var(--font)', textDecoration: 'none',
+                  display: 'inline-flex', alignItems: 'center', gap: '4px',
+                }}
+              >
+                Start 60-Day Follow-up
+              </a>
+            )}
             <button
               type="button"
               onClick={onClose}
@@ -3052,9 +3078,10 @@ interface ReportViewProps {
   demoBanner?: DemoBannerProps
   userRole?: 'owner' | 'manager' | 'operator' | null
   focusActions?: string[] | null
+  baselineData?: { answers: Answers; calcResult: CalcResult; date: string }
 }
 
-export default function ReportView({ calcResult, answers, meta, report, assessmentId, customerId, reportReleased, isAdmin, overrides, onOverrideChange, phase, onSwitchToTracking, demoBanner, userRole, focusActions }: ReportViewProps) {
+export default function ReportView({ calcResult, answers, meta, report, assessmentId, customerId, reportReleased, isAdmin, overrides, onOverrideChange, phase, onSwitchToTracking, demoBanner, userRole, focusActions, baselineData }: ReportViewProps) {
   const isMobile = useIsMobile()
   const supabase = createClient()
   const issues = buildIssues(calcResult, answers, meta)
@@ -3376,7 +3403,19 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
 
 
 
-      {/* Calc basis panel — collapsed by default */}
+      {/* Follow-up: before/after comparison banner */}
+      {baselineData && (
+        <ComparisonBanner
+          baselineCalcResult={baselineData.calcResult}
+          baselineAnswers={baselineData.answers}
+          followupCalcResult={calcResult}
+          followupAnswers={answers}
+          baselineDate={baselineData.date}
+          followupDate={meta?.date || new Date().toISOString().split('T')[0]}
+        />
+      )}
+
+      {/* Calc basis panel — open by default when estimates exist */}
       {totalLoss > 0 && <CalcBasisPanel calcResult={calcResult} answers={answers} />}
 
       {/* 1. SCORE GRID (ImpactHook merged in) */}
@@ -3457,6 +3496,8 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
         phase={phase}
         financialBottleneck={financialBottleneck}
         readOnly={!isAdmin}
+        focusActions={boardActions}
+        isFollowup={!!baselineData}
       />
 
     </div>

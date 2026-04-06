@@ -1,6 +1,6 @@
 'use client'
 
-import { SECTIONS, getVisibleQs, type Phase } from '@/lib/questions'
+import { SECTIONS, getVisibleQs, type Phase, type Section } from '@/lib/questions'
 import type { Answers } from '@/lib/calculations'
 
 interface SidebarProps {
@@ -11,9 +11,11 @@ interface SidebarProps {
   showGps?: boolean
   gpsActive?: boolean
   onSelectGps?: () => void
+  sections?: Section[]
 }
 
-export default function Sidebar({ currentSection, onSelect, answers, phase, showGps, gpsActive, onSelectGps }: SidebarProps) {
+export default function Sidebar({ currentSection, onSelect, answers, phase, showGps, gpsActive, onSelectGps, sections }: SidebarProps) {
+  const activeSections = sections ?? SECTIONS
   return (
     <div style={{
       width: '220px',
@@ -23,7 +25,7 @@ export default function Sidebar({ currentSection, onSelect, answers, phase, show
       padding: '12px 0',
       overflowY: 'auto',
     }}>
-      {SECTIONS.map((sec, i) => {
+      {activeSections.map((sec, i) => {
           const visibleQs = getVisibleQs(sec, phase)
           if (visibleQs.length === 0) return null
 

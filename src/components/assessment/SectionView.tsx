@@ -1,6 +1,6 @@
 'use client'
 
-import { SECTIONS, getVisibleQs, type Phase } from '@/lib/questions'
+import { SECTIONS, getVisibleQs, type Phase, type Section } from '@/lib/questions'
 import type { CalcResult, Answers } from '@/lib/calculations'
 import { getLiveImpact } from '@/lib/live-impact'
 import QuestionCard from './QuestionCard'
@@ -16,15 +16,17 @@ interface SectionViewProps {
   onViewResults: () => void
   calcResult: CalcResult
   baseline?: Answers
+  sections?: Section[]
 }
 
-export default function SectionView({ sectionIndex, answers, phase, onAnswer, onNext, onBack, onViewResults, calcResult, baseline }: SectionViewProps) {
-  const section = SECTIONS[sectionIndex]
+export default function SectionView({ sectionIndex, answers, phase, onAnswer, onNext, onBack, onViewResults, calcResult, baseline, sections }: SectionViewProps) {
+  const activeSections = sections ?? SECTIONS
+  const section = activeSections[sectionIndex]
   if (!section) return null
 
   const visibleQs = getVisibleQs(section, phase)
   const answeredCount = visibleQs.filter(q => answers[q.id] !== undefined && answers[q.id] !== '').length
-  const totalSections = SECTIONS.length
+  const totalSections = activeSections.length
   const isFirst = sectionIndex === 0
   const isLast = sectionIndex === totalSections - 1
 

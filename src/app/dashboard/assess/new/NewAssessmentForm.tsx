@@ -9,11 +9,16 @@ interface Customer { id: string; name: string; country: string; plants: Plant[] 
 
 export default function NewAssessmentForm({
   customers,
-  userId
+  userId,
+  baselineId,
+  baselinePlant,
 }: {
   customers: Customer[]
   userId: string
+  baselineId?: string
+  baselinePlant?: { id: string; name: string; customer_id: string; country: string } | null
 }) {
+  const isFollowup = !!baselineId
   const [customerId, setCustomerId] = useState('')
   const [plantId, setPlantId] = useState('')
   const [newPlantName, setNewPlantName] = useState('')
@@ -38,6 +43,40 @@ export default function NewAssessmentForm({
     e.preventDefault()
     setLoading(true)
     setError('')
+
+    // Follow-up path: use baseline plant, skip plant selection
+    if (isFollowup && baselinePlant) {
+      // Mark original assessment as baseline
+      await supabase
+        .from('assessments')
+        .update({ is_baseline: true })
+        .eq('id', baselineId)
+
+      // Create follow-up assessment linked to baseline
+      const { data: assessment, error: assessErr } = await supabase
+        .from('assessments')
+        .insert({
+          plant_id: baselinePlant.id,
+          analyst_id: userId,
+          date,
+          season,
+          phase: 'followup',
+          baseline_id: baselineId,
+          answers: {},
+          scores: {},
+        })
+        .select()
+        .single()
+
+      if (assessErr || !assessment) {
+        setError('Failed to create follow-up assessment')
+        setLoading(false)
+        return
+      }
+
+      router.push(`/dashboard/assess/${assessment.id}`)
+      return
+    }
 
     let finalPlantId = plantId
 
@@ -83,6 +122,37 @@ export default function NewAssessmentForm({
     }
 
     router.push(`/dashboard/assess/${assessment.id}`)
+  }
+
+  // Follow-up form: simplified layout showing plant name read-only
+  if (isFollowup && baselinePlant) {
+    return (
+      <form onSubmit={handleStart} style={{
+        background: 'var(--white)', border: '1px solid var(--border)',
+        borderRadius: 'var(--radius)', padding: '24px',
+        display: 'flex', flexDirection: 'column', gap: '16px'
+      }}>
+        <div style={{ background: 'var(--gray-50)', border: '1px solid var(--border)', borderRadius: '8px', padding: '12px 16px' }}>
+          <div style={{ fontSize: '11px', color: 'var(--gray-500)', marginBottom: '4px' }}>Plant</div>
+          <div style={{ fontSize: '14px', fontWeight: 500 }}>{baselinePlant.name}</div>
+          <div style={{ fontSize: '12px', color: 'var(--gray-500)' }}>{baselinePlant.country}</div>
+        </div>
+        <div>
+          <label style={{ fontSize: '12px', fontWeight: '500', color: 'var(--gray-700)', display: 'block', marginBottom: '6px' }}>
+            Follow-up date
+          </label>
+          <input type="date" style={inp} value={date} onChange={e => setDate(e.target.value)} />
+        </div>
+        {error && <div style={{ fontSize: '12px', color: 'var(--red)' }}>{error}</div>}
+        <button type="submit" disabled={loading} style={{
+          padding: '12px', background: 'var(--green)', color: '#fff',
+          border: 'none', borderRadius: '8px', fontSize: '14px',
+          fontWeight: '500', cursor: 'pointer', fontFamily: 'var(--font)',
+        }}>
+          {loading ? 'Starting…' : 'Start follow-up →'}
+        </button>
+      </form>
+    )
   }
 
   return (

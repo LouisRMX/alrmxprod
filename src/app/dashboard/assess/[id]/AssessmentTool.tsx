@@ -5,12 +5,14 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import AssessmentShell from '@/components/assessment/AssessmentShell'
 import type { Phase } from '@/lib/questions'
+import { FOLLOWUP_QUESTIONS } from '@/lib/followup-questions'
 import type { Answers, CalcScores } from '@/lib/calculations'
 import { useIsMobile } from '@/hooks/useIsMobile'
 
 interface Assessment {
   id: string
   phase: string
+  baseline_id?: string | null
   plant: { name: string; country: string; customer_id?: string; customer?: { name: string } }
   analyst: { full_name: string }
   date: string
@@ -30,11 +32,13 @@ export default function AssessmentTool({
   userId,
   isAdmin = false,
   userRole = null,
+  baselineAssessment = null,
 }: {
   assessment: Assessment
   userId: string
   isAdmin?: boolean
   userRole?: 'owner' | 'manager' | 'operator' | null
+  baselineAssessment?: { id: string; date: string; answers: Record<string, unknown> } | null
 }) {
   const supabase = createClient()
   const router = useRouter()
@@ -353,7 +357,7 @@ export default function AssessmentTool({
       {!((!isAdmin) && phase === 'workshop_complete') && (
         <AssessmentShell
           initialAnswers={(assessment.answers || {}) as Answers}
-          phase={assessmentPhase}
+          phase={assessment.baseline_id ? 'full' : assessmentPhase}
           season={assessment.season}
           country={assessment.plant?.country}
           plant={assessment.plant?.name}
@@ -367,6 +371,8 @@ export default function AssessmentTool({
           onSave={handleSave}
           requestMode={requestedMode as import('@/components/assessment/ModeTabs').AssessmentMode | undefined}
           focusActions={assessment.focus_actions}
+          customSections={assessment.baseline_id ? FOLLOWUP_QUESTIONS : undefined}
+          baselineData={baselineAssessment ? { answers: baselineAssessment.answers as Answers, date: baselineAssessment.date } : undefined}
         />
       )}
 

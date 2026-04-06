@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
-import { SECTIONS, type Phase } from '@/lib/questions'
+import { SECTIONS, type Phase, type Section } from '@/lib/questions'
 import { calc, type Answers, type CalcResult, type CalcOverrides } from '@/lib/calculations'
 import { buildIssues } from '@/lib/issues'
 import ModeTabs, { type AssessmentMode } from './ModeTabs'
@@ -67,9 +67,13 @@ interface AssessmentShellProps {
   hideModeTabs?: boolean
   // Focus actions curated by admin — shown to manager in report banner
   focusActions?: string[] | null
+  // Follow-up: override the default question sections
+  customSections?: Section[]
+  // Follow-up: baseline data for comparison in report view
+  baselineData?: { answers: Answers; date: string }
 }
 
-export default function AssessmentShell({ initialAnswers, phase, season, country, plant, date, assessmentId, customerId, report, reportReleased, isAdmin, userRole, onSave, baseline, requestMode, onAnswersChange, demoBanner, extraTab, hideModeTabs, focusActions }: AssessmentShellProps) {
+export default function AssessmentShell({ initialAnswers, phase, season, country, plant, date, assessmentId, customerId, report, reportReleased, isAdmin, userRole, onSave, baseline, requestMode, onAnswersChange, demoBanner, extraTab, hideModeTabs, focusActions, customSections, baselineData }: AssessmentShellProps) {
   const [answers, setAnswers] = useState<Answers>(initialAnswers)
   const [currentSection, setCurrentSection] = useState(0)
   // Owner starts on report (they have no questions tab)
@@ -105,6 +109,10 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
 
   const meta = useMemo(() => ({ season }), [season])
   const calcResult: CalcResult = useMemo(() => calc(answers, meta, overrides), [answers, meta, overrides])
+  const baselineCalcResult: CalcResult | null = useMemo(
+    () => baselineData ? calc(baselineData.answers, meta) : null,
+    [baselineData, meta]
+  )
 
   // Debounced autosave
   const triggerSave = useCallback((updatedAnswers: Answers, result: CalcResult) => {
@@ -152,10 +160,12 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
     })
   }, [meta, triggerSave, onAnswersChange])
 
+  const activeSections = customSections ?? SECTIONS
+
   const handleNextSection = useCallback(() => {
-    setCurrentSection(prev => Math.min(prev + 1, SECTIONS.length - 1))
+    setCurrentSection(prev => Math.min(prev + 1, activeSections.length - 1))
     window.scrollTo(0, 0)
-  }, [])
+  }, [activeSections])
 
   const handleBackSection = useCallback(() => {
     setCurrentSection(prev => Math.max(prev - 1, 0))
@@ -189,6 +199,7 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
                 onSelect={(i) => { setCurrentSection(i); setMode('questions') }}
                 answers={answers}
                 phase={phase}
+                sections={customSections}
               />
               {phase === 'workshop' && (
                 <div style={{ borderTop: '1px solid var(--border)', padding: '8px 0', background: 'var(--white)' }}>
@@ -250,6 +261,7 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
                   onViewResults={() => setMode('report')}
                   calcResult={calcResult}
                   baseline={baseline}
+                  sections={customSections}
                 />
               </>
             )}
@@ -281,6 +293,7 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
           demoBanner={demoBanner}
           userRole={userRole}
           focusActions={focusActions}
+          baselineData={baselineData && baselineCalcResult ? { ...baselineData, calcResult: baselineCalcResult } : undefined}
         />
       )}
 

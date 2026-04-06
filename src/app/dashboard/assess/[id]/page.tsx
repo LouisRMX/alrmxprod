@@ -41,6 +41,17 @@ export default async function AssessmentPage({
   const analystArr = assessment.analyst as unknown[]
   assessment.analyst = Array.isArray(analystArr) ? analystArr[0] || null : analystArr
 
+  // Load baseline assessment when this is a follow-up
+  let baselineAssessment: { id: string; date: string; answers: Record<string, unknown> } | null = null
+  if (assessment.baseline_id) {
+    const { data: baseline } = await supabase
+      .from('assessments')
+      .select('id, date, answers')
+      .eq('id', assessment.baseline_id)
+      .single()
+    baselineAssessment = baseline ?? null
+  }
+
   // Get user profile role
   const { data: profile } = await supabase
     .from('profiles')
@@ -89,6 +100,7 @@ export default async function AssessmentPage({
       userId={user.id}
       isAdmin={isAdmin}
       userRole={effectiveRole}
+      baselineAssessment={baselineAssessment}
     />
   )
 }
