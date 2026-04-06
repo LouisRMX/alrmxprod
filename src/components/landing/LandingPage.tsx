@@ -269,7 +269,7 @@ function HowItWorks() {
     {
       num: '1',
       label: 'Remote diagnostic',
-      text: 'We collect your operational data and calculate the exact monthly cost across five dimensions. The output is a quantified business case: what you are losing, where, and why. It scopes the engagement and sets the baseline for everything that follows.',
+      text: 'We collect your operational data and calculate the estimated revenue gap across your operations. The output is a quantified business case: what you are losing, where, and why. It scopes the engagement and sets the baseline for everything that follows.',
     },
     {
       num: '2',
