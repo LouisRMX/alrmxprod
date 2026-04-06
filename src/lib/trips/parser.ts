@@ -77,9 +77,10 @@ export function parseTripCsv(csvText: string): ParseResult {
     return { rows: [], errors: [{ rowIndex: 0, truck: '', message: 'File is empty or has no data rows' }] }
   }
 
-  // Parse header
+  // Parse header — auto-detect delimiter (semicolon for Danish/European Excel, comma otherwise)
   const headerLine = nonEmpty[0]
-  const headers = headerLine.split(',').map(h => canonicalize(h))
+  const delimiter = headerLine.includes(';') ? ';' : ','
+  const headers = headerLine.split(delimiter).map(h => canonicalize(h))
 
   const col = (name: string) => headers.indexOf(name)
   const truckCol   = col('truck')
@@ -100,7 +101,7 @@ export function parseTripCsv(csvText: string): ParseResult {
   }
 
   for (let i = 1; i < nonEmpty.length; i++) {
-    const cells = nonEmpty[i].split(',').map(c => c.trim())
+    const cells = nonEmpty[i].split(delimiter).map(c => c.trim())
     const rowIndex = i  // 1-based
 
     const rawTruck   = cells[truckCol]   ?? ''

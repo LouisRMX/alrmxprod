@@ -17,9 +17,9 @@ function todayIso(): string {
 
 function downloadTemplate() {
   const csv = [
-    'truck,dispatch,return',
-    'T01,07:23,10:52',
-    'T02,07:31,11:08',
+    'truck;dispatch;return',
+    'T01;07:23;10:52',
+    'T02;07:31;11:08',
   ].join('\r\n')
   const blob = new Blob([csv], { type: 'text/csv' })
   const url  = URL.createObjectURL(blob)
