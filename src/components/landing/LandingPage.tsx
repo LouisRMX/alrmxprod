@@ -108,7 +108,7 @@ function Hero() {
             background: 'var(--green)', color: '#fff', textDecoration: 'none',
             padding: '12px 22px', borderRadius: '9px', fontSize: '14px', fontWeight: 600,
           }}>
-            Book a 20-min walkthrough →
+            Book a strategy session →
           </a>
         </div>
 
@@ -145,14 +145,18 @@ function Hero() {
             <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.5px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', marginBottom: '10px' }}>
               Primary constraint
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
-              <span style={{ fontSize: '42px', fontWeight: 800, color: '#fff', lineHeight: 1, letterSpacing: '-2px', fontFamily: 'var(--mono)' }}>47</span>
-              <div>
-                <div style={{ fontSize: '14px', fontWeight: 600, color: 'rgba(255,255,255,0.75)' }}>Dispatch</div>
-                <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)' }}>score out of 100</div>
+            <div style={{ fontSize: '16px', fontWeight: 700, color: '#fff', marginBottom: '12px' }}>Dispatch</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)' }}>Best plant</span>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: '#4ade80', fontFamily: 'var(--mono)' }}>19 min</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)' }}>Portfolio avg</span>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: 'rgba(255,255,255,0.6)', fontFamily: 'var(--mono)' }}>41 min</span>
               </div>
             </div>
-            <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', marginTop: '2px' }}>$108k revenue at risk /mo</div>
+            <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', marginTop: '10px', borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: '10px' }}>$108k revenue at risk /mo</div>
           </div>
 
           {/* Connector */}
