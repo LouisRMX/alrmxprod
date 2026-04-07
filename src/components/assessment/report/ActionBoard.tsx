@@ -23,6 +23,7 @@ interface ActionItem {
   value: string | null
   checklist: ChecklistItem[]
   created_at: string
+  dimension?: string | null
 }
 
 interface BoardMember {
@@ -1068,6 +1069,7 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, fo
       if (normalizedItems.length === 0 && focusActions.filter(Boolean).length > 0) {
         const toInsert = focusActions.filter(Boolean).map((text) => ({
           assessment_id: assessmentId, text, status: 'todo' as const, checklist: [],
+          dimension: dimMap[text] ?? null,
         }))
         const { data: inserted } = await supabase
           .from('action_items')

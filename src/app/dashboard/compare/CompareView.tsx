@@ -1,10 +1,11 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import Link from 'next/link'
 import type { PlantCardData } from '@/components/plants/PlantOverviewView'
 import { DemoSizeToggle } from '@/components/plants/PlantOverviewView'
 import { useIsMobile } from '@/hooks/useIsMobile'
+import { createClient } from '@/lib/supabase/client'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -85,6 +86,189 @@ function thStyle(sortable = false, active = false): React.CSSProperties {
   }
 }
 
+// ── Dimension mapping: DIMS key → action_items.dimension ──────────────────
+
+const DIM_TO_ACTION_DIM: Record<string, string> = {
+  dispatch:   'Dispatch',
+  turnaround: 'Fleet',
+  util:       'Fleet',
+  quality:    'Quality',
+}
+
+// ── Slide-in action panel ──────────────────────────────────────────────────
+
+interface PanelAction { id: string; text: string; status: string; dimension: string | null }
+
+interface PanelState {
+  assessmentId: string
+  plantName:    string
+  plantHref:    string
+  dimension:    string       // action_items dimension value e.g. 'Dispatch'
+  dimLabel:     string       // display label e.g. 'Dispatch'
+  kpiVal:       number
+  unit:         string
+}
+
+const DEMO_PANEL_ACTIONS: Record<string, PanelAction[]> = {
+  Dispatch: [
+    { id: 'd1', text: 'Assign a dedicated dispatcher for peak hours', status: 'todo', dimension: 'Dispatch' },
+    { id: 'd2', text: 'Implement order-to-dispatch SOP — target 15 min', status: 'in_progress', dimension: 'Dispatch' },
+    { id: 'd3', text: 'Lock dispatch slots during peak concrete demand hours', status: 'todo', dimension: 'Dispatch' },
+  ],
+  Fleet: [
+    { id: 'f1', text: 'Implement zone routing — split delivery area into 4 quadrants', status: 'in_progress', dimension: 'Fleet' },
+    { id: 'f2', text: 'Enforce demurrage clause with top 3 contractors', status: 'done', dimension: 'Fleet' },
+    { id: 'f3', text: 'Reduce fleet idle time at plant — pre-load 2 trucks before shift start', status: 'todo', dimension: 'Fleet' },
+  ],
+  Quality: [
+    { id: 'q1', text: 'Add retarder protocol for loads dispatched after 09:00 in summer', status: 'todo', dimension: 'Quality' },
+    { id: 'q2', text: 'Log rejection reasons per truck — identify top 3 causes', status: 'todo', dimension: 'Quality' },
+  ],
+  Production: [
+    { id: 'p1', text: 'Map monthly volume by strength class: C20, C25, C30, C35+', status: 'todo', dimension: 'Production' },
+  ],
+}
+
+const STATUS_CFG = {
+  todo:        { label: 'To do',       bg: '#fff3f3', color: '#cc3333', border: '#fcc' },
+  in_progress: { label: 'In progress', bg: '#fff8ed', color: '#c96a00', border: '#f5cba0' },
+  done:        { label: 'Done',        bg: '#f0faf5', color: '#1a6644', border: '#b6e2ce' },
+} as const
+
+function ActionPanel({ panel, isDemo, onClose }: { panel: PanelState; isDemo?: boolean; onClose: () => void }) {
+  const supabase = createClient()
+  const [actions, setActions] = useState<PanelAction[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (isDemo) {
+      setActions(DEMO_PANEL_ACTIONS[panel.dimension] ?? [])
+      setLoading(false)
+      return
+    }
+    async function load() {
+      const { data } = await supabase
+        .from('action_items')
+        .select('id, text, status, dimension')
+        .eq('assessment_id', panel.assessmentId)
+        .eq('dimension', panel.dimension)
+        .order('created_at', { ascending: true })
+      setActions((data ?? []) as PanelAction[])
+      setLoading(false)
+    }
+    load()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [panel.assessmentId, panel.dimension])
+
+  const kpiDisplay = panel.unit === '%'
+    ? `${panel.kpiVal.toFixed(1)}%`
+    : `${Math.round(panel.kpiVal)} min`
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        onClick={onClose}
+        style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.18)',
+          zIndex: 200, cursor: 'pointer',
+        }}
+      />
+      {/* Panel */}
+      <div style={{
+        position: 'fixed', top: 0, right: 0, bottom: 0, width: '340px',
+        background: 'var(--white)', borderLeft: '1px solid var(--border)',
+        zIndex: 201, display: 'flex', flexDirection: 'column',
+        boxShadow: '-4px 0 24px rgba(0,0,0,0.1)',
+      }}>
+        {/* Header */}
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
+            <div>
+              <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '3px' }}>
+                {panel.plantName}
+              </div>
+              <div style={{ fontSize: '17px', fontWeight: 700, color: 'var(--gray-900)' }}>
+                {panel.dimLabel}
+              </div>
+              <div style={{ fontSize: '12px', color: '#cc3333', fontWeight: 600, marginTop: '3px', fontFamily: 'var(--mono)' }}>
+                {kpiDisplay} — needs improvement
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                color: 'var(--gray-400)', fontSize: '18px', padding: '2px 4px',
+                lineHeight: 1, flexShrink: 0,
+              }}
+            >
+              ×
+            </button>
+          </div>
+        </div>
+
+        {/* Actions list */}
+        <div style={{ flex: 1, overflow: 'auto', padding: '16px 20px' }}>
+          <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '12px' }}>
+            Actions
+          </div>
+
+          {loading ? (
+            <div style={{ fontSize: '13px', color: 'var(--gray-400)', padding: '20px 0' }}>Loading…</div>
+          ) : actions.length === 0 ? (
+            <div style={{ fontSize: '13px', color: 'var(--gray-400)', lineHeight: 1.6, padding: '8px 0' }}>
+              No {panel.dimLabel.toLowerCase()} actions yet.{' '}
+              <Link href={panel.plantHref} style={{ color: 'var(--green)', fontWeight: 500, textDecoration: 'none' }}>
+                Open report →
+              </Link>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {actions.map(a => {
+                const cfg = STATUS_CFG[a.status as keyof typeof STATUS_CFG] ?? STATUS_CFG.todo
+                return (
+                  <div key={a.id} style={{
+                    border: '1px solid var(--border)', borderRadius: '8px',
+                    padding: '10px 12px', background: 'var(--white)',
+                  }}>
+                    <div style={{ fontSize: '13px', color: 'var(--gray-800)', lineHeight: 1.4, marginBottom: '6px' }}>
+                      {a.text}
+                    </div>
+                    <span style={{
+                      fontSize: '10px', fontWeight: 600, padding: '2px 7px', borderRadius: '4px',
+                      background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}`,
+                    }}>
+                      {cfg.label}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div style={{ padding: '14px 20px', borderTop: '1px solid var(--border)' }}>
+          <Link
+            href={panel.plantHref}
+            style={{
+              display: 'block', textAlign: 'center',
+              fontSize: '13px', fontWeight: 600, color: 'var(--green)',
+              textDecoration: 'none', padding: '8px',
+              border: '1px solid var(--success-border)', borderRadius: '7px',
+              background: 'var(--success-bg)',
+            }}
+          >
+            Open full report →
+          </Link>
+        </div>
+      </div>
+    </>
+  )
+}
+
 // ── CompareView ────────────────────────────────────────────────────────────
 
 export default function CompareView({
@@ -99,6 +283,7 @@ export default function CompareView({
   onDemoPlantCountChange?: (n: 1 | 3 | 10 | 20) => void
 }) {
   const [sortCol, setSortCol] = useState<SortCol>('atRisk')
+  const [panel, setPanel] = useState<PanelState | null>(null)
   const isMobile = useIsMobile()
 
   const scored = useMemo(
@@ -364,20 +549,36 @@ export default function CompareView({
                           </td>
                         )
                       }
-                      const gap      = relGap(val, best.value, dim.lowerIsBetter)
-                      const color    = kpiColor(gap)
-                      const bg       = isBest ? 'transparent' : kpiBg(gap)
+                      const gap       = relGap(val, best.value, dim.lowerIsBetter)
+                      const color     = kpiColor(gap)
+                      const bg        = isBest ? 'transparent' : kpiBg(gap)
                       const isBestDim = best.name === plant.name
+                      const clickable = !isBestDim && gap > 0.05
 
                       return (
                         <td key={dim.key} style={{ padding: '10px 16px' }}>
-                          <div style={{
-                            display: 'inline-block',
-                            background: bg, borderRadius: '6px',
-                            padding: bg !== 'transparent' ? '5px 9px' : '5px 0',
-                          }}>
+                          <div
+                            onClick={clickable ? () => setPanel({
+                              assessmentId: a.id,
+                              plantName:    plant.name,
+                              plantHref:    href,
+                              dimension:    DIM_TO_ACTION_DIM[dim.key],
+                              dimLabel:     dim.label,
+                              kpiVal:       val,
+                              unit:         dim.unit,
+                            }) : undefined}
+                            style={{
+                              display: 'inline-block',
+                              background: bg, borderRadius: '6px',
+                              padding: bg !== 'transparent' ? '5px 9px' : '5px 0',
+                              cursor: clickable ? 'pointer' : 'default',
+                              transition: 'opacity .1s',
+                            }}
+                            title={clickable ? `See ${dim.label} actions for ${plant.name}` : undefined}
+                          >
                             <div style={{ fontSize: '14px', fontWeight: 700, fontFamily: 'var(--mono)', color, lineHeight: 1 }}>
                               {fmtVal(val, dim.unit)}
+                              {clickable && <span style={{ fontSize: '10px', marginLeft: '4px', opacity: 0.7 }}>↗</span>}
                             </div>
                             <div style={{ fontSize: '10px', marginTop: '2px', fontWeight: 500 }}>
                               {isBestDim ? (
@@ -436,6 +637,14 @@ export default function CompareView({
       <style>{`
         .compare-row:hover { background: var(--gray-50) !important; }
       `}</style>
+
+      {panel && (
+        <ActionPanel
+          panel={panel}
+          isDemo={isDemo}
+          onClose={() => setPanel(null)}
+        />
+      )}
     </div>
   )
 }
