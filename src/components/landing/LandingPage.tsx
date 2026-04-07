@@ -14,6 +14,7 @@ export default function LandingPage() {
       <Hero />
       <HowItWorks />
       <Diagnostic />
+      <PortfolioBenchmark />
       <Contact />
       <FAQ />
       <Footer />
@@ -368,6 +369,66 @@ function HowItWorks() {
           ))}
         </div>
 
+      </div>
+    </section>
+  )
+}
+
+// ── Portfolio Benchmark ───────────────────────────────────────────────────────
+
+function PortfolioBenchmark() {
+  const plants = [
+    { name: 'Plant — Abu Dhabi',  dispatch: '18 min', gap: null,     loss: null,      best: true  },
+    { name: 'Plant — Dubai',      dispatch: '34 min', gap: '+16 min', loss: '$67k/mo', best: false },
+    { name: 'Plant — Sharjah',    dispatch: '41 min', gap: '+23 min', loss: '$108k/mo', best: false },
+  ]
+
+  return (
+    <section style={{ background: '#0a2318', padding: 'clamp(64px, 8vw, 96px) 24px' }}>
+      <div style={{ maxWidth: '760px', margin: '0 auto' }}>
+        <Eyebrow text="Multi-plant portfolio" />
+        <h2 style={{ fontSize: 'clamp(26px, 3.5vw, 42px)', fontWeight: 800, color: '#fff', lineHeight: 1.15, letterSpacing: '-0.5px', margin: '0 0 16px', fontFamily: 'var(--serif)' }}>
+          Your best plant is your benchmark.
+          <span style={{ color: '#4ade80' }}> Not an industry average.</span>
+        </h2>
+        <p style={{ fontSize: '15px', color: 'rgba(255,255,255,0.5)', lineHeight: 1.7, margin: '0 0 40px', maxWidth: '560px' }}>
+          When you operate multiple plants, we show exactly which ones are underperforming relative to your own best performers — and what that gap costs every month.
+        </p>
+
+        {/* Plant comparison table */}
+        <div style={{ border: '1px solid rgba(255,255,255,0.1)', borderRadius: '14px', overflow: 'hidden', marginBottom: '20px' }}>
+          {/* Header */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px 100px 110px', padding: '10px 20px', background: 'rgba(255,255,255,0.04)', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+            {['Plant', 'Dispatch', 'vs Best', 'At risk /mo'].map(h => (
+              <div key={h} style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '.08em' }}>{h}</div>
+            ))}
+          </div>
+          {/* Rows */}
+          {plants.map((p, i) => (
+            <div key={p.name} style={{
+              display: 'grid', gridTemplateColumns: '1fr 100px 100px 110px',
+              padding: '16px 20px', alignItems: 'center',
+              borderBottom: i < plants.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none',
+              background: p.best ? 'rgba(74,222,128,0.05)' : 'transparent',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ fontSize: '13px', color: p.best ? '#4ade80' : 'rgba(255,255,255,0.7)', fontWeight: p.best ? 700 : 400 }}>{p.name}</span>
+                {p.best && <span style={{ fontSize: '10px', fontWeight: 700, color: '#4ade80', background: 'rgba(74,222,128,0.15)', border: '1px solid rgba(74,222,128,0.3)', borderRadius: '4px', padding: '1px 6px' }}>Best</span>}
+              </div>
+              <div style={{ fontSize: '13px', fontFamily: 'var(--mono)', fontWeight: 600, color: p.best ? '#4ade80' : 'rgba(255,255,255,0.6)' }}>{p.dispatch}</div>
+              <div style={{ fontSize: '13px', fontFamily: 'var(--mono)', fontWeight: 700, color: p.gap ? '#fb923c' : 'rgba(74,222,128,0.6)' }}>{p.gap ?? '—'}</div>
+              <div style={{ fontSize: '13px', fontFamily: 'var(--mono)', fontWeight: 700, color: p.loss ? '#fb923c' : 'rgba(255,255,255,0.3)' }}>{p.loss ?? '—'}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Total */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <div style={{ background: 'rgba(251,146,60,0.1)', border: '1px solid rgba(251,146,60,0.25)', borderRadius: '10px', padding: '14px 20px', textAlign: 'right' }}>
+            <div style={{ fontSize: '11px', color: 'rgba(251,146,60,0.6)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: '4px' }}>Total recoverable across portfolio</div>
+            <div style={{ fontSize: '24px', fontWeight: 800, fontFamily: 'var(--mono)', color: '#fb923c' }}>$175k / month</div>
+          </div>
+        </div>
       </div>
     </section>
   )
