@@ -14,7 +14,6 @@ import OwnerReportView from './report/OwnerReportView'
 import SimulatorView from './simulator/SimulatorView'
 import TrackingTab from './tracking/TrackingTab'
 import GpsUploadView from '@/components/gps-upload/GpsUploadView'
-import TripUploadShell from '@/components/trips/TripUploadShell'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { useSetChatContext } from '@/context/ChatContext'
 
@@ -96,9 +95,9 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
   // operator = questions + track (data input only)
   // null/admin = full access
   const allowedModes = useMemo((): AssessmentMode[] => {
-    if (userRole === 'owner')    return ['report', 'simulator', 'track', 'trips']
-    if (userRole === 'operator') return ['questions', 'track', 'trips']
-    return ['questions', 'report', 'simulator', 'track', 'gps', 'trips']
+    if (userRole === 'owner')    return ['report', 'simulator', 'track']
+    if (userRole === 'operator') return ['questions', 'track']
+    return ['questions', 'report', 'simulator', 'track', 'gps']
   }, [userRole])
 
   const canEdit = !userRole || userRole === 'manager' || userRole === 'operator'
@@ -219,7 +218,7 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
         />
       )}
 
-      {(mode === 'questions' || mode === 'gps' || mode === 'trips') && !guidedMode && (
+      {(mode === 'questions' || mode === 'gps') && !guidedMode && (
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
           {/* Sidebar — hidden on mobile, hidden for owner role */}
           {showSidebar && !isMobile && (
@@ -303,25 +302,6 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
               />
             )}
 
-            {mode === 'trips' && (
-              <div style={{ padding: isMobile ? '16px 14px' : '28px 32px' }}>
-                <div style={{ marginBottom: '20px' }}>
-                  <h2 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--gray-900)', marginBottom: '3px' }}>
-                    Trip analysis
-                  </h2>
-                  <p style={{ fontSize: '13px', color: 'var(--gray-500)' }}>
-                    Daily operational monitoring. Upload a simple CSV with truck dispatch and return times
-                    to see turnaround vs the {Math.round(calcResult.TARGET_TA)}-minute target and estimated daily loss.
-                    No GPS hardware required.
-                  </p>
-                </div>
-                <TripUploadShell
-                  assessmentId={assessmentId}
-                  targetTAMin={calcResult.TARGET_TA}
-                  perMinTACoeff={calcResult.perMinTACoeff}
-                />
-              </div>
-            )}
           </div>
         </div>
       )}
@@ -402,6 +382,7 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
             assessmentId={assessmentId}
             isAdmin={isAdmin ?? false}
             viewOnly={userRole === 'owner'}
+            perMinTACoeff={calcResult.perMinTACoeff}
             baselineTurnaround={(() => {
               const TURNAROUND_MAP: Record<string, number> = {
                 'Under 80 minutes — benchmark performance': 72,

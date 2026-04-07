@@ -7,6 +7,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts'
 import { useIsMobile } from '@/hooks/useIsMobile'
+import TripUploadShell from '@/components/trips/TripUploadShell'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -67,6 +68,7 @@ export interface TrackingProps {
   coeffDispatch: number
   baselineMonthlyLoss: number
   targetTA: number
+  perMinTACoeff?: number  // passed from calcResult for daily trips loss calc
 }
 
 interface ChartPoint {
@@ -1378,12 +1380,13 @@ export default function TrackingTab(props: TrackingProps) {
   const {
     assessmentId, isAdmin, viewOnly, coeffDispatch,
     baselineTurnaround, baselineRejectPct, baselineDispatchMin,
-    coeffTurnaround, baselineMonthlyLoss, targetTA,
+    coeffTurnaround, baselineMonthlyLoss, targetTA, perMinTACoeff,
   } = props
   const supabase = createClient()
   const [config, setConfig] = useState<TrackingConfig | null | undefined>(undefined)
   const [entries, setEntries] = useState<TrackingEntry[]>([])
   const [dailyEntries, setDailyEntries] = useState<DailyEntry[]>([])
+  const [subTab, setSubTab] = useState<'weekly' | 'trips'>('weekly')
   const isDemo = assessmentId === 'demo'
 
   const fetchData = useCallback(async () => {
@@ -1476,39 +1479,99 @@ export default function TrackingTab(props: TrackingProps) {
 
   useEffect(() => { fetchData() }, [fetchData])
 
+  const segControl = (
+    <div style={{ display: 'flex', gap: '2px', padding: '10px 20px 0', borderBottom: '1px solid var(--border)', background: 'var(--white)', flexShrink: 0 }}>
+      {(['weekly', 'trips'] as const).map(tab => {
+        const active = subTab === tab
+        const label = tab === 'weekly' ? 'Weekly KPIs' : 'Daily Trips'
+        return (
+          <button
+            key={tab}
+            type="button"
+            onClick={() => setSubTab(tab)}
+            style={{
+              padding: '7px 14px', fontSize: '12px', fontWeight: active ? 500 : 400,
+              fontFamily: 'var(--font)', color: active ? 'var(--green)' : 'var(--gray-500)',
+              background: 'none', border: 'none',
+              borderBottom: active ? '2px solid var(--green)' : '2px solid transparent',
+              cursor: 'pointer', transition: 'all .15s', whiteSpace: 'nowrap',
+              marginBottom: '-1px',
+            }}
+          >
+            {label}
+          </button>
+        )
+      })}
+    </div>
+  )
+
+  if (subTab === 'trips') {
+    return (
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+        {segControl}
+        <div style={{ flex: 1, overflow: 'auto', padding: '20px 20px' }}>
+          <TripUploadShell
+            assessmentId={assessmentId}
+            targetTAMin={targetTA}
+            perMinTACoeff={perMinTACoeff ?? 0}
+          />
+        </div>
+      </div>
+    )
+  }
+
   if (config === undefined) {
     return (
-      <div style={{ padding: '40px', textAlign: 'center', color: 'var(--gray-400)', fontSize: '13px' }}>
-        Loading tracking data…
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+        {segControl}
+        <div style={{ padding: '40px', textAlign: 'center', color: 'var(--gray-400)', fontSize: '13px' }}>
+          Loading tracking data…
+        </div>
       </div>
     )
   }
 
   if (config === null) {
-    if (isAdmin) return <SetupForm {...props} onCreated={cfg => setConfig(cfg)} />
+    if (isAdmin) {
+      return (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+          {segControl}
+          <SetupForm {...props} onCreated={cfg => setConfig(cfg)} />
+        </div>
+      )
+    }
     return (
-      <div style={{ padding: '60px 24px', textAlign: 'center', color: 'var(--gray-400)' }}>
-        <div style={{ fontSize: '32px', marginBottom: '16px' }}>📊</div>
-        <div style={{ fontSize: '14px', fontWeight: 500, color: 'var(--gray-600)', marginBottom: '8px' }}>90-day tracking not started yet</div>
-        <div style={{ fontSize: '13px' }}>Your consultant will activate tracking after the engagement.</div>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+        {segControl}
+        <div style={{ padding: '60px 24px', textAlign: 'center', color: 'var(--gray-400)' }}>
+          <div style={{ fontSize: '32px', marginBottom: '16px' }}>📊</div>
+          <div style={{ fontSize: '14px', fontWeight: 500, color: 'var(--gray-600)', marginBottom: '8px' }}>90-day tracking not started yet</div>
+          <div style={{ fontSize: '13px' }}>Your consultant will activate tracking after the engagement.</div>
+        </div>
       </div>
     )
   }
 
   if (isAdmin) {
     return (
-      <ProgressView
-        config={config} entries={entries} dailyEntries={dailyEntries}
-        onEntryLogged={fetchData} coeffDispatch={coeffDispatch}
-        viewOnly={viewOnly} isDemo={isDemo}
-      />
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+        {segControl}
+        <ProgressView
+          config={config} entries={entries} dailyEntries={dailyEntries}
+          onEntryLogged={fetchData} coeffDispatch={coeffDispatch}
+          viewOnly={viewOnly} isDemo={isDemo}
+        />
+      </div>
     )
   }
 
   return (
-    <CustomerLog
-      config={config} entries={entries} dailyEntries={dailyEntries}
-      onLogged={fetchData} coeffDispatch={coeffDispatch} isDemo={isDemo}
-    />
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+      {segControl}
+      <CustomerLog
+        config={config} entries={entries} dailyEntries={dailyEntries}
+        onLogged={fetchData} coeffDispatch={coeffDispatch} isDemo={isDemo}
+      />
+    </div>
   )
 }
