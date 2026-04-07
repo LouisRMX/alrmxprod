@@ -1,7 +1,9 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
 import CompareView from './CompareView'
 import type { PlantCardData } from '@/components/plants/PlantOverviewView'
+import { isSystemAdmin } from '@/lib/supabase/admin'
 
 export const dynamic = 'force-dynamic'
 
@@ -15,15 +17,7 @@ export default async function ComparePage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (!profile) redirect('/login')
-
-  const isAdmin = profile.role === 'system_admin'
+  const isAdmin = await isSystemAdmin(user.id)
 
   if (!isAdmin) {
     const { data: member } = await supabase
@@ -35,8 +29,17 @@ export default async function ComparePage() {
     if (member?.role === 'operator') redirect('/dashboard/track')
   }
 
+  // Use service role key for admin so RLS doesn't filter out plants/data
+  const db = isAdmin
+    ? createAdminClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SECRET_KEY!,
+        { auth: { autoRefreshToken: false, persistSession: false } }
+      )
+    : supabase
+
   // ── Fetch plants + assessments ─────────────────────────────────────────
-  const { data: rawPlants } = await supabase
+  const { data: rawPlants } = await db
     .from('plants')
     .select(`
       id, name, country,
@@ -65,7 +68,7 @@ export default async function ComparePage() {
   }
 
   const { data: allEntries } = configIds.length > 0
-    ? await supabase
+    ? await db
         .from('tracking_entries')
         .select('config_id, week_number, turnaround_min, dispatch_min')
         .in('config_id', configIds)

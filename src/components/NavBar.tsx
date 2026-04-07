@@ -129,6 +129,7 @@ export default function NavBar({ user, profile, memberRole, isAdmin: isAdminProp
       return [
         { label: 'New assessment', href: '/dashboard/assess' },
         { label: 'Portfolio',      href: '/dashboard/portfolio' },
+        { label: 'Comparison',     href: '/dashboard/compare' },
         { label: 'Customers',      href: '/dashboard/customers' },
         { label: 'Reports',        href: '/dashboard/reports' },
         { label: 'Simulator',      href: '/dashboard/simulator' },
