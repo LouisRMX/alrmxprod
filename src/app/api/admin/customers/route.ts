@@ -35,7 +35,6 @@ export async function POST(req: NextRequest) {
     country: body.country,
     contact_name: body.contact_name || null,
     contact_email: body.contact_email || null,
-    created_by: user.id,
   }).select().single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
