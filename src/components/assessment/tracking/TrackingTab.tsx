@@ -8,6 +8,7 @@ import {
 } from 'recharts'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import TripUploadShell from '@/components/trips/TripUploadShell'
+import TrackSummaryButton from './TrackSummary'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -69,6 +70,8 @@ export interface TrackingProps {
   baselineMonthlyLoss: number
   targetTA: number
   perMinTACoeff?: number  // passed from calcResult for daily trips loss calc
+  plant?: string
+  country?: string
 }
 
 interface ChartPoint {
@@ -1381,6 +1384,7 @@ export default function TrackingTab(props: TrackingProps) {
     assessmentId, isAdmin, viewOnly, coeffDispatch,
     baselineTurnaround, baselineRejectPct, baselineDispatchMin,
     coeffTurnaround, baselineMonthlyLoss, targetTA, perMinTACoeff,
+    plant, country,
   } = props
   const supabase = createClient()
   const [config, setConfig] = useState<TrackingConfig | null | undefined>(undefined)
@@ -1479,29 +1483,43 @@ export default function TrackingTab(props: TrackingProps) {
 
   useEffect(() => { fetchData() }, [fetchData])
 
+  const hasEntries = entries.length > 0
+
   const segControl = (
-    <div style={{ display: 'flex', gap: '2px', padding: '10px 20px 0', borderBottom: '1px solid var(--border)', background: 'var(--white)', flexShrink: 0 }}>
-      {(['weekly', 'trips'] as const).map(tab => {
-        const active = subTab === tab
-        const label = tab === 'weekly' ? 'Weekly KPIs' : 'Daily Trips'
-        return (
-          <button
-            key={tab}
-            type="button"
-            onClick={() => setSubTab(tab)}
-            style={{
-              padding: '7px 14px', fontSize: '12px', fontWeight: active ? 500 : 400,
-              fontFamily: 'var(--font)', color: active ? 'var(--green)' : 'var(--gray-500)',
-              background: 'none', border: 'none',
-              borderBottom: active ? '2px solid var(--green)' : '2px solid transparent',
-              cursor: 'pointer', transition: 'all .15s', whiteSpace: 'nowrap',
-              marginBottom: '-1px',
-            }}
-          >
-            {label}
-          </button>
-        )
-      })}
+    <div style={{ display: 'flex', alignItems: 'center', padding: '0 20px', borderBottom: '1px solid var(--border)', background: 'var(--white)', flexShrink: 0 }}>
+      <div style={{ display: 'flex', gap: '2px', flex: 1 }}>
+        {(['weekly', 'trips'] as const).map(tab => {
+          const active = subTab === tab
+          const label = tab === 'weekly' ? 'Weekly KPIs' : 'Daily Trips'
+          return (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => setSubTab(tab)}
+              style={{
+                padding: '10px 14px', fontSize: '12px', fontWeight: active ? 500 : 400,
+                fontFamily: 'var(--font)', color: active ? 'var(--green)' : 'var(--gray-500)',
+                background: 'none', border: 'none',
+                borderBottom: active ? '2px solid var(--green)' : '2px solid transparent',
+                cursor: 'pointer', transition: 'all .15s', whiteSpace: 'nowrap',
+                marginBottom: '-1px',
+              }}
+            >
+              {label}
+            </button>
+          )
+        })}
+      </div>
+      {hasEntries && config && subTab === 'weekly' && (
+        <TrackSummaryButton
+          assessmentId={assessmentId}
+          config={config}
+          entries={entries}
+          coeffDispatch={coeffDispatch}
+          plant={plant}
+          country={country}
+        />
+      )}
     </div>
   )
 
