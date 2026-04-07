@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -13,6 +13,7 @@ interface ActionItem {
   assignee?: { full_name: string | null; email: string } | null
   source: 'ai' | 'manual'
   value: string | null
+  dimension?: string | null
   created_at: string
 }
 
@@ -26,6 +27,9 @@ interface ActionBoardProps {
   assessmentId: string
   customerId: string
   focusActions: string[]
+  focusActionLosses?: number[]
+  focusActionDimensions?: (string | null)[]
+  focusActionFormulas?: (string | null)[]
   canEdit: boolean
   financialBottleneck?: string | null
   recoverable?: number
@@ -583,7 +587,7 @@ const iconBtnStyle: React.CSSProperties = {
 
 // ── Main ActionBoard ──────────────────────────────────────────────────────────
 
-export default function ActionBoard({ assessmentId, customerId, focusActions, canEdit, financialBottleneck, recoverable }: ActionBoardProps) {
+export default function ActionBoard({ assessmentId, customerId, focusActions, focusActionLosses, focusActionDimensions, focusActionFormulas, canEdit, financialBottleneck, recoverable }: ActionBoardProps) {
   const isDemo = assessmentId === 'demo'
 
   const [items, setItems] = useState<ActionItem[]>([])
@@ -598,6 +602,18 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, ca
   const addInputRef = useRef<HTMLInputElement>(null)
 
   const selectedItem = selectedItemId ? (items.find(i => i.id === selectedItemId) ?? null) : null
+
+  const dimMap = useMemo(() => {
+    const m: Record<string, string | null> = {}
+    focusActions.forEach((text, i) => { m[text] = focusActionDimensions?.[i] ?? null })
+    return m
+  }, [focusActions, focusActionDimensions])
+
+  const formulaMap = useMemo(() => {
+    const m: Record<string, string | null> = {}
+    focusActions.forEach((text, i) => { m[text] = focusActionFormulas?.[i] ?? null })
+    return m
+  }, [focusActions, focusActionFormulas])
 
   useEffect(() => {
     if (showAdd) addInputRef.current?.focus()
@@ -644,6 +660,7 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, ca
           text,
           status: 'todo' as const,
           source: 'ai' as const,
+          dimension: dimMap[text] ?? null,
         }))
         const insertResp = await fetch('/api/action-items', {
           method: 'POST',
