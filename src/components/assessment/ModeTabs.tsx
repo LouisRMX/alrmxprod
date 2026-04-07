@@ -18,7 +18,7 @@ const TABS: { mode: AssessmentMode; label: string; shortLabel: string }[] = [
   { mode: 'questions', label: 'Assessment', shortLabel: 'Questions' },
   { mode: 'report',    label: 'Report',     shortLabel: 'Report' },
   { mode: 'simulator', label: 'Simulator',  shortLabel: 'Sim' },
-  { mode: 'track',     label: '90-day Track', shortLabel: 'Track' },
+  { mode: 'track',     label: 'Track',        shortLabel: 'Track' },
   { mode: 'gps',       label: 'GPS Data',   shortLabel: 'GPS' },
 ]
 
