@@ -1,5 +1,5 @@
 /**
- * alRMX Guided Visit Mode — Trigger Logic
+ * alRMX Guided Visit Mode, Trigger Logic
  * Determines which deep-dive question groups to show based on core answers.
  */
 
@@ -27,7 +27,7 @@ export function getGuidedTriggers(r: CalcResult, a: Answers, meta?: { country?: 
       id: 'turnaround',
       icon: '',
       title: 'Turnaround deep-dive',
-      why: `Turnaround is ${r.ta} min — ${r.excessMin} min above the ${r.TARGET_TA}-min target. Where is the time going?`,
+      why: `Turnaround is ${r.ta} min, ${r.excessMin} min above the ${r.TARGET_TA}-min target. Where is the time going?`,
       ids: ['site_wait_time', 'washout_time', 'delivery_radius'],
     })
   }
@@ -37,7 +37,7 @@ export function getGuidedTriggers(r: CalcResult, a: Answers, meta?: { country?: 
       id: 'reject',
       icon: '',
       title: 'Reject & return rate',
-      why: `${r.rejectPct}% reject rate is above the 1.5% threshold — ${fmt(r.rejectLeakMonthly)}/month.`,
+      why: `${r.rejectPct}% reject rate is above the 1.5% threshold, ${fmt(r.rejectLeakMonthly)}/month.`,
       ids: ['reject_cause', 'return_liability', 'demurrage_policy', 'surplus_concrete'],
     })
   }
@@ -47,7 +47,7 @@ export function getGuidedTriggers(r: CalcResult, a: Answers, meta?: { country?: 
       id: 'capacity',
       icon: '',
       title: 'Hidden capacity',
-      why: `${r.hiddenDel} deliveries/day unrealised — potential ${fmt(r.hiddenRevMonthly)}/month.`,
+      why: `${r.hiddenDel} deliveries/day unrealised, potential ${fmt(r.hiddenRevMonthly)}/month.`,
       ids: ['truck_availability', 'qualified_drivers', 'partial_load_size'],
     })
   }
@@ -59,7 +59,7 @@ export function getGuidedTriggers(r: CalcResult, a: Answers, meta?: { country?: 
       id: 'maintenance',
       icon: '',
       title: 'Fleet maintenance',
-      why: `Only ${truckAvail} of ${nTrucks} trucks operative — ${Math.round(truckAvail / nTrucks * 100)}% availability.`,
+      why: `Only ${truckAvail} of ${nTrucks} trucks operative, ${Math.round(truckAvail / nTrucks * 100)}% availability.`,
       ids: ['maint_programme', 'truck_breakdowns'],
     })
   }
@@ -69,7 +69,7 @@ export function getGuidedTriggers(r: CalcResult, a: Answers, meta?: { country?: 
       id: 'production',
       icon: '',
       title: 'Production efficiency',
-      why: `Plant running at ${Math.round(r.util * 100)}% — ${Math.round((r.utilisationTarget / 100 - r.util) * 100)} points below ${r.utilisationTarget}% target.`,
+      why: `Plant running at ${Math.round(r.util * 100)}%, ${Math.round((r.utilisationTarget / 100 - r.util) * 100)} points below ${r.utilisationTarget}% target.`,
       ids: ['batch_cycle', 'stops_freq', 'operator_backup', 'batch_calibration'],
     })
   }
@@ -79,7 +79,7 @@ export function getGuidedTriggers(r: CalcResult, a: Answers, meta?: { country?: 
       id: 'mix',
       icon: '',
       title: 'Mix design & margin',
-      why: 'Cement cost entered — check if mix design is optimised and margin is fully costed.',
+      why: 'Cement cost entered, check if mix design is optimised and margin is fully costed.',
       ids: ['mix_design_review', 'admix_strategy', 'high_strength_price', 'aggregate_cost', 'admix_cost'],
     })
   }
@@ -90,7 +90,7 @@ export function getGuidedTriggers(r: CalcResult, a: Answers, meta?: { country?: 
       id: 'gcc',
       icon: '',
       title: 'GCC operational factors',
-      why: 'GCC-specific factors — Ramadan, summer heat, cement and aggregate supply.',
+      why: 'GCC-specific factors, Ramadan, summer heat, cement and aggregate supply.',
       ids: ['ramadan_schedule', 'summer_cooling', 'silo_days', 'aggregate_days'],
     })
   }

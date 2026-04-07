@@ -55,7 +55,7 @@ export default async function DashboardLayout({
       <main className="dashboard-main" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         {children}
       </main>
-      {/* Always mounted — component fetches own role client-side and hides if not system_admin */}
+      {/* Always mounted, component fetches own role client-side and hides if not system_admin */}
       <DevRoleSwitcher viewAs={effectiveRole} isOverridden={isOverridden} />
     </div>
   )

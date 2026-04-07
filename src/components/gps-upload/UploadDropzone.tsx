@@ -3,9 +3,9 @@
 import { useRef, useState, useCallback } from 'react'
 
 const TIMEZONE_OPTIONS = [
-  { value: 'AST', label: 'AST — Arabia Standard Time (UTC+3)' },
-  { value: 'GST', label: 'GST — Gulf Standard Time (UTC+4)' },
-  { value: 'UTC', label: 'UTC — Coordinated Universal Time (UTC+0)' },
+  { value: 'AST', label: 'AST, Arabia Standard Time (UTC+3)' },
+  { value: 'GST', label: 'GST, Gulf Standard Time (UTC+4)' },
+  { value: 'UTC', label: 'UTC, Coordinated Universal Time (UTC+0)' },
 ]
 
 interface UploadDropzoneProps {
@@ -114,7 +114,7 @@ export default function UploadDropzone({
           Upload a GPS or fleet export for the last 30 days · CSV only
         </div>
         <div style={{ fontSize: '11px', color: 'var(--gray-400)', marginTop: '4px' }}>
-          Column headers must be in English — Arabic column names are not supported in this version
+          Column headers must be in English, Arabic column names are not supported in this version
         </div>
         {hasExistingUpload && existingFilename && (
           <div style={{
@@ -151,7 +151,7 @@ export default function UploadDropzone({
           onMouseEnter={e => { e.currentTarget.style.color = 'var(--gray-700)' }}
           onMouseLeave={e => { e.currentTarget.style.color = 'var(--gray-500)' }}
         >
-          Skip — I don&apos;t have GPS data
+          Skip, I don&apos;t have GPS data
         </button>
       </div>
     </div>

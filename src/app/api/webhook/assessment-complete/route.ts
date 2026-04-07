@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(req: NextRequest) {
-  // Require authenticated user — only the customer/analyst who submitted can trigger this
+  // Require authenticated user, only the customer/analyst who submitted can trigger this
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -57,12 +57,12 @@ export async function POST(req: NextRequest) {
         }),
       })
     } catch (e) {
-      // Non-fatal — notification failure should not block the UI
+      // Non-fatal, notification failure should not block the UI
       console.error('Failed to send assessment-complete notification email:', e)
     }
   } else {
     // Log to console so it's visible in Vercel logs when email is not configured
-    console.log(`[Al-RMX] Pre-assessment submitted: ${plantName} (${country}) — assessment ${assessmentId}`)
+    console.log(`[Al-RMX] Pre-assessment submitted: ${plantName} (${country}), assessment ${assessmentId}`)
   }
 
   return NextResponse.json({ success: true })

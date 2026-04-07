@@ -1,10 +1,10 @@
 /**
- * GPS Format Detection — Layer 2
+ * GPS Format Detection, Layer 2
  *
  * Detects which of three GPS export structures the uploaded CSV contains:
- *   TYPE A — Event Stream (raw position pings, high row count)
- *   TYPE B — Geofence Log (entry/exit events, paired timestamps)
- *   TYPE C — Trip Summary (one row per completed trip, explicit duration/distance)
+ *   TYPE A, Event Stream (raw position pings, high row count)
+ *   TYPE B, Geofence Log (entry/exit events, paired timestamps)
+ *   TYPE C, Trip Summary (one row per completed trip, explicit duration/distance)
  *
  * Fallback: TYPE B (most common GCC fleet export format)
  */
@@ -156,7 +156,7 @@ export function detectGpsFormat(
     return {
       type: 'A',
       confidence: 0.70,
-      reasoning: 'Speed and lat/lon columns present — likely Event Stream',
+      reasoning: 'Speed and lat/lon columns present, likely Event Stream',
     }
   }
 
@@ -164,6 +164,6 @@ export function detectGpsFormat(
   return {
     type: 'B',
     confidence: 0.50,
-    reasoning: 'Format ambiguous — defaulting to Geofence Log (most common GCC fleet export)',
+    reasoning: 'Format ambiguous, defaulting to Geofence Log (most common GCC fleet export)',
   }
 }

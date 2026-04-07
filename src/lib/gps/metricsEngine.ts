@@ -1,5 +1,5 @@
 /**
- * GPS Metrics Engine — Layer 4B
+ * GPS Metrics Engine, Layer 4B
  *
  * Computes three metrics from normalized GPS events:
  *   Metric 1 (Primary):   Average turnaround time
@@ -7,7 +7,7 @@
  *   Metric 3 (Secondary): Probable return loads
  *
  * Benchmark: TARGET_TA = 60 + (delivery_radius_km × 1.5 × 2)
- * Fetched dynamically from assessment answers — never hardcoded.
+ * Fetched dynamically from assessment answers, never hardcoded.
  */
 
 import type { NormalizedGpsEvent } from './normalizer'
@@ -227,7 +227,7 @@ export function computeMetrics(
 ): GpsAnalysisMetrics {
   const notes: string[] = []
 
-  // Dynamic TARGET_TA — consistent with Al-RMX's existing scoring logic
+  // Dynamic TARGET_TA, consistent with Al-RMX's existing scoring logic
   const targetTa = 60 + deliveryRadiusKm * 1.5 * 2
 
   const deliveries = extractDeliveries(events)
@@ -263,7 +263,7 @@ export function computeMetrics(
   } else if (validTA.length > 0) {
     turnaroundAvg = round1(validTA.reduce((a, b) => a + b, 0) / validTA.length)
     turnaroundAvailable = true
-    notes.push(`Turnaround based on only ${validTA.length} trips — treat as directional`)
+    notes.push(`Turnaround based on only ${validTA.length} trips, treat as directional`)
   } else {
     notes.push('Insufficient trip data to calculate turnaround')
   }

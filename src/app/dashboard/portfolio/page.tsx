@@ -12,7 +12,7 @@ function scoreColor(s: number | null) {
 }
 
 function fmt(n: number | null) {
-  if (!n) return '—'
+  if (!n) return '-'
   if (n >= 1000000) return '$' + (n / 1000000).toFixed(1) + 'M'
   if (n >= 1000) return '$' + Math.round(n / 1000) + 'k'
   return '$' + Math.round(n)
@@ -96,7 +96,7 @@ export default async function PortfolioPage() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px', marginBottom: '24px' }}>
         {[
           { label: 'Total assessments', value: total.toString() },
-          { label: 'Average score', value: avgScore ? `${avgScore}/100` : '—' },
+          { label: 'Average score', value: avgScore ? `${avgScore}/100` : '-' },
           { label: 'Total EBITDA gap', value: fmt(totalEbitda) + '/mo' },
         ].map(kpi => (
           <div key={kpi.label} style={{
@@ -147,15 +147,15 @@ export default async function PortfolioPage() {
                 }}>
                   <td style={{ padding: '12px 16px' }}>
                     <div style={{ fontSize: '13px', fontWeight: '500', color: 'var(--gray-900)' }}>
-                      {(a.plant as { name: string })?.name || '—'}
+                      {(a.plant as { name: string })?.name || '-'}
                     </div>
                     <div style={{ fontSize: '11px', color: 'var(--gray-500)' }}>{a.plant?.country}</div>
                   </td>
                   <td style={{ padding: '12px 16px', fontSize: '13px', color: 'var(--gray-700)' }}>
-                    {(a.plant as { customer?: { name: string } })?.customer?.name || '—'}
+                    {(a.plant as { customer?: { name: string } })?.customer?.name || '-'}
                   </td>
                   <td style={{ padding: '12px 16px', fontSize: '13px', color: 'var(--gray-500)', fontFamily: 'var(--mono)' }}>
-                    {a.date ? new Date(a.date).toLocaleDateString('en-GB') : '—'}
+                    {a.date ? new Date(a.date).toLocaleDateString('en-GB') : '-'}
                   </td>
                   <td style={{ padding: '12px 16px' }}>
                     {(() => {
@@ -184,7 +184,7 @@ export default async function PortfolioPage() {
                       }}>
                         {a.overall}
                       </span>
-                    ) : <span style={{ color: 'var(--gray-300)' }}>—</span>}
+                    ) : <span style={{ color: 'var(--gray-300)' }}>-</span>}
                   </td>
                   <td style={{ padding: '12px 16px', fontSize: '13px', fontFamily: 'var(--mono)', color: 'var(--gray-700)' }}>
                     {fmt(a.ebitda_monthly)}<span style={{ fontSize: '11px', color: 'var(--gray-400)' }}>/mo</span>
@@ -192,7 +192,7 @@ export default async function PortfolioPage() {
                   <td style={{ padding: '12px 16px' }}>
                     {(() => {
                       const tc = Array.isArray(a.tracking_config) ? a.tracking_config[0] : a.tracking_config
-                      if (!tc) return <span style={{ color: 'var(--gray-300)', fontSize: '13px' }}>—</span>
+                      if (!tc) return <span style={{ color: 'var(--gray-300)', fontSize: '13px' }}>-</span>
                       const days = Math.floor((Date.now() - new Date(tc.started_at).getTime()) / 86_400_000)
                       const week = Math.min(13, Math.max(1, Math.ceil((days + 1) / 7)))
                       const done = week >= 13
@@ -213,7 +213,7 @@ export default async function PortfolioPage() {
                     }}>
                       View →
                     </Link>
-                    <DeleteButton assessmentId={a.id} plantName={(a.plant as { name: string })?.name || '—'} />
+                    <DeleteButton assessmentId={a.id} plantName={(a.plant as { name: string })?.name || '-'} />
                   </td>
                 </tr>
               ))}

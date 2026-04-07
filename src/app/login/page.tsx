@@ -117,7 +117,7 @@ function LoginForm() {
               borderRadius: '8px', padding: '10px 12px',
               fontSize: '13px', color: 'var(--red)'
             }}>
-              {error || 'Authentication failed — please try again.'}
+              {error || 'Authentication failed, please try again.'}
             </div>
           )}
 
@@ -140,7 +140,7 @@ function LoginForm() {
         </p>
       </div>
 
-      {/* Demo button — navigates directly via auto-login route */}
+      {/* Demo button, navigates directly via auto-login route */}
       {redirectTo !== 'demo' && (
         <a
           href="/api/demo-login"

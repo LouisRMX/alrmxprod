@@ -103,7 +103,7 @@ export async function POST(req: NextRequest) {
     if (records.length < 20) {
       await supabase.from('uploaded_gps_files').update({
         processing_status: 'failed',
-        parse_error_log: [{ error: `Only ${records.length} rows — minimum 20 required` }],
+        parse_error_log: [{ error: `Only ${records.length} rows, minimum 20 required` }],
       }).eq('id', uploadId)
       return NextResponse.json({
         error: `Your file contains fewer than 20 data rows, which is not sufficient for reliable analysis. Please export at least 30 days of GPS data.`,
@@ -180,7 +180,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // If manual mapping still required — return mapping data for the client
+    // If manual mapping still required, return mapping data for the client
     if (mappingResult.requiresManualMapping && !usedManualMapping) {
       await supabase.from('uploaded_gps_files').update({
         processing_status: 'mapping_required',
@@ -318,7 +318,7 @@ export async function POST(req: NextRequest) {
       .select()
       .single()
 
-    // Mark upload as complete — store debug info in parse_error_log for admin panel
+    // Mark upload as complete, store debug info in parse_error_log for admin panel
     const debugInfo = {
       headers,
       fieldMatches: mappingResult.fieldMatches,

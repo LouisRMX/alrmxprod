@@ -25,7 +25,7 @@ export default function NumericInput({ id, value, unit, onChange, baselineValue 
       <input
         type="number"
         inputMode="decimal"
-        placeholder="—"
+        placeholder="-"
         value={raw}
         onChange={e => onChange(id, e.target.value)}
         style={{

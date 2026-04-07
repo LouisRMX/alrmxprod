@@ -88,7 +88,7 @@ export default function CustomerDetail({ customer, plants, members: initialMembe
 
     if (error) {
       console.error('Update error:', error)
-      setSaveError('Failed to save — please try again.')
+      setSaveError('Failed to save, please try again.')
       setSaving(false)
       return
     }
@@ -105,7 +105,7 @@ export default function CustomerDetail({ customer, plants, members: initialMembe
     const { error } = await supabase.from('customers').delete().eq('id', customer.id)
     if (error) {
       console.error('Delete error:', error)
-      setDeleteError('Failed to delete — please try again.')
+      setDeleteError('Failed to delete, please try again.')
       setDeleting(false)
       return
     }
@@ -162,7 +162,7 @@ export default function CustomerDetail({ customer, plants, members: initialMembe
 
       setTimeout(() => setInviteSuccess(''), 5000)
     } catch {
-      setInviteError('Network error — please try again')
+      setInviteError('Network error, please try again')
     }
     setInviting(false)
   }
@@ -388,10 +388,10 @@ export default function CustomerDetail({ customer, plants, members: initialMembe
               {members.map((m, i) => (
                 <tr key={m.id} style={{ borderBottom: i < members.length - 1 ? '1px solid var(--border)' : 'none' }}>
                   <td style={{ padding: '12px 16px', fontSize: '13px', fontWeight: '500', color: 'var(--gray-900)' }}>
-                    {m.profile?.full_name || '—'}
+                    {m.profile?.full_name || '-'}
                   </td>
                   <td style={{ padding: '12px 16px', fontSize: '13px', color: 'var(--gray-500)' }}>
-                    {m.profile?.email || '—'}
+                    {m.profile?.email || '-'}
                   </td>
                   <td style={{ padding: '12px 16px', fontSize: '12px' }}>
                     <span style={{
@@ -455,8 +455,8 @@ export default function CustomerDetail({ customer, plants, members: initialMembe
               <div style={{ display: 'flex', gap: '8px', flexDirection: 'column' }}>
                 {([
                   { role: 'owner',    label: 'Owner',    desc: 'Sees all plants, reports and simulator. Read-only.' },
-                  { role: 'manager',  label: 'Manager',  desc: 'Full access — fills in assessment, views reports, logs tracking.' },
-                  { role: 'operator', label: 'Operator', desc: 'Data input only — fills in questions and logs weekly tracking.' },
+                  { role: 'manager',  label: 'Manager',  desc: 'Full access, fills in assessment, views reports, logs tracking.' },
+                  { role: 'operator', label: 'Operator', desc: 'Data input only, fills in questions and logs weekly tracking.' },
                 ] as const).map(({ role: r, label, desc }) => (
                   <button key={r} type="button" onClick={() => setInviteRole(r)} style={{
                     padding: '10px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 500,

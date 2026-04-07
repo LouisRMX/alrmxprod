@@ -58,7 +58,7 @@ interface DailyChartPoint {
 export interface TrackingProps {
   assessmentId: string
   isAdmin: boolean
-  viewOnly?: boolean  // owner role — sees charts but no weekly input form
+  viewOnly?: boolean  // owner role, sees charts but no weekly input form
   baselineTurnaround: number | null
   baselineRejectPct: number | null
   baselineDispatchMin: number | null
@@ -220,7 +220,7 @@ function ImpactSummary({ config, entries, coeffDispatch, currentWeek }: {
             Value recovered / month
           </div>
           <div style={{ fontSize: '48px', fontWeight: 800, fontFamily: 'var(--mono)', color: currentMonthlyRecovery > 0 ? '#1a6644' : 'var(--gray-300)', lineHeight: 1, letterSpacing: '-1px' }}>
-            {currentMonthlyRecovery > 0 ? fmt(currentMonthlyRecovery) : '—'}
+            {currentMonthlyRecovery > 0 ? fmt(currentMonthlyRecovery) : '-'}
           </div>
           {predictedTotal > 0 && (
             <div style={{ fontSize: '12px', color: '#7ab89a', marginTop: '6px' }}>
@@ -316,13 +316,13 @@ function MonthlyMilestones({ config, entries, coeffDispatch }: {
               <div style={{ marginBottom: '6px' }}>
                 <div style={{ fontSize: '9px', color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: '2px' }}>Predicted</div>
                 <div style={{ fontSize: '13px', fontWeight: 600, fontFamily: 'var(--mono)', color: 'var(--gray-500)' }}>
-                  {predictedRecovery > 0 ? fmt(predictedRecovery) + '/mo' : '—'}
+                  {predictedRecovery > 0 ? fmt(predictedRecovery) + '/mo' : '-'}
                 </div>
               </div>
               <div>
                 <div style={{ fontSize: '9px', color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: '2px' }}>Actual</div>
                 <div style={{ fontSize: '15px', fontWeight: 700, fontFamily: 'var(--mono)', color: !reached ? 'var(--gray-300)' : ahead ? 'var(--phase-complete)' : behind ? '#d97706' : 'var(--gray-900)' }}>
-                  {actualRecovery != null ? fmt(actualRecovery) + '/mo' : reached ? '— not logged' : '—'}
+                  {actualRecovery != null ? fmt(actualRecovery) + '/mo' : reached ? 'not logged' : '-'}
                 </div>
               </div>
               {actualRecovery != null && predictedRecovery > 0 && (
@@ -357,7 +357,7 @@ function ImpactChart({ config, entries }: { config: TrackingConfig; entries: Tra
     <div style={{ background: 'var(--white)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '20px 24px', marginBottom: '16px' }}>
       {/* Header + toggle */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-        <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--gray-700)' }}>{label} — 12-week trajectory</div>
+        <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--gray-700)' }}>{label}, 12-week trajectory</div>
         {showDispatch && (
           <div style={{ display: 'flex', gap: '2px', background: 'var(--gray-100)', borderRadius: '6px', padding: '2px' }}>
             {(['turnaround', 'dispatch'] as const).map(m => (
@@ -456,9 +456,9 @@ function KpiCard({ label, baseline, target, latest, coeff, unit = 'min' }: {
       </div>
       <div style={{ display: 'flex', gap: '20px', marginBottom: '14px' }}>
         {[
-          { lbl: 'Before', val: baseline != null ? `${baseline}` : '—', faded: true },
-          { lbl: 'Now', val: latest != null ? `${latest}` : '—', faded: false },
-          { lbl: 'Target', val: target != null ? `${target}` : '—', faded: true },
+          { lbl: 'Before', val: baseline != null ? `${baseline}` : '-', faded: true },
+          { lbl: 'Now', val: latest != null ? `${latest}` : '-', faded: false },
+          { lbl: 'Target', val: target != null ? `${target}` : '-', faded: true },
         ].map(({ lbl, val, faded }) => (
           <div key={lbl}>
             <div style={{ fontSize: '9px', color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: '3px' }}>{lbl}</div>
@@ -659,7 +659,7 @@ function SetupForm({
     <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : '160px 120px 1fr', gap: isMobile ? '8px' : '12px', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
       <div style={{ fontSize: '13px', color: 'var(--gray-700)' }}>{label}</div>
       <div style={{ fontSize: '13px', fontFamily: 'var(--mono)', color: 'var(--gray-500)' }}>
-        {baseline != null ? `${baseline} ${unit}` : '—'}
+        {baseline != null ? `${baseline} ${unit}` : '-'}
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
         <input
@@ -676,7 +676,7 @@ function SetupForm({
       <div style={{ marginBottom: '24px' }}>
         <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--gray-900)', marginBottom: '4px' }}>Start 90-day tracking</div>
         <div style={{ fontSize: '13px', color: 'var(--gray-500)', lineHeight: 1.5 }}>
-          Set targets for the 2 KPIs. The plant logs weekly numbers — you see actual vs predicted in real time.
+          Set targets for the 2 KPIs. The plant logs weekly numbers, you see actual vs predicted in real time.
         </div>
       </div>
 
@@ -689,11 +689,11 @@ function SetupForm({
         <span style={{ fontSize: '16px', flexShrink: 0 }}>⏱</span>
         <div>
           <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--phase-workshop)', marginBottom: '2px' }}>
-            Start now — before the on-site visit
+            Start now, before the on-site visit
           </div>
           <div style={{ fontSize: '11px', color: 'var(--gray-600)', lineHeight: 1.55 }}>
             Logging starts immediately so the plant records baseline weeks before interventions begin.
-            By the time of the on-site visit you already have 2–4 weeks of real data — making the before/after comparison far stronger.
+            By the time of the on-site visit you already have 2–4 weeks of real data, making the before/after comparison far stronger.
           </div>
         </div>
       </div>
@@ -812,7 +812,7 @@ function ProgramCompleteView({ config, entries, coeffDispatch }: {
       label: 'Turnaround time',
       before: `${taBaseline} min`,
       after:  `${taFinal} min`,
-      delta:  taImprovement! > 0 ? `▼ ${taImprovement} min` : '—',
+      delta:  taImprovement! > 0 ? `▼ ${taImprovement} min` : '-',
       hit:    taHitTarget,
     })
   }
@@ -821,7 +821,7 @@ function ProgramCompleteView({ config, entries, coeffDispatch }: {
       label: 'Dispatch time',
       before: `${diBaseline} min`,
       after:  `${diFinal} min`,
-      delta:  diImprovement! > 0 ? `▼ ${diImprovement} min` : '—',
+      delta:  diImprovement! > 0 ? `▼ ${diImprovement} min` : '-',
       hit:    diHitTarget,
     })
   }
@@ -893,7 +893,7 @@ function ProgramCompleteView({ config, entries, coeffDispatch }: {
                 {row.after}
                 {row.hit && <span style={{ marginLeft: '5px', fontSize: '10px', color: 'var(--phase-complete)' }}>✓</span>}
               </div>
-              <div style={{ fontSize: '12px', fontWeight: 700, color: row.delta !== '—' ? 'var(--phase-complete)' : 'var(--gray-300)' }}>{row.delta}</div>
+              <div style={{ fontSize: '12px', fontWeight: 700, color: row.delta !== '-' ? 'var(--phase-complete)' : 'var(--gray-300)' }}>{row.delta}</div>
             </div>
           ))}
         </div>
@@ -1123,14 +1123,14 @@ function ProgressView({ config, entries, dailyEntries, onEntryLogged, coeffDispa
 
   return (
     <div style={{ padding: '24px', maxWidth: '760px', margin: '0 auto' }}>
-      {/* Program Complete banner — shown at week 13+ */}
+      {/* Program Complete banner, shown at week 13+ */}
       {isComplete && (
         <ProgramCompleteView config={config} entries={entries} coeffDispatch={coeffDispatch} />
       )}
 
       {weeksWithNoData && !isComplete && (
         <div style={{ background: 'var(--error-bg)', border: '1px solid var(--error-border)', borderRadius: '8px', padding: '10px 16px', marginBottom: '16px', fontSize: '13px', color: 'var(--red)' }}>
-          ⚠ No data logged in the last 2+ weeks — follow up with the plant
+          ⚠ No data logged in the last 2+ weeks, follow up with the plant
         </div>
       )}
 
@@ -1177,7 +1177,7 @@ function ProgressView({ config, entries, dailyEntries, onEntryLogged, coeffDispa
         )}
       </div>
 
-      {/* D: Weekly Input — hidden for owners (view-only) and in print */}
+      {/* D: Weekly Input, hidden for owners (view-only) and in print */}
       {!viewOnly && (
         <div data-hide-print>
           <WeeklyInput
@@ -1190,7 +1190,7 @@ function ProgressView({ config, entries, dailyEntries, onEntryLogged, coeffDispa
         </div>
       )}
 
-      {/* Case study — hidden once program is complete (ProgramCompleteView takes over) */}
+      {/* Case study, hidden once program is complete (ProgramCompleteView takes over) */}
       <div style={{ marginTop: '16px' }}>
         {!isComplete && canExport ? (
           <CaseStudyCard config={config} entries={entries} coeffDispatch={coeffDispatch} />
@@ -1252,7 +1252,7 @@ function OperatorProgressHeader({ config, latest, currentWeek }: {
                   <span style={{ fontSize: '12px', fontWeight: 700, color }}>
                     {delta > 0
                       ? `▼ ${delta} min${atTarget ? ' ✓ target hit' : ` · ${pct}% toward target`}`
-                      : `${m.now} min — no improvement yet`}
+                      : `${m.now} min, no improvement yet`}
                   </span>
                 </div>
                 <ProgressBar pct={pct} color={atTarget ? 'var(--phase-complete)' : pct >= 40 ? 'var(--warning)' : 'var(--gray-200)'} />
@@ -1347,7 +1347,7 @@ export default function TrackingTab(props: TrackingProps) {
         id: 'demo-cfg',
         assessment_id: 'demo',
         started_at: startedAt,
-        // Baselines come from props — same data as Assessment, Report, Simulator tabs
+        // Baselines come from props, same data as Assessment, Report, Simulator tabs
         baseline_turnaround: baselineTurnaround,
         baseline_reject_pct: baselineRejectPct,
         baseline_dispatch_min: baselineDispatchMin,
@@ -1367,11 +1367,11 @@ export default function TrackingTab(props: TrackingProps) {
         { id: 'e1', config_id: 'demo-cfg', week_number: 1, logged_at: new Date(now - 49 * 86_400_000).toISOString(), turnaround_min: 112, reject_pct: null, dispatch_min: 32, notes: null },
         { id: 'e2', config_id: 'demo-cfg', week_number: 2, logged_at: new Date(now - 42 * 86_400_000).toISOString(), turnaround_min: 108, reject_pct: null, dispatch_min: 29, notes: 'Demurrage clause enforced with top 3 contractors' },
         { id: 'e3', config_id: 'demo-cfg', week_number: 3, logged_at: new Date(now - 35 * 86_400_000).toISOString(), turnaround_min: 105, reject_pct: null, dispatch_min: 26, notes: null },
-        { id: 'e4', config_id: 'demo-cfg', week_number: 4, logged_at: new Date(now - 28 * 86_400_000).toISOString(), turnaround_min: 101, reject_pct: null, dispatch_min: 24, notes: 'Dispatch SOP implemented — dedicated dispatcher' },
+        { id: 'e4', config_id: 'demo-cfg', week_number: 4, logged_at: new Date(now - 28 * 86_400_000).toISOString(), turnaround_min: 101, reject_pct: null, dispatch_min: 24, notes: 'Dispatch SOP implemented, dedicated dispatcher' },
         { id: 'e5', config_id: 'demo-cfg', week_number: 5, logged_at: new Date(now - 21 * 86_400_000).toISOString(), turnaround_min: 97, reject_pct: null, dispatch_min: 21, notes: null },
-        { id: 'e6', config_id: 'demo-cfg', week_number: 6, logged_at: new Date(now - 14 * 86_400_000).toISOString(), turnaround_min: 93, reject_pct: null, dispatch_min: 19, notes: 'Zone routing implemented — 4 delivery quadrants' },
+        { id: 'e6', config_id: 'demo-cfg', week_number: 6, logged_at: new Date(now - 14 * 86_400_000).toISOString(), turnaround_min: 93, reject_pct: null, dispatch_min: 19, notes: 'Zone routing implemented, 4 delivery quadrants' },
         { id: 'e7', config_id: 'demo-cfg', week_number: 7, logged_at: new Date(now - 7 * 86_400_000).toISOString(), turnaround_min: 89, reject_pct: null, dispatch_min: 17, notes: null },
-        { id: 'e8', config_id: 'demo-cfg', week_number: 8, logged_at: new Date(now - 1 * 86_400_000).toISOString(), turnaround_min: 85, reject_pct: null, dispatch_min: 15, notes: 'Dispatch target hit — 15 min order-to-dispatch achieved' },
+        { id: 'e8', config_id: 'demo-cfg', week_number: 8, logged_at: new Date(now - 1 * 86_400_000).toISOString(), turnaround_min: 85, reject_pct: null, dispatch_min: 15, notes: 'Dispatch target hit, 15 min order-to-dispatch achieved' },
       ]
 
       // Mock daily entries — 30 days, dip in days 10-14 ago to trigger trend alert

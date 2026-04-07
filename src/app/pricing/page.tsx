@@ -94,7 +94,7 @@ const FAQ = [
   },
   {
     q: 'Is the 90-day tracking self-serve for the plant?',
-    a: 'Yes. The plant manager logs two numbers per week — turnaround time and dispatch time. That\'s it. The system calculates the financial impact automatically and shows progress against targets in a simple dashboard.',
+    a: 'Yes. The plant manager logs two numbers per week, turnaround time and dispatch time. That\'s it. The system calculates the financial impact automatically and shows progress against targets in a simple dashboard.',
   },
   {
     q: 'Can the report be shared with the plant owner?',
@@ -148,7 +148,7 @@ export default function PricingPage() {
             Find the margin your plant is leaving on the table
           </h1>
           <p style={{ fontSize: '16px', color: 'var(--gray-500)', maxWidth: '560px', margin: '0 auto', lineHeight: 1.6 }}>
-            Built for ready-mix operations in the GCC. Quantify your losses in a single visit — then track the recovery over 90 days.
+            Built for ready-mix operations in the GCC. Quantify your losses in a single visit, then track the recovery over 90 days.
           </p>
         </div>
 

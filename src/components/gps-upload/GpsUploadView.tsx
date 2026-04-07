@@ -289,7 +289,7 @@ export default function GpsUploadView({ assessmentId, isAdmin, onUploadComplete 
           </h2>
           <p style={{ fontSize: '13px', color: 'var(--gray-500)', lineHeight: '1.6' }}>
             Upload a fleet management CSV export to automatically calculate turnaround time,
-            site waiting time, and return load rate — and include a Logistics Intelligence
+            site waiting time, and return load rate, and include a Logistics Intelligence
             section in the report.
           </p>
         </div>
@@ -337,7 +337,7 @@ export default function GpsUploadView({ assessmentId, isAdmin, onUploadComplete 
               <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--gray-900)' }}>
                 {analysisResult.avg_turnaround_minutes !== null
                   ? `${analysisResult.avg_turnaround_minutes} min`
-                  : '—'}
+                  : '-'}
               </div>
               {analysisResult.target_ta_minutes !== null && (
                 <div style={{ fontSize: '11px', color: 'var(--gray-400)' }}>
@@ -350,14 +350,14 @@ export default function GpsUploadView({ assessmentId, isAdmin, onUploadComplete 
               <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--gray-900)' }}>
                 {analysisResult.avg_waiting_time_minutes !== null
                   ? `${analysisResult.avg_waiting_time_minutes} min`
-                  : '—'}
+                  : '-'}
               </div>
               <div style={{ fontSize: '11px', color: 'var(--gray-400)' }}>Benchmark: 25 min</div>
             </div>
             <div>
               <div style={{ fontSize: '11px', color: 'var(--gray-400)', marginBottom: '3px' }}>Trips analysed</div>
               <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--gray-900)' }}>
-                {analysisResult.trips_analyzed ?? '—'}
+                {analysisResult.trips_analyzed ?? '-'}
               </div>
               <div style={{ fontSize: '11px', color: 'var(--gray-400)' }}>
                 {analysisResult.trucks_analyzed ?? '?'} trucks
@@ -366,7 +366,7 @@ export default function GpsUploadView({ assessmentId, isAdmin, onUploadComplete 
           </div>
         )}
 
-        {/* Upload dropzone — show when not yet complete or to allow re-upload */}
+        {/* Upload dropzone, show when not yet complete or to allow re-upload */}
         {(status === 'idle' || status === 'failed' || status === 'complete') && (
           <UploadDropzone
             onFileSelected={handleFileSelected}
@@ -486,11 +486,11 @@ export default function GpsUploadView({ assessmentId, isAdmin, onUploadComplete 
                         {sampleRows.map((row, i) => (
                           <tr key={i}>
                             <td style={{ padding: '2px 6px', border: '1px solid var(--border)' }}>{row.raw_row_reference ?? i}</td>
-                            <td style={{ padding: '2px 6px', border: '1px solid var(--border)' }}>{row.truck_id ?? '—'}</td>
-                            <td style={{ padding: '2px 6px', border: '1px solid var(--border)', whiteSpace: 'nowrap' }}>{row.event_timestamp ? row.event_timestamp.slice(0, 16) : '—'}</td>
-                            <td style={{ padding: '2px 6px', border: '1px solid var(--border)', whiteSpace: 'nowrap' }}>{row.stop_start_time ? row.stop_start_time.slice(0, 16) : '—'}</td>
-                            <td style={{ padding: '2px 6px', border: '1px solid var(--border)', whiteSpace: 'nowrap' }}>{row.stop_end_time ? row.stop_end_time.slice(0, 16) : '—'}</td>
-                            <td style={{ padding: '2px 6px', border: '1px solid var(--border)' }}>{row.location_name ?? '—'}</td>
+                            <td style={{ padding: '2px 6px', border: '1px solid var(--border)' }}>{row.truck_id ?? '-'}</td>
+                            <td style={{ padding: '2px 6px', border: '1px solid var(--border)', whiteSpace: 'nowrap' }}>{row.event_timestamp ? row.event_timestamp.slice(0, 16) : '-'}</td>
+                            <td style={{ padding: '2px 6px', border: '1px solid var(--border)', whiteSpace: 'nowrap' }}>{row.stop_start_time ? row.stop_start_time.slice(0, 16) : '-'}</td>
+                            <td style={{ padding: '2px 6px', border: '1px solid var(--border)', whiteSpace: 'nowrap' }}>{row.stop_end_time ? row.stop_end_time.slice(0, 16) : '-'}</td>
+                            <td style={{ padding: '2px 6px', border: '1px solid var(--border)' }}>{row.location_name ?? '-'}</td>
                             <td style={{ padding: '2px 6px', border: '1px solid var(--border)' }}>{row.inferred_location_type}</td>
                           </tr>
                         ))}

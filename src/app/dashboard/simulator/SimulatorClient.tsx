@@ -97,7 +97,7 @@ function calcRealism(
   // Turnaround improvement >30%
   const turnaroundImprovement = baseTurnaround > 0 ? (baseTurnaround - turnaround) / baseTurnaround : 0
   if (turnaroundImprovement > 0.30) {
-    warnings.push('Turnaround improvement exceeds 30% — this typically requires significant infrastructure or process changes.')
+    warnings.push('Turnaround improvement exceeds 30%, this typically requires significant infrastructure or process changes.')
     score += 2
   } else if (turnaroundImprovement > 0.15) {
     score += 1
@@ -105,13 +105,13 @@ function calcRealism(
 
   // Utilization >92%
   if (utilTarget > 92) {
-    warnings.push('Utilization above 92% is rare in practice — plants need buffer for maintenance, changeovers, and demand variability.')
+    warnings.push('Utilization above 92% is rare in practice, plants need buffer for maintenance, changeovers, and demand variability.')
     score += 2
   }
 
   // Multiple large changes
   if (changeCount >= 3) {
-    warnings.push('This scenario assumes improvements across multiple areas simultaneously — implementation risk is higher.')
+    warnings.push('This scenario assumes improvements across multiple areas simultaneously, implementation risk is higher.')
     score += 1
   }
 
@@ -199,16 +199,16 @@ function generateWarnings(
   const warnings: string[] = []
 
   if (trucks > baseTrucks && result.bottleneck === 'Production') {
-    warnings.push('Adding trucks provides limited benefit — production capacity is the binding constraint.')
+    warnings.push('Adding trucks provides limited benefit, production capacity is the binding constraint.')
   }
   if (result.bottleneck === 'Fleet / Logistics' && result.dispEff < 0.75) {
-    warnings.push('Dispatch inefficiencies restrict effective fleet throughput — improving coordination may be more impactful than adding trucks.')
+    warnings.push('Dispatch inefficiencies restrict effective fleet throughput, improving coordination may be more impactful than adding trucks.')
   }
   if (result.bottleneck === 'Production' && result.effectiveFleetDaily > result.prodDaily * 1.5) {
-    warnings.push('Fleet capacity significantly exceeds production — some trucks may be underutilized.')
+    warnings.push('Fleet capacity significantly exceeds production, some trucks may be underutilized.')
   }
   if (priceM3 !== basePrice) {
-    warnings.push('Revenue impact is sensitive to price assumptions — treat as directional estimate.')
+    warnings.push('Revenue impact is sensitive to price assumptions, treat as directional estimate.')
   }
 
   return warnings.slice(0, 2)
@@ -217,10 +217,10 @@ function generateWarnings(
 /* ── recommendation engine ── */
 function generateRecommendation(result: ReturnType<typeof simulate>, dispEff: number): string {
   if (result.bottleneck === 'Production') {
-    return 'Focus on increasing plant utilization and reducing unplanned stops before investing in fleet expansion. Production capacity is the primary constraint — additional trucks or dispatch improvements will not increase output until production throughput improves.'
+    return 'Focus on increasing plant utilization and reducing unplanned stops before investing in fleet expansion. Production capacity is the primary constraint, additional trucks or dispatch improvements will not increase output until production throughput improves.'
   }
   if (result.bottleneck === 'Dispatch') {
-    return 'Prioritise dispatch coordination improvements — upgrading dispatch tools, reducing order-to-dispatch time, and implementing route clustering. These changes typically require lower investment than fleet expansion and directly increase effective throughput.'
+    return 'Prioritise dispatch coordination improvements, upgrading dispatch tools, reducing order-to-dispatch time, and implementing route clustering. These changes typically require lower investment than fleet expansion and directly increase effective throughput.'
   }
   // Fleet / Logistics
   if (dispEff < 0.80) {
@@ -267,7 +267,7 @@ function generateInsight(
   if (result.bottleneck !== baseline.bottleneck && baseline.bottleneck) {
     txt += `\n\nThe primary bottleneck shifts from ${baseline.bottleneck} to ${result.bottleneck}, indicating that the original constraint has been relieved but a new one emerges.`
   } else {
-    txt += `\n\n${result.bottleneck} remains the primary constraint — further gains require addressing this area directly.`
+    txt += `\n\n${result.bottleneck} remains the primary constraint, further gains require addressing this area directly.`
   }
 
   // Dispatch insight
@@ -277,7 +277,7 @@ function generateInsight(
 
   // Confidence note
   if (confidence === 'Low') {
-    txt += '\n\nNote: This scenario involves significant changes from baseline — treat estimates as directional ranges, not precise forecasts.'
+    txt += '\n\nNote: This scenario involves significant changes from baseline, treat estimates as directional ranges, not precise forecasts.'
   }
 
   return txt
@@ -420,7 +420,7 @@ export default function SimulatorClient({ assessments }: SimulatorClientProps) {
         >
           {assessments.map(a => (
             <option key={a.id} value={a.id}>
-              {a.plant?.name || '—'} — {a.plant?.customer?.name || '—'} — Score: {a.overall}/100 — {a.bottleneck || '—'}
+              {a.plant?.name || '-'}, {a.plant?.customer?.name || '-'}, Score: {a.overall}/100, {a.bottleneck || '-'}
             </option>
           ))}
         </select>
@@ -434,12 +434,12 @@ export default function SimulatorClient({ assessments }: SimulatorClientProps) {
             borderRadius: 'var(--radius)', padding: '20px', marginBottom: '20px'
           }}>
             <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--gray-700)', marginBottom: '12px' }}>
-              Baseline — {selected.plant?.name}
+              Baseline, {selected.plant?.name}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
               {[
                 { label: 'Overall score', value: `${selected.overall}/100`, color: scoreColor(selected.overall || 0) },
-                { label: 'Bottleneck', value: selected.bottleneck || '—', color: '#C0392B' },
+                { label: 'Bottleneck', value: selected.bottleneck || '-', color: '#C0392B' },
                 { label: 'Annual volume', value: fmtVolume(result.baselineAnnual), color: 'var(--gray-900)' },
                 { label: 'EBITDA gap', value: fmtMoney(selected.ebitda_monthly || 0) + '/mo', color: '#C0392B' },
               ].map(kpi => (
@@ -606,34 +606,34 @@ export default function SimulatorClient({ assessments }: SimulatorClientProps) {
                         : fmtVolume(result.scenarioAnnual),
                       delta: result.incrementalVolume > 0
                         ? '+' + fmtVolumeRange(result.incrementalVolume * (1 - m), result.incrementalVolume * (1 + m))
-                        : '—',
+                        : '-',
                       positive: result.incrementalVolume > 0
                     },
                     {
                       label: 'Revenue upside',
-                      baseline: '—',
+                      baseline: '-',
                       scenario: result.revenueUpside > 0
                         ? fmtRange(result.revenueUpside * (1 - m), result.revenueUpside * (1 + m))
-                        : '—',
+                        : '-',
                       delta: result.revenueUpside > 0
                         ? '+' + fmtRange(result.revenueUpside * (1 - m), result.revenueUpside * (1 + m))
-                        : '—',
+                        : '-',
                       positive: result.revenueUpside > 0
                     },
                     {
                       label: 'Contribution upside',
-                      baseline: '—',
+                      baseline: '-',
                       scenario: result.contributionUpside > 0
                         ? fmtRange(result.contributionUpside * (1 - m), result.contributionUpside * (1 + m))
-                        : '—',
+                        : '-',
                       delta: result.contributionUpside > 0
                         ? '+' + fmtRange(result.contributionUpside * (1 - m), result.contributionUpside * (1 + m))
-                        : '—',
+                        : '-',
                       positive: result.contributionUpside > 0
                     },
                     {
                       label: 'Primary bottleneck',
-                      baseline: selected.bottleneck || '—',
+                      baseline: selected.bottleneck || '-',
                       scenario: result.bottleneck,
                       delta: result.bottleneck !== selected.bottleneck ? '↻ Shifted' : 'No change',
                       positive: result.bottleneck !== selected.bottleneck

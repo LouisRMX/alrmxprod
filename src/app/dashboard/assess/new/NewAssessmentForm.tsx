@@ -131,7 +131,7 @@ export default function NewAssessmentForm({
           ) : (
             <div style={{ display: 'flex', gap: '8px' }}>
               <input style={{ ...inp, flex: 1 }} value={newPlantName} onChange={e => setNewPlantName(e.target.value)}
-                placeholder="Plant name — e.g. Riyadh North" autoFocus />
+                placeholder="Plant name, e.g. Riyadh North" autoFocus />
               <button type="button" onClick={() => { setAddingPlant(false); setNewPlantName('') }} style={{
                 padding: '10px 14px', background: 'none', border: '1px solid var(--border)',
                 borderRadius: '8px', fontSize: '13px', cursor: 'pointer',

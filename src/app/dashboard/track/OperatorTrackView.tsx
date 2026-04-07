@@ -104,7 +104,7 @@ export default function OperatorTrackView({ assessmentId, assessment, userId }: 
 
     const { data, error } = await supabase.from('tracking_entries').insert(entry).select().single()
     if (error || !data) {
-      setSubmitError('Failed to save — please try again.')
+      setSubmitError('Failed to save, please try again.')
       setSubmitting(false)
       return
     }

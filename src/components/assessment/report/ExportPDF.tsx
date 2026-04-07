@@ -160,7 +160,7 @@ export default function ExportPDF({ calcResult, answers, meta, report }: ExportP
                 {s.label}
               </div>
               <div style={{ fontSize: '28px', fontWeight: 700, fontFamily: "'DM Mono', monospace", color: scoreColor(s.value), marginTop: '2px' }}>
-                {s.value !== null ? s.value : '—'}
+                {s.value !== null ? s.value : '-'}
               </div>
               {s.label === 'Overall' && financialBottleneck && (
                 <div style={{ fontSize: '9px', color: '#C0392B', fontWeight: 600, marginTop: '2px' }}>
@@ -178,7 +178,7 @@ export default function ExportPDF({ calcResult, answers, meta, report }: ExportP
               This plant has a potential <span style={{ fontFamily: "'DM Mono', monospace" }}>${Math.round(totalLoss / 22).toLocaleString()}</span> per working day to recover.
             </div>
             <div style={{ fontSize: '11px', color: '#6b6b6b', marginTop: '3px' }}>
-              ${totalLoss.toLocaleString()}/month · ${(totalLoss * 12).toLocaleString()}/year — contingent on order book
+              ${totalLoss.toLocaleString()}/month · ${(totalLoss * 12).toLocaleString()}/year, contingent on order book
             </div>
           </div>
         )}
@@ -188,14 +188,14 @@ export default function ExportPDF({ calcResult, answers, meta, report }: ExportP
           <div style={{ flex: 1, background: totalLoss > 0 ? '#FDE8E6' : '#f4f4f4', borderRadius: '8px', padding: '14px 16px', border: `1px solid ${totalLoss > 0 ? '#F5B7B1' : '#e0e0e0'}` }}>
             <div style={{ fontSize: '10px', color: '#6b6b6b', fontWeight: 500, textTransform: 'uppercase' }}>Potential cost of inaction</div>
             <div style={{ fontSize: '22px', fontWeight: 600, fontFamily: "'DM Mono', monospace", color: totalLoss > 0 ? '#C0392B' : '#6b6b6b', marginTop: '2px' }}>
-              {totalLoss > 0 ? fmt(totalLoss) + '/mo' : '—'}
+              {totalLoss > 0 ? fmt(totalLoss) + '/mo' : '-'}
             </div>
             <div style={{ fontSize: '9px', color: '#9b9b9b', marginTop: '3px' }}>assumes sufficient demand</div>
           </div>
           <div style={{ flex: 1, background: calcResult.hiddenRevMonthly > 0 ? '#E1F5EE' : '#f4f4f4', borderRadius: '8px', padding: '14px 16px', border: `1px solid ${calcResult.hiddenRevMonthly > 0 ? '#9FE1CB' : '#e0e0e0'}` }}>
             <div style={{ fontSize: '10px', color: '#6b6b6b', fontWeight: 500, textTransform: 'uppercase' }}>Potential hidden revenue</div>
             <div style={{ fontSize: '22px', fontWeight: 600, fontFamily: "'DM Mono', monospace", color: calcResult.hiddenRevMonthly > 0 ? '#0F6E56' : '#6b6b6b', marginTop: '2px' }}>
-              {calcResult.hiddenRevMonthly > 0 ? fmt(calcResult.hiddenRevMonthly) + '/mo' : '—'}
+              {calcResult.hiddenRevMonthly > 0 ? fmt(calcResult.hiddenRevMonthly) + '/mo' : '-'}
             </div>
           </div>
         </div>

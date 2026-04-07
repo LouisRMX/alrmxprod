@@ -1,5 +1,5 @@
 /**
- * GPS Column Auto-Mapper — Layer 3
+ * GPS Column Auto-Mapper, Layer 3
  *
  * Maps uploaded CSV column names to canonical internal fields
  * using an alias dictionary + substring matching.
@@ -22,7 +22,7 @@ export type CanonicalField =
   | 'odometer'
   | 'trip_id'
 
-/** Required fields — if these can't be mapped, parsing will fail */
+/** Required fields, if these can't be mapped, parsing will fail */
 export const REQUIRED_FIELDS: CanonicalField[] = ['truck_id', 'event_timestamp']
 
 /** Fields required for Type B (Geofence Log) */
@@ -151,7 +151,7 @@ export function autoMapColumns(
     }
 
     if (!bestMatch) {
-      // 3. Substring match — uploaded col contains an alias or vice versa
+      // 3. Substring match, uploaded col contains an alias or vice versa
       let subMatch: { column: string; score: number } | null = null
       for (const { original, normalised } of normUploaded) {
         for (const alias of aliases) {
@@ -209,7 +209,7 @@ export function autoMapColumns(
   }
 }
 
-/** Apply a saved mapping template — override auto-mapped fields */
+/** Apply a saved mapping template, override auto-mapped fields */
 export function applyTemplate(
   autoResult: MappingResult,
   templateMappings: Partial<Record<CanonicalField, string>>,

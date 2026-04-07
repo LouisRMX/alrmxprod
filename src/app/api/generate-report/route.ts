@@ -50,47 +50,47 @@ export async function POST(req: NextRequest) {
   // Skip when demoOverride === true (user has changed inputs and wants a live generation)
   if (assessmentId === 'demo' && !demoOverride) {
     const DEMO_TEXTS: Record<string, string> = {
-      executive: `At 32 minutes, order-to-dispatch is more than double the 15-minute target — a gap of this size indicates the dispatch sequence is reactive rather than pre-planned, with trucks prepared after orders arrive rather than before.
+      executive: `At 32 minutes, order-to-dispatch is more than double the 15-minute target, a gap of this size indicates the dispatch sequence is reactive rather than pre-planned, with trucks prepared after orders arrive rather than before.
 
-A 17-minute excess on every departure compounds across the shift: combined with a 112-minute turnaround, each late departure delays the return and reload, reducing the number of cycles the fleet can complete. During the summer peak — when sites reject loads that arrive outside slump specification — the cost of each delayed departure is higher still.
+A 17-minute excess on every departure compounds across the shift: combined with a 112-minute turnaround, each late departure delays the return and reload, reducing the number of cycles the fleet can complete. During the summer peak, when sites reject loads that arrive outside slump specification, the cost of each delayed departure is higher still.
 
 Dispatch is the binding constraint because it directly gates how many cycles the fleet completes, regardless of other improvements. The 3.5% rejection rate is a real cost but affects a fraction of loads and does not limit throughput on its own. Fixing dispatch unlocks throughput across the entire 20-truck fleet; fixing quality or utilisation alone does not.`,
 
-      diagnosis: `The dispatch constraint reduces the number of productive cycles the fleet can complete each shift — not because trucks are unavailable, but because each departure starts late and the delay carries through every subsequent cycle. At 20 trucks on a 112-minute cycle, a 17-minute departure excess represents roughly 1.3 fewer completed deliveries per truck per day, compressing output without any reduction in fleet size or plant capacity.
+      diagnosis: `The dispatch constraint reduces the number of productive cycles the fleet can complete each shift, not because trucks are unavailable, but because each departure starts late and the delay carries through every subsequent cycle. At 20 trucks on a 112-minute cycle, a 17-minute departure excess represents roughly 1.3 fewer completed deliveries per truck per day, compressing output without any reduction in fleet size or plant capacity.
 
-Fleet turnaround at 112 minutes is 28 minutes above the 84-minute benchmark for suburban Saudi delivery zones. Site wait time is the single largest component, driven by uncoordinated site handover and no demurrage enforcement. Turnaround cannot improve meaningfully until departures are on time — a truck leaving late arrives late and returns late, regardless of what happens at the site.
+Fleet turnaround at 112 minutes is 28 minutes above the 84-minute benchmark for suburban Saudi delivery zones. Site wait time is the single largest component, driven by uncoordinated site handover and no demurrage enforcement. Turnaround cannot improve meaningfully until departures are on time, a truck leaving late arrives late and returns late, regardless of what happens at the site.
 
 Quality at 70/100 and a 3.5% rejection rate are real costs, particularly during summer months when heat-related slump loss compounds the long cycle time. Production at 82/100 appears constrained, but utilisation is high precisely because the plant is producing to fill a queue that dispatch has already delayed.
 
-If the dispatch gap closes to 15 minutes, the fleet recovers the cycle capacity to complete its target delivery volume within the existing shift. Turnaround improves as a secondary effect. No additional trucks or plant capacity are required — the throughput is already latent in the existing fleet.`,
+If the dispatch gap closes to 15 minutes, the fleet recovers the cycle capacity to complete its target delivery volume within the existing shift. Turnaround improves as a secondary effect. No additional trucks or plant capacity are required, the throughput is already latent in the existing fleet.`,
 
-      actions: `Immediate — this week
+      actions: `Immediate, this week
 1. Dispatch pre-loading protocol: Before the morning shift starts, pre-load 3 trucks with the most likely first orders of the day. The dispatcher confirms which three before the first order arrives. Done when the morning queue time drops below 20 minutes.
 
 2. Retarder protocol for summer loads: Flag all loads with expected site arrival after 10:00 AM during June–September. Batch plant operator confirms retarder addition before drum rotation starts. Done when the protocol is written and signed off by the batch supervisor.
 
-3. Site-readiness confirmation: No truck dispatches until the site foreman sends a readiness message — WhatsApp, logged by time. The dispatcher holds the truck if no confirmation within 5 minutes of expected departure. Done when 90% of dispatches have a logged confirmation.
+3. Site-readiness confirmation: No truck dispatches until the site foreman sends a readiness message, WhatsApp, logged by time. The dispatcher holds the truck if no confirmation within 5 minutes of expected departure. Done when 90% of dispatches have a logged confirmation.
 
-4. Order-to-dispatch tracking: Write the dispatch time on a whiteboard for every order — target 15 minutes, actual time, dispatcher initials. Review at end of shift. Done when the board is filled daily for one full week.
+4. Order-to-dispatch tracking: Write the dispatch time on a whiteboard for every order, target 15 minutes, actual time, dispatcher initials. Review at end of shift. Done when the board is filled daily for one full week.
 
 5. Rejection liability conversation: Identify the three contractors with the highest return rates. Have one direct conversation per week about shared liability on rejected loads. Done when at least one contractor acknowledges the clause in writing.
 
-Short-term — weeks 2 to 4
+Short-term, weeks 2 to 4
 1. Zone-based dispatch sequencing: Group consecutive orders by delivery area. The dispatcher fills a truck with two same-zone deliveries where possible. Reduces transit distance per cycle by an estimated 8–12 minutes for the suburban Saudi delivery pattern. Done when the dispatcher can describe the zone logic without prompting.
 
 2. Weekly turnaround log: Record average turnaround time per shift for one full week. Identify whether the delay is occurring at the plant exit, at the delivery site, or in transit. Done when the log shows 5 consecutive days of data.
 
 3. Preventive maintenance schedule: 4 breakdowns last month on a 20-truck fleet is above benchmark. Set a 4-week rotating service schedule for all trucks. Done when the schedule is posted and the first two trucks have been through it.
 
-Validation — months 1 to 3
-1. Dispatch time monthly average: Target 15 minutes by week 6. Track using the daily whiteboard log. If the average has not moved below 20 minutes by week 4, the pre-loading protocol is not being followed — investigate why.
+Validation, months 1 to 3
+1. Dispatch time monthly average: Target 15 minutes by week 6. Track using the daily whiteboard log. If the average has not moved below 20 minutes by week 4, the pre-loading protocol is not being followed, investigate why.
 
-2. Turnaround improvement: Target 84 minutes average by week 8. A 28-minute reduction is achievable through dispatch and site-readiness protocol alone — no fleet investment required. Track one full week of timestamped cycles.
+2. Turnaround improvement: Target 84 minutes average by week 8. A 28-minute reduction is achievable through dispatch and site-readiness protocol alone, no fleet investment required. Track one full week of timestamped cycles.
 
 3. 90-day tracking programme: Enrol in the tracking module to log turnaround and dispatch times weekly. After 8 weeks, the data supports a before-and-after case showing the exact financial recovery. This is the evidence base for any future decisions about fleet expansion or contract renegotiation.
 
 Next Step
-This pre-assessment has established the financial picture based on what the plant reports about itself: up to $85,000/month in recoverable margin, concentrated in dispatch and turnaround. What it cannot tell us is where in the 112-minute turnaround the time is actually being lost — whether the 32-minute dispatch figure reflects a consistent pattern or a peak-hour average, and whether rejections are primarily a plant-side dosing issue or a customer site-readiness issue. An on-site visit answers those three questions in half a day and produces a findings report the plant manager can act on the same week.`,
+This pre-assessment has established the financial picture based on what the plant reports about itself: up to $85,000/month in recoverable margin, concentrated in dispatch and turnaround. What it cannot tell us is where in the 112-minute turnaround the time is actually being lost, whether the 32-minute dispatch figure reflects a consistent pattern or a peak-hour average, and whether rejections are primarily a plant-side dosing issue or a customer site-readiness issue. An on-site visit answers those three questions in half a day and produces a findings report the plant manager can act on the same week.`,
     }
     const text = DEMO_TEXTS[type]
     if (!text) return NextResponse.json({ error: 'Invalid report type' }, { status: 400 })
@@ -110,7 +110,7 @@ This pre-assessment has established the financial picture based on what the plan
     return new Response(stream, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } })
   }
 
-  // Verify assessment exists and user has access (skipped for demo override — no DB record)
+  // Verify assessment exists and user has access (skipped for demo override, no DB record)
   if (assessmentId !== 'demo') {
     const { data: assessment } = await supabase
       .from('assessments')
@@ -162,7 +162,7 @@ This pre-assessment has established the financial picture based on what the plan
 
         trackSpend(user.id)
 
-        // Save to database when complete — skipped for demo override (no persistent record)
+        // Save to database when complete, skipped for demo override (no persistent record)
         if (assessmentId !== 'demo') {
           const fullText = stripMarkdown(await response.finalText())
           await supabase.from('reports').upsert({
@@ -186,10 +186,10 @@ This pre-assessment has established the financial picture based on what the plan
 
 function buildMarketContext(b: BenchmarkContext): string {
   return `
-MARKET CONTEXT (${b.n} comparable plants — similar fleet size and delivery radius):
-Turnaround — median: ${b.turnaround.p50} min · top quartile: ${b.turnaround.p25} min
-Dispatch   — median: ${b.dispatch.p50} min · top quartile: ${b.dispatch.p25} min
-Rejection  — median: ${b.reject.p50}% · top quartile: ${b.reject.p25}%
+MARKET CONTEXT (${b.n} comparable plants, similar fleet size and delivery radius):
+Turnaround, median: ${b.turnaround.p50} min · top quartile: ${b.turnaround.p25} min
+Dispatch  , median: ${b.dispatch.p50} min · top quartile: ${b.dispatch.p25} min
+Rejection , median: ${b.reject.p50}% · top quartile: ${b.reject.p25}%
 
 When this data is available, reference the plant's position relative to comparable operations. Use language like "comparable plants" or "similar operations in this segment". Do not call it an "industry average". Be direct: if the plant is below median on a key metric, state it.`
 }
@@ -198,7 +198,7 @@ function buildExecutivePrompt(ctx: Record<string, unknown>, benchmarks: Benchmar
   const RULES = `RULES:
 - Plain text only. No markdown, no asterisks, no bold, no headings with #, no bullet dashes, no numbered lists.
 - Never invent data. Use only the figures provided.
-- Do NOT repeat revenue figures, scores, or bullet metrics — those are already shown above this text in the UI.
+- Do NOT repeat revenue figures, scores, or bullet metrics, those are already shown above this text in the UI.
 - No jargon. Banned: optimize, leverage, streamline, robust, synergy, utilize, actionable, deep dive.
 - Short sentences. One idea per sentence.
 - If this text could apply to any ready-mix plant, it is too generic. Rewrite until it is specific to this plant.
@@ -214,9 +214,9 @@ Plant: ${ctx.plant}, ${ctx.country}
 Overall score: ${ctx.overall}/100
 Utilisation: ${ctx.utilPct}% (target: 85%) | Turnaround: ${ctx.turnaround} min (target: ${ctx.targetTA} min)
 
-WRITE THREE SHORT PARAGRAPHS — no headings, no labels:
+WRITE THREE SHORT PARAGRAPHS, no headings, no labels:
 
-Paragraph 1: What the data shows about operational flow. What is working at the process level — not just that the numbers are good, but what that implies about how the plant is run day-to-day.
+Paragraph 1: What the data shows about operational flow. What is working at the process level, not just that the numbers are good, but what that implies about how the plant is run day-to-day.
 
 Paragraph 2: Why this level of performance holds. What operational habits or disciplines are likely keeping these metrics stable.
 
@@ -227,23 +227,23 @@ Paragraph 3: What to monitor. One or two areas that could slip if not actively m
 
 You are writing the Executive Explanation section of a Plant Intelligence Report for ${ctx.plant} in ${ctx.country}.
 
-This is NOT a summary. Do not list findings. Do not repeat financial figures or scores — those are already shown above this text.
+This is NOT a summary. Do not list findings. Do not repeat financial figures or scores, those are already shown above this text.
 
 PURPOSE: Explain WHY the primary bottleneck occurs and HOW it constrains the operation. Cause-effect logic only.
 
 PLANT DATA:
 Primary bottleneck: ${ctx.bottleneck}
 Turnaround: ${ctx.turnaround} min (target: ${ctx.targetTA} min)
-Dispatch time: ${ctx.dispatchMin ?? '—'} min (target: 15 min)
-Rejection rate: ${ctx.rejectPct ?? '—'}% (target: <3%)${ctx.rejectPlantFraction != null && (ctx.rejectPct as number) > 0 ? `
-  → Plant-side: ~${ctx.rejectPlantFraction}% of rejections ($${ctx.rejectPlantSideLoss}/month) — batch/dosing/mix quality
-  → Customer-side: ~${100 - (ctx.rejectPlantFraction as number)}% of rejections ($${ctx.rejectCustomerSideLoss}/month) — site unreadiness/pump delays/contractor` : ''}
+Dispatch time: ${ctx.dispatchMin ?? '-'} min (target: 15 min)
+Rejection rate: ${ctx.rejectPct ?? '-'}% (target: <3%)${ctx.rejectPlantFraction != null && (ctx.rejectPct as number) > 0 ? `
+  → Plant-side: ~${ctx.rejectPlantFraction}% of rejections ($${ctx.rejectPlantSideLoss}/month), batch/dosing/mix quality
+  → Customer-side: ~${100 - (ctx.rejectPlantFraction as number)}% of rejections ($${ctx.rejectCustomerSideLoss}/month), site unreadiness/pump delays/contractor` : ''}
 Utilisation: ${ctx.utilPct}% (target: 85%)
 Fleet: ${ctx.trucks} trucks
 ${benchmarks ? buildMarketContext(benchmarks) : ''}
 WRITE EXACTLY THREE PARAGRAPHS. No headings. No bullets. No labels.
 
-COMPRESSION RULES — strictly enforced:
+COMPRESSION RULES, strictly enforced:
 - Each paragraph contains ONE core idea and ONE cause-effect relationship. Nothing else.
 - Maximum 2–3 sentences per paragraph.
 - No examples. No illustrative scenarios. No storytelling.
@@ -252,11 +252,11 @@ COMPRESSION RULES — strictly enforced:
 - Prefer direct statements over explanations.
 - Write the conclusion first in each paragraph, then support it briefly.
 
-Paragraph 1: State the measured gap as a fact (use the actual metric vs target). Then state the most likely operational cause — framed as inference, not assertion. Use language like "indicates", "suggests", "points to". Do not claim to know what the plant does or does not have.
+Paragraph 1: State the measured gap as a fact (use the actual metric vs target). Then state the most likely operational cause, framed as inference, not assertion. Use language like "indicates", "suggests", "points to". Do not claim to know what the plant does or does not have.
 
-Paragraph 2: State the downstream consequence that follows directly from the gap in paragraph 1. Use only what the data confirms — turnaround time, cycle count, utilisation. Do not introduce specifics (shift length, number of deliveries) unless they appear in the plant data above.
+Paragraph 2: State the downstream consequence that follows directly from the gap in paragraph 1. Use only what the data confirms, turnaround time, cycle count, utilisation. Do not introduce specifics (shift length, number of deliveries) unless they appear in the plant data above.
 
-Paragraph 3: State why this dimension is the binding constraint over the others. Reference ALL other dimensions that are off-target (e.g. rejection rate, utilisation, turnaround) and briefly state why each is secondary — either smaller financial gap, already partially constrained by the primary issue, or not yet at the point of system-wide impact. One sentence per secondary dimension. End with one sentence confirming why the primary constraint unlocks the most recovery.`
+Paragraph 3: State why this dimension is the binding constraint over the others. Reference ALL other dimensions that are off-target (e.g. rejection rate, utilisation, turnaround) and briefly state why each is secondary, either smaller financial gap, already partially constrained by the primary issue, or not yet at the point of system-wide impact. One sentence per secondary dimension. End with one sentence confirming why the primary constraint unlocks the most recovery.`
 }
 
 function buildDiagnosisPrompt(ctx: Record<string, unknown>, benchmarks: BenchmarkContext | null = null) {
@@ -268,7 +268,7 @@ function buildDiagnosisPrompt(ctx: Record<string, unknown>, benchmarks: Benchmar
   const RULES = `RULES:
 - Plain text only. No markdown, no asterisks, no bold, no headings with #, no bullet dashes.
 - Never invent data. Use only the figures provided.
-- All financial figures are POTENTIAL — frame as "up to $X" or "recoverable", never as confirmed losses.
+- All financial figures are POTENTIAL, frame as "up to $X" or "recoverable", never as confirmed losses.
 - No jargon. Banned: optimize, leverage, streamline, robust, synergy, utilize, actionable, deep dive.
 - Short sentences. One idea per sentence.
 - Write for a plant owner who is intelligent and has no patience for consultants who talk around things.
@@ -285,19 +285,19 @@ Plant: ${ctx.plant}, ${ctx.country}
 Overall score: ${ctx.overall}/100
 Utilisation: ${ctx.utilPct}% (target: 85%)
 Turnaround: ${ctx.turnaround} min (target: ${ctx.targetTA} min)
-Dispatch: ${ctx.dispatchMin ?? '—'} min (target: 15 min)
-Scores — Production: ${scores?.prod ?? '—'}/100 | Dispatch: ${scores?.dispatch ?? '—'}/100 | Fleet: ${scores?.logistics ?? '—'}/100 | Quality: ${scores?.quality ?? '—'}/100
+Dispatch: ${ctx.dispatchMin ?? '-'} min (target: 15 min)
+Scores, Production: ${scores?.prod ?? '-'}/100 | Dispatch: ${scores?.dispatch ?? '-'}/100 | Fleet: ${scores?.logistics ?? '-'}/100 | Quality: ${scores?.quality ?? '-'}/100
 
 WRITE THREE PARAGRAPHS. No headings. No bullet points. No metric listings.
 
-Paragraph 1 — System state:
+Paragraph 1, System state:
 Describe what the operation looks like when no single dimension is constraining throughput. What does it mean for the whole system that turnaround, dispatch, and utilisation are all close to target simultaneously? One core idea. Max 3 sentences.
 
-Paragraph 2 — What the scores indicate:
-Name the dimensions that are performing well and explain — in operational terms, not score terms — what that implies about the day-to-day discipline of the plant. Be specific to the actual numbers. Do not list scores. Weave them into a coherent observation. Max 3 sentences.
+Paragraph 2, What the scores indicate:
+Name the dimensions that are performing well and explain, in operational terms, not score terms, what that implies about the day-to-day discipline of the plant. Be specific to the actual numbers. Do not list scores. Weave them into a coherent observation. Max 3 sentences.
 
-Paragraph 3 — What to monitor:
-Identify the one or two dimensions most likely to slip first if operational discipline softens — based on the actual metrics and their margin above target. One sentence per dimension. Conclude with what early signal would indicate the constraint is forming.`
+Paragraph 3, What to monitor:
+Identify the one or two dimensions most likely to slip first if operational discipline softens, based on the actual metrics and their margin above target. One sentence per dimension. Conclude with what early signal would indicate the constraint is forming.`
   }
 
   const bottleneck = ctx.bottleneck as string
@@ -310,7 +310,7 @@ Identify the one or two dimensions most likely to slip first if operational disc
         Quality: scores?.quality ?? null,
         Production: scores?.prod ?? null,
       }
-      return `${d}: ${scoreMap[d] ?? '—'}/100`
+      return `${d}: ${scoreMap[d] ?? '-'}/100`
     })
     .join(' · ')
 
@@ -318,40 +318,40 @@ Identify the one or two dimensions most likely to slip first if operational disc
 
 You are writing the Constraint Analysis section of a Plant Intelligence Report for ${ctx.plant} in ${ctx.country}.
 
-IMPORTANT: The reader has already read "Why the operation is constrained" — they know what the bottleneck is and how it occurs at the point of failure. Do NOT re-explain the bottleneck mechanism. Start from its consequences for the system as a whole.
+IMPORTANT: The reader has already read "Why the operation is constrained", they know what the bottleneck is and how it occurs at the point of failure. Do NOT re-explain the bottleneck mechanism. Start from its consequences for the system as a whole.
 
 PLANT DATA:
 Primary constraint: ${bottleneck}
 Bottleneck loss: up to $${ctx.bnLossMonthly}/month ($${ctx.bnDailyLoss}/day)
 Total recoverable (all areas): up to $${ctx.totalLossMonthly}/month
 Turnaround: ${ctx.turnaround} min (target: ${ctx.targetTA} min)
-Dispatch time: ${ctx.dispatchMin ?? '—'} min (target: 15 min)
-Rejection rate: ${ctx.rejectPct ?? '—'}% (target: <3%)${ctx.rejectPlantFraction != null && (ctx.rejectPct as number) > 0 ? `
-  → Plant-side: ~${ctx.rejectPlantFraction}% ($${ctx.rejectPlantSideLoss}/month) — batch/dosing/mix quality
-  → Customer-side: ~${100 - (ctx.rejectPlantFraction as number)}% ($${ctx.rejectCustomerSideLoss}/month) — site/pump/contractor` : ''}
+Dispatch time: ${ctx.dispatchMin ?? '-'} min (target: 15 min)
+Rejection rate: ${ctx.rejectPct ?? '-'}% (target: <3%)${ctx.rejectPlantFraction != null && (ctx.rejectPct as number) > 0 ? `
+  → Plant-side: ~${ctx.rejectPlantFraction}% ($${ctx.rejectPlantSideLoss}/month), batch/dosing/mix quality
+  → Customer-side: ~${100 - (ctx.rejectPlantFraction as number)}% ($${ctx.rejectCustomerSideLoss}/month), site/pump/contractor` : ''}
 Utilisation: ${ctx.utilPct}% (target: 85%)
 Fleet: ${ctx.trucks} trucks
-Scores — constraint: ${bottleneck} ${scores?.[bottleneck.toLowerCase() as keyof typeof scores] ?? (bottleneck === 'Fleet' ? scores?.logistics : null) ?? '—'}/100 | secondary: ${secondaryDims}
+Scores, constraint: ${bottleneck} ${scores?.[bottleneck.toLowerCase() as keyof typeof scores] ?? (bottleneck === 'Fleet' ? scores?.logistics : null) ?? '-'}/100 | secondary: ${secondaryDims}
 ${benchmarks ? buildMarketContext(benchmarks) : ''}
 WRITE 3–4 PARAGRAPHS. No headings. No bullet points. No findings. No metric listings.
 
-Paragraph 1 — System consequence:
+Paragraph 1, System consequence:
 State what happens to overall throughput and fleet utilisation as a result of the constraint.
-Not what the constraint is — what it does to the system as a whole.
+Not what the constraint is, what it does to the system as a whole.
 One core idea. One cause-effect chain. Max 3 sentences.
 
-Paragraph 2 — Why other dimensions are secondary:
+Paragraph 2, Why other dimensions are secondary:
 For each underperforming dimension that is NOT the constraint, state in one sentence why fixing it first would not unlock system throughput.
 Base this on the actual scores and metrics above.
 Be direct: name each dimension and give a specific operational reason it is secondary.
-Do not list them as bullets — weave them into prose.
+Do not list them as bullets, weave them into prose.
 
-Paragraph 3 — What resolving the constraint enables:
+Paragraph 3, What resolving the constraint enables:
 If the constraint is fixed, what becomes operationally possible?
-Do not state financial figures — focus on capacity, delivery cadence, and fleet utilisation.
+Do not state financial figures, focus on capacity, delivery cadence, and fleet utilisation.
 Max 3 sentences. Conclusion first, then one supporting observation.
 
-Paragraph 4 (include only if data supports it) — Next constraint:
+Paragraph 4 (include only if data supports it), Next constraint:
 If another dimension is close to becoming the binding limit once the primary is resolved, name it and explain why in 1–2 sentences.
 Only include this paragraph if a secondary score is below 65 or a metric is meaningfully off-target.`
 }
@@ -372,25 +372,25 @@ You are writing the Next Step section of a Plant Intelligence Report for a well-
 CONTEXT:
 Plant: ${ctx.plant}, ${ctx.country}
 Overall score: ${ctx.overall}/100
-Utilisation: ${ctx.utilPct}% — target: 85%
-Turnaround: ${ctx.turnaround} min — target: ${ctx.targetTA} min
+Utilisation: ${ctx.utilPct}%, target: 85%
+Turnaround: ${ctx.turnaround} min, target: ${ctx.targetTA} min
 Hidden revenue headroom: up to $${ctx.hiddenRevMonthly}/month
 
 WRITE TWO SECTIONS:
 
 One sentence (no heading): Name what the data confirms about this operation. What does the absence of major issues tell us? Specific to the numbers.
 
-Next Step — heading on its own line
+Next Step, heading on its own line
 Exactly 3 sentences:
 Sentence 1: What this assessment has confirmed.
-Sentence 2: What an on-site visit would verify or add — not what it would fix, because nothing is obviously broken.
-Sentence 3: A concrete suggestion for maintaining this performance — a monitoring discipline, periodic review, or one area to develop further.`
+Sentence 2: What an on-site visit would verify or add, not what it would fix, because nothing is obviously broken.
+Sentence 3: A concrete suggestion for maintaining this performance, a monitoring discipline, periodic review, or one area to develop further.`
   }
 
   const RULES = `RULES:
 - Plain text only. No markdown, no asterisks, no bold, no headings with #, no bullet dashes.
 - Never invent data. Use only the figures provided.
-- All financial figures are POTENTIAL — frame as "up to $X" or "recoverable", never as confirmed losses.
+- All financial figures are POTENTIAL, frame as "up to $X" or "recoverable", never as confirmed losses.
 - No jargon. Banned: optimize, leverage, streamline, robust, synergy, utilize, actionable.
 - Short sentences. One idea per sentence.
 - Do not use sales pitch language: propose, recommend, our team, we would like to.
@@ -421,8 +421,8 @@ Bottleneck loss: up to $${ctx.bnLossMonthly}/month
 Total recoverable: up to $${ctx.totalLossMonthly}/month
 Overall score: ${ctx.overall}/100
 Turnaround: ${ctx.turnaround} min (target: ${ctx.targetTA} min)
-Dispatch time: ${ctx.dispatchMin ?? '—'} min (target: 15 min)
-Rejection rate: ${ctx.rejectPct ?? '—'}% (target: <3%)
+Dispatch time: ${ctx.dispatchMin ?? '-'} min (target: 15 min)
+Rejection rate: ${ctx.rejectPct ?? '-'}% (target: <3%)
 
 IMMEDIATE ACTIONS from the data (use these, add operational detail):
 ${immediateActions.join('\n')}
@@ -432,24 +432,24 @@ ${secondaryIssues.join('\n')}
 
 WRITE EXACTLY FOUR SECTIONS:
 
-Section 1 — heading "Immediate — this week" on its own line
+Section 1, heading "Immediate, this week" on its own line
 3 to 5 actions, each numbered. Each action must be:
 - Specific to this plant's data (use the actual numbers)
 - Measurable (the plant manager knows whether it happened or not)
-- Zero capital — process, protocol, conversation, or instruction only
+- Zero capital, process, protocol, conversation, or instruction only
 Format each action as: [Number]. [Action title]: [One sentence on what to do and how to confirm it is done.]
 
-Section 2 — heading "Short-term — weeks 2 to 4" on its own line
+Section 2, heading "Short-term, weeks 2 to 4" on its own line
 3 actions. These build on the immediate actions: SOPs, tracking systems, enforcement mechanisms. Same format as above.
 
-Section 3 — heading "Validation — months 1 to 3" on its own line
+Section 3, heading "Validation, months 1 to 3" on its own line
 2 to 3 actions. These confirm the changes are holding and quantify the improvement. Include what to measure and how. Reference the 90-day tracking programme if the plant is enrolling.
 
-Section 4 — heading "Next Step" on its own line
+Section 4, heading "Next Step" on its own line
 Exactly 3 sentences:
-Sentence 1: What this assessment has established — the financial picture based on what the plant reports about itself.
+Sentence 1: What this assessment has established, the financial picture based on what the plant reports about itself.
 Sentence 2: What it cannot tell us yet. Specifically name 2 of the most relevant unknowns: actual dispatch sequence versus description; where in the turnaround the time is physically lost; whether rejections are plant-side or customer-side; how closely reported figures match typical days.
-Sentence 3: The logical conclusion — framed as an obvious observation, not a proposal. The owner should finish reading this thinking "yes, that makes sense."
+Sentence 3: The logical conclusion, framed as an obvious observation, not a proposal. The owner should finish reading this thinking "yes, that makes sense."
 
 IMPORTANT: Secondary opportunities (${secondaryIssues.map(s => s.split(':')[0]).join(', ')}) should be mentioned briefly within the immediate or short-term sections where they fit naturally. Do not create a separate section for them.`
 }

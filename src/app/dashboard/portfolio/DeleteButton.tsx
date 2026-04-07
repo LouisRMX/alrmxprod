@@ -24,7 +24,7 @@ export default function DeleteButton({ assessmentId, plantName }: { assessmentId
 
     if (error) {
       console.error('Delete error:', error)
-      setDeleteError('Failed to delete — please try again.')
+      setDeleteError('Failed to delete, please try again.')
       setDeleting(false)
       return
     }

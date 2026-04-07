@@ -7,7 +7,7 @@ export const viewport: Viewport = {
 }
 
 export const metadata: Metadata = {
-  title: 'Al-RMX — Plant Intelligence',
+  title: 'Al-RMX, Plant Intelligence',
   description: 'Ready-mix concrete operational assessment platform',
 }
 

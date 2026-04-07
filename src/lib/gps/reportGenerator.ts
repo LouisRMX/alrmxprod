@@ -1,9 +1,9 @@
 /**
- * GPS Report Generator — Layer 5
+ * GPS Report Generator, Layer 5
  *
  * Fills the fixed Logistics Intelligence template with computed metrics.
  * Returns a plain text string stored in logistics_analysis_results.generated_section_text.
- * No AI involved — deterministic template substitution only.
+ * No AI involved, deterministic template substitution only.
  */
 
 import type { GpsAnalysisMetrics } from './metricsEngine'
@@ -16,7 +16,7 @@ function fmt(v: number | null, unit = ''): string {
 function confidenceLabel(score: number): string {
   if (score >= 0.8) return 'High'
   if (score >= 0.6) return 'Moderate'
-  if (score >= 0.4) return 'Low — treat as directional only'
+  if (score >= 0.4) return 'Low, treat as directional only'
   return 'Insufficient'
 }
 
@@ -30,7 +30,7 @@ export function generateLogisticsSection(
 ): string {
   const { turnaround, siteWait, returnLoads, fleet, confidenceScore } = metrics
 
-  // If confidence too low — return null indicator (caller should not store section)
+  // If confidence too low, return null indicator (caller should not store section)
   if (confidenceScore < 0.4) {
     return '__INSUFFICIENT_DATA__'
   }
@@ -41,7 +41,7 @@ export function generateLogisticsSection(
 
   const lines: string[] = []
 
-  // ── Header metadata (no section title — ReportView renders that) ─────────
+  // ── Header metadata (no section title, ReportView renders that) ─────────
   lines.push(
     `Based on ${fleet.tripsAnalyzed} deliveries across ${fleet.trucksAnalyzed} trucks over ${days} days.`
   )
@@ -90,7 +90,7 @@ export function generateLogisticsSection(
       )
     }
     if (turnaround.avg.isEstimate) {
-      lines.push(`Note: Based on limited trip sample — treat as directional indicator.`)
+      lines.push(`Note: Based on limited trip sample, treat as directional indicator.`)
     }
   }
   lines.push('')
@@ -163,7 +163,7 @@ export function generateLogisticsSection(
     `This analysis is derived from GPS/fleet export data provided by the plant.` +
     ` Metrics marked as estimates are based on inferred trip boundaries and should be treated as directional indicators.` +
     ` Precise figures require cross-referencing with batch records and dispatch logs` +
-    ` — a component of the full Al-RMX physical assessment.`
+    `, a component of the full Al-RMX physical assessment.`
   )
 
   return lines.join('\n')

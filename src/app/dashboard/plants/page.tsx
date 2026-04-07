@@ -22,7 +22,7 @@ export default async function PlantsPage() {
 
   const isAdmin = profile?.role === 'system_admin'
 
-  // Operators have no portfolio — send them to their tracking page
+  // Operators have no portfolio, send them to their tracking page
   if (!isAdmin) {
     const { data: member } = await supabase
       .from('customer_members')
@@ -83,7 +83,7 @@ export default async function PlantsPage() {
     const tc = tcArr[0] ?? null
     const trackingWeek = tc ? trackingWeekFromDate(tc.started_at) : null
 
-    // Scores — handle both 'logistics' and 'fleet' key names
+    // Scores, handle both 'logistics' and 'fleet' key names
     const raw = latest.scores as Record<string, number | null> | null
 
     return {

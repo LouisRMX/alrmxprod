@@ -894,7 +894,7 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, ca
                 )}
               </div>
 
-              {/* Add task — only on To Do column */}
+              {/* Add task, only on To Do column */}
               {col.key === 'todo' && canEdit && (
                 <div style={{ marginTop: '6px' }}>
                   {showAdd ? (
