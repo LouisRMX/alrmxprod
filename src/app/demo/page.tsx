@@ -19,9 +19,11 @@ export default async function DemoPage() {
 
   const cookieStore = await cookies()
   const raw = isAdmin ? cookieStore.get('viewAs')?.value : undefined
-  // Non-admin users see the owner experience by default — the demo is for plant owners
-  const userRole: MemberRole =
-    raw === 'owner' || raw === 'manager' || raw === 'operator' ? raw : 'owner'
+  // Non-admin users see the owner experience by default. The demo is for plant owners.
+  // Admins without a viewAs override see full access (null = all tabs visible).
+  const userRole: MemberRole | null = isAdmin
+    ? (raw === 'owner' || raw === 'manager' || raw === 'operator' ? raw : null)
+    : (raw === 'owner' || raw === 'manager' || raw === 'operator' ? raw : 'owner')
   const isOverridden = raw === 'owner' || raw === 'manager' || raw === 'operator'
 
   return (

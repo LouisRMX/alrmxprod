@@ -240,7 +240,7 @@ export default function DemoView({ userRole = null, isOverridden = false }: Demo
     ? ['report', 'simulator', 'track']
     : userRole === 'operator'
     ? ['track']
-    : ['questions', 'report', 'simulator', 'track']
+    : ['questions', 'report', 'simulator', 'track', 'gps']
 
   // Everyone starts on All plants by default
   const defaultView: 'plants' | AssessmentMode =
