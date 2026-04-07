@@ -410,13 +410,16 @@ type DimBests = Record<string, { name: string; value: number }>
 export function DemoSizeToggle({
   current,
   onChange,
+  minValue = 1,
 }: {
   current: 1 | 3 | 10 | 20
   onChange: (n: 1 | 3 | 10 | 20) => void
+  minValue?: number
 }) {
+  const options = ([1, 3, 10, 20] as const).filter(n => n >= minValue)
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '2px', flexShrink: 0 }}>
-      {([1, 3, 10, 20] as const).map((n, i) => (
+      {options.map((n, i) => (
         <span key={n} style={{ display: 'flex', alignItems: 'center' }}>
           {i > 0 && <span style={{ color: 'var(--gray-200)', fontSize: '11px', margin: '0 2px' }}>·</span>}
           <button

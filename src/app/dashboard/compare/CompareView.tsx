@@ -209,7 +209,7 @@ export default function CompareView({
           </p>
         </div>
         {isDemo && onDemoPlantCountChange && (
-          <DemoSizeToggle current={demoPlantCount ?? 3} onChange={onDemoPlantCountChange} />
+          <DemoSizeToggle current={demoPlantCount ?? 3} onChange={onDemoPlantCountChange} minValue={3} />
         )}
       </div>
 
