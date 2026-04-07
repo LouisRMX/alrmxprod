@@ -59,6 +59,9 @@ export interface TrackingProps {
   assessmentId: string
   isAdmin: boolean
   viewOnly?: boolean  // owner role, sees charts but no weekly input form
+  plant?: string
+  country?: string
+  perMinTACoeff?: number
   baselineTurnaround: number | null
   baselineRejectPct: number | null
   baselineDispatchMin: number | null

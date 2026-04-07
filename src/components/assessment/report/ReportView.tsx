@@ -3071,6 +3071,7 @@ interface ReportViewProps {
   demoBanner?: DemoBannerProps
   userRole?: 'owner' | 'manager' | 'operator' | null
   focusActions?: string[] | null
+  baselineData?: { answers: Answers; calcResult: CalcResult; date: string }
 }
 
 export default function ReportView({ calcResult, answers, meta, report, assessmentId, customerId, reportReleased, isAdmin, overrides, onOverrideChange, phase, onSwitchToTracking, demoBanner, userRole, focusActions }: ReportViewProps) {

@@ -29,6 +29,8 @@ export interface PlantAssessmentData {
     weekOf: number
     weekTotal: number
   } | null
+  kpi?: Record<string, number | null> | null
+  primaryActionStatus?: 'todo' | 'in_progress' | 'done' | null
 }
 
 export interface PlantCardData {
@@ -529,6 +531,36 @@ export default function PlantOverviewView({ plants, customerName, isDemo, demoPl
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+const DEMO_SIZES: (1 | 3 | 10 | 20)[] = [1, 3, 10, 20]
+
+export function DemoSizeToggle({ current, onChange, minValue = 1 }: {
+  current: 1 | 3 | 10 | 20
+  onChange?: (n: 1 | 3 | 10 | 20) => void
+  minValue?: number
+}) {
+  const options = DEMO_SIZES.filter(n => n >= minValue)
+  return (
+    <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+      {options.map(n => (
+        <button
+          key={n}
+          onClick={() => onChange?.(n)}
+          style={{
+            padding: '4px 10px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer',
+            fontWeight: current === n ? 700 : 400,
+            background: current === n ? '#0369a1' : 'transparent',
+            color: current === n ? '#fff' : '#0369a1',
+            border: `1px solid ${current === n ? '#0369a1' : '#7dd3fc'}`,
+            fontFamily: 'var(--font)',
+          }}
+        >
+          {n}
+        </button>
+      ))}
     </div>
   )
 }

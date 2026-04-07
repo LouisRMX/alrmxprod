@@ -279,3 +279,12 @@ export default function ExportPDF({ calcResult, answers, meta, report }: ExportP
     </>
   )
 }
+
+export function SummaryPDFButton({ calcResult, answers, meta }: {
+  calcResult: CalcResult
+  answers: Answers
+  meta?: { country?: string; plant?: string; date?: string }
+  focusActions?: string[]
+}) {
+  return <ExportPDF calcResult={calcResult} answers={answers} meta={meta} report={null} />
+}

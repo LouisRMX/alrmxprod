@@ -13,6 +13,7 @@ export interface Issue {
   rec: string
   loss: number
   formula?: string
+  goal?: string
   /** 'bottleneck' = overlapping constraint (only largest counts in Cost of Inaction).
    *  'independent' = separate loss that stacks additively. */
   category: 'bottleneck' | 'independent'

@@ -30,11 +30,13 @@ export default function AssessmentTool({
   userId,
   isAdmin = false,
   userRole = null,
+  baselineAssessment = null,
 }: {
   assessment: Assessment
   userId: string
   isAdmin?: boolean
   userRole?: 'owner' | 'manager' | 'operator' | null
+  baselineAssessment?: { id: string; date: string; answers: Record<string, unknown> } | null
 }) {
   const supabase = createClient()
   const router = useRouter()
@@ -367,6 +369,7 @@ export default function AssessmentTool({
           onSave={handleSave}
           requestMode={requestedMode as import('@/components/assessment/ModeTabs').AssessmentMode | undefined}
           focusActions={assessment.focus_actions}
+          baselineData={baselineAssessment ? { answers: baselineAssessment.answers as Answers, date: baselineAssessment.date } : undefined}
         />
       )}
 
