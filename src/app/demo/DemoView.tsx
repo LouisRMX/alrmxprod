@@ -348,7 +348,7 @@ export default function DemoView({ userRole = null, isOverridden = false }: Demo
 
   // 'plants' = overview, 'compare' = comparison table, AssessmentMode = single plant
   const [demoView, setDemoView] = useState<'plants' | 'compare' | AssessmentMode>(defaultView)
-  const [demoPlantCount, setDemoPlantCount] = useState<1 | 3 | 10 | 20>(1)
+  const [demoPlantCount, setDemoPlantCount] = useState<1 | 3 | 10 | 20>(3)
 
   // ── Demo regeneration state ─────────────────────────────────────────────
   const [demoAnswersModified, setDemoAnswersModified] = useState(false)
