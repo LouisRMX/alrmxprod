@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { createClient } from '@/lib/supabase/client'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -586,7 +585,6 @@ const iconBtnStyle: React.CSSProperties = {
 
 export default function ActionBoard({ assessmentId, customerId, focusActions, canEdit, financialBottleneck, recoverable }: ActionBoardProps) {
   const isDemo = assessmentId === 'demo'
-  const supabase = createClient()
 
   const [items, setItems] = useState<ActionItem[]>([])
   const [members, setMembers] = useState<BoardMember[]>([])
@@ -616,17 +614,9 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, ca
     }
 
     async function load() {
-      const [{ data: itemData }, { data: memberData }] = await Promise.all([
-        supabase
-          .from('action_items')
-          .select('*')
-          .eq('assessment_id', assessmentId)
-          .order('created_at', { ascending: true }),
-        supabase
-          .from('customer_members')
-          .select('user_id, role, profile:profiles(full_name, email)')
-          .eq('customer_id', customerId),
-      ])
+      const resp = await fetch(`/api/action-items?assessmentId=${encodeURIComponent(assessmentId)}&customerId=${encodeURIComponent(customerId)}`)
+      if (!resp.ok) { setLoading(false); return }
+      const { items: itemData, members: memberData } = await resp.json()
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const normalizedMembers: BoardMember[] = (memberData ?? []).map((m: any) => ({
@@ -636,7 +626,7 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, ca
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const normalizedItems: ActionItem[] = (itemData ?? []).map((row: any) => {
-        const member = normalizedMembers.find(m => m.user_id === row.assignee_id)
+        const member = normalizedMembers.find((m: BoardMember) => m.user_id === row.assignee_id)
         return {
           ...row,
           source: (row.source ?? 'manual') as 'ai' | 'manual',
@@ -653,20 +643,25 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, ca
           assessment_id: assessmentId,
           text,
           status: 'todo' as const,
+          source: 'ai' as const,
         }))
-        const { data: inserted } = await supabase
-          .from('action_items')
-          .insert(toInsert)
-          .select('*')
-        if (inserted) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          setItems(inserted.map((row: any) => ({
-            ...row,
-            source: (row.source ?? 'manual') as 'ai' | 'manual',
-            value: row.value ?? null,
-            assignee: null,
-          })))
-          setToast('Tasks created from report findings')
+        const insertResp = await fetch('/api/action-items', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ items: toInsert }),
+        })
+        if (insertResp.ok) {
+          const { items: inserted } = await insertResp.json()
+          if (inserted) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            setItems(inserted.map((row: any) => ({
+              ...row,
+              source: (row.source ?? 'ai') as 'ai' | 'manual',
+              value: row.value ?? null,
+              assignee: null,
+            })))
+            setToast('Tasks created from report findings')
+          }
         }
       } else {
         setItems(normalizedItems)
@@ -703,14 +698,15 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, ca
       return
     }
 
-    const { data } = await supabase
-      .from('action_items')
-      .insert({ assessment_id: assessmentId, text, status: 'todo' })
-      .select('*')
-      .single()
-    if (data) {
+    const resp = await fetch('/api/action-items', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ assessment_id: assessmentId, text, status: 'todo' }),
+    })
+    if (resp.ok) {
+      const { item } = await resp.json()
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const row = data as any
+      const row = item as any
       setItems(prev => [...prev, {
         ...row,
         source: (row.source ?? 'manual') as 'ai' | 'manual',
@@ -718,7 +714,7 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, ca
         assignee: null,
       }])
     } else {
-      // Optimistic fallback if insert succeeded but select failed
+      // Optimistic fallback
       setItems(prev => [...prev, {
         id: `optimistic-${Date.now()}`,
         assessment_id: assessmentId,
@@ -736,7 +732,11 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, ca
   async function moveItem(id: string, targetStatus: ActionItem['status']) {
     setItems(prev => prev.map(i => i.id === id ? { ...i, status: targetStatus } : i))
     if (!isDemo) {
-      await supabase.from('action_items').update({ status: targetStatus }).eq('id', id)
+      await fetch('/api/action-items', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status: targetStatus }),
+      })
     }
   }
 
@@ -748,28 +748,44 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, ca
       assignee: member?.profile ?? null,
     } : i))
     if (!isDemo) {
-      await supabase.from('action_items').update({ assignee_id: userId }).eq('id', id)
+      await fetch('/api/action-items', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, assignee_id: userId }),
+      })
     }
   }
 
   async function editItem(id: string, text: string) {
     setItems(prev => prev.map(i => i.id === id ? { ...i, text } : i))
     if (!isDemo) {
-      await supabase.from('action_items').update({ text }).eq('id', id)
+      await fetch('/api/action-items', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, text }),
+      })
     }
   }
 
   async function saveNotes(id: string, value: string) {
     setItems(prev => prev.map(i => i.id === id ? { ...i, value } : i))
     if (!isDemo) {
-      await supabase.from('action_items').update({ value }).eq('id', id)
+      await fetch('/api/action-items', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, value }),
+      })
     }
   }
 
   async function deleteItem(id: string) {
     setItems(prev => prev.filter(i => i.id !== id))
     if (!isDemo) {
-      await supabase.from('action_items').delete().eq('id', id)
+      await fetch('/api/action-items', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      })
     }
   }
 

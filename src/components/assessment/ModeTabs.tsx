@@ -19,7 +19,6 @@ const TABS: { mode: AssessmentMode; label: string; shortLabel: string }[] = [
   { mode: 'report',    label: 'Report',     shortLabel: 'Report' },
   { mode: 'simulator', label: 'Simulator',  shortLabel: 'Sim' },
   { mode: 'track',     label: 'Track',        shortLabel: 'Track' },
-  { mode: 'gps',       label: 'GPS Data',   shortLabel: 'GPS' },
 ]
 
 export default function ModeTabs({ activeMode, onSwitch, allowedModes, extraTab, extraTabs }: ModeTabsProps) {
