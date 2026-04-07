@@ -4,11 +4,14 @@ import { useIsMobile } from '@/hooks/useIsMobile'
 
 export type AssessmentMode = 'questions' | 'report' | 'simulator' | 'track' | 'gps' | 'trips' | 'submit'
 
+interface ExtraTab { label: string; shortLabel: string; onClick: () => void; active?: boolean }
+
 interface ModeTabsProps {
   activeMode: AssessmentMode
   onSwitch: (mode: AssessmentMode) => void
   allowedModes?: AssessmentMode[]
-  extraTab?: { label: string; shortLabel: string; onClick: () => void; active?: boolean }
+  extraTab?: ExtraTab
+  extraTabs?: ExtraTab[]
 }
 
 const TABS: { mode: AssessmentMode; label: string; shortLabel: string }[] = [
@@ -20,12 +23,15 @@ const TABS: { mode: AssessmentMode; label: string; shortLabel: string }[] = [
   { mode: 'trips',     label: 'Trips',      shortLabel: 'Trips' },
 ]
 
-export default function ModeTabs({ activeMode, onSwitch, allowedModes, extraTab }: ModeTabsProps) {
+export default function ModeTabs({ activeMode, onSwitch, allowedModes, extraTab, extraTabs }: ModeTabsProps) {
   const isMobile = useIsMobile()
 
   const visibleTabs = allowedModes
     ? TABS.filter(t => allowedModes.includes(t.mode))
     : TABS
+
+  // Normalise: extraTabs takes priority; fall back to single extraTab
+  const leadingTabs: ExtraTab[] = extraTabs ?? (extraTab ? [extraTab] : [])
 
   const tabStyle = (active: boolean): React.CSSProperties => ({
     padding: isMobile ? '9px 10px' : '10px 16px',
@@ -42,8 +48,8 @@ export default function ModeTabs({ activeMode, onSwitch, allowedModes, extraTab 
     flexShrink: 0,
   })
 
-  // If only one standard tab and no extraTab, don't render tab bar at all
-  if (visibleTabs.length <= 1 && !extraTab) return null
+  // If only one standard tab and no extra tabs, don't render tab bar at all
+  if (visibleTabs.length <= 1 && leadingTabs.length === 0) return null
 
   return (
     <div style={{
@@ -52,15 +58,16 @@ export default function ModeTabs({ activeMode, onSwitch, allowedModes, extraTab 
       overflowX: 'auto', WebkitOverflowScrolling: 'touch' as React.CSSProperties['WebkitOverflowScrolling'],
       flexShrink: 0,
     }}>
-      {extraTab && (
+      {leadingTabs.map(tab => (
         <button
+          key={tab.label}
           type="button"
-          onClick={extraTab.onClick}
-          style={tabStyle(extraTab.active ?? false)}
+          onClick={tab.onClick}
+          style={tabStyle(tab.active ?? false)}
         >
-          {isMobile ? extraTab.shortLabel : extraTab.label}
+          {isMobile ? tab.shortLabel : tab.label}
         </button>
-      )}
+      ))}
       {visibleTabs.map(tab => {
         const active = activeMode === tab.mode
         return (

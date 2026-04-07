@@ -7,6 +7,7 @@ import DevRoleSwitcher from '@/components/DevRoleSwitcher'
 import AssessmentShell from '@/components/assessment/AssessmentShell'
 import ModeTabs, { type AssessmentMode } from '@/components/assessment/ModeTabs'
 import PlantOverviewView, { type PlantCardData } from '@/components/plants/PlantOverviewView'
+import CompareView from '@/app/dashboard/compare/CompareView'
 import type { Answers } from '@/lib/calculations'
 import type { Phase } from '@/lib/questions'
 import type { MemberRole } from '@/lib/getEffectiveMemberRole'
@@ -345,8 +346,8 @@ export default function DemoView({ userRole = null, isOverridden = false }: Demo
     : searchParams.get('view') === 'track' ? 'track'
     : 'plants'
 
-  // 'plants' shows the portfolio overview; any AssessmentMode shows the assessment
-  const [demoView, setDemoView] = useState<'plants' | AssessmentMode>(defaultView)
+  // 'plants' = overview, 'compare' = comparison table, AssessmentMode = single plant
+  const [demoView, setDemoView] = useState<'plants' | 'compare' | AssessmentMode>(defaultView)
   const [demoPlantCount, setDemoPlantCount] = useState<1 | 3 | 10 | 20>(1)
 
   // ── Demo regeneration state ─────────────────────────────────────────────
@@ -523,15 +524,13 @@ export default function DemoView({ userRole = null, isOverridden = false }: Demo
 
       {/* Persistent tab row — always visible */}
       <ModeTabs
-        activeMode={demoView === 'plants' ? ('' as AssessmentMode) : demoView}
+        activeMode={demoView === 'plants' || demoView === 'compare' ? ('' as AssessmentMode) : demoView}
         onSwitch={(m) => { if (allowedModes.includes(m)) setDemoView(m) }}
         allowedModes={allowedModes}
-        extraTab={userRole !== 'operator' ? {
-          label: 'All plants',
-          shortLabel: 'All plants',
-          onClick: () => setDemoView('plants'),
-          active: demoView === 'plants',
-        } : undefined}
+        extraTabs={userRole !== 'operator' ? [
+          { label: 'Overview',   shortLabel: 'Overview', onClick: () => setDemoView('plants'),  active: demoView === 'plants'  },
+          { label: 'Comparison', shortLabel: 'Compare',  onClick: () => setDemoView('compare'), active: demoView === 'compare' },
+        ] : undefined}
       />
 
       {/* Plants overview */}
@@ -547,8 +546,15 @@ export default function DemoView({ userRole = null, isOverridden = false }: Demo
         </div>
       )}
 
+      {/* Comparison view */}
+      {demoView === 'compare' && (
+        <div style={{ flex: 1, overflowY: 'auto' }}>
+          <CompareView plants={DEMO_PLANTS.slice(0, demoPlantCount)} />
+        </div>
+      )}
+
       {/* Assessment shell — key forces full remount when phase switches or answers reset */}
-      {demoView !== 'plants' && (
+      {demoView !== 'plants' && demoView !== 'compare' && (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <AssessmentShell
             key={`${demoPhase}-${demoKey}`}
