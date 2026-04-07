@@ -1,7 +1,16 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
 import NewAssessmentForm from './NewAssessmentForm'
 import { isSystemAdmin } from '@/lib/supabase/admin'
+
+function getAdminClient() {
+  return createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SECRET_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+}
 
 export default async function NewAssessmentPage({
   searchParams,
@@ -14,12 +23,13 @@ export default async function NewAssessmentPage({
 
   if (!await isSystemAdmin(user.id)) redirect('/dashboard')
 
+  const admin = getAdminClient()
   const { baseline_id } = await searchParams
 
   // Load baseline plant info when creating a follow-up
   let baselinePlant: { id: string; name: string; customer_id: string; country: string } | null = null
   if (baseline_id) {
-    const { data: baseline } = await supabase
+    const { data: baseline } = await admin
       .from('assessments')
       .select('plant:plants(id, name, customer_id, country)')
       .eq('id', baseline_id)
@@ -30,7 +40,7 @@ export default async function NewAssessmentPage({
     }
   }
 
-  const { data: customers } = await supabase
+  const { data: customers } = await admin
     .from('customers')
     .select('id, name, country, plants(id, name)')
     .order('name')

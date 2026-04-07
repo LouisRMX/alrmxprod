@@ -1,7 +1,16 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
 import PlantOverviewView, { type PlantCardData } from '@/components/plants/PlantOverviewView'
 import { isSystemAdmin } from '@/lib/supabase/admin'
+
+function getAdminClient() {
+  return createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SECRET_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+}
 
 export const dynamic = 'force-dynamic'
 
@@ -30,8 +39,11 @@ export default async function PlantsPage() {
     if (memberRole === 'operator') redirect('/dashboard/track')
   }
 
+  // Use admin client for system admins to bypass RLS
+  const db = isAdmin ? getAdminClient() : supabase
+
   // ── Fetch plants + all their assessments ──────────────────────────────
-  const { data: rawPlants } = await supabase
+  const { data: rawPlants } = await db
     .from('plants')
     .select(`
       id, name, country,
@@ -60,7 +72,7 @@ export default async function PlantsPage() {
   }
 
   const { data: allEntries } = configIds.length > 0
-    ? await supabase
+    ? await db
         .from('tracking_entries')
         .select('config_id, week_number, turnaround_min, dispatch_min')
         .in('config_id', configIds)
@@ -77,7 +89,7 @@ export default async function PlantsPage() {
   // ── Fetch customer name (for non-admin users) ──────────────────────────
   let customerName: string | undefined
   if (!isAdmin) {
-    const { data: membership } = await supabase
+    const { data: membership } = await db
       .from('customer_members')
       .select('customer:customers(name)')
       .eq('user_id', user.id)
