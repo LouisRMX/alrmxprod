@@ -3408,7 +3408,10 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
       {/* 5. NEXT IMPROVEMENTS (collapsed) */}
       <NextImprovements issues={issues} />
 
-      {/* 6. INDICATIVE NOTICE */}
+      {/* 6. GCC PEER COMPARISON */}
+      {totalLoss > 0 && <BenchmarkPositioning calcResult={calcResult} answers={answers} />}
+
+      {/* 7. INDICATIVE NOTICE */}
       <IndicativeNotice />
 
       {/* Full report CTA */}
@@ -3430,15 +3433,6 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
             <span style={{ fontSize: '20px', color: 'rgba(255,255,255,0.6)' }}>›</span>
           </button>
         </div>
-      )}
-
-      {/* Pre-assessment cards (workshop phase) */}
-      {phase === 'workshop' && totalLoss > 0 && (
-        <>
-          <BenchmarkPositioning calcResult={calcResult} answers={answers} />
-          <StartThisWeek calcResult={calcResult} answers={answers} />
-          <WhatWeWillMeasure calcResult={calcResult} answers={answers} />
-        </>
       )}
 
       {/* Assumptions Panel (admin) */}
