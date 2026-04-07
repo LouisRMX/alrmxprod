@@ -7,8 +7,6 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts'
 import { useIsMobile } from '@/hooks/useIsMobile'
-import TripUploadShell from '@/components/trips/TripUploadShell'
-import TrackSummaryButton from './TrackSummary'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -60,7 +58,7 @@ interface DailyChartPoint {
 export interface TrackingProps {
   assessmentId: string
   isAdmin: boolean
-  viewOnly?: boolean  // owner role — sees charts but no weekly input form
+  viewOnly?: boolean  // owner role, sees charts but no weekly input form
   baselineTurnaround: number | null
   baselineRejectPct: number | null
   baselineDispatchMin: number | null
@@ -69,9 +67,6 @@ export interface TrackingProps {
   coeffDispatch: number
   baselineMonthlyLoss: number
   targetTA: number
-  perMinTACoeff?: number  // passed from calcResult for daily trips loss calc
-  plant?: string
-  country?: string
 }
 
 interface ChartPoint {
@@ -168,7 +163,7 @@ function calcTrendAlert(entries: DailyEntry[]): string | null {
   if (avgPrev === 0) return null
   const drop = (avgPrev - avgLast) / avgPrev
   if (drop >= 0.10) {
-    return `Deliveries down ~${Math.round(drop * 100)}% vs prior 7 days. Check fleet availability or order intake.`
+    return `Deliveries down ~${Math.round(drop * 100)}% vs prior 7 days — check fleet availability or order intake`
   }
   return null
 }
@@ -225,7 +220,7 @@ function ImpactSummary({ config, entries, coeffDispatch, currentWeek }: {
             Value recovered / month
           </div>
           <div style={{ fontSize: '48px', fontWeight: 800, fontFamily: 'var(--mono)', color: currentMonthlyRecovery > 0 ? '#1a6644' : 'var(--gray-300)', lineHeight: 1, letterSpacing: '-1px' }}>
-            {currentMonthlyRecovery > 0 ? fmt(currentMonthlyRecovery) : '—'}
+            {currentMonthlyRecovery > 0 ? fmt(currentMonthlyRecovery) : '-'}
           </div>
           {predictedTotal > 0 && (
             <div style={{ fontSize: '12px', color: '#7ab89a', marginTop: '6px' }}>
@@ -321,13 +316,13 @@ function MonthlyMilestones({ config, entries, coeffDispatch }: {
               <div style={{ marginBottom: '6px' }}>
                 <div style={{ fontSize: '9px', color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: '2px' }}>Predicted</div>
                 <div style={{ fontSize: '13px', fontWeight: 600, fontFamily: 'var(--mono)', color: 'var(--gray-500)' }}>
-                  {predictedRecovery > 0 ? fmt(predictedRecovery) + '/mo' : '—'}
+                  {predictedRecovery > 0 ? fmt(predictedRecovery) + '/mo' : '-'}
                 </div>
               </div>
               <div>
                 <div style={{ fontSize: '9px', color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: '2px' }}>Actual</div>
                 <div style={{ fontSize: '15px', fontWeight: 700, fontFamily: 'var(--mono)', color: !reached ? 'var(--gray-300)' : ahead ? 'var(--phase-complete)' : behind ? '#d97706' : 'var(--gray-900)' }}>
-                  {actualRecovery != null ? fmt(actualRecovery) + '/mo' : reached ? '— not logged' : '—'}
+                  {actualRecovery != null ? fmt(actualRecovery) + '/mo' : reached ? 'not logged' : '-'}
                 </div>
               </div>
               {actualRecovery != null && predictedRecovery > 0 && (
@@ -362,7 +357,7 @@ function ImpactChart({ config, entries }: { config: TrackingConfig; entries: Tra
     <div style={{ background: 'var(--white)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '20px 24px', marginBottom: '16px' }}>
       {/* Header + toggle */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-        <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--gray-700)' }}>{label}: 12-week trajectory</div>
+        <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--gray-700)' }}>{label}, 12-week trajectory</div>
         {showDispatch && (
           <div style={{ display: 'flex', gap: '2px', background: 'var(--gray-100)', borderRadius: '6px', padding: '2px' }}>
             {(['turnaround', 'dispatch'] as const).map(m => (
@@ -461,9 +456,9 @@ function KpiCard({ label, baseline, target, latest, coeff, unit = 'min' }: {
       </div>
       <div style={{ display: 'flex', gap: '20px', marginBottom: '14px' }}>
         {[
-          { lbl: 'Before', val: baseline != null ? `${baseline}` : '—', faded: true },
-          { lbl: 'Now', val: latest != null ? `${latest}` : '—', faded: false },
-          { lbl: 'Target', val: target != null ? `${target}` : '—', faded: true },
+          { lbl: 'Before', val: baseline != null ? `${baseline}` : '-', faded: true },
+          { lbl: 'Now', val: latest != null ? `${latest}` : '-', faded: false },
+          { lbl: 'Target', val: target != null ? `${target}` : '-', faded: true },
         ].map(({ lbl, val, faded }) => (
           <div key={lbl}>
             <div style={{ fontSize: '9px', color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: '3px' }}>{lbl}</div>
@@ -504,33 +499,6 @@ function WeeklyInput({ config, entries, currentWeek, isAdmin, onLogged }: {
   const [di, setDi] = useState('')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [tripSuggestion, setTripSuggestion] = useState<{ avgMin: number; uploadCount: number } | null>(null)
-
-  // Fetch trip_records for the selected week's date range
-  useEffect(() => {
-    async function fetchTripSuggestion() {
-      if (!config.started_at) return
-      const start = new Date(config.started_at)
-      start.setDate(start.getDate() + (selectedWeek - 1) * 7)
-      const end = new Date(start)
-      end.setDate(end.getDate() + 7)
-      const weekStart = start.toISOString().slice(0, 10)
-      const weekEnd   = end.toISOString().slice(0, 10)
-
-      const { data } = await supabase
-        .from('trip_records')
-        .select('turnaround_s, trip_date')
-        .eq('assessment_id', config.assessment_id)
-        .gte('trip_date', weekStart)
-        .lt('trip_date', weekEnd)
-
-      if (!data || data.length === 0) { setTripSuggestion(null); return }
-      const avgS = data.reduce((sum: number, r: { turnaround_s: number }) => sum + r.turnaround_s, 0) / data.length
-      const dates = new Set(data.map((r: { trip_date: string }) => r.trip_date))
-      setTripSuggestion({ avgMin: Math.round(avgS / 60), uploadCount: dates.size })
-    }
-    fetchTripSuggestion()
-  }, [selectedWeek, config.assessment_id, config.started_at, supabase])
 
   const weekEntry = entries.find(e => e.week_number === selectedWeek)
 
@@ -611,25 +579,6 @@ function WeeklyInput({ config, entries, currentWeek, isAdmin, onLogged }: {
             />
             <span style={{ fontSize: '12px', color: 'var(--gray-400)' }}>min</span>
           </div>
-          {tripSuggestion && (
-            <div style={{ marginTop: '7px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '11px', color: 'var(--gray-400)' }}>
-                {tripSuggestion.uploadCount} day{tripSuggestion.uploadCount > 1 ? 's' : ''} of trip data: avg {tripSuggestion.avgMin} min
-              </span>
-              <button
-                type="button"
-                onClick={() => setTa(String(tripSuggestion.avgMin))}
-                style={{
-                  fontSize: '11px', fontWeight: 600, padding: '2px 8px',
-                  borderRadius: '5px', border: '1px solid var(--green)',
-                  background: 'none', color: 'var(--green)', cursor: 'pointer',
-                  fontFamily: 'var(--font)',
-                }}
-              >
-                Use
-              </button>
-            </div>
-          )}
         </div>
         {config.baseline_dispatch_min != null && (
           <div>
@@ -710,7 +659,7 @@ function SetupForm({
     <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : '160px 120px 1fr', gap: isMobile ? '8px' : '12px', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
       <div style={{ fontSize: '13px', color: 'var(--gray-700)' }}>{label}</div>
       <div style={{ fontSize: '13px', fontFamily: 'var(--mono)', color: 'var(--gray-500)' }}>
-        {baseline != null ? `${baseline} ${unit}` : '—'}
+        {baseline != null ? `${baseline} ${unit}` : '-'}
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
         <input
@@ -727,7 +676,7 @@ function SetupForm({
       <div style={{ marginBottom: '24px' }}>
         <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--gray-900)', marginBottom: '4px' }}>Start 90-day tracking</div>
         <div style={{ fontSize: '13px', color: 'var(--gray-500)', lineHeight: 1.5 }}>
-          Set targets for the 2 KPIs. The plant logs weekly numbers. You see actual vs predicted in real time.
+          Set targets for the 2 KPIs. The plant logs weekly numbers, you see actual vs predicted in real time.
         </div>
       </div>
 
@@ -863,7 +812,7 @@ function ProgramCompleteView({ config, entries, coeffDispatch }: {
       label: 'Turnaround time',
       before: `${taBaseline} min`,
       after:  `${taFinal} min`,
-      delta:  taImprovement! > 0 ? `▼ ${taImprovement} min` : '—',
+      delta:  taImprovement! > 0 ? `▼ ${taImprovement} min` : '-',
       hit:    taHitTarget,
     })
   }
@@ -872,7 +821,7 @@ function ProgramCompleteView({ config, entries, coeffDispatch }: {
       label: 'Dispatch time',
       before: `${diBaseline} min`,
       after:  `${diFinal} min`,
-      delta:  diImprovement! > 0 ? `▼ ${diImprovement} min` : '—',
+      delta:  diImprovement! > 0 ? `▼ ${diImprovement} min` : '-',
       hit:    diHitTarget,
     })
   }
@@ -944,7 +893,7 @@ function ProgramCompleteView({ config, entries, coeffDispatch }: {
                 {row.after}
                 {row.hit && <span style={{ marginLeft: '5px', fontSize: '10px', color: 'var(--phase-complete)' }}>✓</span>}
               </div>
-              <div style={{ fontSize: '12px', fontWeight: 700, color: row.delta !== '—' ? 'var(--phase-complete)' : 'var(--gray-300)' }}>{row.delta}</div>
+              <div style={{ fontSize: '12px', fontWeight: 700, color: row.delta !== '-' ? 'var(--phase-complete)' : 'var(--gray-300)' }}>{row.delta}</div>
             </div>
           ))}
         </div>
@@ -1009,7 +958,7 @@ function DailyOpsChart({ entries }: { entries: DailyEntry[] }) {
   return (
     <div style={{ background: 'var(--white)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '16px 20px', marginBottom: '16px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-        <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--gray-700)' }}>Daily deliveries, 30 days</div>
+        <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--gray-700)' }}>Daily deliveries — 30 days</div>
         <div style={{ display: 'flex', gap: '14px' }}>
           {[
             { color: '#d1d5db', label: 'Daily' },
@@ -1174,14 +1123,14 @@ function ProgressView({ config, entries, dailyEntries, onEntryLogged, coeffDispa
 
   return (
     <div style={{ padding: '24px', maxWidth: '760px', margin: '0 auto' }}>
-      {/* Program Complete banner — shown at week 13+ */}
+      {/* Program Complete banner, shown at week 13+ */}
       {isComplete && (
         <ProgramCompleteView config={config} entries={entries} coeffDispatch={coeffDispatch} />
       )}
 
       {weeksWithNoData && !isComplete && (
         <div style={{ background: 'var(--error-bg)', border: '1px solid var(--error-border)', borderRadius: '8px', padding: '10px 16px', marginBottom: '16px', fontSize: '13px', color: 'var(--red)' }}>
-          ⚠ No data logged in the last 2+ weeks. Follow up with the plant.
+          ⚠ No data logged in the last 2+ weeks, follow up with the plant
         </div>
       )}
 
@@ -1228,7 +1177,7 @@ function ProgressView({ config, entries, dailyEntries, onEntryLogged, coeffDispa
         )}
       </div>
 
-      {/* D: Weekly Input — hidden for owners (view-only) and in print */}
+      {/* D: Weekly Input, hidden for owners (view-only) and in print */}
       {!viewOnly && (
         <div data-hide-print>
           <WeeklyInput
@@ -1241,7 +1190,7 @@ function ProgressView({ config, entries, dailyEntries, onEntryLogged, coeffDispa
         </div>
       )}
 
-      {/* Case study — hidden once program is complete (ProgramCompleteView takes over) */}
+      {/* Case study, hidden once program is complete (ProgramCompleteView takes over) */}
       <div style={{ marginTop: '16px' }}>
         {!isComplete && canExport ? (
           <CaseStudyCard config={config} entries={entries} coeffDispatch={coeffDispatch} />
@@ -1303,7 +1252,7 @@ function OperatorProgressHeader({ config, latest, currentWeek }: {
                   <span style={{ fontSize: '12px', fontWeight: 700, color }}>
                     {delta > 0
                       ? `▼ ${delta} min${atTarget ? ' ✓ target hit' : ` · ${pct}% toward target`}`
-                      : `${m.now} min. No improvement yet.`}
+                      : `${m.now} min, no improvement yet`}
                   </span>
                 </div>
                 <ProgressBar pct={pct} color={atTarget ? 'var(--phase-complete)' : pct >= 40 ? 'var(--warning)' : 'var(--gray-200)'} />
@@ -1383,14 +1332,12 @@ export default function TrackingTab(props: TrackingProps) {
   const {
     assessmentId, isAdmin, viewOnly, coeffDispatch,
     baselineTurnaround, baselineRejectPct, baselineDispatchMin,
-    coeffTurnaround, baselineMonthlyLoss, targetTA, perMinTACoeff,
-    plant, country,
+    coeffTurnaround, baselineMonthlyLoss, targetTA,
   } = props
   const supabase = createClient()
   const [config, setConfig] = useState<TrackingConfig | null | undefined>(undefined)
   const [entries, setEntries] = useState<TrackingEntry[]>([])
   const [dailyEntries, setDailyEntries] = useState<DailyEntry[]>([])
-  const [subTab, setSubTab] = useState<'weekly' | 'trips'>('weekly')
   const isDemo = assessmentId === 'demo'
 
   const fetchData = useCallback(async () => {
@@ -1400,7 +1347,7 @@ export default function TrackingTab(props: TrackingProps) {
         id: 'demo-cfg',
         assessment_id: 'demo',
         started_at: startedAt,
-        // Baselines come from props — same data as Assessment, Report, Simulator tabs
+        // Baselines come from props, same data as Assessment, Report, Simulator tabs
         baseline_turnaround: baselineTurnaround,
         baseline_reject_pct: baselineRejectPct,
         baseline_dispatch_min: baselineDispatchMin,
@@ -1420,11 +1367,11 @@ export default function TrackingTab(props: TrackingProps) {
         { id: 'e1', config_id: 'demo-cfg', week_number: 1, logged_at: new Date(now - 49 * 86_400_000).toISOString(), turnaround_min: 112, reject_pct: null, dispatch_min: 32, notes: null },
         { id: 'e2', config_id: 'demo-cfg', week_number: 2, logged_at: new Date(now - 42 * 86_400_000).toISOString(), turnaround_min: 108, reject_pct: null, dispatch_min: 29, notes: 'Demurrage clause enforced with top 3 contractors' },
         { id: 'e3', config_id: 'demo-cfg', week_number: 3, logged_at: new Date(now - 35 * 86_400_000).toISOString(), turnaround_min: 105, reject_pct: null, dispatch_min: 26, notes: null },
-        { id: 'e4', config_id: 'demo-cfg', week_number: 4, logged_at: new Date(now - 28 * 86_400_000).toISOString(), turnaround_min: 101, reject_pct: null, dispatch_min: 24, notes: 'Dispatch SOP implemented — dedicated dispatcher' },
+        { id: 'e4', config_id: 'demo-cfg', week_number: 4, logged_at: new Date(now - 28 * 86_400_000).toISOString(), turnaround_min: 101, reject_pct: null, dispatch_min: 24, notes: 'Dispatch SOP implemented, dedicated dispatcher' },
         { id: 'e5', config_id: 'demo-cfg', week_number: 5, logged_at: new Date(now - 21 * 86_400_000).toISOString(), turnaround_min: 97, reject_pct: null, dispatch_min: 21, notes: null },
-        { id: 'e6', config_id: 'demo-cfg', week_number: 6, logged_at: new Date(now - 14 * 86_400_000).toISOString(), turnaround_min: 93, reject_pct: null, dispatch_min: 19, notes: 'Zone routing implemented — 4 delivery quadrants' },
+        { id: 'e6', config_id: 'demo-cfg', week_number: 6, logged_at: new Date(now - 14 * 86_400_000).toISOString(), turnaround_min: 93, reject_pct: null, dispatch_min: 19, notes: 'Zone routing implemented, 4 delivery quadrants' },
         { id: 'e7', config_id: 'demo-cfg', week_number: 7, logged_at: new Date(now - 7 * 86_400_000).toISOString(), turnaround_min: 89, reject_pct: null, dispatch_min: 17, notes: null },
-        { id: 'e8', config_id: 'demo-cfg', week_number: 8, logged_at: new Date(now - 1 * 86_400_000).toISOString(), turnaround_min: 85, reject_pct: null, dispatch_min: 15, notes: 'Dispatch target hit — 15 min order-to-dispatch achieved' },
+        { id: 'e8', config_id: 'demo-cfg', week_number: 8, logged_at: new Date(now - 1 * 86_400_000).toISOString(), turnaround_min: 85, reject_pct: null, dispatch_min: 15, notes: 'Dispatch target hit, 15 min order-to-dispatch achieved' },
       ]
 
       // Mock daily entries — 30 days, dip in days 10-14 ago to trigger trend alert
@@ -1483,113 +1430,39 @@ export default function TrackingTab(props: TrackingProps) {
 
   useEffect(() => { fetchData() }, [fetchData])
 
-  const hasEntries = entries.length > 0
-
-  const segControl = (
-    <div style={{ display: 'flex', alignItems: 'center', padding: '0 20px', borderBottom: '1px solid var(--border)', background: 'var(--white)', flexShrink: 0 }}>
-      <div style={{ display: 'flex', gap: '2px', flex: 1 }}>
-        {(['weekly', 'trips'] as const).map(tab => {
-          const active = subTab === tab
-          const label = tab === 'weekly' ? 'Weekly KPIs' : 'Daily Trips'
-          return (
-            <button
-              key={tab}
-              type="button"
-              onClick={() => setSubTab(tab)}
-              style={{
-                padding: '10px 14px', fontSize: '12px', fontWeight: active ? 500 : 400,
-                fontFamily: 'var(--font)', color: active ? 'var(--green)' : 'var(--gray-500)',
-                background: 'none', border: 'none',
-                borderBottom: active ? '2px solid var(--green)' : '2px solid transparent',
-                cursor: 'pointer', transition: 'all .15s', whiteSpace: 'nowrap',
-                marginBottom: '-1px',
-              }}
-            >
-              {label}
-            </button>
-          )
-        })}
-      </div>
-      {hasEntries && config && subTab === 'weekly' && (
-        <TrackSummaryButton
-          assessmentId={assessmentId}
-          config={config}
-          entries={entries}
-          coeffDispatch={coeffDispatch}
-          plant={plant}
-          country={country}
-        />
-      )}
-    </div>
-  )
-
-  if (subTab === 'trips') {
-    return (
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-        {segControl}
-        <div style={{ flex: 1, overflow: 'auto', padding: '20px 20px' }}>
-          <TripUploadShell
-            assessmentId={assessmentId}
-            targetTAMin={targetTA}
-            perMinTACoeff={perMinTACoeff ?? 0}
-          />
-        </div>
-      </div>
-    )
-  }
-
   if (config === undefined) {
     return (
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-        {segControl}
-        <div style={{ padding: '40px', textAlign: 'center', color: 'var(--gray-400)', fontSize: '13px' }}>
-          Loading tracking data…
-        </div>
+      <div style={{ padding: '40px', textAlign: 'center', color: 'var(--gray-400)', fontSize: '13px' }}>
+        Loading tracking data…
       </div>
     )
   }
 
   if (config === null) {
-    if (isAdmin) {
-      return (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-          {segControl}
-          <SetupForm {...props} onCreated={cfg => setConfig(cfg)} />
-        </div>
-      )
-    }
+    if (isAdmin) return <SetupForm {...props} onCreated={cfg => setConfig(cfg)} />
     return (
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-        {segControl}
-        <div style={{ padding: '60px 24px', textAlign: 'center', color: 'var(--gray-400)' }}>
-          <div style={{ fontSize: '32px', marginBottom: '16px' }}>📊</div>
-          <div style={{ fontSize: '14px', fontWeight: 500, color: 'var(--gray-600)', marginBottom: '8px' }}>90-day tracking not started yet</div>
-          <div style={{ fontSize: '13px' }}>Your consultant will activate tracking after the engagement.</div>
-        </div>
+      <div style={{ padding: '60px 24px', textAlign: 'center', color: 'var(--gray-400)' }}>
+        <div style={{ fontSize: '32px', marginBottom: '16px' }}>📊</div>
+        <div style={{ fontSize: '14px', fontWeight: 500, color: 'var(--gray-600)', marginBottom: '8px' }}>90-day tracking not started yet</div>
+        <div style={{ fontSize: '13px' }}>Your consultant will activate tracking after the engagement.</div>
       </div>
     )
   }
 
   if (isAdmin) {
     return (
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-        {segControl}
-        <ProgressView
-          config={config} entries={entries} dailyEntries={dailyEntries}
-          onEntryLogged={fetchData} coeffDispatch={coeffDispatch}
-          viewOnly={viewOnly} isDemo={isDemo}
-        />
-      </div>
+      <ProgressView
+        config={config} entries={entries} dailyEntries={dailyEntries}
+        onEntryLogged={fetchData} coeffDispatch={coeffDispatch}
+        viewOnly={viewOnly} isDemo={isDemo}
+      />
     )
   }
 
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-      {segControl}
-      <CustomerLog
-        config={config} entries={entries} dailyEntries={dailyEntries}
-        onLogged={fetchData} coeffDispatch={coeffDispatch} isDemo={isDemo}
-      />
-    </div>
+    <CustomerLog
+      config={config} entries={entries} dailyEntries={dailyEntries}
+      onLogged={fetchData} coeffDispatch={coeffDispatch} isDemo={isDemo}
+    />
   )
 }

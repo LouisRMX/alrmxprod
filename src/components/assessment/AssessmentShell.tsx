@@ -67,7 +67,7 @@ interface AssessmentShellProps {
   extraTab?: { label: string; shortLabel: string; onClick: () => void }
   // When true, the internal ModeTabs row is not rendered (parent renders its own)
   hideModeTabs?: boolean
-  // Focus actions curated by admin — shown to manager in report banner
+  // Focus actions curated by admin, shown to manager in report banner
   focusActions?: string[] | null
   // Follow-up: override the default question sections
   customSections?: Section[]
@@ -220,7 +220,7 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
 
       {(mode === 'questions' || mode === 'gps') && !guidedMode && (
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-          {/* Sidebar — hidden on mobile, hidden for owner role */}
+          {/* Sidebar, hidden on mobile, hidden for owner role */}
           {showSidebar && !isMobile && (
             <div style={{ width: '220px', flexShrink: 0, borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', background: 'var(--white)' }}>
               <Sidebar
@@ -269,7 +269,7 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             {mode === 'questions' && (
               <>
-                {/* Live scores — hidden for owner (they don't edit), shown for others */}
+                {/* Live scores, hidden for owner (they don't edit), shown for others */}
                 {showScorePanel && (
                   <div style={{ padding: '12px 20px 0' }}>
                     <ScoreLivePanel
@@ -348,10 +348,10 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
       {mode === 'track' && (() => {
         // Compute dispatch baseline from dropdown answer
         const DISPATCH_MAP: Record<string, number> = {
-          'Under 15 minutes — fast response': 12,
-          '15 to 25 minutes — acceptable': 20,
-          '25 to 40 minutes — slow': 32,
-          'Over 40 minutes — critical bottleneck': 45,
+          'Under 15 minutes, fast response': 12,
+          '15 to 25 minutes, acceptable': 20,
+          '25 to 40 minutes, slow': 32,
+          'Over 40 minutes, critical bottleneck': 45,
         }
         const baselineDispatchMin = DISPATCH_MAP[answers.order_to_dispatch as string] ?? null
 
@@ -387,10 +387,10 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
             perMinTACoeff={calcResult.perMinTACoeff}
             baselineTurnaround={(() => {
               const TURNAROUND_MAP: Record<string, number> = {
-                'Under 80 minutes — benchmark performance': 72,
-                '80 to 100 minutes — acceptable':           90,
-                '100 to 125 minutes — slow':                112,
-                'Over 125 minutes — critical bottleneck':   140,
+                'Under 80 minutes, benchmark performance': 72,
+                '80 to 100 minutes, acceptable':           90,
+                '100 to 125 minutes, slow':                112,
+                'Over 125 minutes, critical bottleneck':   140,
               }
               const raw = answers.turnaround as string
               return raw ? (TURNAROUND_MAP[raw] ?? (Number(raw) || null)) : null

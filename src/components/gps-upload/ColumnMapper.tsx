@@ -64,9 +64,9 @@ export default function ColumnMapper({
           border: '1px solid var(--info-border)', borderRadius: '6px',
         }}>
           We couldn&apos;t fully recognize your GPS format automatically.
-          Please match your columns below. This takes about 30 seconds and will be remembered for future uploads.
+          Please match your columns below, this takes about 30 seconds and will be remembered for future uploads.
           <br />
-          <strong style={{ color: 'var(--gray-600)' }}>Note:</strong> Arabic column names are not supported. English only.
+          <strong style={{ color: 'var(--gray-600)' }}>Note:</strong> Arabic column names are not supported, English only.
         </div>
       </div>
 
@@ -113,7 +113,7 @@ export default function ColumnMapper({
                   cursor: 'pointer',
                 }}
               >
-                <option value="__skip__">— Skip this field —</option>
+                <option value="__skip__">- Skip this field -</option>
                 {uploadedHeaders.map(h => (
                   <option key={h} value={h}>{h}</option>
                 ))}

@@ -1,5 +1,5 @@
 /**
- * GPS Data Normalizer — Layer 4A
+ * GPS Data Normalizer, Layer 4A
  *
  * Converts raw CSV rows into NormalizedGpsEvent objects
  * using the canonical column mapping from autoMapper.
@@ -38,8 +38,8 @@ export interface NormalizationResult {
 // ── Timezone offsets ────────────────────────────────────────
 const TIMEZONE_OFFSET_HOURS: Record<string, number> = {
   UTC: 0,
-  AST: 3,   // Arabia Standard Time (UTC+3) — Saudi, Qatar, Kuwait
-  GST: 4,   // Gulf Standard Time (UTC+4) — UAE, Oman
+  AST: 3,   // Arabia Standard Time (UTC+3), Saudi, Qatar, Kuwait
+  GST: 4,   // Gulf Standard Time (UTC+4), UAE, Oman
 }
 
 // ── Location name patterns ───────────────────────────────────

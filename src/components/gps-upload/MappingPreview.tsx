@@ -18,7 +18,7 @@ export default function MappingPreview({ headers, rows, maxRows = 5 }: MappingPr
         fontSize: '11px', color: 'var(--gray-400)', fontFamily: 'var(--mono)',
         marginBottom: '6px',
       }}>
-        Preview — first {preview.length} rows
+        Preview, first {preview.length} rows
       </div>
       <table style={{
         width: '100%', borderCollapse: 'collapse', fontSize: '11px',

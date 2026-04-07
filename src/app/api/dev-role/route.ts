@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
     .single()
 
   if (profile?.role !== 'system_admin') {
-    return NextResponse.json({ error: 'Forbidden — system admin only' }, { status: 403 })
+    return NextResponse.json({ error: 'Forbidden, system admin only' }, { status: 403 })
   }
 
   const { searchParams } = new URL(req.url)

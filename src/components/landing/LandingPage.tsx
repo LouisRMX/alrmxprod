@@ -135,7 +135,7 @@ function Hero() {
         {/* ── Right: data story cards ── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
 
-          {/* Card 1 — Identified */}
+          {/* Card 1, Identified */}
           <div style={{
             background: 'rgba(255,255,255,0.04)',
             border: '1px solid rgba(255,255,255,0.09)',
@@ -155,7 +155,7 @@ function Hero() {
           {/* Connector */}
           <div style={{ display: 'flex', justifyContent: 'center', padding: '6px 0', color: 'rgba(255,255,255,0.15)', fontSize: '16px' }}>↓</div>
 
-          {/* Card 2 — Primary constraint */}
+          {/* Card 2, Primary constraint */}
           <div style={{
             background: 'rgba(255,255,255,0.04)',
             border: '1px solid rgba(255,255,255,0.09)',
@@ -189,7 +189,7 @@ function Hero() {
           {/* Connector */}
           <div style={{ display: 'flex', justifyContent: 'center', padding: '6px 0', color: 'rgba(255,255,255,0.15)', fontSize: '16px' }}>↓</div>
 
-          {/* Card 3 — Recovered */}
+          {/* Card 3, Recovered */}
           <div style={{
             background: 'rgba(74,222,128,0.1)',
             border: '1px solid rgba(74,222,128,0.35)',

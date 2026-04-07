@@ -64,7 +64,7 @@ export default async function CustomersPage() {
                   </td>
                   <td style={{ padding: '12px 16px', fontSize: '13px', color: 'var(--gray-500)' }}>{c.country}</td>
                   <td style={{ padding: '12px 16px' }}>
-                    <div style={{ fontSize: '13px', color: 'var(--gray-700)' }}>{c.contact_name || '—'}</div>
+                    <div style={{ fontSize: '13px', color: 'var(--gray-700)' }}>{c.contact_name || '-'}</div>
                     <div style={{ fontSize: '11px', color: 'var(--gray-400)' }}>{c.contact_email || ''}</div>
                   </td>
                   <td style={{ padding: '12px 16px', fontSize: '13px', color: 'var(--gray-500)' }}>

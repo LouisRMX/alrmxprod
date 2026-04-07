@@ -16,7 +16,7 @@ export default async function DashboardPage() {
   const profileRole = profile?.role
   const isAdmin = profileRole === 'system_admin'
 
-  // Check effective role — admin may have a viewAs cookie active
+  // Check effective role, admin may have a viewAs cookie active
   const { role: effectiveRole } = await getEffectiveMemberRole(null, isAdmin)
 
   // Admin with active viewAs override → behave as that role
@@ -28,7 +28,7 @@ export default async function DashboardPage() {
   // Admin with no override → portfolio
   if (isAdmin) redirect('/dashboard/portfolio')
 
-  // Customer roles — get real member role
+  // Customer roles, get real member role
   let realMemberRole: MemberRole | null = null
   const { data: member } = await supabase
     .from('customer_members')

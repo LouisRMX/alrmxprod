@@ -1,16 +1,9 @@
 'use client'
 
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { calcLossRange, type CalcResult, type Answers } from '@/lib/calculations'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-
-interface ChecklistItem {
-  id: string
-  text: string
-  done: boolean
-}
 
 interface ActionItem {
   id: string
@@ -21,9 +14,7 @@ interface ActionItem {
   assignee?: { full_name: string | null; email: string } | null
   source: 'ai' | 'manual'
   value: string | null
-  checklist: ChecklistItem[]
   created_at: string
-  dimension?: string | null
 }
 
 interface BoardMember {
@@ -36,14 +27,9 @@ interface ActionBoardProps {
   assessmentId: string
   customerId: string
   focusActions: string[]
-  focusActionLosses?: number[]
-  focusActionDimensions?: (string | null)[]
-  focusActionFormulas?: (string | null)[]
   canEdit: boolean
   financialBottleneck?: string | null
   recoverable?: number
-  calcResult?: CalcResult
-  answers?: Answers
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -76,7 +62,6 @@ function makeDemoItems(focusActions: string[]): ActionItem[] {
     assignee: null,
     source: 'ai',
     value: null,
-    checklist: [],
     created_at: new Date().toISOString(),
   }))
 }
@@ -119,34 +104,22 @@ function CardDetailModal({
   item,
   members,
   canEdit,
-  calcResult,
-  answers,
-  financialBottleneck,
-  lossMonthly,
-  formula,
   onClose,
   onEdit,
   onSaveNotes,
   onAssign,
   onMove,
   onDelete,
-  onUpdateChecklist,
 }: {
   item: ActionItem
   members: BoardMember[]
   canEdit: boolean
-  calcResult?: CalcResult
-  answers?: Answers
-  financialBottleneck?: string | null
-  lossMonthly?: number
-  formula?: string | null
   onClose: () => void
   onEdit: (id: string, text: string) => void
   onSaveNotes: (id: string, value: string) => void
   onAssign: (id: string, userId: string | null) => void
   onMove: (id: string, status: ActionItem['status']) => void
   onDelete: (id: string) => void
-  onUpdateChecklist: (id: string, checklist: ChecklistItem[]) => void
 }) {
   const [titleDraft, setTitleDraft] = useState(item.text)
   const [editingTitle, setEditingTitle] = useState(false)
@@ -214,109 +187,6 @@ function CardDetailModal({
     onClose()
   }
 
-  const [generatingChecklist, setGeneratingChecklist] = useState(false)
-  const [checklistError, setChecklistError] = useState<string | null>(null)
-  const [editingCiId, setEditingCiId] = useState<string | null>(null)
-  const [editingCiText, setEditingCiText] = useState('')
-  const [addingStep, setAddingStep] = useState(false)
-  const [newStepText, setNewStepText] = useState('')
-  const [dragCiIdx, setDragCiIdx] = useState<number | null>(null)
-  const [dragOverCiIdx, setDragOverCiIdx] = useState<number | null>(null)
-
-  async function generateChecklist() {
-    setGeneratingChecklist(true)
-    setChecklistError(null)
-    try {
-      const res = await fetch('/api/generate-checklist', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: item.text, calcResult, answers, financialBottleneck }),
-      })
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        setChecklistError(err.error ?? 'Generation failed')
-        return
-      }
-      const checklist: ChecklistItem[] = await res.json()
-      onUpdateChecklist(item.id, checklist)
-    } catch {
-      setChecklistError('Generation failed. Please try again.')
-    } finally {
-      setGeneratingChecklist(false)
-    }
-  }
-
-  // Auto-generate on first open if checklist is empty
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { if (item.checklist.length === 0 && canEdit && calcResult) generateChecklist() }, [])
-
-  function toggleChecklistItem(ciId: string) {
-    const updated = item.checklist.map(ci => ci.id === ciId ? { ...ci, done: !ci.done } : ci)
-    onUpdateChecklist(item.id, updated)
-    // Auto-advance to Done when all steps complete
-    if (updated.length > 0 && updated.every(ci => ci.done) && item.status !== 'done') {
-      onMove(item.id, 'done')
-    }
-  }
-
-  function startEditCi(ci: ChecklistItem) {
-    setEditingCiId(ci.id)
-    setEditingCiText(ci.text)
-  }
-
-  function commitCiEdit(ciId: string) {
-    const trimmed = editingCiText.trim()
-    const original = item.checklist.find(ci => ci.id === ciId)?.text
-    if (trimmed && trimmed !== original) {
-      onUpdateChecklist(item.id, item.checklist.map(ci => ci.id === ciId ? { ...ci, text: trimmed } : ci))
-    }
-    setEditingCiId(null)
-  }
-
-  function moveCi(idx: number, dir: -1 | 1) {
-    const arr = [...item.checklist]
-    const target = idx + dir
-    if (target < 0 || target >= arr.length) return
-    ;[arr[idx], arr[target]] = [arr[target], arr[idx]]
-    onUpdateChecklist(item.id, arr)
-  }
-
-  function deleteCi(ciId: string) {
-    onUpdateChecklist(item.id, item.checklist.filter(ci => ci.id !== ciId))
-  }
-
-  function commitNewStep() {
-    const trimmed = newStepText.trim()
-    if (!trimmed) return
-    onUpdateChecklist(item.id, [...item.checklist, { id: `ci-${Date.now()}`, text: trimmed, done: false }])
-    setNewStepText('')
-    setAddingStep(false)
-  }
-
-  function handleCiDragStart(idx: number) {
-    setDragCiIdx(idx)
-  }
-  function handleCiDragOver(e: React.DragEvent, idx: number) {
-    e.preventDefault()
-    setDragOverCiIdx(idx)
-  }
-  function handleCiDrop(toIdx: number) {
-    if (dragCiIdx === null || dragCiIdx === toIdx) {
-      setDragCiIdx(null); setDragOverCiIdx(null); return
-    }
-    const arr = [...item.checklist]
-    const [moved] = arr.splice(dragCiIdx, 1)
-    arr.splice(toIdx, 0, moved)
-    onUpdateChecklist(item.id, arr)
-    setDragCiIdx(null); setDragOverCiIdx(null)
-  }
-  function handleCiDragEnd() {
-    setDragCiIdx(null); setDragOverCiIdx(null)
-  }
-
-  const checklistDone = item.checklist.filter(ci => ci.done).length
-  const checklistTotal = item.checklist.length
-
   const assignee = item.assignee
   const assigneeLabel = assignee?.full_name || assignee?.email || null
 
@@ -357,22 +227,16 @@ function CardDetailModal({
           ×
         </button>
 
-
-        {/* Financial summary */}
-        {lossMonthly && lossMonthly >= 1000 && (
-          <div style={{
-            background: '#f0fdf4', border: '1px solid #bbf7d0',
-            borderRadius: '8px', padding: '10px 14px', marginBottom: '16px',
+        {/* AI badge */}
+        {item.source === 'ai' && (
+          <span style={{
+            fontSize: '10px', fontWeight: 600, letterSpacing: '0.5px',
+            color: 'var(--phase-workshop)', background: 'var(--phase-workshop-bg)',
+            padding: '2px 6px', borderRadius: '3px',
+            display: 'inline-block', marginBottom: '10px',
           }}>
-            <div style={{ fontSize: '13px', fontWeight: 700, color: '#16a34a', marginBottom: formula ? '4px' : 0 }}>
-              {(() => { const { low, high } = calcLossRange(lossMonthly); return `Fixing this recovers $${Math.round(low / 1000)}k–$${Math.round(high / 1000)}k/month` })()}
-            </div>
-            {formula && (
-              <div style={{ fontSize: '11px', color: '#4ade80', fontFamily: 'monospace', lineHeight: 1.5 }}>
-                {formula}
-              </div>
-            )}
-          </div>
+            AI
+          </span>
         )}
 
         {/* Title */}
@@ -558,209 +422,6 @@ function CardDetailModal({
           </div>
         </div>
 
-        {/* Checklist */}
-        <div style={{ marginTop: '20px' }}>
-          <div style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            marginBottom: '10px',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--gray-500)' }}>
-                Steps
-              </div>
-              {checklistTotal > 0 && (
-                <span style={{
-                  fontSize: '11px', fontWeight: 600,
-                  color: checklistDone === checklistTotal ? 'var(--green)' : 'var(--gray-500)',
-                  background: checklistDone === checklistTotal ? 'var(--green-pale)' : 'var(--gray-100)',
-                  padding: '1px 7px', borderRadius: '10px',
-                }}>
-                  {checklistDone}/{checklistTotal}
-                </span>
-              )}
-            </div>
-          </div>
-
-          {checklistError && (
-            <div style={{ fontSize: '11px', color: 'var(--red)', marginBottom: '8px' }}>
-              {checklistError}
-            </div>
-          )}
-
-          {/* Progress bar */}
-          {checklistTotal > 0 && (
-            <div style={{
-              height: '3px', borderRadius: '2px',
-              background: 'var(--gray-100)', marginBottom: '10px', overflow: 'hidden',
-            }}>
-              <div style={{
-                height: '100%', borderRadius: '2px',
-                background: checklistDone === checklistTotal ? 'var(--green)' : 'var(--phase-workshop)',
-                width: `${(checklistDone / checklistTotal) * 100}%`,
-                transition: 'width 0.3s',
-              }} />
-            </div>
-          )}
-
-          {/* Checklist items */}
-          {item.checklist.map((ci, idx) => (
-            <div
-              key={ci.id}
-              draggable={canEdit && editingCiId !== ci.id}
-              onDragStart={() => handleCiDragStart(idx)}
-              onDragOver={e => handleCiDragOver(e, idx)}
-              onDrop={() => handleCiDrop(idx)}
-              onDragEnd={handleCiDragEnd}
-              style={{
-                display: 'flex', alignItems: 'flex-start', gap: '8px',
-                padding: '6px 0',
-                borderBottom: idx < item.checklist.length - 1 ? '1px solid var(--gray-100)' : 'none',
-                borderTop: dragOverCiIdx === idx && dragCiIdx !== null && dragCiIdx !== idx
-                  ? '2px solid var(--green)' : '2px solid transparent',
-                opacity: dragCiIdx === idx ? 0.4 : 1,
-                transition: 'opacity 0.15s',
-              }}
-            >
-              {canEdit && (
-                <span style={{
-                  flexShrink: 0, color: 'var(--gray-300)', fontSize: '13px',
-                  marginTop: '2px', cursor: 'grab', userSelect: 'none', lineHeight: 1,
-                }}>⠿</span>
-              )}
-
-              <button
-                type="button"
-                onClick={() => toggleChecklistItem(ci.id)}
-                disabled={!canEdit}
-                style={{
-                  width: '16px', height: '16px', borderRadius: '3px', flexShrink: 0,
-                  marginTop: '2px',
-                  border: ci.done ? 'none' : '1.5px solid var(--gray-300)',
-                  background: ci.done ? 'var(--green)' : 'transparent',
-                  cursor: canEdit ? 'pointer' : 'default',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: '#fff', fontSize: '10px', fontWeight: 700,
-                }}
-              >
-                {ci.done ? '✓' : ''}
-              </button>
-
-              {editingCiId === ci.id ? (
-                <input
-                  autoFocus
-                  type="text"
-                  value={editingCiText}
-                  onChange={e => setEditingCiText(e.target.value)}
-                  onBlur={() => commitCiEdit(ci.id)}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') { e.preventDefault(); commitCiEdit(ci.id) }
-                    if (e.key === 'Escape') setEditingCiId(null)
-                  }}
-                  style={{
-                    flex: 1, fontSize: '12px', lineHeight: 1.5,
-                    border: '1px solid var(--green)', borderRadius: '4px',
-                    padding: '1px 6px', fontFamily: 'var(--font)',
-                    outline: 'none', color: 'var(--gray-900)',
-                  }}
-                />
-              ) : (
-                <span
-                  onClick={() => canEdit && startEditCi(ci)}
-                  title={canEdit ? 'Click to edit' : undefined}
-                  style={{
-                    fontSize: '12px', lineHeight: 1.5, flex: 1,
-                    color: ci.done ? 'var(--gray-400)' : 'var(--gray-900)',
-                    textDecoration: ci.done ? 'line-through' : 'none',
-                    cursor: canEdit ? 'text' : 'default',
-                  }}
-                >
-                  {ci.text}
-                </span>
-              )}
-
-              {canEdit && (
-                <button
-                  type="button"
-                  onClick={() => deleteCi(ci.id)}
-                  title="Delete step"
-                  style={{
-                    width: '18px', height: '18px', padding: 0, border: 'none',
-                    background: 'none', cursor: 'pointer', flexShrink: 0,
-                    color: 'var(--gray-300)', fontSize: '14px',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}
-                >×</button>
-              )}
-            </div>
-          ))}
-
-          {/* Add step */}
-          {canEdit && (
-            addingStep ? (
-              <div style={{ display: 'flex', gap: '6px', marginTop: '8px', alignItems: 'center' }}>
-                <input
-                  autoFocus
-                  type="text"
-                  value={newStepText}
-                  onChange={e => setNewStepText(e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') { e.preventDefault(); commitNewStep() }
-                    if (e.key === 'Escape') { setAddingStep(false); setNewStepText('') }
-                  }}
-                  placeholder="Describe the step..."
-                  style={{
-                    flex: 1, fontSize: '12px',
-                    border: '1px solid var(--border)', borderRadius: '5px',
-                    padding: '5px 8px', fontFamily: 'var(--font)',
-                    outline: 'none', color: 'var(--gray-900)',
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={commitNewStep}
-                  style={{
-                    padding: '5px 10px', fontSize: '11px', fontWeight: 600,
-                    background: 'var(--green)', color: '#fff',
-                    border: 'none', borderRadius: '5px', cursor: 'pointer',
-                    fontFamily: 'var(--font)',
-                  }}
-                >Add</button>
-                <button
-                  type="button"
-                  onClick={() => { setAddingStep(false); setNewStepText('') }}
-                  style={{
-                    padding: '4px 7px', fontSize: '14px',
-                    background: 'none', color: 'var(--gray-400)',
-                    border: 'none', cursor: 'pointer',
-                  }}
-                >×</button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setAddingStep(true)}
-                style={{
-                  marginTop: '8px', padding: '5px 0', fontSize: '12px',
-                  color: 'var(--gray-400)', background: 'none', border: 'none',
-                  cursor: 'pointer', fontFamily: 'var(--font)',
-                  display: 'flex', alignItems: 'center', gap: '4px',
-                }}
-              >
-                <span style={{ fontSize: '14px', lineHeight: 1 }}>+</span> Add step
-              </button>
-            )
-          )}
-
-          {checklistTotal === 0 && !generatingChecklist && canEdit && !addingStep && (
-            <div style={{
-              fontSize: '12px', color: 'var(--gray-300)', fontStyle: 'italic',
-              padding: '8px 0',
-            }}>
-              No steps yet. Click Generate steps to create a specific action plan.
-            </div>
-          )}
-        </div>
-
         {/* Footer: save + delete */}
         {canEdit && (
           <div style={{
@@ -805,8 +466,6 @@ function TaskCard({
   item,
   canEdit,
   isDragging,
-  lossMonthly,
-  dimension,
   onDragStart,
   onDragEnd,
   onDelete,
@@ -815,8 +474,6 @@ function TaskCard({
   item: ActionItem
   canEdit: boolean
   isDragging: boolean
-  lossMonthly?: number
-  dimension?: string | null
   onDragStart: (id: string) => void
   onDragEnd: () => void
   onDelete: (id: string) => void
@@ -854,39 +511,16 @@ function TaskCard({
       onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)')}
       onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}
     >
-      {/* Top row: badges */}
-      {(dimension || item.status === 'in_progress') && (
-        <div style={{ marginBottom: '5px', display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
-          {dimension && (
-            <span style={{
-              fontSize: '10px', fontWeight: 600, letterSpacing: '0.5px',
-              color: '#64748b', background: '#f1f5f9',
-              padding: '1px 5px', borderRadius: '3px',
-            }}>
-              {dimension === 'Fleet' ? 'Logistics' : dimension}
-            </span>
-          )}
-          {item.status === 'in_progress' && (
-            <span style={{
-              fontSize: '10px', fontWeight: 600, letterSpacing: '0.5px',
-              color: '#3b82f6', background: '#eff6ff',
-              padding: '1px 5px', borderRadius: '3px',
-            }}>
-              In progress
-            </span>
-          )}
-        </div>
-      )}
-
-      {/* Financial recovery chip */}
-      {lossMonthly && lossMonthly >= 1000 && (
-        <div style={{
-          display: 'inline-flex', alignItems: 'center', gap: '3px',
-          fontSize: '11px', fontWeight: 700, color: '#16a34a',
-          background: '#f0fdf4', border: '1px solid #bbf7d0',
-          borderRadius: '4px', padding: '1px 6px', marginBottom: '5px',
-        }}>
-          {(() => { const { low, high } = calcLossRange(lossMonthly); return `Fix = $${Math.round(low / 1000)}k–$${Math.round(high / 1000)}k/mo` })()}
+      {/* Top row: source badge */}
+      {item.source === 'ai' && (
+        <div style={{ marginBottom: '5px' }}>
+          <span style={{
+            fontSize: '10px', fontWeight: 600, letterSpacing: '0.5px',
+            color: 'var(--phase-workshop)', background: 'var(--phase-workshop-bg)',
+            padding: '1px 5px', borderRadius: '3px',
+          }}>
+            AI
+          </span>
         </div>
       )}
 
@@ -902,34 +536,6 @@ function TaskCard({
       {item.value && (
         <div style={{ marginTop: '4px', fontSize: '11px', color: '#64748b', lineHeight: 1.4 }}>
           {item.value.split('\n')[0].slice(0, 90)}{item.value.split('\n')[0].length > 90 ? '…' : ''}
-        </div>
-      )}
-
-      {/* Checklist steps inline */}
-      {item.checklist.length > 0 && (
-        <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          {item.checklist.map(ci => (
-            <div key={ci.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
-              <div style={{
-                width: '13px', height: '13px', borderRadius: '3px', flexShrink: 0, marginTop: '1px',
-                border: ci.done ? 'none' : '1.5px solid var(--gray-300)',
-                background: ci.done ? 'var(--green)' : 'transparent',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                {ci.done && (
-                  <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-                    <path d="M1.5 4L3 5.5L6.5 2" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                )}
-              </div>
-              <span style={{
-                fontSize: '12px', lineHeight: 1.4, color: ci.done ? 'var(--gray-300)' : 'var(--gray-700)',
-                textDecoration: ci.done ? 'line-through' : 'none',
-              }}>
-                {ci.text}
-              </span>
-            </div>
-          ))}
         </div>
       )}
 
@@ -950,7 +556,7 @@ function TaskCard({
           </div>
         ) : (
           <span style={{ fontSize: '11px', color: 'var(--gray-300)', fontStyle: 'italic' }}>
-            Unassigned
+            {canEdit ? 'Click to open' : 'Unassigned'}
           </span>
         )}
 
@@ -978,7 +584,7 @@ const iconBtnStyle: React.CSSProperties = {
 
 // ── Main ActionBoard ──────────────────────────────────────────────────────────
 
-export default function ActionBoard({ assessmentId, customerId, focusActions, focusActionLosses, focusActionDimensions, focusActionFormulas, canEdit, financialBottleneck, recoverable, calcResult, answers }: ActionBoardProps) {
+export default function ActionBoard({ assessmentId, customerId, focusActions, canEdit, financialBottleneck, recoverable }: ActionBoardProps) {
   const isDemo = assessmentId === 'demo'
   const supabase = createClient()
 
@@ -989,30 +595,11 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, fo
   const [addingText, setAddingText] = useState('')
   const [showAdd, setShowAdd] = useState(false)
   const [dragId, setDragId] = useState<string | null>(null)
-  const [showAll, setShowAll] = useState(false)
+  const [dragOverCol, setDragOverCol] = useState<ActionItem['status'] | null>(null)
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
   const addInputRef = useRef<HTMLInputElement>(null)
 
   const selectedItem = selectedItemId ? (items.find(i => i.id === selectedItemId) ?? null) : null
-
-  // Build text → loss/dimension lookup from seed metadata (for cards matching their original text)
-  const lossMap = useMemo(() => {
-    const m: Record<string, number> = {}
-    focusActions.forEach((text, i) => { if (focusActionLosses?.[i]) m[text] = focusActionLosses[i] })
-    return m
-  }, [focusActions, focusActionLosses])
-
-  const dimMap = useMemo(() => {
-    const m: Record<string, string | null> = {}
-    focusActions.forEach((text, i) => { m[text] = focusActionDimensions?.[i] ?? null })
-    return m
-  }, [focusActions, focusActionDimensions])
-
-  const formulaMap = useMemo(() => {
-    const m: Record<string, string | null> = {}
-    focusActions.forEach((text, i) => { m[text] = focusActionFormulas?.[i] ?? null })
-    return m
-  }, [focusActions, focusActionFormulas])
 
   useEffect(() => {
     if (showAdd) addInputRef.current?.focus()
@@ -1022,11 +609,9 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, fo
 
   useEffect(() => {
     if (isDemo) {
-      const demoItems = makeDemoItems(focusActions)
       setMembers(DEMO_MEMBERS)
-      setItems(demoItems)
+      setItems(makeDemoItems(focusActions))
       setLoading(false)
-      generateAllChecklists(demoItems)
       return
     }
 
@@ -1056,20 +641,18 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, fo
           ...row,
           source: (row.source ?? 'manual') as 'ai' | 'manual',
           value: row.value ?? null,
-          checklist: Array.isArray(row.checklist) ? row.checklist : [],
           assignee: member?.profile ?? null,
         }
       })
 
       setMembers(normalizedMembers)
 
-      let finalItems = normalizedItems
-
       // AI pre-population: if no items yet and focusActions available
       if (normalizedItems.length === 0 && focusActions.filter(Boolean).length > 0) {
-        const toInsert = focusActions.filter(Boolean).map((text) => ({
-          assessment_id: assessmentId, text, status: 'todo' as const, checklist: [],
-          dimension: dimMap[text] ?? null,
+        const toInsert = focusActions.filter(Boolean).map(text => ({
+          assessment_id: assessmentId,
+          text,
+          status: 'todo' as const,
         }))
         const { data: inserted } = await supabase
           .from('action_items')
@@ -1077,99 +660,19 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, fo
           .select('*')
         if (inserted) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          finalItems = inserted.map((row: any) => ({
+          setItems(inserted.map((row: any) => ({
             ...row,
             source: (row.source ?? 'manual') as 'ai' | 'manual',
             value: row.value ?? null,
-            checklist: [],
             assignee: null,
-          }))
+          })))
+          setToast('Tasks created from report findings')
         }
-
-        // ── Peer review actions: find better plants in portfolio ───────────
-        if (calcResult) {
-          // Fetch sibling assessments with benchmarks
-          const { data: siblings } = await supabase
-            .from('assessments')
-            .select('id, name, plant_benchmarks(turnaround_min, dispatch_min, reject_pct)')
-            .eq('customer_id', customerId)
-            .neq('id', assessmentId)
-
-          if (siblings && siblings.length > 0) {
-            type DimCfg = { kpiKey: 'turnaround_min' | 'dispatch_min' | 'reject_pct'; label: string; unit: string; currentVal: number | null }
-            const dimCfgs: Record<string, DimCfg> = {
-              Fleet:    { kpiKey: 'turnaround_min', label: 'turnaround', unit: 'min', currentVal: calcResult.ta > 0 ? Math.round(calcResult.ta) : null },
-              Dispatch: { kpiKey: 'dispatch_min',   label: 'dispatch',   unit: 'min', currentVal: calcResult.dispatchMin ?? null },
-              Quality:  { kpiKey: 'reject_pct',     label: 'rejection rate', unit: '%', currentVal: calcResult.rejectPct > 0 ? calcResult.rejectPct : null },
-            }
-
-            // Unique dimensions already in finalItems
-            const activeDims = Array.from(new Set(finalItems.map(i => i.dimension).filter(Boolean))) as string[]
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const peerToInsert: any[] = []
-
-            for (const dim of activeDims) {
-              const cfg = dimCfgs[dim]
-              if (!cfg || cfg.currentVal == null || cfg.currentVal <= 0) continue
-
-              let bestName: string | null = null
-              let bestVal: number | null = null
-
-              for (const sibling of siblings) {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const bm: any = Array.isArray(sibling.plant_benchmarks) ? sibling.plant_benchmarks[0] : sibling.plant_benchmarks
-                if (!bm) continue
-                const sibVal = bm[cfg.kpiKey] as number | null
-                if (sibVal == null || sibVal <= 0) continue
-                const gap = (cfg.currentVal - sibVal) / cfg.currentVal   // positive = sibling is better (lower)
-                if (gap > 0.15 && (bestVal === null || sibVal < bestVal)) {
-                  bestVal = sibVal
-                  bestName = sibling.name
-                }
-              }
-
-              if (bestName && bestVal !== null) {
-                const bestDisplay    = cfg.unit === '%' ? `${bestVal.toFixed(1)}%`           : `${Math.round(bestVal)} min`
-                const currentDisplay = cfg.unit === '%' ? `${cfg.currentVal.toFixed(1)}%`    : `${Math.round(cfg.currentVal)} min`
-                peerToInsert.push({
-                  assessment_id: assessmentId,
-                  text: `Schedule a peer review with ${bestName}. They run ${bestDisplay} ${cfg.label} vs your ${currentDisplay}. Ask what changed.`,
-                  status: 'todo',
-                  checklist: [],
-                  dimension: dim,
-                  source: 'ai',
-                })
-              }
-            }
-
-            if (peerToInsert.length > 0) {
-              const { data: insertedPeer } = await supabase
-                .from('action_items')
-                .insert(peerToInsert)
-                .select('*')
-              if (insertedPeer) {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                finalItems = [...finalItems, ...insertedPeer.map((row: any) => ({
-                  ...row,
-                  source: 'ai' as const,
-                  value: null,
-                  checklist: [],
-                  assignee: null,
-                  dimension: row.dimension ?? null,
-                }))]
-              }
-            }
-          }
-        }
-        // ─────────────────────────────────────────────────────────────────
+      } else {
+        setItems(normalizedItems)
       }
 
-      setItems(finalItems)
       setLoading(false)
-
-      // Auto-generate checklists for all items that don't have steps yet
-      const needsChecklist = finalItems.filter(i => i.checklist.length === 0)
-      generateAllChecklists(needsChecklist)
     }
 
     load()
@@ -1194,7 +697,6 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, fo
         assignee: null,
         source: 'manual',
         value: null,
-        checklist: [],
         created_at: new Date().toISOString(),
       }
       setItems(prev => [...prev, newItem])
@@ -1213,7 +715,6 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, fo
         ...row,
         source: (row.source ?? 'manual') as 'ai' | 'manual',
         value: row.value ?? null,
-        checklist: Array.isArray(row.checklist) ? row.checklist : [],
         assignee: null,
       }])
     } else {
@@ -1227,7 +728,6 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, fo
         assignee: null,
         source: 'manual' as const,
         value: null,
-        checklist: [],
         created_at: new Date().toISOString(),
       }])
     }
@@ -1266,34 +766,6 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, fo
     }
   }
 
-  async function updateChecklist(id: string, checklist: ChecklistItem[]) {
-    setItems(prev => prev.map(i => i.id === id ? { ...i, checklist } : i))
-    if (!isDemo) {
-      await supabase.from('action_items').update({ checklist }).eq('id', id)
-    }
-  }
-
-  async function generateAllChecklists(itemsToGenerate: ActionItem[]) {
-    if (!calcResult || !canEdit || itemsToGenerate.length === 0) return
-    await Promise.allSettled(
-      itemsToGenerate.map(async (item) => {
-        try {
-          const res = await fetch('/api/generate-checklist', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: item.text, calcResult, answers, financialBottleneck }),
-          })
-          if (!res.ok) return
-          const checklist: ChecklistItem[] = await res.json()
-          setItems(prev => prev.map(i => i.id === item.id ? { ...i, checklist } : i))
-          if (!isDemo) {
-            await supabase.from('action_items').update({ checklist }).eq('id', item.id)
-          }
-        } catch { /* silent — checklist stays empty, modal can retry */ }
-      })
-    )
-  }
-
   async function deleteItem(id: string) {
     setItems(prev => prev.filter(i => i.id !== id))
     if (!isDemo) {
@@ -1320,25 +792,19 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, fo
           item={selectedItem}
           members={members}
           canEdit={canEdit}
-          calcResult={calcResult}
-          answers={answers}
-          financialBottleneck={financialBottleneck}
-          lossMonthly={lossMap[selectedItem.text]}
-          formula={formulaMap[selectedItem.text]}
           onClose={() => setSelectedItemId(null)}
           onEdit={editItem}
           onSaveNotes={saveNotes}
           onAssign={assignItem}
           onMove={moveItem}
           onDelete={deleteItem}
-          onUpdateChecklist={updateChecklist}
         />
       )}
 
       {/* Board header */}
       <div style={{ marginBottom: '16px' }}>
         <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.8px', color: 'var(--gray-500)', textTransform: 'uppercase', marginBottom: '8px' }}>
-          Actions
+          This Week
         </div>
 
         {/* Bottleneck bridge line */}
@@ -1354,122 +820,130 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, fo
               Primary constraint: {financialBottleneck === 'Fleet' ? 'Logistics' : financialBottleneck}
             </div>
             <div style={{ fontSize: '11px', color: '#64748b' }}>
-              Fixing this recovers ${Math.round(recoverable * 0.7 / 1000)}k–${Math.round(recoverable * 1.3 / 1000)}k/month
+              Fixing this recovers ~${Math.round(recoverable / 1000)}k/month
             </div>
           </div>
         )}
       </div>
 
-      {/* Flat open task list — top 3 visible, rest hidden */}
-      {(() => {
-        const openItems = items
-          .filter(i => i.status !== 'done')
-          .sort((a, b) => {
-            if (a.status === 'in_progress' && b.status !== 'in_progress') return -1
-            if (b.status === 'in_progress' && a.status !== 'in_progress') return 1
-            return (lossMap[b.text] ?? 0) - (lossMap[a.text] ?? 0)
-          })
-        const doneCount = items.filter(i => i.status === 'done').length
-        const visible = showAll ? openItems : openItems.slice(0, 3)
-        const hiddenCount = openItems.length - 3
-
-        return (
-          <div>
-            {openItems.length === 0 ? (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        {COLUMNS.map(col => {
+          const colItems = items.filter(i => i.status === col.key)
+          const isOver = dragOverCol === col.key && dragId !== null
+          return (
+            <div
+              key={col.key}
+              onDragOver={(e) => { e.preventDefault(); if (dragId) setDragOverCol(col.key) }}
+              onDragLeave={() => setDragOverCol(null)}
+              onDrop={(e) => {
+                e.preventDefault()
+                const id = e.dataTransfer.getData('text/plain')
+                if (id) moveItem(id, col.key)
+                setDragOverCol(null)
+                setDragId(null)
+              }}
+            >
+              {/* Column header */}
               <div style={{
-                border: '1px dashed var(--border)', borderRadius: '8px',
-                padding: '16px', textAlign: 'center',
-                fontSize: '12px', color: 'var(--gray-300)',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                marginBottom: '8px',
               }}>
-                No open tasks
+                <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  {col.label}
+                </span>
+                <span style={{
+                  fontSize: '11px', fontWeight: 600,
+                  color: col.key === 'done' ? 'var(--phase-complete)' : 'var(--gray-300)',
+                  background: col.key === 'done' ? 'var(--phase-complete-bg)' : 'var(--gray-100)',
+                  padding: '1px 7px', borderRadius: '10px',
+                }}>
+                  {colItems.length}
+                </span>
               </div>
-            ) : (
-              visible.map(item => (
-                <TaskCard
-                  key={item.id}
-                  item={item}
-                  canEdit={canEdit}
-                  isDragging={dragId === item.id}
-                  lossMonthly={lossMap[item.text]}
-                  dimension={dimMap[item.text]}
-                  onDragStart={setDragId}
-                  onDragEnd={() => setDragId(null)}
-                  onDelete={deleteItem}
-                  onOpenModal={() => setSelectedItemId(item.id)}
-                />
-              ))
-            )}
 
-            {!showAll && hiddenCount > 0 && (
-              <button
-                type="button"
-                onClick={() => setShowAll(true)}
-                style={{
-                  width: '100%', padding: '6px', background: 'none',
-                  border: '1px dashed var(--border)', borderRadius: '7px',
-                  fontSize: '12px', color: 'var(--gray-500)', cursor: 'pointer',
-                  fontFamily: 'var(--font)', marginBottom: '6px',
-                }}
-              >
-                +{hiddenCount} more task{hiddenCount !== 1 ? 's' : ''}
-              </button>
-            )}
-
-            {/* Add task */}
-            {canEdit && (
-              <div style={{ marginTop: '6px' }}>
-                {showAdd ? (
-                  <div style={{ display: 'flex', gap: '6px' }}>
-                    <input
-                      ref={addInputRef}
-                      value={addingText}
-                      onChange={e => setAddingText(e.target.value)}
-                      onKeyDown={e => { if (e.key === 'Enter') addItem(); if (e.key === 'Escape') { setShowAdd(false); setAddingText('') } }}
-                      placeholder="Task description..."
-                      style={{
-                        flex: 1, fontSize: '13px', padding: '7px 10px',
-                        border: '1px solid var(--green)', borderRadius: '7px',
-                        fontFamily: 'var(--font)', outline: 'none',
-                        color: 'var(--gray-900)',
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={addItem}
-                      style={{
-                        padding: '7px 12px', background: 'var(--green)', color: '#fff',
-                        border: 'none', borderRadius: '7px', fontSize: '13px',
-                        cursor: 'pointer', fontFamily: 'var(--font)', fontWeight: 600,
-                      }}
-                    >
-                      Add
-                    </button>
+              {/* Drop zone / cards */}
+              <div style={{
+                minHeight: '48px',
+                borderRadius: '8px',
+                border: isOver ? '2px dashed var(--green)' : '2px solid transparent',
+                background: isOver ? 'var(--green-pale)' : 'transparent',
+                transition: 'border-color 0.1s, background 0.1s',
+                padding: isOver ? '4px' : '0',
+              }}>
+                {colItems.length === 0 && !isOver ? (
+                  <div style={{
+                    border: '1px dashed var(--border)', borderRadius: '8px',
+                    padding: '16px', textAlign: 'center',
+                    fontSize: '12px', color: 'var(--gray-300)',
+                  }}>
+                    Empty
                   </div>
                 ) : (
-                  <button
-                    type="button"
-                    onClick={() => setShowAdd(true)}
-                    style={{
-                      width: '100%', padding: '7px', background: 'none',
-                      border: '1px dashed var(--border)', borderRadius: '7px',
-                      fontSize: '12px', color: 'var(--gray-500)', cursor: 'pointer',
-                      fontFamily: 'var(--font)',
-                    }}
-                  >
-                    + Add task
-                  </button>
+                  colItems.map(item => (
+                    <TaskCard
+                      key={item.id}
+                      item={item}
+                      canEdit={canEdit}
+                      isDragging={dragId === item.id}
+                      onDragStart={setDragId}
+                      onDragEnd={() => { setDragId(null); setDragOverCol(null) }}
+                      onDelete={deleteItem}
+                      onOpenModal={() => setSelectedItemId(item.id)}
+                    />
+                  ))
                 )}
               </div>
-            )}
 
-            {doneCount > 0 && (
-              <div style={{ marginTop: '10px', fontSize: '11px', color: 'var(--gray-300)', textAlign: 'center' }}>
-                {doneCount} done
-              </div>
-            )}
-          </div>
-        )
-      })()}
+              {/* Add task, only on To Do column */}
+              {col.key === 'todo' && canEdit && (
+                <div style={{ marginTop: '6px' }}>
+                  {showAdd ? (
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <input
+                        ref={addInputRef}
+                        value={addingText}
+                        onChange={e => setAddingText(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') addItem(); if (e.key === 'Escape') { setShowAdd(false); setAddingText('') } }}
+                        placeholder="Task description..."
+                        style={{
+                          flex: 1, fontSize: '13px', padding: '7px 10px',
+                          border: '1px solid var(--green)', borderRadius: '7px',
+                          fontFamily: 'var(--font)', outline: 'none',
+                          color: 'var(--gray-900)',
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={addItem}
+                        style={{
+                          padding: '7px 12px', background: 'var(--green)', color: '#fff',
+                          border: 'none', borderRadius: '7px', fontSize: '13px',
+                          cursor: 'pointer', fontFamily: 'var(--font)', fontWeight: 600,
+                        }}
+                      >
+                        Add
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setShowAdd(true)}
+                      style={{
+                        width: '100%', padding: '7px', background: 'none',
+                        border: '1px dashed var(--border)', borderRadius: '7px',
+                        fontSize: '12px', color: 'var(--gray-500)', cursor: 'pointer',
+                        fontFamily: 'var(--font)',
+                      }}
+                    >
+                      + Add task
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }

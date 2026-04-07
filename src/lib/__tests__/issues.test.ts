@@ -21,15 +21,15 @@ function makeAnswers(overrides: Partial<Answers> = {}): Answers {
     deliveries_day: 40,
     delivery_radius: 15,
     dispatch_tool: 'Spreadsheet combined with WhatsApp',
-    order_to_dispatch: '15 to 25 minutes — acceptable',
-    route_clustering: 'Usually — informal grouping most of the time',
-    plant_idle: 'Occasionally — a few times per week',
-    order_notice: '4 to 24 hours — day-of or day-before',
+    order_to_dispatch: '15 to 25 minutes, acceptable',
+    route_clustering: 'Usually, informal grouping most of the time',
+    plant_idle: 'Occasionally, a few times per week',
+    order_notice: '4 to 24 hours, day-of or day-before',
     reject_pct: 4,
-    quality_control: 'Usually done — most trucks, informal recording',
+    quality_control: 'Usually done, most trucks, informal recording',
     batch_calibration: '1 to 2 years ago',
-    surplus_concrete: '0.2 to 0.5 m³ — moderate',
-    prod_data_source: 'System records — read from batch computer or dispatch system',
+    surplus_concrete: '0.2 to 0.5 m³, moderate',
+    prod_data_source: 'System records, read from batch computer or dispatch system',
     ...overrides,
   }
 }
@@ -80,9 +80,9 @@ describe('Bottleneck findings', () => {
   it('dispatch score < 65 generates dispatch bottleneck issue', () => {
     const issues = getIssues({
       dispatch_tool: 'Phone calls and a whiteboard or paper list',
-      order_to_dispatch: 'Over 40 minutes — critical bottleneck',
+      order_to_dispatch: 'Over 40 minutes, critical bottleneck',
       route_clustering: 'Rarely or never',
-      plant_idle: 'Every day — always waiting for trucks',
+      plant_idle: 'Every day, always waiting for trucks',
     })
     const disp = findIssue(issues, 'dispatch score')
     expect(disp).toBeDefined()
@@ -115,7 +115,7 @@ describe('Independent findings', () => {
   })
 
   it('cement silo under 2 days generates supply risk', () => {
-    const issues = getIssues({ silo_days: 'Under 2 days — high supply risk' })
+    const issues = getIssues({ silo_days: 'Under 2 days, high supply risk' })
     const silo = findIssue(issues, 'cement stock under 2')
     expect(silo).toBeDefined()
     expect(silo!.sev).toBe('red')
@@ -123,14 +123,14 @@ describe('Independent findings', () => {
   })
 
   it('aggregate under 2 days generates supply risk', () => {
-    const issues = getIssues({ aggregate_days: 'Under 2 days — high supply risk' })
+    const issues = getIssues({ aggregate_days: 'Under 2 days, high supply risk' })
     const agg = findIssue(issues, 'aggregate stock under 2')
     expect(agg).toBeDefined()
     expect(agg!.sev).toBe('red')
   })
 
   it('no operator backup generates dependency issue', () => {
-    const issues = getIssues({ operator_backup: 'No — only one person can run the batch plant' })
+    const issues = getIssues({ operator_backup: 'No, only one person can run the batch plant' })
     const op = findIssue(issues, 'single-operator')
     expect(op).toBeDefined()
     expect(op!.sev).toBe('red')
@@ -152,7 +152,7 @@ describe('Independent findings', () => {
   })
 
   it('slow washout generates washout issue', () => {
-    const issues = getIssues({ washout_time: '20 to 30 minutes — slow' })
+    const issues = getIssues({ washout_time: '20 to 30 minutes, slow' })
     const wash = findIssue(issues, 'washout')
     expect(wash).toBeDefined()
     expect(wash!.category).toBe('independent')
@@ -160,7 +160,7 @@ describe('Independent findings', () => {
 
   it('no Ramadan schedule in GCC country generates issue', () => {
     const issues = getIssues(
-      { ramadan_schedule: 'No — same schedule year-round' },
+      { ramadan_schedule: 'No, same schedule year-round' },
       { country: 'Saudi Arabia' }
     )
     const ram = findIssue(issues, 'ramadan')
@@ -171,7 +171,7 @@ describe('Independent findings', () => {
 
   it('no Ramadan schedule in non-GCC country generates no issue', () => {
     const issues = getIssues(
-      { ramadan_schedule: 'No — same schedule year-round' },
+      { ramadan_schedule: 'No, same schedule year-round' },
       { country: 'Germany' }
     )
     const ram = findIssue(issues, 'ramadan')
@@ -180,8 +180,8 @@ describe('Independent findings', () => {
 
   it('mix designs never reviewed with cement cost generates optimisation issue', () => {
     const issues = getIssues({
-      mix_design_review: 'Never formally reviewed — original designs still in use',
-      admix_strategy: 'Workability only — admixtures used to improve flow and placement',
+      mix_design_review: 'Never formally reviewed, original designs still in use',
+      admix_strategy: 'Workability only, admixtures used to improve flow and placement',
     })
     const mix = findIssue(issues, 'mix designs')
     expect(mix).toBeDefined()
@@ -197,7 +197,7 @@ describe('Independent findings', () => {
   })
 
   it('surplus concrete >= 0.35 generates waste issue', () => {
-    const issues = getIssues({ surplus_concrete: '0.5 to 1.0 m³ — significant' })
+    const issues = getIssues({ surplus_concrete: '0.5 to 1.0 m³, significant' })
     const surplus = findIssue(issues, 'surplus')
     expect(surplus).toBeDefined()
     expect(surplus!.category).toBe('independent')
@@ -226,7 +226,7 @@ describe('Sorting and categories', () => {
   })
 
   it('all issues have a category', () => {
-    const issues = getIssues({ reject_pct: 5, turnaround: 130, silo_days: 'Under 2 days — high supply risk' })
+    const issues = getIssues({ reject_pct: 5, turnaround: 130, silo_days: 'Under 2 days, high supply risk' })
     for (const issue of issues) {
       expect(['bottleneck', 'independent']).toContain(issue.category)
     }
@@ -255,8 +255,8 @@ describe('Edge cases', () => {
       deliveries_day: 30,
       reject_pct: 1,
       dispatch_tool: 'Dedicated dispatch software with real-time tracking',
-      order_to_dispatch: 'Under 15 minutes — fast response',
-      prod_data_source: 'System records — read from batch computer or dispatch system',
+      order_to_dispatch: 'Under 15 minutes, fast response',
+      prod_data_source: 'System records, read from batch computer or dispatch system',
     }
     const r = calc(a, { season: 'peak' })
     const issues = buildIssues(r, a)

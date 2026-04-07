@@ -26,7 +26,7 @@ function Chip({ label, value, isBottleneck }: { label: string; value: number | n
         {label}
       </div>
       <div style={{ fontSize: '22px', fontWeight: 600, fontFamily: 'var(--mono)', color: c.fg, marginTop: '2px' }}>
-        {value !== null ? value : '—'}
+        {value !== null ? value : '-'}
       </div>
       {isBottleneck && (
         <div style={{

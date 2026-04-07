@@ -19,7 +19,7 @@ export interface BenchmarkBand {
 }
 
 export const GCC_BENCHMARKS: Record<string, BenchmarkBand> = {
-  /** Truck turnaround — total cycle from plant departure to return */
+  /** Truck turnaround, total cycle from plant departure to return */
   turnaround: {
     p25: 105,
     p50: 90,
@@ -29,7 +29,7 @@ export const GCC_BENCHMARKS: Record<string, BenchmarkBand> = {
     label: 'GCC turnaround',
   },
 
-  /** Order-to-dispatch — time from order confirmation to truck departure */
+  /** Order-to-dispatch, time from order confirmation to truck departure */
   dispatch: {
     p25: 35,
     p50: 22,
@@ -39,7 +39,7 @@ export const GCC_BENCHMARKS: Record<string, BenchmarkBand> = {
     label: 'GCC dispatch',
   },
 
-  /** Plant utilisation — actual production / nameplate capacity */
+  /** Plant utilisation, actual production / nameplate capacity */
   utilisation: {
     p25: 72,
     p50: 82,
@@ -49,7 +49,7 @@ export const GCC_BENCHMARKS: Record<string, BenchmarkBand> = {
     label: 'GCC utilisation',
   },
 
-  /** Rejection / return rate — loads returned or poured-back as % of total */
+  /** Rejection / return rate, loads returned or poured-back as % of total */
   rejection: {
     p25: 5.5,
     p50: 3.2,
@@ -77,12 +77,12 @@ export const GCC_BENCHMARKS: Record<string, BenchmarkBand> = {
 export function benchmarkTag(key: keyof typeof GCC_BENCHMARKS): string {
   const b = GCC_BENCHMARKS[key]
   if (!b) return ''
-  return `${b.label} — p50: ${b.p50}${b.unit} · p75: ${b.p75}${b.unit}`
+  return `${b.label}, p50: ${b.p50}${b.unit} · p75: ${b.p75}${b.unit}`
 }
 
 /**
  * Live benchmark data shape (matches BenchmarkData from useBenchmarks hook).
- * Duplicated here to avoid a circular import — hook imports from lib/benchmarks.
+ * Duplicated here to avoid a circular import, hook imports from lib/benchmarks.
  */
 export interface LiveBenchmarkData {
   n: number
@@ -97,7 +97,7 @@ export interface LiveBenchmarkData {
  * falling back to static GCC benchmarks when not.
  *
  * Live data shown when N ≥ 3 comparable plants exist.
- * Displayed as: "N similar plants — median: X min · top 25%: Y min"
+ * Displayed as: "N similar plants, median: X min · top 25%: Y min"
  */
 export function liveBenchmarkTag(
   key: keyof typeof GCC_BENCHMARKS,
@@ -116,15 +116,15 @@ export function liveBenchmarkTag(
 
   switch (key) {
     case 'turnaround':
-      return `${label} — median: ${live.turnaround.p50}${b.unit} · top 25%: ${live.turnaround.p25}${b.unit}`
+      return `${label}, median: ${live.turnaround.p50}${b.unit} · top 25%: ${live.turnaround.p25}${b.unit}`
     case 'dispatch':
-      return `${label} — median: ${live.dispatch.p50}${b.unit} · top 25%: ${live.dispatch.p25}${b.unit}`
+      return `${label}, median: ${live.dispatch.p50}${b.unit} · top 25%: ${live.dispatch.p25}${b.unit}`
     case 'rejection':
-      return `${label} — median: ${live.reject.p50}${b.unit} · top 25%: ${live.reject.p25}${b.unit}`
+      return `${label}, median: ${live.reject.p50}${b.unit} · top 25%: ${live.reject.p25}${b.unit}`
     case 'deliveriesPerTruck':
-      return `${label} — median: ${live.deliveries.p50}${b.unit}`
+      return `${label}, median: ${live.deliveries.p50}${b.unit}`
     case 'utilisation':
-      // No utilisation data in live benchmarks — fall back to static
+      // No utilisation data in live benchmarks, fall back to static
       return benchmarkTag(key)
     default:
       return benchmarkTag(key)

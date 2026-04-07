@@ -85,7 +85,7 @@ export default function PreviewPhase({ calcResult, answers, meta, onGenerateRepo
         top5.map((issue, i) => <IssueLine key={i} issue={issue} />)
       ) : (
         <div style={{ padding: '24px', textAlign: 'center', color: 'var(--gray-500)', fontSize: '13px' }}>
-          No findings yet. Enter more data to see results.
+          No findings yet, enter more data to see results.
         </div>
       )}
 

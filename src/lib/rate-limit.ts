@@ -5,7 +5,7 @@
  * 1. Rate limiting: max requests per user per time window
  * 2. Spend cap: max estimated USD per organization per day
  *
- * Note: In-memory — resets on server restart / cold start.
+ * Note: In-memory, resets on server restart / cold start.
  * For production at scale, use Redis or a database counter.
  */
 

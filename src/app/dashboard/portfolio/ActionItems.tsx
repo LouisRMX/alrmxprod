@@ -24,9 +24,9 @@ interface ActionItemsProps {
 }
 
 function plantName(p: ActionItemsProps['assessments'][0]['plant']): string {
-  if (!p) return '—'
+  if (!p) return '-'
   const obj = Array.isArray(p) ? p[0] : p
-  return obj?.name || '—'
+  return obj?.name || '-'
 }
 
 function getConfig(tc: ActionItemsProps['assessments'][0]['tracking_config']) {
@@ -49,17 +49,17 @@ export default function ActionItems({ assessments, lastLogged }: ActionItemsProp
     const tc = getConfig(a.tracking_config)
     const hasReport = !!(report?.executive || report?.diagnosis || report?.actions)
 
-    // 1. Write report — onsite + scored + no report yet
+    // 1. Write report, onsite + scored + no report yet
     if (a.phase === 'onsite' && a.overall !== null && !hasReport) {
       items.push({
         type: 'write_report',
         assessmentId: a.id,
         plantName: pName,
-        detail: `Score ${a.overall}/100. Report not written.`,
+        detail: `Score ${a.overall}/100, report not written`,
       })
     }
 
-    // 2. Stale tracking — active program, last entry >14 days ago
+    // 2. Stale tracking, active program, last entry >14 days ago
     if (tc) {
       const lastEntry = lastLogged[tc.id]
       const refDate = lastEntry ? new Date(lastEntry).getTime() : new Date(tc.started_at).getTime()
@@ -72,18 +72,18 @@ export default function ActionItems({ assessments, lastLogged }: ActionItemsProp
           plantName: pName,
           detail: lastEntry
             ? `No data logged in ${daysSince} days`
-            : `Tracking started. No entries yet.`,
+            : `Tracking started, no entries yet`,
         })
       }
     }
 
-    // 3. Release report — report written, not yet released
+    // 3. Release report, report written, not yet released
     if (hasReport && !a.report_released) {
       items.push({
         type: 'release_report',
         assessmentId: a.id,
         plantName: pName,
-        detail: 'Report written. Not visible to client yet.',
+        detail: 'Report written, not visible to client yet',
       })
     }
   }

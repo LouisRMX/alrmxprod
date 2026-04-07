@@ -50,7 +50,7 @@ export default function DepthPhase({ answers, onAnswer, calcResult, meta, onCont
 
       {visibleTriggers.length === 0 ? (
         <div style={{ padding: '24px', textAlign: 'center', color: 'var(--gray-500)', fontSize: '13px' }}>
-          No deep-dive triggers. Core data looks complete. Continue to findings.
+          No deep-dive triggers, core data looks complete. Continue to findings.
         </div>
       ) : (
         visibleTriggers.map(trigger => (

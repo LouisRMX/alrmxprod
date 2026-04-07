@@ -5,14 +5,12 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import AssessmentShell from '@/components/assessment/AssessmentShell'
 import type { Phase } from '@/lib/questions'
-import { FOLLOWUP_QUESTIONS } from '@/lib/followup-questions'
 import type { Answers, CalcScores } from '@/lib/calculations'
 import { useIsMobile } from '@/hooks/useIsMobile'
 
 interface Assessment {
   id: string
   phase: string
-  baseline_id?: string | null
   plant: { name: string; country: string; customer_id?: string; customer?: { name: string } }
   analyst: { full_name: string }
   date: string
@@ -32,13 +30,11 @@ export default function AssessmentTool({
   userId,
   isAdmin = false,
   userRole = null,
-  baselineAssessment = null,
 }: {
   assessment: Assessment
   userId: string
   isAdmin?: boolean
   userRole?: 'owner' | 'manager' | 'operator' | null
-  baselineAssessment?: { id: string; date: string; answers: Record<string, unknown> } | null
 }) {
   const supabase = createClient()
   const router = useRouter()
@@ -81,7 +77,7 @@ export default function AssessmentTool({
             }),
           })
         } catch {
-          // Non-fatal — don't block the UI
+          // Non-fatal, don't block the UI
         }
       }
 
@@ -125,7 +121,7 @@ export default function AssessmentTool({
       utilPct: number
     }
   }) => {
-    // Queue if already saving — latest data will be saved when current save completes
+    // Queue if already saving, latest data will be saved when current save completes
     if (savingRef.current) {
       pendingSaveRef.current = data
       return
@@ -147,7 +143,7 @@ export default function AssessmentTool({
     if (error) {
       console.error('Assessment save error:', error)
       setSaveError(true)
-      // Show error briefly — no auto-retry to avoid infinite loops
+      // Show error briefly, no auto-retry to avoid infinite loops
       setTimeout(() => setSaveError(false), 4000)
     } else {
       setLastSaved(new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }))
@@ -157,7 +153,7 @@ export default function AssessmentTool({
         const b = data.benchmark
         const rb = b.radius < 10 ? 'short' : b.radius <= 20 ? 'medium' : 'long'
         const fb = b.trucks <= 5 ? 'small' : b.trucks <= 15 ? 'medium' : 'large'
-        // Fire-and-forget — non-fatal if this fails
+        // Fire-and-forget, non-fatal if this fails
         supabase.from('plant_benchmarks').upsert({
           assessment_id:            assessment.id,
           radius_bucket:            rb,
@@ -188,7 +184,7 @@ export default function AssessmentTool({
   }, [assessment.id, supabase])
 
   const phaseLabel = phase === 'workshop' ? 'Phase 1: Pre-assessment'
-    : phase === 'workshop_complete' ? 'Pre-assessment complete. Awaiting on-site visit.'
+    : phase === 'workshop_complete' ? 'Pre-assessment complete, awaiting on-site visit'
     : phase === 'onsite' ? 'Phase 2: On-site diagnostic'
     : phase === 'complete' ? 'Complete' : ''
   const phaseStyle = phase === 'workshop'
@@ -226,7 +222,7 @@ export default function AssessmentTool({
         </span>
         {/* Row 2 (mobile) / right side (desktop): save state + admin actions */}
         <span style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          {/* Admin buttons — hidden on mobile to keep bar clean */}
+          {/* Admin buttons, hidden on mobile to keep bar clean */}
           {isAdmin && !isMobile && (
             <>
               <button
@@ -240,7 +236,7 @@ export default function AssessmentTool({
                   borderColor: reportReleased ? 'var(--tooltip-border)' : 'var(--error-border)',
                 }}
               >
-                {releasing ? '…' : reportReleased ? 'Report released' : 'Report draft. Not visible to customer.'}
+                {releasing ? '…' : reportReleased ? 'Report released' : 'Report draft, not visible to customer'}
               </button>
               <button
                 onClick={() => setShowDeleteModal(true)}
@@ -258,7 +254,7 @@ export default function AssessmentTool({
           )}
           {saveError ? (
             <span style={{ color: 'var(--red)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <span style={{ fontSize: '13px' }}>⚠</span> Save failed. Please try again.
+              <span style={{ fontSize: '13px' }}>⚠</span> Save failed, please try again
             </span>
           ) : saving ? (
             <span style={{ color: 'var(--phase-onsite)', display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -353,11 +349,11 @@ export default function AssessmentTool({
         </div>
       )}
 
-      {/* Native React assessment tool — replaces iframe */}
+      {/* Native React assessment tool, replaces iframe */}
       {!((!isAdmin) && phase === 'workshop_complete') && (
         <AssessmentShell
           initialAnswers={(assessment.answers || {}) as Answers}
-          phase={assessment.baseline_id ? 'full' : assessmentPhase}
+          phase={assessmentPhase}
           season={assessment.season}
           country={assessment.plant?.country}
           plant={assessment.plant?.name}
@@ -371,8 +367,6 @@ export default function AssessmentTool({
           onSave={handleSave}
           requestMode={requestedMode as import('@/components/assessment/ModeTabs').AssessmentMode | undefined}
           focusActions={assessment.focus_actions}
-          customSections={assessment.baseline_id ? FOLLOWUP_QUESTIONS : undefined}
-          baselineData={baselineAssessment ? { answers: baselineAssessment.answers as Answers, date: baselineAssessment.date } : undefined}
         />
       )}
 

@@ -61,9 +61,9 @@ describe('Constants', () => {
   })
 })
 
-// ── calc() — Production Score ────────────────────────────────────────────────
+// ── calc(), Production Score ────────────────────────────────────────────────
 
-describe('calc() — Production Score', () => {
+describe('calc(), Production Score', () => {
   it('85% utilization = score 100', () => {
     // actual_prod = cap * opH * workingDays * 0.85
     // 134 * 0.85 = 113.9 m³/hr → monthly = 113.9 * 10 * 25 = 28475
@@ -102,9 +102,9 @@ describe('calc() — Production Score', () => {
   })
 })
 
-// ── calc() — Dispatch Score ──────────────────────────────────────────────────
+// ── calc(), Dispatch Score ──────────────────────────────────────────────────
 
-describe('calc() — Dispatch Score', () => {
+describe('calc(), Dispatch Score', () => {
   it('all best answers ≈ 95+', () => {
     const r = calc(makeAnswers({
       order_to_dispatch: 'Under 15 minutes \u2014 fast response',
@@ -139,9 +139,9 @@ describe('calc() — Dispatch Score', () => {
   })
 })
 
-// ── calc() — Quality Score ───────────────────────────────────────────────────
+// ── calc(), Quality Score ───────────────────────────────────────────────────
 
-describe('calc() — Quality Score', () => {
+describe('calc(), Quality Score', () => {
   it('0% reject = score 100 (reject component)', () => {
     const r = calc(makeAnswers({ reject_pct: 0 }))
     // Quality is weighted: reject 50%, QC 25%, calib 15%, surplus 10%
@@ -162,9 +162,9 @@ describe('calc() — Quality Score', () => {
   })
 })
 
-// ── calc() — Overall & Bottleneck ────────────────────────────────────────────
+// ── calc(), Overall & Bottleneck ────────────────────────────────────────────
 
-describe('calc() — Overall & Bottleneck', () => {
+describe('calc(), Overall & Bottleneck', () => {
   it('overall is average of sub-scores', () => {
     const r = calc(makeAnswers())
     const subs = [r.scores.prod, r.scores.dispatch, r.scores.logistics, r.scores.quality]
@@ -195,9 +195,9 @@ describe('calc() — Overall & Bottleneck', () => {
   })
 })
 
-// ── calc() — Financial ───────────────────────────────────────────────────────
+// ── calc(), Financial ───────────────────────────────────────────────────────
 
-describe('calc() — Financial', () => {
+describe('calc(), Financial', () => {
   it('contribution = price - costs', () => {
     const r = calc(makeAnswers({ price_m3: 100, cement_cost: 30, aggregate_cost: 10, admix_cost: 5 }))
     expect(r.contrib).toBe(55)
@@ -219,9 +219,9 @@ describe('calc() — Financial', () => {
   })
 })
 
-// ── calc() — Constraint Logic ────────────────────────────────────────────────
+// ── calc(), Constraint Logic ────────────────────────────────────────────────
 
-describe('calc() — Constraints', () => {
+describe('calc(), Constraints', () => {
   it('TARGET_TA based on delivery radius', () => {
     const r = calc(makeAnswers({ delivery_radius: 20 }))
     expect(r.TARGET_TA).toBe(90) // 60 + 20*1.5 = 90
@@ -244,9 +244,9 @@ describe('calc() — Constraints', () => {
   })
 })
 
-// ── calc() — Edge Cases ──────────────────────────────────────────────────────
+// ── calc(), Edge Cases ──────────────────────────────────────────────────────
 
-describe('calc() — Edge Cases', () => {
+describe('calc(), Edge Cases', () => {
   it('handles empty answers without crashing', () => {
     const r = calc({})
     // reject_pct defaults to 0 → rejectScore = 100, so overall is not null
@@ -313,7 +313,7 @@ function makeScenario(overrides: Partial<SimScenario> = {}): SimScenario {
   }
 }
 
-describe('simCalc() — Basic', () => {
+describe('simCalc(), Basic', () => {
   it('no change = zero delta', () => {
     const b = makeBaseline()
     const s = makeScenario()
@@ -345,7 +345,7 @@ describe('simCalc() — Basic', () => {
   })
 })
 
-describe('simCalc() — Constraint Logic', () => {
+describe('simCalc(), Constraint Logic', () => {
   it('output = min(production, fleet)', () => {
     const b = makeBaseline()
     const r = simCalc(b, makeScenario())
@@ -376,7 +376,7 @@ describe('simCalc() — Constraint Logic', () => {
   })
 })
 
-describe('simCalc() — Financial', () => {
+describe('simCalc(), Financial', () => {
   it('price change affects revenue but not volume', () => {
     const b = makeBaseline()
     const low = simCalc(b, makeScenario({ price: 50 }))
@@ -398,7 +398,7 @@ describe('simCalc() — Financial', () => {
   })
 })
 
-describe('simCalc() — Dispatch Efficiency', () => {
+describe('simCalc(), Dispatch Efficiency', () => {
   it('low OTD → high dispatch efficiency', () => {
     const b = makeBaseline()
     const r = simCalc(b, makeScenario({ otd: 5 }))
@@ -427,7 +427,7 @@ describe('simCalc() — Dispatch Efficiency', () => {
   })
 })
 
-describe('simCalc() — Scores', () => {
+describe('simCalc(), Scores', () => {
   it('prod score 100 when fleet is at plant ceiling', () => {
     const b = makeBaseline()
     // Use enough trucks + fast turnaround to hit the plant ceiling → sUtil ≈ 92

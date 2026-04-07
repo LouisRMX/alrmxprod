@@ -10,7 +10,7 @@ import { describe, it, expect } from 'vitest'
 
 // ── /api/ai-stream validation logic ──────────────────────────────────────────
 
-describe('/api/ai-stream — validation', () => {
+describe('/api/ai-stream, validation', () => {
   it('requires either prompt or messages', () => {
     const body = {}
     const messages = ((body as Record<string, unknown>).messages as Array<Record<string, unknown>> | undefined) || [{ role: 'user', content: (body as Record<string, unknown>).prompt }]
@@ -58,7 +58,7 @@ describe('/api/ai-stream — validation', () => {
 
 // ── /api/generate-report validation logic ────────────────────────────────────
 
-describe('/api/generate-report — validation', () => {
+describe('/api/generate-report, validation', () => {
   it('requires assessmentId, type, and context', () => {
     const requiredFields = ['assessmentId', 'type', 'context']
 
@@ -117,7 +117,7 @@ ISSUES: ${JSON.stringify(ctx.issues)}
 ANSWERS: ${JSON.stringify(ctx.answers)}
 
 Write 3 focused paragraphs covering: 1) Production performance 2) Dispatch & fleet 3) Quality & risk.
-No recommendations in this section — diagnosis only. Be specific with numbers. GCC context.`
+No recommendations in this section, diagnosis only. Be specific with numbers. GCC context.`
 }
 
 function buildActionsPrompt(ctx: Record<string, unknown>) {
@@ -130,7 +130,7 @@ TOP ISSUES: ${JSON.stringify(ctx.issues)}
 SCORES: Production ${scores?.prod}/100, Dispatch ${scores?.dispatch}/100, Fleet ${scores?.fleet}/100
 
 Write exactly 3 specific, actionable recommendations:
-1. Address the primary bottleneck — most impact
+1. Address the primary bottleneck, most impact
 2. Address the secondary finding
 3. Address data quality or set up the next visit
 
@@ -139,7 +139,7 @@ Each action: what to do, who owns it, expected impact in $. Be specific. GCC con
 
 describe('Report prompt building', () => {
   const ctx = {
-    plant: 'Plant 1 — Riyadh North',
+    plant: 'Plant 1, Riyadh North',
     country: 'Saudi Arabia',
     date: '2026-03-27',
     overall: 53,

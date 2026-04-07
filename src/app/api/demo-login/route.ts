@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
 
   if (!email || !password) {
     return NextResponse.json(
-      { error: 'Demo not configured — set DEMO_EMAIL and DEMO_PASSWORD in .env.local' },
+      { error: 'Demo not configured, set DEMO_EMAIL and DEMO_PASSWORD in .env.local' },
       { status: 503 }
     )
   }
@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
 
   if (error) {
     return NextResponse.json(
-      { error: 'Demo login failed — check DEMO_EMAIL / DEMO_PASSWORD' },
+      { error: 'Demo login failed, check DEMO_EMAIL / DEMO_PASSWORD' },
       { status: 401 }
     )
   }

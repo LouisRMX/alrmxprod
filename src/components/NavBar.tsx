@@ -116,7 +116,7 @@ export default function NavBar({ user, profile, memberRole }: NavBarProps) {
       ]
     }
 
-    // No memberRole override — show full admin tabs
+    // No memberRole override, show full admin tabs
     if (isAdmin) {
       return [
         { label: 'New assessment', href: '/dashboard/assess' },

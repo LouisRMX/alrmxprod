@@ -11,9 +11,8 @@ import { useBenchmarks } from '@/hooks/useBenchmarks'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { stripMarkdown } from '@/lib/stripMarkdown'
 import FindingCard from './FindingCard'
-import ExportPDF, { SummaryPDFButton } from './ExportPDF'
+import ExportPDF from './ExportPDF'
 import ActionBoard from './ActionBoard'
-import ComparisonBanner from './ComparisonBanner'
 import type { DemoBannerProps } from '@/components/assessment/AssessmentShell'
 
 function fmt(n: number): string {
@@ -261,10 +260,10 @@ function KPIPyramid({ calcResult, answers, totalLoss, financialBottleneck, liveB
 
   // Dispatch time midpoint from answer
   const dispTimeMap: Record<string, number> = {
-    'Under 15 minutes — fast response': 12,
-    '15 to 25 minutes — acceptable': 20,
-    '25 to 40 minutes — slow': 32,
-    'Over 40 minutes — critical bottleneck': 45,
+    'Under 15 minutes, fast response': 12,
+    '15 to 25 minutes, acceptable': 20,
+    '25 to 40 minutes, slow': 32,
+    'Over 40 minutes, critical bottleneck': 45,
   }
   const dispTime = dispTimeMap[answers.order_to_dispatch as string] ?? null
 
@@ -277,7 +276,7 @@ function KPIPyramid({ calcResult, answers, totalLoss, financialBottleneck, liveB
 
   // Which boxes get bottleneck tag.
   // If Production is the financial bottleneck but turnaround is over target,
-  // the root cause is Fleet Turnaround — not Plant Utilisation.
+  // the root cause is Fleet Turnaround, not Plant Utilisation.
   // Plant Utilisation is a symptom; turnaround is the lever.
   const taIsRootCause = financialBottleneck === 'Production' && calcResult.ta > calcResult.TARGET_TA
   const isUtilBn = financialBottleneck === 'Production' && !taIsRootCause
@@ -366,11 +365,11 @@ function KPIPyramid({ calcResult, answers, totalLoss, financialBottleneck, liveB
             benchmark={liveBenchmarkTag('dispatch', liveBenchmarks ?? null)}
           />
         ) : (
-          <KpiBox label="Dispatch Time" value="—" target="target 15 min" isBottleneck={false} isWarn={false} size="small" bar={null} gap="" gapColor="var(--gray-400)" />
+          <KpiBox label="Dispatch Time" value="-" target="target 15 min" isBottleneck={false} isWarn={false} size="small" bar={null} gap="" gapColor="var(--gray-400)" />
         )}
         <KpiBox
           label="Deliveries / truck / day"
-          value={delPerTruck > 0 ? String(delPerTruck) : '—'}
+          value={delPerTruck > 0 ? String(delPerTruck) : '-'}
           target={targetDelPerTruck > 0 ? `target ${targetDelPerTruck}` : ''}
           isBottleneck={false}
           isWarn={delWarn}
@@ -496,7 +495,7 @@ function LogisticsSection({ text, gpsAvgTA, perMinTACoeff, TARGET_TA, selfReport
                   {line}
                 </div>
               ))}
-              {/* GPS financial impact — injected into TURNAROUND PERFORMANCE card */}
+              {/* GPS financial impact, injected into TURNAROUND PERFORMANCE card */}
               {isTurnaround && gpsTurnaroundLoss !== null && gpsExcessMin !== null && (
                 <div style={{
                   marginTop: '10px', paddingTop: '10px',
@@ -513,7 +512,7 @@ function LogisticsSection({ text, gpsAvgTA, perMinTACoeff, TARGET_TA, selfReport
                   <div style={{ fontSize: '11px', color: 'var(--gray-500)', lineHeight: '1.4' }}>
                     {gpsExcessMin > 0
                       ? `GPS-verified financial impact, ${gpsExcessMin} excess min × ${fmt(perMinTACoeff)}/min`
-                      : 'GPS data: turnaround is within target. No financial leakage from fleet cycle time.'}
+                      : 'GPS data: turnaround is within target, no financial leakage from fleet cycle time'}
                   </div>
                 </div>
               )}
@@ -688,7 +687,7 @@ function getSliderConfig(calcResult: CalcResult, dimension: string): SliderConfi
     case 'Fleet': {
       const gap = calcResult.ta - calcResult.TARGET_TA
       if (gap <= 0) return null
-      // Use cost-only coefficient when demand-constrained — slider shows operational
+      // Use cost-only coefficient when demand-constrained, slider shows operational
       // savings only, not revenue recovery
       const taLeak = calcResult.demandSufficient === false
         ? calcResult.turnaroundLeakMonthlyCostOnly
@@ -809,123 +808,6 @@ function BottleneckSlider({ calcResult, dimension }: {
   )
 }
 
-// ── Calc Basis Panel ───────────────────────────────────────────────────────
-function CalcBasisPanel({ calcResult, answers }: { calcResult: CalcResult; answers: Answers }) {
-  const [open, setOpen] = useState(true)
-
-  const items: { label: string; value: string; estimated: boolean; hint?: string }[] = []
-
-  if (calcResult.price > 0) {
-    if (calcResult.marginIncomplete) {
-      items.push({
-        label: 'Contribution margin',
-        value: `~$${calcResult.contribSafe}/m³ (35% of price, material costs not fully entered)`,
-        estimated: true,
-        hint: 'Enter cement, aggregate and admix costs in section 1 of the assessment',
-      })
-    } else {
-      items.push({
-        label: 'Contribution margin',
-        value: `$${calcResult.contribSafe}/m³ (${Math.round(calcResult.marginRatio * 100)}% of price)`,
-        estimated: false,
-      })
-    }
-  }
-
-  if (calcResult.dispatchMin) {
-    items.push({
-      label: 'Dispatch time',
-      value: `${calcResult.dispatchMin} min, midpoint of selected range`,
-      estimated: true,
-      hint: 'Record order receipt vs. batch start time for 20 orders to get an actual average',
-    })
-  }
-
-  if (calcResult.ta > 0) {
-    items.push({
-      label: 'Turnaround time',
-      value: `${calcResult.ta} min, midpoint of selected range`,
-      estimated: true,
-      hint: 'Log truck departure and yard return for 10 trips this week, take the average',
-    })
-  }
-
-  if (!(+(answers.working_days_month ?? 0))) {
-    items.push({
-      label: 'Working days',
-      value: `${calcResult.workingDaysMonth}/month (standard assumption)`,
-      estimated: true,
-    })
-  }
-
-  if (!(+(answers.partial_load_pct ?? 0)) && calcResult.partialLeakMonthly > 0) {
-    items.push({
-      label: 'Partial load fraction',
-      value: '30% of deliveries (default, no measurement entered)',
-      estimated: true,
-    })
-  }
-
-  const estimatedCount = items.filter(i => i.estimated).length
-  if (items.length === 0) return null
-
-  return (
-    <div style={{ marginBottom: '12px' }}>
-      <button
-        type="button"
-        onClick={() => setOpen(p => !p)}
-        style={{
-          width: '100%', display: 'flex', alignItems: 'center', gap: '6px',
-          padding: '8px 12px',
-          background: open ? 'var(--white)' : 'var(--gray-50)',
-          border: '1px solid var(--border)',
-          borderRadius: open ? '8px 8px 0 0' : '8px',
-          cursor: 'pointer', fontFamily: 'var(--font)', fontSize: '11px',
-          color: 'var(--gray-500)', textAlign: 'left',
-        }}
-      >
-        <span style={{ color: estimatedCount > 0 ? '#b45309' : '#16a34a' }}>ⓘ</span>
-        <span style={{ flex: 1 }}>
-          {estimatedCount > 0
-            ? `${estimatedCount} estimated input${estimatedCount !== 1 ? 's' : ''}. Figures are indicative.`
-            : 'All key inputs measured'}
-        </span>
-        <span style={{ fontSize: '10px', color: 'var(--gray-400)' }}>{open ? '▲' : '▼'}</span>
-      </button>
-
-      {open && (
-        <div style={{
-          border: '1px solid var(--border)', borderTop: 'none',
-          borderRadius: '0 0 8px 8px', background: 'var(--white)',
-          padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: '9px',
-        }}>
-          {items.map((item, i) => (
-            <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-              <span style={{ color: item.estimated ? '#d97706' : '#16a34a', fontSize: '12px', flexShrink: 0, marginTop: '1px', fontWeight: 700 }}>
-                {item.estimated ? '~' : '✓'}
-              </span>
-              <div>
-                <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--gray-700)' }}>{item.label}: </span>
-                <span style={{ fontSize: '11px', color: 'var(--gray-500)' }}>{item.value}</span>
-                {item.hint && (
-                  <div style={{ fontSize: '10px', color: '#b45309', marginTop: '2px' }}>
-                    How to measure: {item.hint}
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
-          {estimatedCount > 0 && (
-            <div style={{ fontSize: '10px', color: 'var(--gray-400)', marginTop: '2px', borderTop: '1px solid var(--border)', paddingTop: '6px' }}>
-              Measure the actual figures and update them in the assessment. Your recovery estimate will recalculate automatically.
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
-
 // ── Financial Headline ─────────────────────────────────────────────────────
 function FinancialHeadline({ totalLoss, dailyLoss, calcResult }: {
   totalLoss: number
@@ -946,7 +828,7 @@ function FinancialHeadline({ totalLoss, dailyLoss, calcResult }: {
         <div>
           <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#9b9b9b', marginBottom: '4px' }}>Plant status</div>
           <div style={{ fontSize: '24px', fontWeight: 800, color: '#1f8a5e', lineHeight: 1, marginBottom: '4px' }}>Performing at benchmark</div>
-          <div style={{ fontSize: '11px', color: '#9b9b9b' }}>No operational losses identified. All primary metrics at or above target.</div>
+          <div style={{ fontSize: '11px', color: '#9b9b9b' }}>No operational losses identified, all primary metrics at or above target</div>
         </div>
       </div>
     )
@@ -966,18 +848,10 @@ function FinancialHeadline({ totalLoss, dailyLoss, calcResult }: {
           {fmt(totalLoss)}{' '}
           <span style={{ fontSize: '16px', fontWeight: 500, color: '#e88' }}>/ month</span>
         </div>
-        {(() => {
-          const range = calcLossRange(totalLoss)
-          return (
-            <div style={{ fontSize: '11px', color: '#bbb', marginTop: '2px' }}>
-              est. range {fmt(range.low)}–{fmt(range.high)} / month
-            </div>
-          )
-        })()}
-        <div style={{ fontSize: '11px', color: '#9b9b9b', marginTop: '4px' }}>
+        <div style={{ fontSize: '11px', color: '#9b9b9b', marginTop: '6px' }}>
           {calcResult.demandSufficient === false
             ? 'demand-constrained, operational cost saving only'
-            : `${fmt(dailyLoss)} every working day, based on reported data`}
+            : `${fmt(dailyLoss)} every working day, based on current operational data`}
         </div>
       </div>
       <div style={{ textAlign: 'right', flexShrink: 0 }}>
@@ -1023,7 +897,7 @@ function ImpactHook({ bnLoss, bnDailyLoss, totalLoss, calcResult, issues, financ
         <div>
           <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#9b9b9b', marginBottom: '4px' }}>Plant status</div>
           <div style={{ fontSize: '24px', fontWeight: 800, color: '#1f8a5e', lineHeight: 1, marginBottom: '4px' }}>Performing at benchmark</div>
-          <div style={{ fontSize: '11px', color: '#9b9b9b' }}>No operational losses identified. All primary metrics at or above target.</div>
+          <div style={{ fontSize: '11px', color: '#9b9b9b' }}>No operational losses identified, all primary metrics at or above target</div>
         </div>
       </div>
     )
@@ -1047,7 +921,7 @@ function ImpactHook({ bnLoss, bnDailyLoss, totalLoss, calcResult, issues, financ
     }
   })()
 
-  // Right side mirrors left — bnLoss is both the leakage and the recoverable for this dimension
+  // Right side mirrors left, bnLoss is both the leakage and the recoverable for this dimension
 
   return (
     <div style={{
@@ -1055,22 +929,14 @@ function ImpactHook({ bnLoss, bnDailyLoss, totalLoss, calcResult, issues, financ
       overflow: 'hidden', marginBottom: '16px',
       display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '3fr 2fr',
     }}>
-      {/* Left — Estimated revenue leakage */}
+      {/* Left, Estimated revenue leakage */}
       <div style={{ padding: isMobile ? '16px' : '24px', background: '#fff', borderRight: isMobile ? 'none' : '1px solid #e2e2de', borderBottom: isMobile ? '1px solid #e2e2de' : 'none' }}>
         <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.4px', textTransform: 'uppercase', color: '#999', marginBottom: '8px' }}>
-          {driverLabel ? `${driverLabel}: ` : ''}{calcResult.demandSufficient === false ? 'Margin improvement potential' : 'Estimated revenue leakage'}
+          {driverLabel ? `${driverLabel}, ` : ''}{calcResult.demandSufficient === false ? 'Margin improvement potential' : 'Estimated revenue leakage'}
         </div>
-        <div style={{ fontSize: isMobile ? '32px' : '48px', fontWeight: 800, color: '#1a1a1a', lineHeight: 1, letterSpacing: '-1px', marginBottom: '2px' }}>
+        <div style={{ fontSize: isMobile ? '32px' : '48px', fontWeight: 800, color: '#1a1a1a', lineHeight: 1, letterSpacing: '-1px', marginBottom: '4px' }}>
           {fmtK(bnLoss)}<span style={{ fontSize: isMobile ? '15px' : '20px', fontWeight: 500, color: '#888', marginLeft: '8px' }}>/ month</span>
         </div>
-        {(() => {
-          const range = calcLossRange(bnLoss)
-          return (
-            <div style={{ fontSize: '11px', color: '#ccc', marginBottom: '4px' }}>
-              est. range {fmtK(range.low)}–{fmtK(range.high)} / month
-            </div>
-          )
-        })()}
         <div style={{ fontSize: '13px', color: '#aaa', marginBottom: '16px' }}>
           ≈ {fmtK(bnDailyLoss)} per day
         </div>
@@ -1082,22 +948,11 @@ function ImpactHook({ bnLoss, bnDailyLoss, totalLoss, calcResult, issues, financ
         {driverMetric && (
           <div style={{ fontSize: '12px', color: '#aaa' }}>{driverMetric}</div>
         )}
-        {(() => {
-          const scoreBn = calcResult.bottleneck
-          const finBn = financialBottleneck
-          if (!scoreBn || !finBn || scoreBn === finBn) return null
-          const scoreBnLabel = scoreBn === 'Fleet' ? 'Logistics' : scoreBn
-          const finBnLabel = finBn === 'Fleet' ? 'Logistics' : finBn
-          const scoreVal = scoreBn === 'Fleet' ? calcResult.scores.logistics
-            : scoreBn === 'Dispatch' ? calcResult.scores.dispatch
-            : scoreBn === 'Quality' ? calcResult.scores.quality
-            : calcResult.scores.prod
-          return (
-            <div style={{ fontSize: '11px', color: '#bbb', marginTop: '6px', fontStyle: 'italic' }}>
-              {scoreBnLabel} has the lowest score ({scoreVal != null ? Math.round(scoreVal) : '?'}/100). {finBnLabel} drives the largest financial loss and is prioritised.
-            </div>
-          )
-        })()}
+        {(financialBottleneck === 'Fleet' || financialBottleneck === 'Dispatch') && driverMetric && (
+          <div style={{ fontSize: '11px', color: '#bbb', marginTop: '2px', fontStyle: 'italic' }}>
+            Based on reported ranges, actual figures confirmed on-site
+          </div>
+        )}
         {liveBenchmarks && liveBenchmarks.n >= 3 && (() => {
           // Show relevant benchmark for the primary bottleneck
           const bTag = financialBottleneck === 'Fleet'
@@ -1116,23 +971,18 @@ function ImpactHook({ bnLoss, bnDailyLoss, totalLoss, calcResult, issues, financ
         })()}
       </div>
 
-      {/* Right — Recovery potential (main constraint only) */}
+      {/* Right, Recovery potential (main constraint only) */}
       <div style={{ padding: isMobile ? '16px' : '24px', background: '#f6fbf8' }}>
         <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.4px', textTransform: 'uppercase', color: '#7ab89a', marginBottom: '8px' }}>
-          {driverLabel ? `${driverLabel}: ` : ''}Recovery potential
+          {driverLabel ? `${driverLabel}, ` : ''}Recovery potential
         </div>
         {bnLoss > 0 ? (
           <>
-            {(() => {
-              const { low, high } = calcLossRange(bnLoss)
-              return (
-                <div style={{ fontSize: isMobile ? '26px' : '32px', fontWeight: 800, color: '#1a6644', lineHeight: 1, letterSpacing: '-1px', marginBottom: '4px' }}>
-                  {fmtK(low)}–{fmtK(high)}<span style={{ fontSize: '15px', fontWeight: 500, color: '#5aaa82', marginLeft: '8px' }}>/ month</span>
-                </div>
-              )
-            })()}
-            <div style={{ fontSize: '12px', color: '#7ab89a', marginBottom: '20px' }}>
-              midpoint {fmtK(bnLoss)} · ≈ {fmtK(bnDailyLoss)} per day
+            <div style={{ fontSize: isMobile ? '32px' : '40px', fontWeight: 800, color: '#1a6644', lineHeight: 1, letterSpacing: '-1px', marginBottom: '4px' }}>
+              {fmtK(bnLoss)}<span style={{ fontSize: '17px', fontWeight: 500, color: '#5aaa82', marginLeft: '8px' }}>/ month</span>
+            </div>
+            <div style={{ fontSize: '13px', color: '#7ab89a', marginBottom: '20px' }}>
+              ≈ {fmtK(bnDailyLoss)} per day
             </div>
 
             {driverLabel && (
@@ -1203,7 +1053,7 @@ function ScoreOverview({ calcResult, meta, phase }: {
       {/* Right side */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: '17px', fontWeight: 700, color: '#1a1a1a', marginBottom: '4px' }}>
-          {plantName}: {phaseLabel}
+          {plantName}, {phaseLabel}
         </div>
         <div style={{ fontSize: '12px', color: '#666', marginBottom: '14px' }}>
           {belowBenchmark > 0
@@ -1236,10 +1086,10 @@ function DimensionSummary({ calcResult, issues, answers }: {
   if (calcResult.overall === null) return null
 
   const dispTimeMap: Record<string, number> = {
-    'Under 15 minutes — fast response': 12,
-    '15 to 25 minutes — acceptable': 20,
-    '25 to 40 minutes — slow': 32,
-    'Over 40 minutes — critical bottleneck': 45,
+    'Under 15 minutes, fast response': 12,
+    '15 to 25 minutes, acceptable': 20,
+    '25 to 40 minutes, slow': 32,
+    'Over 40 minutes, critical bottleneck': 45,
   }
   const dispMin = dispTimeMap[answers.order_to_dispatch as string] ?? null
   const utilPct = Math.round(calcResult.util * 100)
@@ -1580,7 +1430,7 @@ function StartTrackingCard({ calcResult, issues, totalLoss, financialBottleneck,
         padding: '16px 24px', background: '#fafaf9', borderTop: '1px solid #e8e8e6',
       }}>
         <span style={{ fontSize: '11px', color: '#9b9b9b', lineHeight: 1.5 }}>
-          Lock in baselines and track recovery{baselines.length > 0 ? `: ${baselines.join(' · ')}` : ''}
+          Lock in baselines and track recovery{baselines.length > 0 ? `, ${baselines.join(' · ')}` : ''}
         </span>
         <button
           type="button"
@@ -1645,7 +1495,7 @@ function StartHereCard({ calcResult, issues, totalLoss, financialBottleneck, onS
         </div>
         <div style={{ fontSize: '13px', color: '#666', marginBottom: '20px', lineHeight: 1.5 }}>
           Costs <span style={{ fontWeight: 600, color: '#cc3333' }}>{fmt(topIssue.loss)}/month</span>
-          {topIssue.rec ? ` ${topIssue.rec}` : ''}
+          {topIssue.rec ? `, ${topIssue.rec}` : ''}
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '16px' }}>
@@ -1774,10 +1624,10 @@ function MetricsSnapshot({ calcResult, answers }: { calcResult: CalcResult; answ
   if (calcResult.overall === null) return null
 
   const dispTimeMap: Record<string, number> = {
-    'Under 15 minutes — fast response': 12,
-    '15 to 25 minutes — acceptable': 20,
-    '25 to 40 minutes — slow': 32,
-    'Over 40 minutes — critical bottleneck': 45,
+    'Under 15 minutes, fast response': 12,
+    '15 to 25 minutes, acceptable': 20,
+    '25 to 40 minutes, slow': 32,
+    'Over 40 minutes, critical bottleneck': 45,
   }
   const dispTime = dispTimeMap[answers.order_to_dispatch as string] ?? null
   const utilPct = Math.round(calcResult.util * 100)
@@ -1786,25 +1636,25 @@ function MetricsSnapshot({ calcResult, answers }: { calcResult: CalcResult; answ
   const metrics: { label: string; value: string; target: string; status: Status }[] = [
     {
       label: 'Turnaround',
-      value: calcResult.ta > 0 ? `${calcResult.ta} min` : '—',
+      value: calcResult.ta > 0 ? `${calcResult.ta} min` : '-',
       target: `Target ${calcResult.TARGET_TA} min`,
       status: calcResult.ta > calcResult.TARGET_TA ? 'warn' : 'ok',
     },
     {
       label: 'Dispatch',
-      value: dispTime !== null ? `${dispTime} min` : '—',
+      value: dispTime !== null ? `${dispTime} min` : '-',
       target: 'Target 15 min',
       status: dispTime === null ? 'ok' : dispTime > 25 ? 'warn' : dispTime > 15 ? 'caution' : 'ok',
     },
     {
       label: 'Rejection',
-      value: calcResult.rejectPct > 0 ? `${Math.round(calcResult.rejectPct)}%` : '—',
+      value: calcResult.rejectPct > 0 ? `${Math.round(calcResult.rejectPct)}%` : '-',
       target: 'Target 1.5%',
       status: calcResult.rejectPct > 3 ? 'warn' : calcResult.rejectPct > 1.5 ? 'caution' : 'ok',
     },
     {
       label: 'Utilisation',
-      value: utilPct > 0 ? `${utilPct}%` : '—',
+      value: utilPct > 0 ? `${utilPct}%` : '-',
       target: `Target ${calcResult.utilisationTarget}%`,
       status: utilPct > 0 && utilPct < 80 ? 'warn' : utilPct > 0 && utilPct < calcResult.utilisationTarget ? 'caution' : 'ok',
     },
@@ -1920,12 +1770,10 @@ function NextImprovements({ issues }: { issues: Issue[] }) {
 
 // ── Indicative notice ─────────────────────────────────────────────────────
 function IndicativeNotice() {
-  const [open, setOpen] = useState(false)
-
   const gaps = [
     {
       label: 'Dosing and batch variance',
-      detail: 'Requires batcher computer log. Uncalibrated scales drift ±3–8% on cement dosing, invisible without the raw data.',
+      detail: 'Requires batcher computer log, uncalibrated scales drift ±3–8% on cement dosing, invisible without the raw data.',
     },
     {
       label: 'Actual truck idle and yard time',
@@ -1937,11 +1785,11 @@ function IndicativeNotice() {
     },
     {
       label: 'Water additions at site',
-      detail: 'Free water added by crews before discharge is the most common cause of strength failures and rejections. Never captured in self-reporting.',
+      detail: 'Free water added by crews before discharge is the most common cause of strength failures and rejections, never captured in self-reporting.',
     },
     {
       label: 'Mix design cement content',
-      detail: 'Whether current designs carry excess cement vs. optimised benchmarks. Requires lab records and batcher log comparison.',
+      detail: 'Whether current designs carry excess cement vs. optimised benchmarks, requires lab records and batcher log comparison.',
     },
     {
       label: 'Return mortar volume',
@@ -1951,55 +1799,45 @@ function IndicativeNotice() {
 
   return (
     <div style={{ marginBottom: '16px', border: '1px solid #e8e8e6', borderRadius: '12px', overflow: 'hidden' }}>
-      <button
-        type="button"
-        onClick={() => setOpen(v => !v)}
-        style={{
-          width: '100%', display: 'flex', alignItems: 'center', gap: '10px',
-          padding: '13px 20px', background: 'none', border: 'none',
-          cursor: 'pointer', fontFamily: 'var(--font)', textAlign: 'left',
-          borderBottom: open ? '1px solid #e8e8e6' : 'none',
-        }}
-      >
+      <div style={{
+        padding: '13px 20px', borderBottom: '1px solid #e8e8e6',
+        display: 'flex', alignItems: 'center', gap: '10px',
+      }}>
         <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#f59e0b', flexShrink: 0 }} />
-        <span style={{ fontSize: '13px', fontWeight: 600, color: '#1a1a1a' }}>
-          Indicative assessment, based on reported data
-        </span>
-        <span style={{ fontSize: '11px', color: '#999', marginLeft: '2px' }}>
-          6 data points require physical verification
-        </span>
-        <span style={{ marginLeft: 'auto', fontSize: '10px', color: '#bbb' }}>{open ? '↑' : '↓'}</span>
-      </button>
-
-      {open && (
-        <>
-          <div>
-            {gaps.map((gap, i) => (
-              <div key={i} style={{
-                display: 'flex', alignItems: 'flex-start', gap: '12px',
-                padding: '10px 20px',
-                borderBottom: i < gaps.length - 1 ? '1px solid #f5f5f3' : 'none',
-              }}>
-                <div style={{
-                  width: '5px', height: '5px', borderRadius: '50%',
-                  background: '#d1d1ce', flexShrink: 0, marginTop: '7px',
-                }} />
-                <div style={{ fontSize: '12px', lineHeight: 1.5, color: '#555' }}>
-                  <span style={{ fontWeight: 600, color: '#333' }}>{gap.label}: </span>
-                  {gap.detail}
-                </div>
-              </div>
-            ))}
-          </div>
-          <div style={{
-            padding: '11px 20px', background: '#fafaf9',
-            borderTop: '1px solid #e8e8e6',
-            fontSize: '12px', color: '#888', lineHeight: 1.5,
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: '13px', fontWeight: 600, color: '#1a1a1a' }}>
+            Indicative assessment, based on reported data
+          </span>
+          <span style={{ fontSize: '11px', color: '#999' }}>
+            6 data points require physical verification
+          </span>
+        </div>
+      </div>
+      <div>
+        {gaps.map((gap, i) => (
+          <div key={i} style={{
+            display: 'flex', alignItems: 'flex-start', gap: '12px',
+            padding: '10px 20px',
+            borderBottom: i < gaps.length - 1 ? '1px solid #f5f5f3' : 'none',
           }}>
-            A physical assessment verifies these figures directly, typically closing the gap between indicative and actual loss by 20–40%.
+            <div style={{
+              width: '5px', height: '5px', borderRadius: '50%',
+              background: '#d1d1ce', flexShrink: 0, marginTop: '7px',
+            }} />
+            <div style={{ fontSize: '12px', lineHeight: 1.5, color: '#555' }}>
+              <span style={{ fontWeight: 600, color: '#333' }}>{gap.label}, </span>
+              {gap.detail}
+            </div>
           </div>
-        </>
-      )}
+        ))}
+      </div>
+      <div style={{
+        padding: '11px 20px', background: '#fafaf9',
+        borderTop: '1px solid #e8e8e6',
+        fontSize: '12px', color: '#888', lineHeight: 1.5,
+      }}>
+        A physical assessment verifies these figures directly, typically closing the gap between indicative and actual loss by 20–40%.
+      </div>
     </div>
   )
 }
@@ -2061,7 +1899,7 @@ function ActionsPanel({ issues }: { issues: Issue[] }) {
     <div style={{ marginBottom: '10px', background: '#fff', border: '1px solid #e8e8e6', borderRadius: '10px', overflow: 'hidden' }}>
       {/* Immediate actions group header */}
       <div style={{ padding: '10px 20px', background: '#fff0f0', borderBottom: '1px solid #f0f0ee', fontSize: '10px', fontWeight: 700, color: '#cc3333', letterSpacing: '.8px', textTransform: 'uppercase' }}>
-        Week 1–2: Immediate
+        Week 1–2, Immediate
       </div>
       {immediate.map((issue, i) => (
         <ActionRow key={i} issue={issue} num={i + 1} isLast={i === immediate.length - 1 && later.length === 0} />
@@ -2115,8 +1953,6 @@ interface FullReportDrawerProps {
   phase?: Phase
   financialBottleneck: string | null
   readOnly?: boolean
-  focusActions?: string[]
-  isFollowup?: boolean
 }
 
 function FullReportDrawer({
@@ -2126,7 +1962,6 @@ function FullReportDrawer({
   issues, primaryBottleneckLoss,
   logisticsText, gpsAvgTA,
   totalLoss, isAdmin, phase, financialBottleneck, readOnly,
-  focusActions, isFollowup,
 }: FullReportDrawerProps) {
   const isMobile = useIsMobile()
   const plantName = meta?.plant || 'Full Report'
@@ -2146,7 +1981,7 @@ function FullReportDrawer({
         />
       )}
 
-      {/* Drawer panel — always in DOM, slides in/out */}
+      {/* Drawer panel, always in DOM, slides in/out */}
       <div style={{
         position: 'fixed', top: 0, right: 0, bottom: 0,
         width: isMobile ? '100%' : '65%', maxWidth: isMobile ? '100%' : '900px',
@@ -2188,20 +2023,6 @@ function FullReportDrawer({
               </button>
             )}
             <ExportPDF calcResult={calcResult} answers={answers} meta={meta} report={texts} />
-            <SummaryPDFButton calcResult={calcResult} answers={answers} meta={meta} focusActions={focusActions ?? []} />
-            {isAdmin && !isFollowup && assessmentId !== 'demo' && (
-              <a
-                href={`/dashboard/assess/new?baseline_id=${assessmentId}`}
-                style={{
-                  padding: '8px 16px', background: 'var(--white)', color: 'var(--gray-700)',
-                  border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', fontWeight: 500,
-                  cursor: 'pointer', fontFamily: 'var(--font)', textDecoration: 'none',
-                  display: 'inline-flex', alignItems: 'center', gap: '4px',
-                }}
-              >
-                Start 60-Day Follow-up
-              </a>
-            )}
             <button
               type="button"
               onClick={onClose}
@@ -2227,12 +2048,12 @@ function FullReportDrawer({
             </div>
           )}
 
-          {/* Executive Snapshot — static key figures */}
+          {/* Executive Snapshot, static key figures */}
           {calcResult.overall !== null && (() => {
             const bnLossDrawer = financialBottleneck
               ? issues.filter(i => i.dimension === financialBottleneck).reduce((s, i) => s + (i.loss ?? 0), 0)
               : 0
-            const bottleneckLabel = financialBottleneck === 'Fleet' ? 'Logistics' : (financialBottleneck ?? '—')
+            const bottleneckLabel = financialBottleneck === 'Fleet' ? 'Logistics' : (financialBottleneck ?? '-')
             const bullets: { label: string; value: string }[] = []
             if (calcResult.dispatchMin && calcResult.dispatchMin > 15)
               bullets.push({ label: 'Dispatch cycle', value: `${calcResult.dispatchMin} min vs 15 min target` })
@@ -2257,23 +2078,13 @@ function FullReportDrawer({
                   </div>
                   <div style={{ padding: '16px 20px', background: '#fff5f5', borderRight: isMobile ? 'none' : '1px solid #e8e8e6', borderBottom: isMobile ? '1px solid #e8e8e6' : 'none' }}>
                     <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.3px', textTransform: 'uppercase', color: '#c0a0a0', marginBottom: '4px' }}>Total recoverable</div>
-                    {(() => {
-                      const { low, high } = calcLossRange(totalLoss)
-                      return (
-                        <>
-                          <div style={{ fontSize: '22px', fontWeight: 800, color: '#cc3333', lineHeight: 1, letterSpacing: '-1px' }}>{fmtK(low)}–{fmtK(high)}</div>
-                          <div style={{ fontSize: '10px', color: '#c09090', marginTop: '2px' }}>per month est.</div>
-                        </>
-                      )
-                    })()}
+                    <div style={{ fontSize: '28px', fontWeight: 800, color: '#cc3333', lineHeight: 1, letterSpacing: '-1px' }}>{fmtK(totalLoss)}</div>
+                    <div style={{ fontSize: '10px', color: '#c09090', marginTop: '2px' }}>per month</div>
                   </div>
                   <div style={{ padding: '16px 20px', background: '#fafafa' }}>
                     <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.3px', textTransform: 'uppercase', color: '#aaa', marginBottom: '4px' }}>Primary constraint</div>
                     <div style={{ fontSize: '22px', fontWeight: 800, color: '#111', lineHeight: 1.1, letterSpacing: '-0.3px' }}>{bottleneckLabel}</div>
-                    {(() => {
-                      const { low, high } = calcLossRange(bnLossDrawer)
-                      return <div style={{ fontSize: '10px', color: '#aaa', marginTop: '2px' }}>{fmtK(low)}–{fmtK(high)} / mo</div>
-                    })()}
+                    <div style={{ fontSize: '10px', color: '#aaa', marginTop: '2px' }}>{fmtK(bnLossDrawer)} / month</div>
                   </div>
                 </div>
                 {/* Snapshot bullets */}
@@ -2298,7 +2109,7 @@ function FullReportDrawer({
             )
           })()}
 
-          {/* 2. EXECUTIVE EXPLANATION — why the bottleneck occurs */}
+          {/* 2. EXECUTIVE EXPLANATION, why the bottleneck occurs */}
           <AISection
             title="Why the operation is constrained"
             text={texts.executive}
@@ -2324,7 +2135,20 @@ function FullReportDrawer({
 
           <Divider />
 
-          {/* 4. SUPPORTING FINDINGS — evidence, not introduction */}
+          {/* 4. ACTION PLAN */}
+          <AISection
+            title="Action Plan"
+            text={texts.actions}
+            generating={generating === 'actions'}
+            onGenerate={() => onGenerate('actions')}
+            onSave={t => onSave('actions', t)}
+            minHeight={80}
+            readOnly={readOnly}
+          />
+
+          <Divider />
+
+          {/* 5. SUPPORTING FINDINGS, evidence, not introduction */}
           {issues.filter(i => i.loss > 0 || i.category === 'bottleneck').length > 0 && (
             <div style={{ marginBottom: '24px' }}>
               <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#9b9b9b', marginBottom: '10px', paddingLeft: '2px' }}>
@@ -2440,7 +2264,7 @@ function AssumptionsPanel({ overrides, onChange }: {
               Fleet utilisation factor %
             </div>
             <div style={{ fontSize: '9px', color: 'var(--gray-400)', marginBottom: '6px', lineHeight: 1.4, maxWidth: '180px' }}>
-              Fraction of theoretical fleet capacity that is practically achievable. Accounts for breaks, queuing and driver idle. Industry default: 85%.
+              Fraction of theoretical fleet capacity that is practically achievable, accounts for breaks, queuing and driver idle. Industry default: 85%.
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <input
@@ -2484,10 +2308,10 @@ function AssumptionsPanel({ overrides, onChange }: {
 
 // ── Benchmark Positioning (pre-assessment) ─────────────────────────────────
 const DISP_TIME_MAP: Record<string, number> = {
-  'Under 15 minutes — fast response': 12,
-  '15 to 25 minutes — acceptable': 20,
-  '25 to 40 minutes — slow': 32,
-  'Over 40 minutes — critical bottleneck': 45,
+  'Under 15 minutes, fast response': 12,
+  '15 to 25 minutes, acceptable': 20,
+  '25 to 40 minutes, slow': 32,
+  'Over 40 minutes, critical bottleneck': 45,
 }
 
 const QUARTILE_LABEL: Record<string, string> = {
@@ -2548,7 +2372,7 @@ function BenchmarkPositioning({ calcResult, answers }: { calcResult: CalcResult;
           <div key={item.label} style={{ display: 'flex', alignItems: 'baseline', gap: '6px', fontSize: '12px' }}>
             <span style={{ fontWeight: 600, color: 'var(--gray-600)', minWidth: '110px' }}>{item.label}</span>
             <span style={{ fontFamily: 'var(--mono)', fontWeight: 700, color: QUARTILE_COLOR[item.q] }}>{item.value}</span>
-            <span style={{ color: QUARTILE_COLOR[item.q], fontWeight: 500 }}>, {QUARTILE_LABEL[item.q]}</span>
+            <span style={{ color: QUARTILE_COLOR[item.q], fontWeight: 500 }}>. {QUARTILE_LABEL[item.q]}</span>
             <span style={{ color: 'var(--gray-400)', fontSize: '11px' }}>· Median {item.p50} · Best {item.p75}</span>
           </div>
         ))}
@@ -2566,7 +2390,7 @@ function WhatWeWillMeasure({ calcResult, answers }: { calcResult: CalcResult; an
   if (calcResult.ta > 0 && calcResult.ta > calcResult.TARGET_TA) {
     items.push({
       area: 'Fleet turnaround',
-      measurement: 'Truck cycle timestamps across 8–10 deliveries: plant departure, site arrival, pour start/end, return to plant.',
+      measurement: 'Truck cycle timestamps across 8–10 deliveries, plant departure, site arrival, pour start/end, return to plant.',
       why: `Your turnaround of ${calcResult.ta} min is ${calcResult.ta - calcResult.TARGET_TA} min above benchmark for your delivery radius (target ${calcResult.TARGET_TA} min).`,
     })
   }
@@ -2575,7 +2399,7 @@ function WhatWeWillMeasure({ calcResult, answers }: { calcResult: CalcResult; an
     items.push({
       area: 'Dispatch process',
       measurement: 'Order-to-truck-departure timing for 10 consecutive orders, plus a walkthrough of the dispatcher workflow and scheduling tools.',
-      why: `Current dispatch averages ${dispTime} min. Target is 15 min or less.`,
+      why: `Current dispatch averages ${dispTime} min, target is 15 min or less.`,
     })
   }
 
@@ -2583,7 +2407,7 @@ function WhatWeWillMeasure({ calcResult, answers }: { calcResult: CalcResult; an
     items.push({
       area: 'Rejection root cause',
       measurement: 'Rejection log review (last 30 days): reason codes, time in transit per rejected load, contractor breakdown.',
-      why: `Rejection rate of ${Math.round(calcResult.rejectPct)}% is above the 3% threshold. Root cause is rarely obvious from aggregate data.`,
+      why: `Rejection rate of ${Math.round(calcResult.rejectPct)}% is above the 3% threshold, root cause is rarely obvious from aggregate data.`,
     })
   }
 
@@ -2592,7 +2416,7 @@ function WhatWeWillMeasure({ calcResult, answers }: { calcResult: CalcResult; an
     items.push({
       area: 'Plant throughput',
       measurement: 'Hourly production log (2 representative days), downtime incident causes, and batch plant availability schedule.',
-      why: `Utilisation at ${utilPct}%. We need to distinguish demand-constrained vs. operational bottleneck.`,
+      why: `Utilisation at ${utilPct}%, we need to distinguish demand-constrained vs. operational bottleneck.`,
     })
   }
 
@@ -2634,7 +2458,7 @@ function WhatWeWillMeasure({ calcResult, answers }: { calcResult: CalcResult; an
 // ── Start This Week (pre-assessment) ──────────────────────────────────────
 const MANUAL_DISPATCH_TOOLS = new Set([
   'Spreadsheet combined with WhatsApp',
-  'WhatsApp messages only — no spreadsheet',
+  'WhatsApp messages only, no spreadsheet',
   'Phone calls and a whiteboard or paper list',
 ])
 
@@ -2644,12 +2468,12 @@ function StartThisWeek({ calcResult, answers }: { calcResult: CalcResult; answer
 
   const items: Array<{ tag: string; action: string; detail: string }> = []
 
-  // Turnaround is the biggest lever — always first
+  // Turnaround is the biggest lever, always first
   if (calcResult.ta > 0 && calcResult.ta > calcResult.TARGET_TA) {
     items.push({
       tag: 'Day 1',
       action: 'Time 5 full truck cycles this week',
-      detail: `Record 4 timestamps per trip: plant departure → site arrival → pour complete → plant return. One person, one day. This tells you exactly where the ${calcResult.ta} minutes goes: site wait, transit, or washout. Start before the on-site visit.`,
+      detail: `Record 4 timestamps per trip: plant departure → site arrival → pour complete → plant return. One person, one day. This tells you exactly where the ${calcResult.ta} minutes goes, site wait, transit, or washout, before the on-site visit.`,
     })
   }
 
@@ -2667,7 +2491,7 @@ function StartThisWeek({ calcResult, answers }: { calcResult: CalcResult; answer
     items.push({
       tag: 'This week',
       action: 'Log a reason code on every rejected load',
-      detail: `Four options: stiffening in transit / water added on site / contractor refusal / mix issue. Two minutes per event. After 5–7 rejections you will know which cause dominates. The fix is completely different for each one.`,
+      detail: `Four options: stiffening in transit / water added on site / contractor refusal / mix issue. Two minutes per event. After 5–7 rejections you will know which cause dominates, the fix is completely different for each one.`,
     })
   }
 
@@ -2677,7 +2501,7 @@ function StartThisWeek({ calcResult, answers }: { calcResult: CalcResult; answer
     items.push({
       tag: 'Day 2',
       action: 'Sketch a delivery zone map',
-      detail: `Divide your delivery area into 2–3 zones by direction or distance. Route morning loads to one zone, afternoon to another. A hand-drawn A4 map is enough to start. Cuts ad-hoc routing decisions and reduces empty return distance.`,
+      detail: `Divide your delivery area into 2–3 zones by direction or distance. Route morning loads to one zone, afternoon to another. A hand-drawn A4 map is enough to start, cuts ad-hoc routing decisions and reduces empty return distance.`,
     })
   }
 
@@ -2692,7 +2516,7 @@ function StartThisWeek({ calcResult, answers }: { calcResult: CalcResult; answer
         Start this week
       </div>
       <div style={{ fontSize: '12px', color: 'var(--gray-600)', marginBottom: '12px', lineHeight: 1.5 }}>
-        Actions that require no diagnosis and no investment. Start before the on-site visit:
+        Actions that require no diagnosis and no investment, start before the on-site visit:
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {items.slice(0, 3).map((item, i) => (
@@ -2809,7 +2633,7 @@ function ScoreGrid({ calcResult, financialBottleneck, issues, onSwitchToTracking
         ],
         outcome: [
           'Dispatch time reduced to <15 min',
-          `Recovery of ${fmtK(calcLossRange(bnLoss).low)}–${fmtK(calcLossRange(bnLoss).high)} / month`,
+          `Recovery of up to ${fmtK(bnLoss)} / month`,
         ],
       }
       case 'Fleet': return {
@@ -2822,7 +2646,7 @@ function ScoreGrid({ calcResult, financialBottleneck, issues, onSwitchToTracking
         ],
         outcome: [
           `Turnaround reduced to ${calcResult.TARGET_TA} min`,
-          `Recovery of ${fmtK(calcLossRange(bnLoss).low)}–${fmtK(calcLossRange(bnLoss).high)} / month`,
+          `Recovery of up to ${fmtK(bnLoss)} / month`,
         ],
       }
       case 'Quality': return {
@@ -2835,7 +2659,7 @@ function ScoreGrid({ calcResult, financialBottleneck, issues, onSwitchToTracking
         ],
         outcome: [
           'Rejection rate reduced below 3%',
-          `Recovery of ${fmtK(calcLossRange(bnLoss).low)}–${fmtK(calcLossRange(bnLoss).high)} / month`,
+          `Recovery of up to ${fmtK(bnLoss)} / month`,
         ],
       }
       case 'Production': return {
@@ -2848,7 +2672,7 @@ function ScoreGrid({ calcResult, financialBottleneck, issues, onSwitchToTracking
         ],
         outcome: [
           'Utilisation increased to 92%+',
-          `Recovery of ${fmtK(calcLossRange(bnLoss).low)}–${fmtK(calcLossRange(bnLoss).high)} / month`,
+          `Recovery of up to ${fmtK(bnLoss)} / month`,
         ],
       }
       default: return null
@@ -2864,7 +2688,7 @@ function ScoreGrid({ calcResult, financialBottleneck, issues, onSwitchToTracking
         Performance scorecard
       </div>
 
-      {/* Bottleneck card — compact single card */}
+      {/* Bottleneck card, compact single card */}
       {bottleneck && (
         <div style={{
           background: '#f8f9fa', border: '1px solid #e2e2de', borderLeft: '3px solid #1a6644', borderRadius: '12px',
@@ -2877,23 +2701,18 @@ function ScoreGrid({ calcResult, financialBottleneck, issues, onSwitchToTracking
                 {Math.round(bottleneck.score)}
               </div>
               <div>
-                <div style={{ fontSize: '16px', fontWeight: 700, color: '#1a1a1a', lineHeight: 1.2 }}>{bottleneck.label}</div>
+                <div style={{ fontSize: '16px', fontWeight: 700, color: '#1a1a1a', lineHeight: 1.2 }}>. {bottleneck.label}</div>
                 <div style={{ display: 'inline-block', fontSize: '9px', fontWeight: 700, letterSpacing: '.8px', textTransform: 'uppercase', color: '#1a6644', background: '#e8f5ee', border: '1px solid #b8dfc8', borderRadius: '4px', padding: '2px 7px', marginTop: '5px' }}>
                   Primary constraint
                 </div>
               </div>
             </div>
-            {bnLoss > 0 && (() => {
-              const { low, high } = calcLossRange(bnLoss)
-              return (
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '22px', fontWeight: 800, color: '#1a1a1a', lineHeight: 1, letterSpacing: '-1px' }}>
-                    {fmtK(low)}–{fmtK(high)}<span style={{ fontSize: '13px', fontWeight: 500, color: '#888', marginLeft: '4px' }}>/mo</span>
-                  </div>
-                  <div style={{ fontSize: '11px', color: '#aaa', marginTop: '2px' }}>≈ {fmtK(bnDailyLoss)} / day (midpoint)</div>
-                </div>
-              )
-            })()}
+            {bnLoss > 0 && (
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: '22px', fontWeight: 800, color: '#1a1a1a', lineHeight: 1, letterSpacing: '-1px' }}>{fmtK(bnLoss)}<span style={{ fontSize: '13px', fontWeight: 500, color: '#888', marginLeft: '4px' }}>/mo</span></div>
+                <div style={{ fontSize: '11px', color: '#aaa', marginTop: '2px' }}>≈ {fmtK(bnDailyLoss)} / day</div>
+              </div>
+            )}
           </div>
 
           {bnDetail && (
@@ -2901,7 +2720,7 @@ function ScoreGrid({ calcResult, financialBottleneck, issues, onSwitchToTracking
               {/* Divider */}
               <div style={{ borderTop: '1px solid #e2e2de', margin: '14px 0' }} />
 
-              {/* Root cause — single compact line */}
+              {/* Root cause, single compact line */}
               <div style={{ marginBottom: '14px' }}>
                 <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#aaa', marginBottom: '5px' }}>Root cause</div>
                 <div style={{ fontSize: '13px', fontWeight: 600, color: '#1a1a1a', display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap' }}>
@@ -2912,33 +2731,52 @@ function ScoreGrid({ calcResult, financialBottleneck, issues, onSwitchToTracking
                 </div>
               </div>
 
+              {/* Next 7 days */}
+              <div style={{ marginBottom: '14px' }}>
+                <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#aaa', marginBottom: '8px' }}>Next 7 days</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {bnDetail.startHere.map((bullet, i) => (
+                    <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                      <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#1a6644', flexShrink: 0, marginTop: '7px' }} />
+                      <span style={{ fontSize: '13px', color: '#444', lineHeight: 1.5 }}>{bullet}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* CTA */}
+              {onSwitchToTracking && (
+                <>
+                  <div style={{ borderTop: '1px solid #e2e2de', marginBottom: '14px' }} />
+                  <button onClick={onSwitchToTracking} style={{
+                    background: 'none', border: 'none', padding: '0',
+                    fontSize: '13px', fontWeight: 600, color: '#1a6644',
+                    cursor: 'pointer', textAlign: 'left',
+                  }}>
+                    Start 90-day tracking →
+                  </button>
+                </>
+              )}
             </>
           )}
         </div>
       )}
 
-      {/* Other scores — compact single row */}
+      {/* Other scores, muted, capped at 2 cols on mobile */}
       {others.length > 0 && (
-        <div style={{
-          display: 'flex', gap: '0', marginBottom: '4px',
-          background: '#f9faf9', border: '1px solid #e8e8e6', borderRadius: '10px',
-          overflow: 'hidden',
-        }}>
-          {others.map((d, i) => {
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : `repeat(${Math.min(others.length, 3)}, 1fr)`, gap: '8px', marginBottom: '8px' }}>
+          {others.map(d => {
             const s = Math.round(d.score)
             const status = s >= 80 ? 'On track' : s >= 60 ? 'Needs attention' : 'At risk'
             const statusColor = s >= 80 ? '#2a9d6e' : s >= 60 ? '#c96a00' : '#cc3333'
             return (
               <div key={d.key} style={{
-                flex: 1, display: 'flex', alignItems: 'center', gap: '8px',
-                padding: '10px 14px',
-                borderLeft: i > 0 ? '1px solid #e8e8e6' : 'none',
+                background: '#f9faf9', border: '1px solid #e8e8e6', borderRadius: '12px',
+                padding: '14px 12px', textAlign: 'center',
               }}>
-                <div style={{ fontSize: '20px', fontWeight: 700, color: '#999', lineHeight: 1, letterSpacing: '-0.5px' }}>{s}</div>
-                <div>
-                  <div style={{ fontSize: '11px', color: '#888', fontWeight: 500, lineHeight: 1.2 }}>{d.label}</div>
-                  <div style={{ fontSize: '10px', fontWeight: 600, color: statusColor, marginTop: '2px' }}>{status}</div>
-                </div>
+                <div style={{ fontSize: '28px', fontWeight: 700, color: '#888', lineHeight: 1, marginBottom: '2px' }}>{s}</div>
+                <div style={{ fontSize: '12px', color: '#aaa', fontWeight: 500, marginBottom: '4px' }}>{d.label}</div>
+                <div style={{ fontSize: '10px', fontWeight: 600, color: statusColor }}>{status}</div>
               </div>
             )
           })}
@@ -3088,6 +2926,134 @@ function SimulatorDrawer({ open, onClose, calcResult }: {
   )
 }
 
+// ── Focus Actions Editor (admin) ────────────────────────────────────────────
+
+function FocusActionsEditor({ assessmentId, initial, issues }: {
+  assessmentId: string
+  initial: string[] | null | undefined
+  issues: Issue[]
+}) {
+  const supabase = createClient()
+  const topActions = [...issues]
+    .filter(i => i.action && i.loss > 0)
+    .sort((a, b) => b.loss - a.loss)
+    .slice(0, 3)
+    .map(i => i.action!)
+
+  const [actions, setActions] = useState<[string, string, string]>(() => {
+    const src = initial && initial.length > 0 ? initial : topActions
+    return [src[0] ?? '', src[1] ?? '', src[2] ?? '']
+  })
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  async function handleSave() {
+    setSaving(true)
+    const vals = actions.filter(a => a.trim())
+    await supabase.from('assessments').update({ focus_actions: vals.length ? vals : null }).eq('id', assessmentId)
+    setSaving(false)
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2500)
+  }
+
+  return (
+    <div style={{ background: 'var(--white)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '16px 20px', marginBottom: '16px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+        <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '.6px' }}>
+          Manager focus board
+        </div>
+        <div style={{ fontSize: '10px', color: 'var(--gray-400)' }}>Visible to manager after report release</div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '12px' }}>
+        {([0, 1, 2] as const).map(i => (
+          <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+            <span style={{ fontSize: '10px', fontWeight: 700, color: '#0F6E56', background: '#f0faf6', border: '1px solid #b5dfc9', borderRadius: '3px', padding: '3px 6px', flexShrink: 0, marginTop: '8px', whiteSpace: 'nowrap' }}>
+              {i === 0 ? 'Week 1' : i === 1 ? 'Weeks 2–3' : 'Month 2–3'}
+            </span>
+            <input
+              value={actions[i]}
+              onChange={e => setActions(prev => { const n = [...prev] as [string,string,string]; n[i] = e.target.value; return n })}
+              placeholder={topActions[i] ?? `Action ${i + 1}`}
+              style={{ flex: 1, padding: '7px 10px', border: '1px solid var(--border)', borderRadius: '6px', fontSize: '12px', fontFamily: 'var(--font)', color: 'var(--gray-800)', background: 'var(--white)' }}
+            />
+          </div>
+        ))}
+      </div>
+      <button
+        onClick={handleSave}
+        disabled={saving}
+        style={{ padding: '6px 16px', background: saved ? 'var(--phase-complete)' : 'var(--green)', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer', fontFamily: 'var(--font)', transition: 'background .2s' }}
+      >
+        {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save focus board'}
+      </button>
+    </div>
+  )
+}
+
+// ── Manager Next Steps Banner ───────────────────────────────────────────────
+
+function ManagerNextSteps({ issues, focusActions, onSwitchToTracking }: {
+  issues: Issue[]
+  focusActions?: string[] | null
+  onSwitchToTracking?: () => void
+}) {
+  // Prefer Louis's curated focus actions; fall back to auto-generated from issues
+  const hasFocusActions = focusActions && focusActions.length > 0
+  const actionIssues = hasFocusActions ? [] : [...issues]
+    .filter(i => i.action && i.loss > 0)
+    .sort((a, b) => b.loss - a.loss)
+    .slice(0, 3)
+
+  const displayActions: string[] = hasFocusActions
+    ? focusActions!
+    : actionIssues.map(i => i.action!)
+
+  if (displayActions.length === 0) return null
+
+  const TIMEFRAMES = ['Week 1', 'Weeks 2–3', 'Month 2–3']
+
+  return (
+    <div style={{
+      background: '#0F6E56', borderRadius: 'var(--radius)',
+      padding: '20px 24px', marginBottom: '20px',
+    }}>
+      <div style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.55)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '14px' }}>
+        Your next steps
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
+        {displayActions.map((action, i) => (
+          <div key={i} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+            <span style={{
+              fontSize: '9px', fontWeight: 700, color: '#0F6E56',
+              background: 'rgba(255,255,255,0.9)', borderRadius: '3px',
+              padding: '2px 6px', flexShrink: 0, marginTop: '1px', whiteSpace: 'nowrap',
+            }}>
+              {TIMEFRAMES[i]}
+            </span>
+            <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.9)', lineHeight: 1.4 }}>
+              {action}
+            </span>
+          </div>
+        ))}
+      </div>
+      {onSwitchToTracking && (
+        <button
+          type="button"
+          onClick={onSwitchToTracking}
+          style={{
+            padding: '8px 18px', background: 'rgba(255,255,255,0.15)',
+            border: '1px solid rgba(255,255,255,0.3)',
+            borderRadius: '7px', fontSize: '12px', fontWeight: 600,
+            color: '#fff', cursor: 'pointer', fontFamily: 'var(--font)',
+          }}
+        >
+          Set up 90-day tracking →
+        </button>
+      )}
+    </div>
+  )
+}
+
 // ── Main component ─────────────────────────────────────────────────────────
 interface ReportViewProps {
   calcResult: CalcResult
@@ -3105,10 +3071,9 @@ interface ReportViewProps {
   demoBanner?: DemoBannerProps
   userRole?: 'owner' | 'manager' | 'operator' | null
   focusActions?: string[] | null
-  baselineData?: { answers: Answers; calcResult: CalcResult; date: string }
 }
 
-export default function ReportView({ calcResult, answers, meta, report, assessmentId, customerId, reportReleased, isAdmin, overrides, onOverrideChange, phase, onSwitchToTracking, demoBanner, userRole, focusActions, baselineData }: ReportViewProps) {
+export default function ReportView({ calcResult, answers, meta, report, assessmentId, customerId, reportReleased, isAdmin, overrides, onOverrideChange, phase, onSwitchToTracking, demoBanner, userRole, focusActions }: ReportViewProps) {
   const isMobile = useIsMobile()
   const supabase = createClient()
   const issues = buildIssues(calcResult, answers, meta)
@@ -3122,7 +3087,7 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
 
   const dailyLoss = Math.round(totalLoss / (calcResult.workingDaysMonth || 22))
 
-  // Bottleneck-specific loss (single dimension) — used for ImpactHook headline
+  // Bottleneck-specific loss (single dimension), used for ImpactHook headline
   const bnLoss = financialBottleneck
     ? issues.filter(i => i.dimension === financialBottleneck).reduce((sum, i) => sum + (i.loss ?? 0), 0)
     : 0
@@ -3166,11 +3131,11 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
       })
   }, [assessmentId, supabase])
 
-  const hasAllSections = !!(texts.executive && texts.diagnosis)
-  const hasAnySections = !!(texts.executive || texts.diagnosis)
+  const hasAllSections = !!(texts.executive && texts.diagnosis && texts.actions)
+  const hasAnySections = !!(texts.executive || texts.diagnosis || texts.actions)
 
   // Build context for AI generation
-  // totalLoss already applies bottleneck logic (max of overlapping, not sum) — use this, not raw sum
+  // totalLoss already applies bottleneck logic (max of overlapping, not sum), use this, not raw sum
   const aiContext = useMemo(() => ({
     plant: meta?.plant || '',
     country: meta?.country || '',
@@ -3199,7 +3164,7 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
       loss: i.loss, sev: i.sev, category: i.category, formula: i.formula, dimension: i.dimension,
     })),
     answers,
-    // Segmentation buckets — used server-side for benchmark percentile lookup
+    // Segmentation buckets, used server-side for benchmark percentile lookup
     radiusBucket: calcResult.radius < 10 ? 'short' : calcResult.radius <= 20 ? 'medium' : 'long',
     fleetBucket:  calcResult.trucks <= 5 ? 'small' : calcResult.trucks <= 15 ? 'medium' : 'large',
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -3245,7 +3210,7 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
         setTexts(prev => ({ ...prev, [section]: stripMarkdown(accumulated) }))
       }
 
-      if (!accumulated.trim()) throw new Error('Empty response — AI returned no content')
+      if (!accumulated.trim()) throw new Error('Empty response, AI returned no content')
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error'
       setGenError(`Failed to generate ${section}: ${msg}`)
@@ -3255,7 +3220,7 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
   }, [assessmentId, aiContext])
 
   const generateAll = useCallback(async (demoOverride = false) => {
-    for (const section of ['executive', 'diagnosis']) {
+    for (const section of ['executive', 'diagnosis', 'actions']) {
       await generate(section, demoOverride)
     }
   }, [generate])
@@ -3268,38 +3233,16 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
 
   const showBoard = userRole !== 'operator'
 
-  // Board items: bottleneck issues first, then highest-impact independent issues.
-  // Admin-curated focusActions fall back to goal-less titles without loss data.
-  const boardItemsWithMeta: { text: string; lossMonthly: number; dimension: string | null; formula: string | null }[] = (() => {
-    if ((focusActions?.filter(Boolean).length ?? 0) > 0) {
-      return focusActions!.filter(Boolean).map(text => ({ text, lossMonthly: 0, dimension: null, formula: null }))
-    }
-    const withAction = issues.filter(i => i.action && i.loss > 0)
-    const bottleneckFirst = withAction
-      .filter(i => i.category === 'bottleneck')
-      .sort((a, b) => b.loss - a.loss)
-    const independent = withAction
-      .filter(i => i.category !== 'bottleneck')
-      .sort((a, b) => b.loss - a.loss)
-    return [...bottleneckFirst, ...independent]
-      .slice(0, 3)
-      .map(i => ({ text: i.goal ?? i.action!, lossMonthly: i.loss, dimension: i.dimension ?? null, formula: i.formula ?? null }))
-  })()
-  const boardActions = boardItemsWithMeta.map(i => i.text)
-  const boardActionLosses = boardItemsWithMeta.map(i => i.lossMonthly)
-  const boardActionDimensions = boardItemsWithMeta.map(i => i.dimension)
-  const boardActionFormulas = boardItemsWithMeta.map(i => i.formula)
-
   return (
     <div style={{
       flex: 1,
       display: 'grid',
-      gridTemplateColumns: (!isMobile && showBoard) ? '1fr 380px' : '1fr',
+      gridTemplateColumns: (!isMobile && showBoard) ? '1fr 300px' : '1fr',
       overflow: isMobile ? 'auto' : 'hidden',
     }}>
     <div style={{ overflowY: 'auto', padding: isMobile ? '12px' : '20px', paddingBottom: '60px' }}>
 
-      {/* Demo regenerate banner — shown when user edits answers away from defaults */}
+      {/* Demo regenerate banner, shown when user edits answers away from defaults */}
       {demoBanner?.show && (
         <div style={{
           marginBottom: '16px',
@@ -3382,6 +3325,21 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
           )}
         </div>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          {hasSliders && (
+            <button
+              type="button"
+              onClick={() => setSimulatorOpen(true)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '6px',
+                padding: '7px 16px',
+                background: 'var(--white)', border: '1px solid var(--border)',
+                borderRadius: '8px', fontSize: '12px', fontWeight: 600,
+                color: 'var(--gray-700)', cursor: 'pointer', fontFamily: 'var(--font)',
+              }}
+            >
+              ⟳ Simulate recovery
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setDrawerOpen(true)}
@@ -3409,7 +3367,7 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
       )}
       {isAdmin && calcResult.marginIncomplete && (
         <div style={{ fontSize: '11px', color: 'var(--gray-400)', marginBottom: '10px', fontStyle: 'italic' }}>
-          Note: aggregate/admixture costs not entered — margin estimated at 35%. Enter material costs for precise figures.
+          Note: aggregate/admixture costs not entered, margin estimated at 35%. Enter material costs for precise figures.
         </div>
       )}
       {isAdmin && calcResult.warnings && calcResult.warnings.length > 0 && (
@@ -3428,22 +3386,12 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
         </div>
       )}
 
-
-
-      {/* Follow-up: before/after comparison banner */}
-      {baselineData && (
-        <ComparisonBanner
-          baselineCalcResult={baselineData.calcResult}
-          baselineAnswers={baselineData.answers}
-          followupCalcResult={calcResult}
-          followupAnswers={answers}
-          baselineDate={baselineData.date}
-          followupDate={meta?.date || new Date().toISOString().split('T')[0]}
-        />
+      {/* 0a. ADMIN: Focus board editor */}
+      {isAdmin && calcResult.overall !== null && (
+        <FocusActionsEditor assessmentId={assessmentId} initial={focusActions} issues={issues} />
       )}
 
-      {/* Calc basis panel — open by default when estimates exist */}
-      {totalLoss > 0 && <CalcBasisPanel calcResult={calcResult} answers={answers} />}
+      {/* 0b. MANAGER NEXT STEPS, removed; content merged into Action Board */}
 
       {/* 1. SCORE GRID (ImpactHook merged in) */}
       <ScoreGrid calcResult={calcResult} financialBottleneck={financialBottleneck} issues={issues} onSwitchToTracking={onSwitchToTracking} />
@@ -3459,10 +3407,7 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
       {/* 5. NEXT IMPROVEMENTS (collapsed) */}
       <NextImprovements issues={issues} />
 
-      {/* 6. GCC PEER COMPARISON */}
-      {totalLoss > 0 && <BenchmarkPositioning calcResult={calcResult} answers={answers} />}
-
-      {/* 7. INDICATIVE NOTICE (collapsed by default) */}
+      {/* 6. INDICATIVE NOTICE */}
       <IndicativeNotice />
 
       {/* Full report CTA */}
@@ -3484,6 +3429,15 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
             <span style={{ fontSize: '20px', color: 'rgba(255,255,255,0.6)' }}>›</span>
           </button>
         </div>
+      )}
+
+      {/* Pre-assessment cards (workshop phase) */}
+      {phase === 'workshop' && totalLoss > 0 && (
+        <>
+          <BenchmarkPositioning calcResult={calcResult} answers={answers} />
+          <StartThisWeek calcResult={calcResult} answers={answers} />
+          <WhatWeWillMeasure calcResult={calcResult} answers={answers} />
+        </>
       )}
 
       {/* Assumptions Panel (admin) */}
@@ -3523,8 +3477,6 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
         phase={phase}
         financialBottleneck={financialBottleneck}
         readOnly={!isAdmin}
-        focusActions={boardActions}
-        isFollowup={!!baselineData}
       />
 
     </div>
@@ -3540,15 +3492,10 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
         <ActionBoard
           assessmentId={assessmentId}
           customerId={customerId ?? ''}
-          focusActions={boardActions}
-          focusActionLosses={boardActionLosses}
-          focusActionDimensions={boardActionDimensions}
-          focusActionFormulas={boardActionFormulas}
+          focusActions={focusActions?.filter(Boolean) ?? []}
           canEdit={userRole !== 'owner'}
           financialBottleneck={financialBottleneck}
           recoverable={primaryBottleneckLoss}
-          calcResult={calcResult}
-          answers={answers}
         />
       </div>
     )}
@@ -3563,15 +3510,10 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
         <ActionBoard
           assessmentId={assessmentId}
           customerId={customerId ?? ''}
-          focusActions={boardActions}
-          focusActionLosses={boardActionLosses}
-          focusActionDimensions={boardActionDimensions}
-          focusActionFormulas={boardActionFormulas}
+          focusActions={focusActions?.filter(Boolean) ?? []}
           canEdit={userRole !== 'owner'}
           financialBottleneck={financialBottleneck}
           recoverable={primaryBottleneckLoss}
-          calcResult={calcResult}
-          answers={answers}
         />
       </div>
     )}

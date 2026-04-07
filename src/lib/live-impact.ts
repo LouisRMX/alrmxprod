@@ -48,7 +48,7 @@ export function getLiveImpact(questionId: string, r: CalcResult, a: Answers): st
     case 'deliveries_day': {
       if (r.delDay <= 0 || r.realisticMaxDel <= 0) return null
       if (r.hiddenSuspect) {
-        return ['Check inputs. Gap seems unusually large.', 'Verify turnaround time, operating hours, and daily deliveries are consistent.']
+        return ['Check inputs, gap seems unusually large', 'Verify turnaround time, operating hours, and daily deliveries are consistent']
       }
       if (r.hiddenDel > 0) {
         const dollarLine = r.hiddenRevMonthly > 0
@@ -60,7 +60,7 @@ export function getLiveImpact(questionId: string, r: CalcResult, a: Answers): st
           dollarLine,
         ]
       }
-      return [`At or above best practice target of ${r.realisticMaxDel} deliveries/day`, 'Fleet utilisation is strong. Focus on dispatch and turnaround time.']
+      return [`At or above best practice target of ${r.realisticMaxDel} deliveries/day`, 'Fleet utilisation is strong, focus on dispatch and turnaround time']
     }
 
     case 'reject_pct': {
@@ -79,20 +79,20 @@ export function getLiveImpact(questionId: string, r: CalcResult, a: Answers): st
       if (r.price <= 0) return null
       if (r.contribNegative) {
         return [
-          `Material costs exceed selling price. Contribution margin is negative.`,
+          `Material costs exceed selling price, contribution margin is negative.`,
           `Check that selling price and material costs are all entered in the same currency ($/m³).`,
         ]
       }
       const lines = [`Contribution margin: ${fmt(r.contrib)}/m³ (${Math.round(r.marginRatio * 100)}% of selling price)`]
       if (r.marginRatio >= 0.95) {
-        // No meaningful costs entered yet — margin is just the selling price
-        lines.push('Material costs not yet entered. Margin will update as you answer cement, aggregate and admixture questions.')
+        // No meaningful costs entered yet, margin is just the selling price
+        lines.push('Material costs not yet entered, margin will update as you answer cement, aggregate and admixture questions.')
       } else if (r.marginIncomplete) {
-        lines.push('Warning: aggregate and admixture costs not entered. Actual margin is likely $8–15/m³ lower than shown.')
+        lines.push('Warning: aggregate and admixture costs not entered, actual margin is likely $8–15/m³ lower than shown.')
       } else if (r.price < 45 || r.price > 150) {
-        lines.push(`Note: selling price ${r.price < 45 ? 'below' : 'above'} typical GCC range. Double-check the figure.`)
+        lines.push(`Note: selling price ${r.price < 45 ? 'below' : 'above'} typical GCC range, double-check the figure.`)
       } else if (r.contrib < 12) {
-        lines.push('Warning: margin below $12/m³. Verify all material costs are entered correctly.')
+        lines.push('Warning: margin below $12/m³, verify all material costs are entered correctly.')
       } else {
         lines.push('Margin looks realistic for ready-mix in this region.')
       }
@@ -101,21 +101,21 @@ export function getLiveImpact(questionId: string, r: CalcResult, a: Answers): st
 
     case 'order_to_dispatch': {
       const DELAY_MAP: Record<string, number> = {
-        'Under 15 minutes — fast response': 0,
-        '15 to 25 minutes — acceptable': 10,
-        '25 to 40 minutes — slow': 27,
-        'Over 40 minutes — critical bottleneck': 42,
+        'Under 15 minutes, fast response': 0,
+        '15 to 25 minutes, acceptable': 10,
+        '25 to 40 minutes, slow': 27,
+        'Over 40 minutes, critical bottleneck': 42,
       }
       const ex = DELAY_MAP[a.order_to_dispatch as string]
       if (ex === undefined) return null
       if (ex === 0) {
-        return ['Under 15 min. Dispatch is within best practice target.']
+        return ['Under 15 min, dispatch is within best practice target']
       }
       if (r.trucks > 0 && r.contrib > 0) {
         const cost = Math.round(ex / 60 * r.trucks * 0.25 * r.contrib * r.mixCap * (r.opD / 12))
         return [`~${ex} min above 15-min target per order`, `Estimated dispatch delay cost: ${fmt(cost)}/month`]
       }
-      return [`~${ex} min above 15-min target. Enter economics data for dollar estimate.`]
+      return [`~${ex} min above 15-min target, enter economics data for dollar estimate`]
     }
 
     default:

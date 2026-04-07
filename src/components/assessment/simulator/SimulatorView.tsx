@@ -148,9 +148,9 @@ export default function SimulatorView({ calcResult, readOnly }: SimulatorViewPro
       const targetTA = result.prodDaily > 0
         ? Math.max(40, Math.round(baseline.opH * 60 * sTrucks * baseline.mixCap * dispEff / result.prodDaily))
         : sTurnaround
-      return `Trucks are the bottleneck. Delivering ${Math.round(result.effFleetDaily)} m³/day but plant can produce ${Math.round(result.prodDaily)} m³/day (${gap} m³/day idle capacity). Reducing turnaround to ~${targetTA} min unlocks that gap without adding trucks.`
+      return `Trucks are the bottleneck, delivering ${Math.round(result.effFleetDaily)} m³/day but plant can produce ${Math.round(result.prodDaily)} m³/day (${gap} m³/day idle capacity). Reducing turnaround to ~${targetTA} min unlocks that gap without adding trucks.`
     } else {
-      return `Plant is running at full capacity (${Math.round(result.prodDaily)} m³/day). Adding trucks or cutting turnaround won't increase output from here. Use the Price slider to grow revenue on existing volume, or invest in plant capacity expansion.`
+      return `Plant is running at full capacity (${Math.round(result.prodDaily)} m³/day), adding trucks or cutting turnaround won't increase output from here. Use the Price slider to grow revenue on existing volume, or invest in plant capacity expansion.`
     }
   }, [result, baseline, sTurnaround, sTrucks])
 
@@ -167,7 +167,7 @@ export default function SimulatorView({ calcResult, readOnly }: SimulatorViewPro
         <div style={{ fontSize: '15px', fontWeight: 500, color: 'var(--gray-700)', marginBottom: '8px' }}>
           Simulator requires assessment data
         </div>
-        <div>Complete the Assessment tab first. The simulator uses your plant capacity, fleet, and pricing data to model scenarios.</div>
+        <div>Complete the Assessment tab first, the simulator uses your plant capacity, fleet, and pricing data to model scenarios.</div>
       </div>
     )
   }
@@ -176,10 +176,10 @@ export default function SimulatorView({ calcResult, readOnly }: SimulatorViewPro
 
   // Realism warnings
   const simWarnings: string[] = []
-  if (sTurnaround < r.TARGET_TA * 0.7) simWarnings.push(`Turnaround ${sTurnaround} min is ${Math.round((1 - sTurnaround / (r.TARGET_TA || 80)) * 100)}% below regional target. Unlikely without major route changes.`)
-  if (result.sUtil > 95) simWarnings.push('Utilisation above 95% is unrealistic. The physical ceiling is 92% of nameplate (the 85% benchmark is the recommended operating point, not the hard limit).')
-  if (sTrucks > (r.trucks || 10) * 1.5) simWarnings.push(`Fleet expanded ${Math.round((sTrucks / (r.trucks || 10) - 1) * 100)}%. Requires significant capital investment.`)
-  if (sPrice > (r.price || 65) * 1.3) simWarnings.push(`Price ${Math.round((sPrice / (r.price || 65) - 1) * 100)}% above current. Verify market will accept this.`)
+  if (sTurnaround < r.TARGET_TA * 0.7) simWarnings.push(`Turnaround ${sTurnaround} min is ${Math.round((1 - sTurnaround / (r.TARGET_TA || 80)) * 100)}% below regional target, unlikely without major route changes.`)
+  if (result.sUtil > 95) simWarnings.push('Utilisation above 95% is unrealistic, the physical ceiling is 92% of nameplate (the 85% benchmark is the recommended operating point, not the hard limit).')
+  if (sTrucks > (r.trucks || 10) * 1.5) simWarnings.push(`Fleet expanded ${Math.round((sTrucks / (r.trucks || 10) - 1) * 100)}%, requires significant capital investment.`)
+  if (sPrice > (r.price || 65) * 1.3) simWarnings.push(`Price ${Math.round((sPrice / (r.price || 65) - 1) * 100)}% above current, verify market will accept this.`)
   if (sOTD < 8) simWarnings.push('Order-to-dispatch under 8 min requires dedicated dispatch software and pre-staged batching.')
 
   const MARGINAL_THRESHOLD = 500
@@ -195,7 +195,7 @@ export default function SimulatorView({ calcResult, readOnly }: SimulatorViewPro
           display: 'flex', alignItems: 'center', gap: '8px',
         }}>
           <span>📊</span>
-          <span>Exploring scenarios. Assessment data is not changed.</span>
+          <span>Exploring scenarios, assessment data is not changed</span>
         </div>
       )}
       {/* Header */}
@@ -232,7 +232,7 @@ export default function SimulatorView({ calcResult, readOnly }: SimulatorViewPro
 
       {/* Intro hint */}
       <div style={{ fontSize: '12px', color: 'var(--gray-400)', marginBottom: '16px' }}>
-        Drag sliders to model operational improvements. Revenue impact updates in real time.
+        Drag sliders to model operational improvements, revenue impact updates in real time
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? '12px' : '24px' }}>
@@ -370,7 +370,7 @@ export default function SimulatorView({ calcResult, readOnly }: SimulatorViewPro
                 background: 'var(--warning-bg)', border: '1px solid var(--warning-border)',
                 fontSize: '11px', color: 'var(--warning-dark)', lineHeight: 1.5,
               }}>
-                ⚠ Fleet limits utilisation to {result.maxUtilPct}% at this turnaround. Shorten turnaround or add trucks to raise it.
+                ⚠ Fleet limits utilisation to {result.maxUtilPct}% at this turnaround, shorten turnaround or add trucks to raise it
               </div>
             ) : result.maxUtilPct > result.sUtil ? (
               <div style={{
@@ -378,7 +378,7 @@ export default function SimulatorView({ calcResult, readOnly }: SimulatorViewPro
                 background: 'var(--phase-complete-bg)', border: '1px solid var(--tooltip-border)',
                 fontSize: '11px', color: 'var(--phase-complete)', lineHeight: 1.5,
               }}>
-                ✓ Fleet can support up to {result.maxUtilPct}% utilisation at this turnaround. Plant is the binding constraint.
+                ✓ Fleet can support up to {result.maxUtilPct}% utilisation at this turnaround, plant is the binding constraint
               </div>
             ) : null}
 
@@ -427,7 +427,7 @@ export default function SimulatorView({ calcResult, readOnly }: SimulatorViewPro
             {/* Section helper */}
             {[
               {
-                title: 'Fleet capacity — scenario',
+                title: 'Fleet capacity, scenario',
                 rows: [
                   [`Deliveries per truck`, `${infoData.opH}h × 60 / ${sTurnaround} min`, `${infoData.delsPerTruck} trips`],
                   [`Raw fleet volume`, `${infoData.delsPerTruck} × ${sTrucks} trucks × ${baseline.mixCap} m³/load`, `${infoData.fleetRaw} m³/day`],
@@ -436,7 +436,7 @@ export default function SimulatorView({ calcResult, readOnly }: SimulatorViewPro
                 ],
               },
               {
-                title: 'Plant capacity — scenario',
+                title: 'Plant capacity, scenario',
                 rows: [
                   [`Nameplate daily`, `${baseline.cap} m³/hr × ${infoData.opH} hr`, `${infoData.nameplateDaily} m³/day`],
                   [`Physical ceiling (92% nameplate)`, `${infoData.nameplateDaily} × 92%`, `${infoData.plantCeiling} m³/day`],
@@ -506,7 +506,7 @@ export default function SimulatorView({ calcResult, readOnly }: SimulatorViewPro
                 The <strong>report</strong> shows what the plant actually produced last month, based on the numbers entered in the assessment. That figure includes everything: quiet periods, machine downtime, slow days.
               </div>
               <div style={{ fontSize: '11px', color: 'var(--gray-500)', lineHeight: 1.6, marginTop: '6px' }}>
-                The <strong>simulator</strong> calculates what the plant <em>could</em> produce if trucks ran continuously at the current turnaround and dispatch settings. It does not know about quiet days or unexpected stops. It only models the physical capacity of the fleet.
+                The <strong>simulator</strong> calculates what the plant <em>could</em> produce if trucks ran continuously at the current turnaround and dispatch settings. It does not know about quiet days or unexpected stops, it only models the physical capacity of the fleet.
               </div>
               <div style={{ fontSize: '11px', color: 'var(--gray-500)', lineHeight: 1.6, marginTop: '6px' }}>
                 This means the simulator is best used to compare scenarios against each other, not as an exact prediction of output.

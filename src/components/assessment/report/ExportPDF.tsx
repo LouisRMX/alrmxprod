@@ -1,201 +1,8 @@
 'use client'
 
 import { useState, useRef, useCallback } from 'react'
-import { calcLossRange, type CalcResult, type Answers } from '@/lib/calculations'
+import type { CalcResult, Answers } from '@/lib/calculations'
 import { buildIssues, getFinancialBottleneck, type Issue } from '@/lib/issues'
-
-// ── One-Page Summary PDF ───────────────────────────────────────────────────
-
-interface SummaryPDFButtonProps {
-  calcResult: CalcResult
-  answers: Answers
-  meta?: { country?: string; plant?: string; date?: string }
-  focusActions: string[]
-  analystName?: string
-}
-
-export function SummaryPDFButton({ calcResult, answers, meta, focusActions, analystName }: SummaryPDFButtonProps) {
-  const [exporting, setExporting] = useState(false)
-  const summaryRef = useRef<HTMLDivElement>(null)
-
-  const issues = buildIssues(calcResult, answers, meta)
-  const financialBottleneck = getFinancialBottleneck(issues)
-  const bottleneckIssues = issues.filter(i => i.category === 'bottleneck' && i.loss > 0)
-  const bottleneckLoss = bottleneckIssues.length > 0 ? Math.max(...bottleneckIssues.map(i => i.loss)) : 0
-  const independentLoss = issues.filter(i => i.category === 'independent').reduce((s, i) => s + i.loss, 0)
-  const totalLoss = bottleneckLoss + independentLoss
-
-  const topIssues = [...issues]
-    .filter(i => i.loss > 0)
-    .sort((a, b) => b.loss - a.loss)
-    .slice(0, 3)
-
-  const actions = focusActions.filter(Boolean).slice(0, 3)
-
-  const handleExport = useCallback(async () => {
-    if (!summaryRef.current) return
-    setExporting(true)
-    try {
-      const html2canvas = (await import('html2canvas-pro')).default
-      const { jsPDF } = await import('jspdf')
-
-      summaryRef.current.style.display = 'block'
-      await new Promise(r => setTimeout(r, 100))
-
-      const canvas = await html2canvas(summaryRef.current, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: '#ffffff',
-        width: 800,
-      })
-
-      summaryRef.current.style.display = 'none'
-
-      const imgData = canvas.toDataURL('image/jpeg', 0.95)
-      const pdf = new jsPDF('p', 'mm', 'a4')
-      const pdfWidth = pdf.internal.pageSize.getWidth()
-      const imgWidth = pdfWidth - 20
-      const imgHeight = (canvas.height * imgWidth) / canvas.width
-
-      pdf.addImage(imgData, 'JPEG', 10, 10, imgWidth, imgHeight)
-
-      const plantName = meta?.plant || 'Assessment'
-      const dateStr = meta?.date ? new Date(meta.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
-      pdf.save(`Al-RMX_${plantName.replace(/\s+/g, '_')}_${dateStr}_Summary.pdf`)
-    } catch (e) {
-      console.error('Summary PDF export error:', e)
-    }
-    setExporting(false)
-  }, [meta])
-
-  return (
-    <>
-      <button
-        onClick={handleExport}
-        disabled={exporting}
-        style={{
-          padding: '8px 16px', background: 'var(--white)', color: 'var(--gray-700)',
-          border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', fontWeight: 500,
-          cursor: exporting ? 'not-allowed' : 'pointer', fontFamily: 'var(--font)',
-          opacity: exporting ? 0.7 : 1,
-        }}
-      >
-        {exporting ? 'Generating…' : 'One-Page Summary'}
-      </button>
-
-      {/* Hidden single-page layout */}
-      <div
-        ref={summaryRef}
-        style={{
-          display: 'none',
-          position: 'absolute',
-          left: '-9999px',
-          top: 0,
-          width: '800px',
-          background: '#fff',
-          fontFamily: "'DM Sans', sans-serif",
-          color: '#1a1a1a',
-          padding: '40px',
-        }}
-      >
-        {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px', borderBottom: '2px solid #0F6E56', paddingBottom: '14px' }}>
-          <div>
-            <div style={{ fontSize: '22px', fontWeight: 700, color: '#0F6E56' }}>Al-RMX</div>
-            <div style={{ fontSize: '11px', color: '#6b6b6b', marginTop: '2px' }}>Operations Snapshot</div>
-          </div>
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: '18px', fontWeight: 600 }}>{meta?.plant || 'Plant Assessment'}</div>
-            <div style={{ fontSize: '12px', color: '#6b6b6b' }}>{meta?.country}</div>
-            <div style={{ fontSize: '12px', color: '#6b6b6b' }}>
-              {meta?.date ? new Date(meta.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : ''}
-            </div>
-          </div>
-        </div>
-
-        {/* Total recoverable chip */}
-        {totalLoss > 0 && (() => {
-          const { low, high } = calcLossRange(totalLoss)
-          const fmtLocal = (n: number) => '$' + Math.round(n / 1000) + 'k'
-          return (
-            <div style={{ background: '#fef3c7', border: '1px solid #fbbf24', borderRadius: '10px', padding: '18px 24px', marginBottom: '24px', textAlign: 'center' }}>
-              <div style={{ fontSize: '11px', color: '#92400e', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
-                Total recoverable per month
-              </div>
-              <div style={{ fontSize: '32px', fontWeight: 700, fontFamily: "'DM Mono', monospace", color: '#b45309' }}>
-                {fmtLocal(low)}–{fmtLocal(high)}
-              </div>
-              <div style={{ fontSize: '11px', color: '#92400e', marginTop: '4px' }}>
-                midpoint {fmtLocal(totalLoss)}{financialBottleneck ? ` · driver: ${financialBottleneck}` : ''}
-              </div>
-            </div>
-          )
-        })()}
-
-        {/* Top 3 losses table */}
-        {topIssues.length > 0 && (
-          <div style={{ marginBottom: '24px' }}>
-            <div style={{ fontSize: '13px', fontWeight: 700, color: '#0F6E56', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              Top Operational Losses
-            </div>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ background: '#f9fafb' }}>
-                  <th style={{ padding: '8px 12px', fontSize: '10px', fontWeight: 600, color: '#6b7280', textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '1px solid #e5e7eb' }}>Area</th>
-                  <th style={{ padding: '8px 12px', fontSize: '10px', fontWeight: 600, color: '#6b7280', textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '1px solid #e5e7eb' }}>Finding</th>
-                  <th style={{ padding: '8px 12px', fontSize: '10px', fontWeight: 600, color: '#6b7280', textAlign: 'right', textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '1px solid #e5e7eb' }}>Monthly Loss</th>
-                </tr>
-              </thead>
-              <tbody>
-                {topIssues.map((issue, i) => (
-                  <tr key={i} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                    <td style={{ padding: '10px 12px', fontSize: '11px', fontWeight: 600, color: '#374151', verticalAlign: 'top' }}>
-                      {issue.dimension || '—'}
-                    </td>
-                    <td style={{ padding: '10px 12px', fontSize: '11px', color: '#4b5563', verticalAlign: 'top', lineHeight: 1.4 }}>
-                      {issue.t}
-                    </td>
-                    <td style={{ padding: '10px 12px', fontSize: '11px', fontWeight: 700, fontFamily: "'DM Mono', monospace", color: '#c0392b', textAlign: 'right', verticalAlign: 'top', whiteSpace: 'nowrap' }}>
-                      {(() => { const { low, high } = calcLossRange(issue.loss); return `$${Math.round(low / 1000)}k–$${Math.round(high / 1000)}k` })()}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {/* Priority actions */}
-        {actions.length > 0 && (
-          <div style={{ marginBottom: '24px' }}>
-            <div style={{ fontSize: '13px', fontWeight: 700, color: '#0F6E56', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              Priority Actions
-            </div>
-            {actions.map((action, i) => (
-              <div key={i} style={{ display: 'flex', gap: '10px', marginBottom: '8px', alignItems: 'flex-start' }}>
-                <span style={{ width: '20px', height: '20px', borderRadius: '50%', background: '#0F6E56', color: '#fff', fontSize: '11px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: '1px' }}>
-                  {i + 1}
-                </span>
-                <span style={{ fontSize: '12px', color: '#374151', lineHeight: 1.5 }}>{action}</span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Basis note */}
-        <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '6px', padding: '10px 14px', marginBottom: '24px', fontSize: '10px', color: '#92400e', lineHeight: 1.6 }}>
-          Figures marked with ~ are based on estimated inputs (range midpoints). Measure actual turnaround and dispatch times and update the assessment for precise figures.
-        </div>
-
-        {/* Footer */}
-        <div style={{ paddingTop: '12px', borderTop: '1px solid #e0e0e0', fontSize: '10px', color: '#c8c8c8', display: 'flex', justifyContent: 'space-between' }}>
-          <span>{analystName ? `Prepared by ${analystName} · ` : ''}Al-RMX Plant Intelligence Platform</span>
-          <span>{new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
-        </div>
-      </div>
-    </>
-  )
-}
 
 function fmt(n: number): string {
   return '$' + n.toLocaleString()
@@ -353,7 +160,7 @@ export default function ExportPDF({ calcResult, answers, meta, report }: ExportP
                 {s.label}
               </div>
               <div style={{ fontSize: '28px', fontWeight: 700, fontFamily: "'DM Mono', monospace", color: scoreColor(s.value), marginTop: '2px' }}>
-                {s.value !== null ? s.value : '—'}
+                {s.value !== null ? s.value : '-'}
               </div>
               {s.label === 'Overall' && financialBottleneck && (
                 <div style={{ fontSize: '9px', color: '#C0392B', fontWeight: 600, marginTop: '2px' }}>
@@ -365,34 +172,30 @@ export default function ExportPDF({ calcResult, answers, meta, report }: ExportP
         </div>
 
         {/* Opening hook */}
-        {totalLoss > 0 && (() => {
-          const { low, high } = calcLossRange(totalLoss)
-          const fmtK = (n: number) => '$' + Math.round(n / 1000) + 'k'
-          return (
-            <div style={{ background: '#FDE8E6', border: '1px solid #F5B7B1', borderRadius: '8px', padding: '14px 18px', marginBottom: '20px', textAlign: 'center' }}>
-              <div style={{ fontSize: '13px', fontWeight: 600, color: '#C0392B', lineHeight: 1.5 }}>
-                This plant has <span style={{ fontFamily: "'DM Mono', monospace" }}>{fmtK(low)}–{fmtK(high)}</span> per month to recover.
-              </div>
-              <div style={{ fontSize: '11px', color: '#6b6b6b', marginTop: '3px' }}>
-                midpoint {fmtK(totalLoss)}/month · {fmtK(totalLoss * 12)}/year, contingent on order book
-              </div>
+        {totalLoss > 0 && (
+          <div style={{ background: '#FDE8E6', border: '1px solid #F5B7B1', borderRadius: '8px', padding: '14px 18px', marginBottom: '20px', textAlign: 'center' }}>
+            <div style={{ fontSize: '13px', fontWeight: 600, color: '#C0392B', lineHeight: 1.5 }}>
+              This plant has a potential <span style={{ fontFamily: "'DM Mono', monospace" }}>${Math.round(totalLoss / 22).toLocaleString()}</span> per working day to recover.
             </div>
-          )
-        })()}
+            <div style={{ fontSize: '11px', color: '#6b6b6b', marginTop: '3px' }}>
+              ${totalLoss.toLocaleString()}/month · ${(totalLoss * 12).toLocaleString()}/year, contingent on order book
+            </div>
+          </div>
+        )}
 
         {/* Headline numbers */}
         <div style={{ display: 'flex', gap: '10px', marginBottom: '24px' }}>
           <div style={{ flex: 1, background: totalLoss > 0 ? '#FDE8E6' : '#f4f4f4', borderRadius: '8px', padding: '14px 16px', border: `1px solid ${totalLoss > 0 ? '#F5B7B1' : '#e0e0e0'}` }}>
             <div style={{ fontSize: '10px', color: '#6b6b6b', fontWeight: 500, textTransform: 'uppercase' }}>Potential cost of inaction</div>
-            <div style={{ fontSize: '18px', fontWeight: 600, fontFamily: "'DM Mono', monospace", color: totalLoss > 0 ? '#C0392B' : '#6b6b6b', marginTop: '2px' }}>
-              {totalLoss > 0 ? (() => { const { low, high } = calcLossRange(totalLoss); return `$${Math.round(low / 1000)}k–$${Math.round(high / 1000)}k/mo` })() : '—'}
+            <div style={{ fontSize: '22px', fontWeight: 600, fontFamily: "'DM Mono', monospace", color: totalLoss > 0 ? '#C0392B' : '#6b6b6b', marginTop: '2px' }}>
+              {totalLoss > 0 ? fmt(totalLoss) + '/mo' : '-'}
             </div>
             <div style={{ fontSize: '9px', color: '#9b9b9b', marginTop: '3px' }}>assumes sufficient demand</div>
           </div>
           <div style={{ flex: 1, background: calcResult.hiddenRevMonthly > 0 ? '#E1F5EE' : '#f4f4f4', borderRadius: '8px', padding: '14px 16px', border: `1px solid ${calcResult.hiddenRevMonthly > 0 ? '#9FE1CB' : '#e0e0e0'}` }}>
             <div style={{ fontSize: '10px', color: '#6b6b6b', fontWeight: 500, textTransform: 'uppercase' }}>Potential hidden revenue</div>
             <div style={{ fontSize: '22px', fontWeight: 600, fontFamily: "'DM Mono', monospace", color: calcResult.hiddenRevMonthly > 0 ? '#0F6E56' : '#6b6b6b', marginTop: '2px' }}>
-              {calcResult.hiddenRevMonthly > 0 ? fmt(calcResult.hiddenRevMonthly) + '/mo' : '—'}
+              {calcResult.hiddenRevMonthly > 0 ? fmt(calcResult.hiddenRevMonthly) + '/mo' : '-'}
             </div>
           </div>
         </div>

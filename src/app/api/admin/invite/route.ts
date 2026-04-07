@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 
-// Admin client with service role key — created lazily to avoid build-time crash
+// Admin client with service role key, created lazily to avoid build-time crash
 function getAdminClient() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
     .single()
 
   if (profile?.role !== 'system_admin') {
-    return NextResponse.json({ error: 'Forbidden — system admin only' }, { status: 403 })
+    return NextResponse.json({ error: 'Forbidden, system admin only' }, { status: 403 })
   }
 
   // Parse request
@@ -81,13 +81,13 @@ export async function POST(req: NextRequest) {
   }
 
   if (inviteError) {
-    // User may already exist — try to find them
+    // User may already exist, try to find them
     if (inviteError.message?.includes('already been registered')) {
       const { data: { users } } = await getAdminClient().auth.admin.listUsers()
       const existingUser = users?.find(u => u.email === email)
 
       if (existingUser) {
-        // User exists — just add them to the customer
+        // User exists, just add them to the customer
         const { error: memberError } = await supabase.from('customer_members').upsert({
           customer_id: customerId,
           user_id: existingUser.id,

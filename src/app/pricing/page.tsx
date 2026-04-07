@@ -94,7 +94,7 @@ const FAQ = [
   },
   {
     q: 'Is the 90-day tracking self-serve for the plant?',
-    a: 'Yes. The plant manager logs two numbers per week: turnaround time and dispatch time. That\'s it. The system calculates the financial impact automatically and shows progress against targets in a simple dashboard.',
+    a: 'Yes. The plant manager logs two numbers per week, turnaround time and dispatch time. That\'s it. The system calculates the financial impact automatically and shows progress against targets in a simple dashboard.',
   },
   {
     q: 'Can the report be shared with the plant owner?',

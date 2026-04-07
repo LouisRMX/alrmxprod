@@ -92,7 +92,7 @@ export default async function ReportsPage() {
                   )}
                 </div>
                 <div style={{ fontSize: '12px', color: 'var(--gray-500)', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                  <span>{a.date ? new Date(a.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'}</span>
+                  <span>{a.date ? new Date(a.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '-'}</span>
                   {isAdmin && (a.analyst as { full_name: string })?.full_name && (
                     <span>· {(a.analyst as { full_name: string }).full_name}</span>
                   )}
