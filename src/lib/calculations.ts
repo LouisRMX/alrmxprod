@@ -830,7 +830,7 @@ export function calcConsistency(result: CalcResult, answers: Answers): Consisten
       flags.push({ sev: 'red', msg: `Deliveries/day (${r.delDay}) exceeds the theoretical maximum (${theoMax}) for ${r.trucks} trucks at ${r.ta} min turnaround. One of these figures is likely wrong.` })
   }
 
-  if (r.util > 0.88 && (a.batch_cycle === 'Slow, 7 to 10 min' || a.batch_cycle === 'Very slow, over 10 min'))
+  if (r.util > 0.88 && (a.batch_cycle === 'Slow, 7 to 10 minutes' || a.batch_cycle === 'Very slow, over 10 minutes'))
     flags.push({ sev: 'amber', msg: `Utilisation ${Math.round(r.util * 100)}% is high but batch cycle is reported as slow. High-utilisation plants need fast batch cycles, verify both figures.` })
 
   if (r.util > 0.85 && a.stops_freq === 'More than 5 stops')
