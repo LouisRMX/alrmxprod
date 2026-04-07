@@ -53,7 +53,7 @@ export default function FindingCard({ issue, index, isOverlap = false }: Finding
               </div>
               {isOverlap && (
                 <div style={{ fontSize: '9px', color: 'var(--gray-400)', marginTop: '1px' }}>
-                  Overlap — included in bottleneck
+                  Overlap, included in bottleneck
                 </div>
               )}
             </div>

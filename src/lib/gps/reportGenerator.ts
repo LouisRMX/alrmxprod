@@ -16,7 +16,7 @@ function fmt(v: number | null, unit = ''): string {
 function confidenceLabel(score: number): string {
   if (score >= 0.8) return 'High'
   if (score >= 0.6) return 'Moderate'
-  if (score >= 0.4) return 'Low — treat as directional only'
+  if (score >= 0.4) return 'Low. Treat as directional only.'
   return 'Insufficient'
 }
 
@@ -90,7 +90,7 @@ export function generateLogisticsSection(
       )
     }
     if (turnaround.avg.isEstimate) {
-      lines.push(`Note: Based on limited trip sample — treat as directional indicator.`)
+      lines.push(`Note: Based on limited trip sample. Treat as directional indicator.`)
     }
   }
   lines.push('')
@@ -162,8 +162,8 @@ export function generateLogisticsSection(
   lines.push(
     `This analysis is derived from GPS/fleet export data provided by the plant.` +
     ` Metrics marked as estimates are based on inferred trip boundaries and should be treated as directional indicators.` +
-    ` Precise figures require cross-referencing with batch records and dispatch logs` +
-    ` — a component of the full Al-RMX physical assessment.`
+    ` Precise figures require cross-referencing with batch records and dispatch logs,` +
+    ` a component of the full Al-RMX physical assessment.`
   )
 
   return lines.join('\n')

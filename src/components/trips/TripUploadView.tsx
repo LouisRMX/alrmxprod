@@ -117,7 +117,7 @@ export default function TripUploadView({ targetTAMin, perMinTACoeff, onImported 
       >
         <div style={{ fontSize: '13px', color: 'var(--gray-500)' }}>
           {filename
-            ? <><strong style={{ color: 'var(--gray-800)' }}>{filename}</strong><span style={{ color: 'var(--gray-400)' }}> — click to replace</span></>
+            ? <><strong style={{ color: 'var(--gray-800)' }}>{filename}</strong><span style={{ color: 'var(--gray-400)' }}>, click to replace</span></>
             : <>Drop CSV here or <strong style={{ color: 'var(--green)' }}>click to browse</strong></>
           }
         </div>

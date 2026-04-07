@@ -168,7 +168,7 @@ function calcTrendAlert(entries: DailyEntry[]): string | null {
   if (avgPrev === 0) return null
   const drop = (avgPrev - avgLast) / avgPrev
   if (drop >= 0.10) {
-    return `Deliveries down ~${Math.round(drop * 100)}% vs prior 7 days — check fleet availability or order intake`
+    return `Deliveries down ~${Math.round(drop * 100)}% vs prior 7 days. Check fleet availability or order intake.`
   }
   return null
 }
@@ -362,7 +362,7 @@ function ImpactChart({ config, entries }: { config: TrackingConfig; entries: Tra
     <div style={{ background: 'var(--white)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '20px 24px', marginBottom: '16px' }}>
       {/* Header + toggle */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-        <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--gray-700)' }}>{label} — 12-week trajectory</div>
+        <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--gray-700)' }}>{label}: 12-week trajectory</div>
         {showDispatch && (
           <div style={{ display: 'flex', gap: '2px', background: 'var(--gray-100)', borderRadius: '6px', padding: '2px' }}>
             {(['turnaround', 'dispatch'] as const).map(m => (
@@ -727,7 +727,7 @@ function SetupForm({
       <div style={{ marginBottom: '24px' }}>
         <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--gray-900)', marginBottom: '4px' }}>Start 90-day tracking</div>
         <div style={{ fontSize: '13px', color: 'var(--gray-500)', lineHeight: 1.5 }}>
-          Set targets for the 2 KPIs. The plant logs weekly numbers — you see actual vs predicted in real time.
+          Set targets for the 2 KPIs. The plant logs weekly numbers. You see actual vs predicted in real time.
         </div>
       </div>
 
@@ -740,11 +740,11 @@ function SetupForm({
         <span style={{ fontSize: '16px', flexShrink: 0 }}>⏱</span>
         <div>
           <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--phase-workshop)', marginBottom: '2px' }}>
-            Start now — before the on-site visit
+            Start now, before the on-site visit
           </div>
           <div style={{ fontSize: '11px', color: 'var(--gray-600)', lineHeight: 1.55 }}>
             Logging starts immediately so the plant records baseline weeks before interventions begin.
-            By the time of the on-site visit you already have 2–4 weeks of real data — making the before/after comparison far stronger.
+            By the time of the on-site visit you already have 2–4 weeks of real data, making the before/after comparison far stronger.
           </div>
         </div>
       </div>
@@ -1009,7 +1009,7 @@ function DailyOpsChart({ entries }: { entries: DailyEntry[] }) {
   return (
     <div style={{ background: 'var(--white)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '16px 20px', marginBottom: '16px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-        <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--gray-700)' }}>Daily deliveries — 30 days</div>
+        <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--gray-700)' }}>Daily deliveries, 30 days</div>
         <div style={{ display: 'flex', gap: '14px' }}>
           {[
             { color: '#d1d5db', label: 'Daily' },
@@ -1181,7 +1181,7 @@ function ProgressView({ config, entries, dailyEntries, onEntryLogged, coeffDispa
 
       {weeksWithNoData && !isComplete && (
         <div style={{ background: 'var(--error-bg)', border: '1px solid var(--error-border)', borderRadius: '8px', padding: '10px 16px', marginBottom: '16px', fontSize: '13px', color: 'var(--red)' }}>
-          ⚠ No data logged in the last 2+ weeks — follow up with the plant
+          ⚠ No data logged in the last 2+ weeks. Follow up with the plant.
         </div>
       )}
 
@@ -1303,7 +1303,7 @@ function OperatorProgressHeader({ config, latest, currentWeek }: {
                   <span style={{ fontSize: '12px', fontWeight: 700, color }}>
                     {delta > 0
                       ? `▼ ${delta} min${atTarget ? ' ✓ target hit' : ` · ${pct}% toward target`}`
-                      : `${m.now} min — no improvement yet`}
+                      : `${m.now} min. No improvement yet.`}
                   </span>
                 </div>
                 <ProgressBar pct={pct} color={atTarget ? 'var(--phase-complete)' : pct >= 40 ? 'var(--warning)' : 'var(--gray-200)'} />

@@ -192,7 +192,7 @@ export default function TripDashboard({
       </div>
 
       <div style={{ marginTop: '12px', fontSize: '11px', color: 'var(--gray-300)', textAlign: 'right' }}>
-        Est. loss is directional — assumes all delay is recoverable and excludes external factors.
+        Est. loss is directional. Assumes all delay is recoverable and excludes external factors.
       </div>
     </div>
   )

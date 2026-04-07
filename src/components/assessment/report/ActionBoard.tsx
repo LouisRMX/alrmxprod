@@ -240,7 +240,7 @@ function CardDetailModal({
       const checklist: ChecklistItem[] = await res.json()
       onUpdateChecklist(item.id, checklist)
     } catch {
-      setChecklistError('Generation failed — please try again')
+      setChecklistError('Generation failed. Please try again.')
     } finally {
       setGeneratingChecklist(false)
     }
@@ -1133,7 +1133,7 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, fo
                 const currentDisplay = cfg.unit === '%' ? `${cfg.currentVal.toFixed(1)}%`    : `${Math.round(cfg.currentVal)} min`
                 peerToInsert.push({
                   assessment_id: assessmentId,
-                  text: `Schedule a peer review with ${bestName} — they run ${bestDisplay} ${cfg.label} vs your ${currentDisplay}. Ask what changed.`,
+                  text: `Schedule a peer review with ${bestName}. They run ${bestDisplay} ${cfg.label} vs your ${currentDisplay}. Ask what changed.`,
                   status: 'todo',
                   checklist: [],
                   dimension: dim,

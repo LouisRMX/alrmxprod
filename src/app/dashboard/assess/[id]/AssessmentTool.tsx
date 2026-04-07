@@ -188,7 +188,7 @@ export default function AssessmentTool({
   }, [assessment.id, supabase])
 
   const phaseLabel = phase === 'workshop' ? 'Phase 1: Pre-assessment'
-    : phase === 'workshop_complete' ? 'Pre-assessment complete — awaiting on-site visit'
+    : phase === 'workshop_complete' ? 'Pre-assessment complete. Awaiting on-site visit.'
     : phase === 'onsite' ? 'Phase 2: On-site diagnostic'
     : phase === 'complete' ? 'Complete' : ''
   const phaseStyle = phase === 'workshop'
@@ -213,7 +213,7 @@ export default function AssessmentTool({
         {/* Row 1: plant name + phase badge */}
         <span style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           <span style={{ color: 'var(--gray-700)', fontWeight: 500 }}>
-            {assessment.plant?.name}{!isMobile && ` — ${assessment.plant?.country}`}
+            {assessment.plant?.name}{!isMobile && `, ${assessment.plant?.country}`}
           </span>
           {phaseLabel && (
             <span style={{
@@ -240,7 +240,7 @@ export default function AssessmentTool({
                   borderColor: reportReleased ? 'var(--tooltip-border)' : 'var(--error-border)',
                 }}
               >
-                {releasing ? '…' : reportReleased ? 'Report released' : 'Report draft — not visible to customer'}
+                {releasing ? '…' : reportReleased ? 'Report released' : 'Report draft. Not visible to customer.'}
               </button>
               <button
                 onClick={() => setShowDeleteModal(true)}
@@ -258,7 +258,7 @@ export default function AssessmentTool({
           )}
           {saveError ? (
             <span style={{ color: 'var(--red)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <span style={{ fontSize: '13px' }}>⚠</span> Save failed — please try again
+              <span style={{ fontSize: '13px' }}>⚠</span> Save failed. Please try again.
             </span>
           ) : saving ? (
             <span style={{ color: 'var(--phase-onsite)', display: 'flex', alignItems: 'center', gap: '4px' }}>

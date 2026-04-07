@@ -55,7 +55,7 @@ export default function ActionItems({ assessments, lastLogged }: ActionItemsProp
         type: 'write_report',
         assessmentId: a.id,
         plantName: pName,
-        detail: `Score ${a.overall}/100 — report not written`,
+        detail: `Score ${a.overall}/100. Report not written.`,
       })
     }
 
@@ -72,7 +72,7 @@ export default function ActionItems({ assessments, lastLogged }: ActionItemsProp
           plantName: pName,
           detail: lastEntry
             ? `No data logged in ${daysSince} days`
-            : `Tracking started — no entries yet`,
+            : `Tracking started. No entries yet.`,
         })
       }
     }
@@ -83,7 +83,7 @@ export default function ActionItems({ assessments, lastLogged }: ActionItemsProp
         type: 'release_report',
         assessmentId: a.id,
         plantName: pName,
-        detail: 'Report written — not visible to client yet',
+        detail: 'Report written. Not visible to client yet.',
       })
     }
   }

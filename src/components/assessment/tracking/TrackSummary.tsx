@@ -145,7 +145,7 @@ function generateHTML(
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>${plant} — 90-Day Progress Report</title>
+<title>${plant}: 90-Day Progress Report</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #fff; color: #111827; }

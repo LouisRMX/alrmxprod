@@ -147,7 +147,7 @@ function ActionPanel({ panel, isDemo, onClose }: { panel: PanelState; isDemo?: b
       if (panel.peerReview) {
         setPeerAction({
           id: 'demo-peer',
-          text: `Schedule a process review with ${panel.peerReview.bestPlant} — they run ${panel.peerReview.bestVal} ${panel.dimLabel.toLowerCase()} vs your ${panel.peerReview.currentVal}. Ask what changed.`,
+          text: `Schedule a process review with ${panel.peerReview.bestPlant}. They run ${panel.peerReview.bestVal} ${panel.dimLabel.toLowerCase()} vs your ${panel.peerReview.currentVal}. Ask what changed.`,
           status: 'todo',
           dimension: panel.dimension,
         })
@@ -247,7 +247,7 @@ function ActionPanel({ panel, isDemo, onClose }: { panel: PanelState; isDemo?: b
                 {panel.dimLabel}
               </div>
               <div style={{ fontSize: '12px', color: '#cc3333', fontWeight: 600, marginTop: '3px', fontFamily: 'var(--mono)' }}>
-                {kpiDisplay} — needs improvement
+                {kpiDisplay}, needs improvement
               </div>
             </div>
             <button
@@ -472,7 +472,7 @@ export default function CompareView({
             Portfolio Comparison
           </h1>
           <p style={{ fontSize: '13px', color: 'var(--gray-500)' }}>
-            {scored.length} plants — click any column header to sort
+            {scored.length} plants. Click any column header to sort.
           </p>
         </div>
         {isDemo && onDemoPlantCountChange && (
@@ -552,7 +552,7 @@ export default function CompareView({
         <strong style={{ color: 'var(--gray-600)' }}>
           {sortCol === 'atRisk' ? 'Monthly gap' : DIMS.find(d => d.key === sortCol)?.label}
         </strong>
-        {' '}— best plant first
+        {', best plant first'}
       </div>
 
       {/* Table */}

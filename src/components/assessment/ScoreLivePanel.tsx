@@ -41,7 +41,7 @@ const SCORE_EXPLANATIONS = [
     label: 'Production',
     color: '#0F6E56',
     subtitle: 'How well the plant uses its capacity',
-    body: 'Measures how close your plant is to its optimal operating rate of 85%. That 15% headroom is intentional — it allows for scheduling flexibility, maintenance windows, and demand variability without overloading. A score of 100 means you are running at 85% of rated capacity or above. Scores are also reduced if the batch plant cycle is slow or if unplanned stops are frequent, and discounted if the production data is estimated rather than read from records.',
+    body: 'Measures how close your plant is to its optimal operating rate of 85%. That 15% headroom is intentional. It allows for scheduling flexibility, maintenance windows, and demand variability without overloading. A score of 100 means you are running at 85% of rated capacity or above. Scores are also reduced if the batch plant cycle is slow or if unplanned stops are frequent, and discounted if the production data is estimated rather than read from records.',
     factors: [
       { name: 'Utilisation rate (actual m³ ÷ capacity × hours)', weight: 'Base score' },
       { name: 'Batch cycle time penalty (slow >7 min = up to −22 pts)', weight: 'Deduction' },
@@ -68,7 +68,7 @@ const SCORE_EXPLANATIONS = [
     label: 'Fleet',
     color: '#0F6E56',
     subtitle: 'Turnaround efficiency and fleet readiness',
-    body: 'Measures the full round-trip cycle for each truck: leave plant → deliver → return → reload. The target depends on your delivery radius — 60 minutes base plus 1.5 minutes per km of radius (e.g. 10 km radius = 75-minute target). Longer turnarounds mean fewer deliveries per truck per day. The score also reflects how many trucks are road-ready and how many qualified drivers are available.',
+    body: 'Measures the full round-trip cycle for each truck: leave plant → deliver → return → reload. The target depends on your delivery radius: 60 minutes base plus 1.5 minutes per km of radius (e.g. 10 km radius = 75-minute target). Longer turnarounds mean fewer deliveries per truck per day. The score also reflects how many trucks are road-ready and how many qualified drivers are available.',
     factors: [
       { name: 'Turnaround time vs. benchmark for your delivery radius', weight: '50%' },
       { name: 'Fleet availability (trucks in service vs. off-road, target 95%)', weight: '25%' },
@@ -81,7 +81,7 @@ const SCORE_EXPLANATIONS = [
     label: 'Quality',
     color: '#c0392b',
     subtitle: 'Rejection rate and process controls',
-    body: 'Measures how much concrete is rejected on site and the plant\'s exposure to that cost. The plant typically absorbs 100% of the write-off — material cost plus the truck cycle. A 4% rejection rate on 6,000 m³/month at $68/m³ costs roughly $16,000/month. The score also reflects whether systematic quality checks are in place and how recently the batch plant was calibrated.',
+    body: 'Measures how much concrete is rejected on site and the plant\'s exposure to that cost. The plant typically absorbs 100% of the write-off: material cost plus the truck cycle. A 4% rejection rate on 6,000 m³/month at $68/m³ costs roughly $16,000/month. The score also reflects whether systematic quality checks are in place and how recently the batch plant was calibrated.',
     factors: [
       { name: 'Rejection rate (target: under 1.7% for green zone)', weight: '50%' },
       { name: 'Quality control procedures (slump tests, load tickets)', weight: '25%' },
@@ -187,10 +187,10 @@ function InfoModal({ onClose }: { onClose: () => void }) {
           <div style={{ padding: '14px 20px', background: 'var(--gray-50, #fafafa)', margin: '0' }}>
             <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--gray-900)', marginBottom: '4px' }}>Overall & Bottleneck</div>
             <p style={{ fontSize: '12px', color: 'var(--gray-700)', lineHeight: '1.6', margin: '0 0 8px' }}>
-              The <strong>Overall score</strong> is the simple average of the four scores above. A single weak area pulls it down significantly — a plant scoring 90/90/90/30 gets an overall of 75, not 90.
+              The <strong>Overall score</strong> is the simple average of the four scores above. A single weak area pulls it down significantly. A plant scoring 90/90/90/30 gets an overall of 75, not 90.
             </p>
             <p style={{ fontSize: '12px', color: 'var(--gray-700)', lineHeight: '1.6', margin: 0 }}>
-              The <strong>Bottleneck</strong> badge marks whichever area scored lowest. That is the operational weak point. Note that the biggest <em>financial</em> loss may come from a different area — the Report tab shows the financial impact of each dimension separately.
+              The <strong>Bottleneck</strong> badge marks whichever area scored lowest. That is the operational weak point. Note that the biggest <em>financial</em> loss may come from a different area. The Report tab shows the financial impact of each dimension separately.
             </p>
           </div>
         </div>

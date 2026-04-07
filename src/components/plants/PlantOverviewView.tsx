@@ -76,7 +76,7 @@ function rootCauseLine(bottleneck: string | null, kpi: PlantAssessmentData['kpi'
   switch (bottleneck) {
     case 'dispatch':
       return kpi.dispatchMin != null
-        ? `Orders leave ${Math.round(kpi.dispatchMin)} min after receipt — target 15 min`
+        ? `Orders leave ${Math.round(kpi.dispatchMin)} min after receipt, target 15 min`
         : null
     case 'fleet':
       return kpi.turnaroundMin != null
@@ -84,11 +84,11 @@ function rootCauseLine(bottleneck: string | null, kpi: PlantAssessmentData['kpi'
         : null
     case 'quality':
       return kpi.rejectPct != null
-        ? `${kpi.rejectPct}% of loads rejected on arrival — target 1.7%`
+        ? `${kpi.rejectPct}% of loads rejected on arrival, target 1.7%`
         : null
     case 'prod':
       return kpi.utilPct != null
-        ? `${Math.round(kpi.utilPct)}% utilisation — target 85%`
+        ? `${Math.round(kpi.utilPct)}% utilisation, target 85%`
         : null
     default:
       return null
@@ -148,7 +148,7 @@ function trackingContext(a: PlantAssessmentData): { text: string; color: string 
     return                 { text: `Flat this week · Wk ${ti.weekOf}/${ti.weekTotal}`,                             color: 'var(--gray-400)' }
   }
   if (a.trackingWeek != null) {
-    return { text: `Wk ${a.trackingWeek} of 13 — tracking in progress`, color: 'var(--gray-400)' }
+    return { text: `Wk ${a.trackingWeek} of 13, tracking in progress`, color: 'var(--gray-400)' }
   }
   return null
 }
@@ -528,7 +528,7 @@ export default function PlantOverviewView({ plants, customerName, isDemo, demoPl
         }}>
           <span style={{ flexShrink: 0 }}>🎯</span>
           <span>
-            Demo — Al-Noor RMX Group · {plants.length} plant{plants.length !== 1 ? 's' : ''} across Saudi Arabia.
+            Demo: Al-Noor RMX Group · {plants.length} plant{plants.length !== 1 ? 's' : ''} across Saudi Arabia.
             Click any plant to explore the live assessment tool.
           </span>
         </div>

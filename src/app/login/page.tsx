@@ -117,7 +117,7 @@ function LoginForm() {
               borderRadius: '8px', padding: '10px 12px',
               fontSize: '13px', color: 'var(--red)'
             }}>
-              {error || 'Authentication failed — please try again.'}
+              {error || 'Authentication failed. Please try again.'}
             </div>
           )}
 

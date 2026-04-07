@@ -311,7 +311,7 @@ const PHASE_CONFIG: Record<DemoPhase, {
   onsite: {
     phase: 'onsite',
     label: 'On-site assessment',
-    sublabel: 'Full diagnostic — all data collected during plant visit',
+    sublabel: 'Full diagnostic. All data collected during plant visit.',
     badge: 'ON-SITE',
     badgeBg: 'rgba(255,255,255,0.18)',
     badgeColor: '#fff',
@@ -515,7 +515,7 @@ export default function DemoView({ userRole = null, isOverridden = false }: Demo
             )}
             {!isMobile && demoPhase === 'onsite' && (
               <span style={{ marginLeft: '12px', opacity: 0.7 }}>
-                All data is live — edit any answer and the scores update instantly
+                All data is live. Edit any answer and the scores update instantly.
               </span>
             )}
           </div>

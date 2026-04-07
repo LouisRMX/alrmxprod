@@ -89,7 +89,7 @@ export default function ComparisonBanner({
             60-Day Follow-up Results
           </div>
           <div style={{ fontSize: '11px', color: '#4ade80', marginTop: '2px' }}>
-            Baseline: {fmtDate(baselineDate)} — Follow-up: {fmtDate(followupDate)}
+            Baseline: {fmtDate(baselineDate)} · Follow-up: {fmtDate(followupDate)}
           </div>
         </div>
         {recovered > 0 && (
@@ -115,7 +115,7 @@ export default function ComparisonBanner({
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
                 <span style={{ width: '110px', color: '#374151', fontWeight: 500, flexShrink: 0 }}>{m.label}</span>
                 <span style={{ color: '#6b7280' }}>
-                  {m.before !== null ? `${m.before}${m.unit}` : '—'}
+                  {m.before !== null ? `${m.before}${m.unit}` : '-'}
                 </span>
                 <span style={{ color: '#9ca3af', fontSize: '11px' }}>→</span>
                 <span style={{ color: '#374151', fontWeight: 600 }}>

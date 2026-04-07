@@ -378,9 +378,9 @@ function HowItWorks() {
 
 function PortfolioBenchmark() {
   const plants = [
-    { name: 'Plant — Abu Dhabi',  dispatch: '18 min', gap: null,     loss: null,      best: true  },
-    { name: 'Plant — Dubai',      dispatch: '34 min', gap: '+16 min', loss: '$67k/mo', best: false },
-    { name: 'Plant — Sharjah',    dispatch: '41 min', gap: '+23 min', loss: '$108k/mo', best: false },
+    { name: 'Abu Dhabi Plant',  dispatch: '18 min', gap: null,     loss: null,      best: true  },
+    { name: 'Dubai Plant',      dispatch: '34 min', gap: '+16 min', loss: '$67k/mo', best: false },
+    { name: 'Sharjah Plant',    dispatch: '41 min', gap: '+23 min', loss: '$108k/mo', best: false },
   ]
 
   return (
@@ -392,7 +392,7 @@ function PortfolioBenchmark() {
           <span style={{ color: '#4ade80' }}> Not an industry average.</span>
         </h2>
         <p style={{ fontSize: '15px', color: 'rgba(255,255,255,0.5)', lineHeight: 1.7, margin: '0 0 40px', maxWidth: '560px' }}>
-          When you operate multiple plants, we show exactly which ones are underperforming relative to your own best performers — and what that gap costs every month.
+          When you operate multiple plants, we show exactly which ones are underperforming relative to your own best performers, and what that gap costs every month.
         </p>
 
         {/* Plant comparison table */}

@@ -43,7 +43,7 @@ export default function AICopilot({ report, assessmentId, context }: AICopilotPr
     }, { onConflict: 'assessment_id' })
     if (error) {
       console.error('Report save error:', error)
-      setGenError('Failed to save — please try again.')
+      setGenError('Failed to save. Please try again.')
       setTimeout(() => setGenError(null), 4000)
     }
     setSaving(false)
@@ -80,7 +80,7 @@ export default function AICopilot({ report, assessmentId, context }: AICopilotPr
       }
     } catch (e) {
       console.error('Report generation error:', e)
-      setGenError('Generation failed — click Generate to retry.')
+      setGenError('Generation failed. Click Generate to retry.')
       // Restore previous text on failure
       if (!texts[section]) {
         setTexts(prev => ({ ...prev, [section]: previousText.current }))

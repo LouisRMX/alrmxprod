@@ -512,8 +512,8 @@ function LogisticsSection({ text, gpsAvgTA, perMinTACoeff, TARGET_TA, selfReport
                   </div>
                   <div style={{ fontSize: '11px', color: 'var(--gray-500)', lineHeight: '1.4' }}>
                     {gpsExcessMin > 0
-                      ? `GPS-verified financial impact — ${gpsExcessMin} excess min × ${fmt(perMinTACoeff)}/min`
-                      : 'GPS data: turnaround is within target — no financial leakage from fleet cycle time'}
+                      ? `GPS-verified financial impact, ${gpsExcessMin} excess min × ${fmt(perMinTACoeff)}/min`
+                      : 'GPS data: turnaround is within target. No financial leakage from fleet cycle time.'}
                   </div>
                 </div>
               )}
@@ -544,7 +544,7 @@ function CaseStudySection({ calcResult, meta, totalLoss, assessmentId }: {
 
   // Pre-filled template derived from calcResult
   const template = [
-    `Client: ${plantName}${country ? ` — ${country}` : ''}`,
+    `Client: ${plantName}${country ? `, ${country}` : ''}`,
     `Assessment date: ${date}`,
     ``,
     `BEFORE`,
@@ -797,7 +797,7 @@ function BottleneckSlider({ calcResult, dimension }: {
           </span>
           {!atCurrent && improvement > 0 && (
             <span style={{ fontSize: '11px', color: 'var(--gray-500)', marginLeft: '8px' }}>
-              at {sliderVal.toFixed(decimals)}{unit} — {improvement.toFixed(decimals)}{unit} improvement
+              at {sliderVal.toFixed(decimals)}{unit}, {improvement.toFixed(decimals)}{unit} improvement
             </span>
           )}
         </div>
@@ -819,7 +819,7 @@ function CalcBasisPanel({ calcResult, answers }: { calcResult: CalcResult; answe
     if (calcResult.marginIncomplete) {
       items.push({
         label: 'Contribution margin',
-        value: `~$${calcResult.contribSafe}/m³ (35% of price — material costs not fully entered)`,
+        value: `~$${calcResult.contribSafe}/m³ (35% of price, material costs not fully entered)`,
         estimated: true,
         hint: 'Enter cement, aggregate and admix costs in section 1 of the assessment',
       })
@@ -835,7 +835,7 @@ function CalcBasisPanel({ calcResult, answers }: { calcResult: CalcResult; answe
   if (calcResult.dispatchMin) {
     items.push({
       label: 'Dispatch time',
-      value: `${calcResult.dispatchMin} min — midpoint of selected range`,
+      value: `${calcResult.dispatchMin} min, midpoint of selected range`,
       estimated: true,
       hint: 'Record order receipt vs. batch start time for 20 orders to get an actual average',
     })
@@ -844,7 +844,7 @@ function CalcBasisPanel({ calcResult, answers }: { calcResult: CalcResult; answe
   if (calcResult.ta > 0) {
     items.push({
       label: 'Turnaround time',
-      value: `${calcResult.ta} min — midpoint of selected range`,
+      value: `${calcResult.ta} min, midpoint of selected range`,
       estimated: true,
       hint: 'Log truck departure and yard return for 10 trips this week, take the average',
     })
@@ -861,7 +861,7 @@ function CalcBasisPanel({ calcResult, answers }: { calcResult: CalcResult; answe
   if (!(+(answers.partial_load_pct ?? 0)) && calcResult.partialLeakMonthly > 0) {
     items.push({
       label: 'Partial load fraction',
-      value: '30% of deliveries (default — no measurement entered)',
+      value: '30% of deliveries (default, no measurement entered)',
       estimated: true,
     })
   }
@@ -887,7 +887,7 @@ function CalcBasisPanel({ calcResult, answers }: { calcResult: CalcResult; answe
         <span style={{ color: estimatedCount > 0 ? '#b45309' : '#16a34a' }}>ⓘ</span>
         <span style={{ flex: 1 }}>
           {estimatedCount > 0
-            ? `${estimatedCount} estimated input${estimatedCount !== 1 ? 's' : ''} — figures are indicative`
+            ? `${estimatedCount} estimated input${estimatedCount !== 1 ? 's' : ''}. Figures are indicative.`
             : 'All key inputs measured'}
         </span>
         <span style={{ fontSize: '10px', color: 'var(--gray-400)' }}>{open ? '▲' : '▼'}</span>
@@ -917,7 +917,7 @@ function CalcBasisPanel({ calcResult, answers }: { calcResult: CalcResult; answe
           ))}
           {estimatedCount > 0 && (
             <div style={{ fontSize: '10px', color: 'var(--gray-400)', marginTop: '2px', borderTop: '1px solid var(--border)', paddingTop: '6px' }}>
-              Measure the actual figures and update them in the assessment — your recovery estimate will recalculate automatically.
+              Measure the actual figures and update them in the assessment. Your recovery estimate will recalculate automatically.
             </div>
           )}
         </div>
@@ -946,7 +946,7 @@ function FinancialHeadline({ totalLoss, dailyLoss, calcResult }: {
         <div>
           <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#9b9b9b', marginBottom: '4px' }}>Plant status</div>
           <div style={{ fontSize: '24px', fontWeight: 800, color: '#1f8a5e', lineHeight: 1, marginBottom: '4px' }}>Performing at benchmark</div>
-          <div style={{ fontSize: '11px', color: '#9b9b9b' }}>No operational losses identified — all primary metrics at or above target</div>
+          <div style={{ fontSize: '11px', color: '#9b9b9b' }}>No operational losses identified. All primary metrics at or above target.</div>
         </div>
       </div>
     )
@@ -976,8 +976,8 @@ function FinancialHeadline({ totalLoss, dailyLoss, calcResult }: {
         })()}
         <div style={{ fontSize: '11px', color: '#9b9b9b', marginTop: '4px' }}>
           {calcResult.demandSufficient === false
-            ? 'demand-constrained — operational cost saving only'
-            : `${fmt(dailyLoss)} every working day — based on reported data`}
+            ? 'demand-constrained, operational cost saving only'
+            : `${fmt(dailyLoss)} every working day, based on reported data`}
         </div>
       </div>
       <div style={{ textAlign: 'right', flexShrink: 0 }}>
@@ -1023,7 +1023,7 @@ function ImpactHook({ bnLoss, bnDailyLoss, totalLoss, calcResult, issues, financ
         <div>
           <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#9b9b9b', marginBottom: '4px' }}>Plant status</div>
           <div style={{ fontSize: '24px', fontWeight: 800, color: '#1f8a5e', lineHeight: 1, marginBottom: '4px' }}>Performing at benchmark</div>
-          <div style={{ fontSize: '11px', color: '#9b9b9b' }}>No operational losses identified — all primary metrics at or above target</div>
+          <div style={{ fontSize: '11px', color: '#9b9b9b' }}>No operational losses identified. All primary metrics at or above target.</div>
         </div>
       </div>
     )
@@ -1058,7 +1058,7 @@ function ImpactHook({ bnLoss, bnDailyLoss, totalLoss, calcResult, issues, financ
       {/* Left — Estimated revenue leakage */}
       <div style={{ padding: isMobile ? '16px' : '24px', background: '#fff', borderRight: isMobile ? 'none' : '1px solid #e2e2de', borderBottom: isMobile ? '1px solid #e2e2de' : 'none' }}>
         <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.4px', textTransform: 'uppercase', color: '#999', marginBottom: '8px' }}>
-          {driverLabel ? `${driverLabel} — ` : ''}{calcResult.demandSufficient === false ? 'Margin improvement potential' : 'Estimated revenue leakage'}
+          {driverLabel ? `${driverLabel}: ` : ''}{calcResult.demandSufficient === false ? 'Margin improvement potential' : 'Estimated revenue leakage'}
         </div>
         <div style={{ fontSize: isMobile ? '32px' : '48px', fontWeight: 800, color: '#1a1a1a', lineHeight: 1, letterSpacing: '-1px', marginBottom: '2px' }}>
           {fmtK(bnLoss)}<span style={{ fontSize: isMobile ? '15px' : '20px', fontWeight: 500, color: '#888', marginLeft: '8px' }}>/ month</span>
@@ -1094,18 +1094,18 @@ function ImpactHook({ bnLoss, bnDailyLoss, totalLoss, calcResult, issues, financ
             : calcResult.scores.prod
           return (
             <div style={{ fontSize: '11px', color: '#bbb', marginTop: '6px', fontStyle: 'italic' }}>
-              {scoreBnLabel} has the lowest score ({scoreVal != null ? Math.round(scoreVal) : '?'}/100) — {finBnLabel} drives the largest financial loss and is prioritised
+              {scoreBnLabel} has the lowest score ({scoreVal != null ? Math.round(scoreVal) : '?'}/100). {finBnLabel} drives the largest financial loss and is prioritised.
             </div>
           )
         })()}
         {liveBenchmarks && liveBenchmarks.n >= 3 && (() => {
           // Show relevant benchmark for the primary bottleneck
           const bTag = financialBottleneck === 'Fleet'
-            ? `${liveBenchmarks.n} comparable plants — median: ${liveBenchmarks.turnaround.p50} min · top 25%: ${liveBenchmarks.turnaround.p25} min`
+            ? `${liveBenchmarks.n} comparable plants, median: ${liveBenchmarks.turnaround.p50} min · top 25%: ${liveBenchmarks.turnaround.p25} min`
             : financialBottleneck === 'Dispatch'
-            ? `${liveBenchmarks.n} comparable plants — median: ${liveBenchmarks.dispatch.p50} min · top 25%: ${liveBenchmarks.dispatch.p25} min`
+            ? `${liveBenchmarks.n} comparable plants, median: ${liveBenchmarks.dispatch.p50} min · top 25%: ${liveBenchmarks.dispatch.p25} min`
             : financialBottleneck === 'Quality'
-            ? `${liveBenchmarks.n} comparable plants — median: ${liveBenchmarks.reject.p50}% · top 25%: ${liveBenchmarks.reject.p25}%`
+            ? `${liveBenchmarks.n} comparable plants, median: ${liveBenchmarks.reject.p50}% · top 25%: ${liveBenchmarks.reject.p25}%`
             : null
           if (!bTag) return null
           return (
@@ -1119,7 +1119,7 @@ function ImpactHook({ bnLoss, bnDailyLoss, totalLoss, calcResult, issues, financ
       {/* Right — Recovery potential (main constraint only) */}
       <div style={{ padding: isMobile ? '16px' : '24px', background: '#f6fbf8' }}>
         <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.4px', textTransform: 'uppercase', color: '#7ab89a', marginBottom: '8px' }}>
-          {driverLabel ? `${driverLabel} — ` : ''}Recovery potential
+          {driverLabel ? `${driverLabel}: ` : ''}Recovery potential
         </div>
         {bnLoss > 0 ? (
           <>
@@ -1203,7 +1203,7 @@ function ScoreOverview({ calcResult, meta, phase }: {
       {/* Right side */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: '17px', fontWeight: 700, color: '#1a1a1a', marginBottom: '4px' }}>
-          {plantName} — {phaseLabel}
+          {plantName}: {phaseLabel}
         </div>
         <div style={{ fontSize: '12px', color: '#666', marginBottom: '14px' }}>
           {belowBenchmark > 0
@@ -1258,7 +1258,7 @@ function DimensionSummary({ calcResult, issues, answers }: {
     dims.push({
       label: 'Logistics',
       score: calcResult.scores?.fleet ?? null,
-      text: `Turnaround at ${calcResult.ta} min — ${taExcess} min above the ${calcResult.TARGET_TA}-min benchmark.${extra} Costs ${fmt(Math.round(taLeak))}/month.`,
+      text: `Turnaround at ${calcResult.ta} min, ${taExcess} min above the ${calcResult.TARGET_TA}-min benchmark.${extra} Costs ${fmt(Math.round(taLeak))}/month.`,
       loss: Math.round(taLeak),
     })
   }
@@ -1294,7 +1294,7 @@ function DimensionSummary({ calcResult, issues, answers }: {
     dims.push({
       label: 'Production',
       score: calcResult.scores?.prod ?? null,
-      text: `Plant utilisation at ${utilPct}% vs ${calcResult.utilisationTarget}% target — capacity constrained by downstream fleet cycle time.`,
+      text: `Plant utilisation at ${utilPct}% vs ${calcResult.utilisationTarget}% target, capacity constrained by downstream fleet cycle time.`,
       loss: Math.round(calcResult.capLeakMonthly),
     })
   }
@@ -1519,9 +1519,9 @@ function StartTrackingCard({ calcResult, issues, totalLoss, financialBottleneck,
   const dim = topIssue.dimension || financialBottleneck || ''
   const sevenDay = (() => {
     switch (dim) {
-      case 'Fleet':      return 'Site wait time starts falling — first measurable reduction in turnaround'
+      case 'Fleet':      return 'Site wait time starts falling, first measurable reduction in turnaround'
       case 'Dispatch':   return 'Order-to-dispatch time drops below 20 min on first attempt'
-      case 'Quality':    return 'Rejection pattern identified — dominant cause confirmed'
+      case 'Quality':    return 'Rejection pattern identified, dominant cause confirmed'
       case 'Production': return 'Hourly utilisation baseline established'
       default:           return 'First weekly data point captured and logged'
     }
@@ -1580,7 +1580,7 @@ function StartTrackingCard({ calcResult, issues, totalLoss, financialBottleneck,
         padding: '16px 24px', background: '#fafaf9', borderTop: '1px solid #e8e8e6',
       }}>
         <span style={{ fontSize: '11px', color: '#9b9b9b', lineHeight: 1.5 }}>
-          Lock in baselines and track recovery{baselines.length > 0 ? ` — ${baselines.join(' · ')}` : ''}
+          Lock in baselines and track recovery{baselines.length > 0 ? `: ${baselines.join(' · ')}` : ''}
         </span>
         <button
           type="button"
@@ -1616,9 +1616,9 @@ function StartHereCard({ calcResult, issues, totalLoss, financialBottleneck, onS
   const dim = topIssue.dimension || financialBottleneck || ''
   const sevenDay = (() => {
     switch (dim) {
-      case 'Fleet':      return 'Site wait time starts falling — first measurable reduction in turnaround'
+      case 'Fleet':      return 'Site wait time starts falling, first measurable reduction in turnaround'
       case 'Dispatch':   return 'Order-to-dispatch time drops below 20 min on first attempt'
-      case 'Quality':    return 'Rejection pattern identified — dominant cause confirmed'
+      case 'Quality':    return 'Rejection pattern identified, dominant cause confirmed'
       case 'Production': return 'Hourly utilisation baseline established'
       default:           return 'First weekly data point captured and logged'
     }
@@ -1645,7 +1645,7 @@ function StartHereCard({ calcResult, issues, totalLoss, financialBottleneck, onS
         </div>
         <div style={{ fontSize: '13px', color: '#666', marginBottom: '20px', lineHeight: 1.5 }}>
           Costs <span style={{ fontWeight: 600, color: '#cc3333' }}>{fmt(topIssue.loss)}/month</span>
-          {topIssue.rec ? ` — ${topIssue.rec}` : ''}
+          {topIssue.rec ? ` ${topIssue.rec}` : ''}
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '16px' }}>
@@ -1925,7 +1925,7 @@ function IndicativeNotice() {
   const gaps = [
     {
       label: 'Dosing and batch variance',
-      detail: 'Requires batcher computer log — uncalibrated scales drift ±3–8% on cement dosing, invisible without the raw data.',
+      detail: 'Requires batcher computer log. Uncalibrated scales drift ±3–8% on cement dosing, invisible without the raw data.',
     },
     {
       label: 'Actual truck idle and yard time',
@@ -1937,11 +1937,11 @@ function IndicativeNotice() {
     },
     {
       label: 'Water additions at site',
-      detail: 'Free water added by crews before discharge is the most common cause of strength failures and rejections — never captured in self-reporting.',
+      detail: 'Free water added by crews before discharge is the most common cause of strength failures and rejections. Never captured in self-reporting.',
     },
     {
       label: 'Mix design cement content',
-      detail: 'Whether current designs carry excess cement vs. optimised benchmarks — requires lab records and batcher log comparison.',
+      detail: 'Whether current designs carry excess cement vs. optimised benchmarks. Requires lab records and batcher log comparison.',
     },
     {
       label: 'Return mortar volume',
@@ -1963,7 +1963,7 @@ function IndicativeNotice() {
       >
         <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#f59e0b', flexShrink: 0 }} />
         <span style={{ fontSize: '13px', fontWeight: 600, color: '#1a1a1a' }}>
-          Indicative assessment — based on reported data
+          Indicative assessment, based on reported data
         </span>
         <span style={{ fontSize: '11px', color: '#999', marginLeft: '2px' }}>
           6 data points require physical verification
@@ -1985,7 +1985,7 @@ function IndicativeNotice() {
                   background: '#d1d1ce', flexShrink: 0, marginTop: '7px',
                 }} />
                 <div style={{ fontSize: '12px', lineHeight: 1.5, color: '#555' }}>
-                  <span style={{ fontWeight: 600, color: '#333' }}>{gap.label} — </span>
+                  <span style={{ fontWeight: 600, color: '#333' }}>{gap.label}: </span>
                   {gap.detail}
                 </div>
               </div>
@@ -1996,7 +1996,7 @@ function IndicativeNotice() {
             borderTop: '1px solid #e8e8e6',
             fontSize: '12px', color: '#888', lineHeight: 1.5,
           }}>
-            A physical assessment verifies these figures directly — typically closing the gap between indicative and actual loss by 20–40%.
+            A physical assessment verifies these figures directly, typically closing the gap between indicative and actual loss by 20–40%.
           </div>
         </>
       )}
@@ -2061,7 +2061,7 @@ function ActionsPanel({ issues }: { issues: Issue[] }) {
     <div style={{ marginBottom: '10px', background: '#fff', border: '1px solid #e8e8e6', borderRadius: '10px', overflow: 'hidden' }}>
       {/* Immediate actions group header */}
       <div style={{ padding: '10px 20px', background: '#fff0f0', borderBottom: '1px solid #f0f0ee', fontSize: '10px', fontWeight: 700, color: '#cc3333', letterSpacing: '.8px', textTransform: 'uppercase' }}>
-        Week 1–2 — Immediate
+        Week 1–2: Immediate
       </div>
       {immediate.map((issue, i) => (
         <ActionRow key={i} issue={issue} num={i + 1} isLast={i === immediate.length - 1 && later.length === 0} />
@@ -2440,7 +2440,7 @@ function AssumptionsPanel({ overrides, onChange }: {
               Fleet utilisation factor %
             </div>
             <div style={{ fontSize: '9px', color: 'var(--gray-400)', marginBottom: '6px', lineHeight: 1.4, maxWidth: '180px' }}>
-              Fraction of theoretical fleet capacity that is practically achievable — accounts for breaks, queuing and driver idle. Industry default: 85%.
+              Fraction of theoretical fleet capacity that is practically achievable. Accounts for breaks, queuing and driver idle. Industry default: 85%.
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <input
@@ -2548,7 +2548,7 @@ function BenchmarkPositioning({ calcResult, answers }: { calcResult: CalcResult;
           <div key={item.label} style={{ display: 'flex', alignItems: 'baseline', gap: '6px', fontSize: '12px' }}>
             <span style={{ fontWeight: 600, color: 'var(--gray-600)', minWidth: '110px' }}>{item.label}</span>
             <span style={{ fontFamily: 'var(--mono)', fontWeight: 700, color: QUARTILE_COLOR[item.q] }}>{item.value}</span>
-            <span style={{ color: QUARTILE_COLOR[item.q], fontWeight: 500 }}>— {QUARTILE_LABEL[item.q]}</span>
+            <span style={{ color: QUARTILE_COLOR[item.q], fontWeight: 500 }}>, {QUARTILE_LABEL[item.q]}</span>
             <span style={{ color: 'var(--gray-400)', fontSize: '11px' }}>· Median {item.p50} · Best {item.p75}</span>
           </div>
         ))}
@@ -2566,7 +2566,7 @@ function WhatWeWillMeasure({ calcResult, answers }: { calcResult: CalcResult; an
   if (calcResult.ta > 0 && calcResult.ta > calcResult.TARGET_TA) {
     items.push({
       area: 'Fleet turnaround',
-      measurement: 'Truck cycle timestamps across 8–10 deliveries — plant departure, site arrival, pour start/end, return to plant.',
+      measurement: 'Truck cycle timestamps across 8–10 deliveries: plant departure, site arrival, pour start/end, return to plant.',
       why: `Your turnaround of ${calcResult.ta} min is ${calcResult.ta - calcResult.TARGET_TA} min above benchmark for your delivery radius (target ${calcResult.TARGET_TA} min).`,
     })
   }
@@ -2575,7 +2575,7 @@ function WhatWeWillMeasure({ calcResult, answers }: { calcResult: CalcResult; an
     items.push({
       area: 'Dispatch process',
       measurement: 'Order-to-truck-departure timing for 10 consecutive orders, plus a walkthrough of the dispatcher workflow and scheduling tools.',
-      why: `Current dispatch averages ${dispTime} min — target is 15 min or less.`,
+      why: `Current dispatch averages ${dispTime} min. Target is 15 min or less.`,
     })
   }
 
@@ -2583,7 +2583,7 @@ function WhatWeWillMeasure({ calcResult, answers }: { calcResult: CalcResult; an
     items.push({
       area: 'Rejection root cause',
       measurement: 'Rejection log review (last 30 days): reason codes, time in transit per rejected load, contractor breakdown.',
-      why: `Rejection rate of ${Math.round(calcResult.rejectPct)}% is above the 3% threshold — root cause is rarely obvious from aggregate data.`,
+      why: `Rejection rate of ${Math.round(calcResult.rejectPct)}% is above the 3% threshold. Root cause is rarely obvious from aggregate data.`,
     })
   }
 
@@ -2592,7 +2592,7 @@ function WhatWeWillMeasure({ calcResult, answers }: { calcResult: CalcResult; an
     items.push({
       area: 'Plant throughput',
       measurement: 'Hourly production log (2 representative days), downtime incident causes, and batch plant availability schedule.',
-      why: `Utilisation at ${utilPct}% — we need to distinguish demand-constrained vs. operational bottleneck.`,
+      why: `Utilisation at ${utilPct}%. We need to distinguish demand-constrained vs. operational bottleneck.`,
     })
   }
 
@@ -2649,7 +2649,7 @@ function StartThisWeek({ calcResult, answers }: { calcResult: CalcResult; answer
     items.push({
       tag: 'Day 1',
       action: 'Time 5 full truck cycles this week',
-      detail: `Record 4 timestamps per trip: plant departure → site arrival → pour complete → plant return. One person, one day. This tells you exactly where the ${calcResult.ta} minutes goes — site wait, transit, or washout — before the on-site visit.`,
+      detail: `Record 4 timestamps per trip: plant departure → site arrival → pour complete → plant return. One person, one day. This tells you exactly where the ${calcResult.ta} minutes goes: site wait, transit, or washout. Start before the on-site visit.`,
     })
   }
 
@@ -2667,7 +2667,7 @@ function StartThisWeek({ calcResult, answers }: { calcResult: CalcResult; answer
     items.push({
       tag: 'This week',
       action: 'Log a reason code on every rejected load',
-      detail: `Four options: stiffening in transit / water added on site / contractor refusal / mix issue. Two minutes per event. After 5–7 rejections you will know which cause dominates — the fix is completely different for each one.`,
+      detail: `Four options: stiffening in transit / water added on site / contractor refusal / mix issue. Two minutes per event. After 5–7 rejections you will know which cause dominates. The fix is completely different for each one.`,
     })
   }
 
@@ -2677,7 +2677,7 @@ function StartThisWeek({ calcResult, answers }: { calcResult: CalcResult; answer
     items.push({
       tag: 'Day 2',
       action: 'Sketch a delivery zone map',
-      detail: `Divide your delivery area into 2–3 zones by direction or distance. Route morning loads to one zone, afternoon to another. A hand-drawn A4 map is enough to start — cuts ad-hoc routing decisions and reduces empty return distance.`,
+      detail: `Divide your delivery area into 2–3 zones by direction or distance. Route morning loads to one zone, afternoon to another. A hand-drawn A4 map is enough to start. Cuts ad-hoc routing decisions and reduces empty return distance.`,
     })
   }
 
@@ -2692,7 +2692,7 @@ function StartThisWeek({ calcResult, answers }: { calcResult: CalcResult; answer
         Start this week
       </div>
       <div style={{ fontSize: '12px', color: 'var(--gray-600)', marginBottom: '12px', lineHeight: 1.5 }}>
-        Actions that require no diagnosis and no investment — start before the on-site visit:
+        Actions that require no diagnosis and no investment. Start before the on-site visit:
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {items.slice(0, 3).map((item, i) => (
@@ -2877,7 +2877,7 @@ function ScoreGrid({ calcResult, financialBottleneck, issues, onSwitchToTracking
                 {Math.round(bottleneck.score)}
               </div>
               <div>
-                <div style={{ fontSize: '16px', fontWeight: 700, color: '#1a1a1a', lineHeight: 1.2 }}>— {bottleneck.label}</div>
+                <div style={{ fontSize: '16px', fontWeight: 700, color: '#1a1a1a', lineHeight: 1.2 }}>{bottleneck.label}</div>
                 <div style={{ display: 'inline-block', fontSize: '9px', fontWeight: 700, letterSpacing: '.8px', textTransform: 'uppercase', color: '#1a6644', background: '#e8f5ee', border: '1px solid #b8dfc8', borderRadius: '4px', padding: '2px 7px', marginTop: '5px' }}>
                   Primary constraint
                 </div>
