@@ -1,7 +1,16 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
 import SimulatorClient from './SimulatorClient'
 import { isSystemAdmin } from '@/lib/supabase/admin'
+
+function getAdminClient() {
+  return createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SECRET_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+}
 
 export default async function SimulatorPage() {
   const supabase = await createClient()
@@ -10,9 +19,11 @@ export default async function SimulatorPage() {
 
   if (!await isSystemAdmin(user.id)) redirect('/dashboard/reports')
 
+  const admin = getAdminClient()
+
   // Get all completed assessments with scores
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data } = await supabase
+  const { data } = await admin
     .from('assessments')
     .select(`
       id, overall, bottleneck, ebitda_monthly, answers, scores,

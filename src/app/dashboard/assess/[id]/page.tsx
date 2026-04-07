@@ -1,8 +1,17 @@
 import { redirect, notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
 import AssessmentTool from './AssessmentTool'
 import { getEffectiveMemberRole, type MemberRole } from '@/lib/getEffectiveMemberRole'
 import { isSystemAdmin } from '@/lib/supabase/admin'
+
+function getAdminClient() {
+  return createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SECRET_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+}
 
 export default async function AssessmentPage({
   params
@@ -14,7 +23,10 @@ export default async function AssessmentPage({
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: assessment } = await supabase
+  const isAdmin = await isSystemAdmin(user.id)
+  const db = isAdmin ? getAdminClient() : supabase
+
+  const { data: assessment } = await db
     .from('assessments')
     .select(`
       *,
@@ -45,15 +57,13 @@ export default async function AssessmentPage({
   // Load baseline assessment when this is a follow-up
   let baselineAssessment: { id: string; date: string; answers: Record<string, unknown> } | null = null
   if (assessment.baseline_id) {
-    const { data: baseline } = await supabase
+    const { data: baseline } = await db
       .from('assessments')
       .select('id, date, answers')
       .eq('id', assessment.baseline_id)
       .single()
     baselineAssessment = baseline ?? null
   }
-
-  const isAdmin = await isSystemAdmin(user.id)
 
   // Get customer member role
   let realMemberRole: MemberRole | null = null

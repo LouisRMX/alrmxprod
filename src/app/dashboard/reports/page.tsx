@@ -1,7 +1,16 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
 import Link from 'next/link'
 import { isSystemAdmin } from '@/lib/supabase/admin'
+
+function getAdminClient() {
+  return createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SECRET_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+}
 
 function scoreColor(s: number | null) {
   if (s === null) return '#c8c8c8'
@@ -17,8 +26,11 @@ export default async function ReportsPage() {
 
   const isAdmin = await isSystemAdmin(user.id)
 
+  // Admins use service role to bypass RLS; customers use regular client (RLS scopes to their plants)
+  const db = isAdmin ? getAdminClient() : supabase
+
   // Admins see all assessments with reports; customers see their own
-  const { data: assessments } = await supabase
+  const { data: assessments } = await db
     .from('assessments')
     .select(`
       *,

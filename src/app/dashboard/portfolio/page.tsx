@@ -1,9 +1,18 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
 import Link from 'next/link'
 import DeleteButton from './DeleteButton'
 import ActionItems from './ActionItems'
 import { isSystemAdmin } from '@/lib/supabase/admin'
+
+function getAdminClient() {
+  return createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SECRET_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+}
 
 function scoreColor(s: number | null) {
   if (s === null) return 'var(--gray-300)'
@@ -26,8 +35,10 @@ export default async function PortfolioPage() {
 
   if (!await isSystemAdmin(user.id)) redirect('/dashboard/reports')
 
+  const admin = getAdminClient()
+
   // Get all assessments with plant, customer info, tracking status, and report
-  const { data: assessments } = await supabase
+  const { data: assessments } = await admin
     .from('assessments')
     .select(`
       *,
@@ -47,7 +58,7 @@ export default async function PortfolioPage() {
     .filter(Boolean) as string[]
 
   const { data: latestEntries } = configIds.length > 0
-    ? await supabase
+    ? await admin
         .from('tracking_entries')
         .select('config_id, logged_at')
         .in('config_id', configIds)
