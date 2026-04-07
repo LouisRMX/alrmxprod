@@ -1,10 +1,19 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
 import Link from 'next/link'
 import AddCustomerForm from './AddCustomerForm'
 import { isSystemAdmin } from '@/lib/supabase/admin'
 
 export const dynamic = 'force-dynamic'
+
+function getAdminClient() {
+  return createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SECRET_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+}
 
 export default async function CustomersPage() {
   const supabase = await createClient()
@@ -13,7 +22,8 @@ export default async function CustomersPage() {
 
   if (!await isSystemAdmin(user.id)) redirect('/dashboard')
 
-  const { data: customers } = await supabase
+  const admin = getAdminClient()
+  const { data: customers } = await admin
     .from('customers')
     .select('*, plants(count)')
     .order('created_at', { ascending: false })
