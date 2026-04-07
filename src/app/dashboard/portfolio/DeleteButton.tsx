@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
 export default function DeleteButton({ assessmentId, plantName }: { assessmentId: string; plantName: string }) {
@@ -9,7 +8,6 @@ export default function DeleteButton({ assessmentId, plantName }: { assessmentId
   const [typed, setTyped] = useState('')
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState('')
-  const supabase = createClient()
   const router = useRouter()
 
   const canDelete = typed.toLowerCase() === plantName.toLowerCase()
@@ -17,18 +15,13 @@ export default function DeleteButton({ assessmentId, plantName }: { assessmentId
   async function handleDelete() {
     if (!canDelete) return
     setDeleting(true)
-    const { error } = await supabase
-      .from('assessments')
-      .delete()
-      .eq('id', assessmentId)
-
-    if (error) {
-      console.error('Delete error:', error)
-      setDeleteError('Failed to delete, please try again.')
+    const resp = await fetch(`/api/admin/assessments?id=${assessmentId}`, { method: 'DELETE' })
+    if (!resp.ok) {
+      const json = await resp.json().catch(() => ({}))
+      setDeleteError(json.error || 'Failed to delete, please try again.')
       setDeleting(false)
       return
     }
-
     router.refresh()
   }
 
