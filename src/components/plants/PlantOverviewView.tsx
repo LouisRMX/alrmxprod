@@ -404,6 +404,40 @@ const KPI_DIMS: KpiDim[] = [
 type DimBests = Record<string, { name: string; value: number }>
 
 
+// ── DemoSizeToggle ─────────────────────────────────────────────────────────
+// Subtle plant-count switcher for demo use only — not customer-facing UI.
+
+export function DemoSizeToggle({
+  current,
+  onChange,
+}: {
+  current: 1 | 3 | 10 | 20
+  onChange: (n: 1 | 3 | 10 | 20) => void
+}) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '2px', flexShrink: 0 }}>
+      {([1, 3, 10, 20] as const).map((n, i) => (
+        <span key={n} style={{ display: 'flex', alignItems: 'center' }}>
+          {i > 0 && <span style={{ color: 'var(--gray-200)', fontSize: '11px', margin: '0 2px' }}>·</span>}
+          <button
+            onClick={() => onChange(n)}
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              fontSize: '12px', fontFamily: 'var(--mono)',
+              fontWeight: current === n ? 700 : 400,
+              color: current === n ? 'var(--gray-700)' : 'var(--gray-300)',
+              padding: '2px 3px',
+              transition: 'color .1s',
+            }}
+          >
+            {n}
+          </button>
+        </span>
+      ))}
+    </div>
+  )
+}
+
 // ── PlantOverviewView ──────────────────────────────────────────────────────
 
 interface PlantOverviewViewProps {
@@ -481,58 +515,38 @@ export default function PlantOverviewView({ plants, customerName, isDemo, demoPl
       maxWidth: '780px', margin: '0 auto',
     }}>
 
-      {/* Demo banner */}
+      {/* Demo banner — text only, no toggle */}
       {isDemo && (
         <div style={{
           background: '#f0f9ff', border: '1px solid #bae6fd',
           borderRadius: '8px', padding: '10px 16px', marginBottom: '20px',
           fontSize: '12px', color: '#0369a1',
-          display: 'flex', gap: '10px', alignItems: 'center',
-          flexWrap: 'wrap', justifyContent: 'space-between',
+          display: 'flex', gap: '8px', alignItems: 'center',
         }}>
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <span style={{ flexShrink: 0 }}>🎯</span>
-            <span>
-              Demo — Al-Noor RMX Group · {plants.length} plant{plants.length !== 1 ? 's' : ''} across Saudi Arabia.
-              Click any plant to explore the live assessment tool.
-            </span>
-          </div>
-          {onDemoPlantCountChange && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-              <span style={{ fontSize: '11px', color: '#64b2d4', marginRight: '2px' }}>Portfolio size:</span>
-              {([1, 3, 10, 20] as const).map(n => (
-                <button
-                  key={n}
-                  onClick={() => onDemoPlantCountChange(n)}
-                  style={{
-                    padding: '3px 10px', borderRadius: '20px', cursor: 'pointer',
-                    fontSize: '12px', fontWeight: demoPlantCount === n ? 700 : 400,
-                    fontFamily: 'var(--font)',
-                    background: demoPlantCount === n ? '#0369a1' : 'transparent',
-                    color: demoPlantCount === n ? '#fff' : '#0369a1',
-                    border: `1px solid ${demoPlantCount === n ? '#0369a1' : '#7dd3fc'}`,
-                    transition: 'all .15s',
-                  }}
-                >
-                  {n}
-                </button>
-              ))}
-            </div>
-          )}
+          <span style={{ flexShrink: 0 }}>🎯</span>
+          <span>
+            Demo — Al-Noor RMX Group · {plants.length} plant{plants.length !== 1 ? 's' : ''} across Saudi Arabia.
+            Click any plant to explore the live assessment tool.
+          </span>
         </div>
       )}
 
       {/* Page header */}
-      <div style={{ marginBottom: '20px' }}>
-        <h1 style={{
-          fontSize: isMobile ? '18px' : '22px', fontWeight: 700,
-          color: 'var(--gray-900)', marginBottom: '3px',
-        }}>
-          {customerName || 'My Plants'}
-        </h1>
-        <p style={{ fontSize: '13px', color: 'var(--gray-500)' }}>
-          {plants.length} plant{plants.length !== 1 ? 's' : ''}
-        </p>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', marginBottom: '20px' }}>
+        <div>
+          <h1 style={{
+            fontSize: isMobile ? '18px' : '22px', fontWeight: 700,
+            color: 'var(--gray-900)', marginBottom: '3px',
+          }}>
+            {customerName || 'My Plants'}
+          </h1>
+          <p style={{ fontSize: '13px', color: 'var(--gray-500)' }}>
+            {plants.length} plant{plants.length !== 1 ? 's' : ''}
+          </p>
+        </div>
+        {isDemo && onDemoPlantCountChange && (
+          <DemoSizeToggle current={demoPlantCount ?? 3} onChange={onDemoPlantCountChange} />
+        )}
       </div>
 
       {/* Summary chips — 2 max */}

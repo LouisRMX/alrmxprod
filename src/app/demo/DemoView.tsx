@@ -549,7 +549,12 @@ export default function DemoView({ userRole = null, isOverridden = false }: Demo
       {/* Comparison view */}
       {demoView === 'compare' && (
         <div style={{ flex: 1, overflowY: 'auto' }}>
-          <CompareView plants={DEMO_PLANTS.slice(0, demoPlantCount)} />
+          <CompareView
+            plants={DEMO_PLANTS.slice(0, demoPlantCount)}
+            isDemo
+            demoPlantCount={demoPlantCount}
+            onDemoPlantCountChange={setDemoPlantCount}
+          />
         </div>
       )}
 

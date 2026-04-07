@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import type { PlantCardData } from '@/components/plants/PlantOverviewView'
+import { DemoSizeToggle } from '@/components/plants/PlantOverviewView'
 import { useIsMobile } from '@/hooks/useIsMobile'
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -86,7 +87,17 @@ function thStyle(sortable = false, active = false): React.CSSProperties {
 
 // ── CompareView ────────────────────────────────────────────────────────────
 
-export default function CompareView({ plants }: { plants: PlantCardData[] }) {
+export default function CompareView({
+  plants,
+  isDemo,
+  demoPlantCount,
+  onDemoPlantCountChange,
+}: {
+  plants: PlantCardData[]
+  isDemo?: boolean
+  demoPlantCount?: 1 | 3 | 10 | 20
+  onDemoPlantCountChange?: (n: 1 | 3 | 10 | 20) => void
+}) {
   const [sortCol, setSortCol] = useState<SortCol>('atRisk')
   const isMobile = useIsMobile()
 
@@ -185,16 +196,21 @@ export default function CompareView({ plants }: { plants: PlantCardData[] }) {
     }}>
 
       {/* Header */}
-      <div style={{ marginBottom: '20px' }}>
-        <h1 style={{
-          fontSize: isMobile ? '18px' : '22px', fontWeight: 700,
-          color: 'var(--gray-900)', marginBottom: '3px',
-        }}>
-          Portfolio Comparison
-        </h1>
-        <p style={{ fontSize: '13px', color: 'var(--gray-500)' }}>
-          {scored.length} plants — click any column header to sort
-        </p>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', marginBottom: '20px' }}>
+        <div>
+          <h1 style={{
+            fontSize: isMobile ? '18px' : '22px', fontWeight: 700,
+            color: 'var(--gray-900)', marginBottom: '3px',
+          }}>
+            Portfolio Comparison
+          </h1>
+          <p style={{ fontSize: '13px', color: 'var(--gray-500)' }}>
+            {scored.length} plants — click any column header to sort
+          </p>
+        </div>
+        {isDemo && onDemoPlantCountChange && (
+          <DemoSizeToggle current={demoPlantCount ?? 3} onChange={onDemoPlantCountChange} />
+        )}
       </div>
 
       {/* Summary chips */}
