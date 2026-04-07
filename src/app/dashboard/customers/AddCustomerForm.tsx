@@ -1,10 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
-export default function AddCustomerForm({ userId }: { userId: string }) {
+export default function AddCustomerForm({ userId: _ }: { userId: string }) {
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
   const [country, setCountry] = useState('Saudi Arabia')
@@ -13,24 +12,21 @@ export default function AddCustomerForm({ userId }: { userId: string }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const router = useRouter()
-  const supabase = createClient()
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
     setError('')
 
-    const { error } = await supabase.from('customers').insert({
-      name,
-      country,
-      contact_name: contactName || null,
-      contact_email: contactEmail || null,
-      created_by: userId,
+    const resp = await fetch('/api/admin/customers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, country, contact_name: contactName, contact_email: contactEmail }),
     })
+    const json = await resp.json()
 
-    if (error) {
-      setError('Failed to create customer: ' + error.message)
-      console.error('Customer insert error:', error)
+    if (!resp.ok) {
+      setError('Failed to create customer: ' + (json.error ?? resp.statusText))
       setLoading(false)
       return
     }
