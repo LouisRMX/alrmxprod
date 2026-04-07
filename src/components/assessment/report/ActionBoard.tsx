@@ -689,7 +689,7 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, fo
 
     load()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [assessmentId, customerId])
+  }, [assessmentId, customerId, focusActions.join(',')])
 
   // ── CRUD ────────────────────────────────────────────────────────────────────
 

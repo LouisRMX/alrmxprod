@@ -200,99 +200,99 @@ export function calcTargetTA(radius: number): number {
 // ── Score Maps ───────────────────────────────────────────────────────────────
 
 const CONF_WEIGHT: Record<string, number> = {
-  'System records \u2014 read from batch computer or dispatch system': 1,
+  'System records, read from batch computer or dispatch system': 1,
   'Calculated from monthly reports or delivery tickets': 0.95,
   'Estimated by plant manager or dispatcher': 0.75,
-  'Rough estimates \u2014 not based on records': 0.55,
+  'Rough estimates, not based on records': 0.55,
 }
 
 const BATCH_CYCLE_PENALTY: Record<string, number> = {
-  'Fast \u2014 under 5 min': 0,
-  'Normal \u2014 5 to 7 min': 5,
-  'Slow \u2014 7 to 10 min': 14,
-  'Very slow \u2014 over 10 min': 22,
+  'Fast, under 5 minutes': 0,
+  'Normal, 5 to 7 minutes': 5,
+  'Slow, 7 to 10 minutes': 14,
+  'Very slow, over 10 minutes': 22,
 }
 
 const STOPS_PENALTY: Record<string, number> = {
-  'None \u2014 no unplanned stops': 0,
+  'None, no unplanned stops': 0,
   '1 to 2 stops': 3,
   '3 to 5 stops': 10,
   'More than 5 stops': 20,
 }
 
 const DISPATCH_OTD_MAP: Record<string, number> = {
-  'Under 15 minutes \u2014 fast response': 100,
-  '15 to 25 minutes \u2014 acceptable': 70,
-  '25 to 40 minutes \u2014 slow': 40,
-  'Over 40 minutes \u2014 critical bottleneck': 10,
+  'Under 15 minutes, fast response': 100,
+  '15 to 25 minutes, acceptable': 70,
+  '25 to 40 minutes, slow': 40,
+  'Over 40 minutes, critical bottleneck': 10,
 }
 
 const DISPATCH_MIN_MAP: Record<string, number> = {
-  'Under 15 minutes \u2014 fast response': 12,
-  '15 to 25 minutes \u2014 acceptable': 20,
-  '25 to 40 minutes \u2014 slow': 32,
-  'Over 40 minutes \u2014 critical bottleneck': 45,
+  'Under 15 minutes, fast response': 12,
+  '15 to 25 minutes, acceptable': 20,
+  '25 to 40 minutes, slow': 32,
+  'Over 40 minutes, critical bottleneck': 45,
 }
 
 const ROUTE_CLUSTERING_MAP: Record<string, number> = {
-  'Always \u2014 formal zone system in place': 100,
-  'Usually \u2014 informal grouping most of the time': 75,
-  'Sometimes \u2014 depends on the dispatcher': 45,
+  'Always, formal zone system in place': 100,
+  'Usually, informal grouping most of the time': 75,
+  'Sometimes, depends on the dispatcher': 45,
   'Rarely or never': 15,
 }
 
 const PLANT_IDLE_MAP: Record<string, number> = {
-  'Never \u2014 a truck is always available': 100,
-  'Occasionally \u2014 a few times per week': 70,
-  'Regularly \u2014 most busy periods': 40,
-  'Every day \u2014 always waiting for trucks': 10,
+  'Never, a truck is always available': 100,
+  'Occasionally, a few times per week': 70,
+  'Regularly, most busy periods': 40,
+  'Every day, always waiting for trucks': 10,
 }
 
 const DISPATCH_TOOL_MAP: Record<string, number> = {
   'Dedicated dispatch software with real-time tracking': 100,
   'Spreadsheet combined with WhatsApp': 65,
-  'WhatsApp messages only \u2014 no spreadsheet': 35,
+  'WhatsApp messages only, no spreadsheet': 35,
   'Phone calls and a whiteboard or paper list': 10,
 }
 
 const ORDER_NOTICE_MAP: Record<string, number> = {
-  'Under 4 hours \u2014 same day calls only': 20,
-  '4 to 24 hours \u2014 day-of or day-before': 55,
+  'Under 4 hours, same day calls only': 20,
+  '4 to 24 hours, day-of or day-before': 55,
   '1 to 3 days ahead': 85,
-  'Formal schedule \u2014 weekly or project-based': 100,
+  'Formal schedule, weekly or project-based': 100,
 }
 
 const QC_MAP: Record<string, number> = {
-  'Both logged every batch \u2014 enforced strictly': 100,
-  'Usually done \u2014 most trucks, informal recording': 70,
-  'Sometimes \u2014 depends on operator or shift': 35,
-  'Rarely or never \u2014 no systematic quality checks': 5,
+  'Both logged every batch, enforced strictly': 100,
+  'Usually done, most trucks, informal recording': 70,
+  'Sometimes, depends on operator or shift': 35,
+  'Rarely or never, no systematic quality checks': 5,
 }
 
 const CALIB_MAP: Record<string, number> = {
-  'Within the last 12 months \u2014 certificate available': 100,
+  'Within the last 12 months, certificate available': 100,
   '1 to 2 years ago': 70,
   'More than 2 years ago': 35,
-  'Never calibrated \u2014 original factory settings only': 10,
+  'Never calibrated, original factory settings only': 10,
 }
 
 const SURPLUS_SCORE_MAP: Record<string, number> = {
-  'Under 0.2 m\u00b3 \u2014 minimal waste': 100,
-  '0.2 to 0.5 m\u00b3 \u2014 moderate': 70,
-  '0.5 to 1.0 m\u00b3 \u2014 significant': 35,
-  'Over 1.0 m\u00b3 \u2014 serious problem': 10,
+  'Under 0.2 m\u00b3, minimal waste': 100,
+  '0.2 to 0.5 m\u00b3, moderate': 70,
+  '0.5 to 1.0 m\u00b3, significant': 35,
+  'Over 1.0 m\u00b3, serious problem': 10,
 }
 
 const WASHOUT_MAP: Record<string, number> = {
-  'Under 10 minutes \u2014 fast': 100,
-  '10 to 20 minutes \u2014 standard': 75,
-  '20 to 30 minutes \u2014 slow': 40,
-  'Over 30 minutes \u2014 significant bottleneck': 10,
+  'Under 10 minutes, fast': 100,
+  '10 to 20 minutes, standard': 75,
+  '20 to 30 minutes, slow': 40,
+  'Over 30 minutes, significant bottleneck': 10,
 }
 
 const LIABILITY_MAP: Record<string, { factor: number; base: string }> = {
-  'Contractor always pays \u2014 formal policy enforced': { factor: 0, base: 'materials' },
-  'Contractor sometimes pays \u2014 handled case by case': { factor: 0.6, base: 'materials' },
+  'Contractor always pays, formal policy enforced': { factor: 0, base: 'materials' },
+  'Contractor sometimes pays, handled case by case': { factor: 0.6, base: 'materials' },
   // Plant absorbs: loss = materials wasted (cement + agg + admix), not selling price.
   // The plant already paid labor/fuel; those are sunk. Only materials are thrown in the bin.
   'Plant always absorbs the cost': { factor: 1, base: 'materials' },
