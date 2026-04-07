@@ -1,20 +1,14 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getEffectiveMemberRole, type MemberRole } from '@/lib/getEffectiveMemberRole'
+import { isSystemAdmin } from '@/lib/supabase/admin'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  const profileRole = profile?.role
-  const isAdmin = profileRole === 'system_admin'
+  const isAdmin = await isSystemAdmin(user.id)
 
   // Check effective role, admin may have a viewAs cookie active
   const { role: effectiveRole } = await getEffectiveMemberRole(null, isAdmin)
@@ -40,8 +34,6 @@ export default async function DashboardPage() {
   const raw = member?.role
   if (raw === 'owner' || raw === 'manager' || raw === 'operator') {
     realMemberRole = raw
-  } else if (profileRole === 'customer_admin') {
-    realMemberRole = 'owner'
   } else {
     realMemberRole = 'manager'
   }

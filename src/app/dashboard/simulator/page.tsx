@@ -1,19 +1,14 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import SimulatorClient from './SimulatorClient'
+import { isSystemAdmin } from '@/lib/supabase/admin'
 
 export default async function SimulatorPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (profile?.role !== 'system_admin') redirect('/dashboard/reports')
+  if (!await isSystemAdmin(user.id)) redirect('/dashboard/reports')
 
   // Get all completed assessments with scores
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

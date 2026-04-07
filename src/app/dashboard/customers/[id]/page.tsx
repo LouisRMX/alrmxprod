@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import CustomerDetail from './CustomerDetail'
+import { isSystemAdmin } from '@/lib/supabase/admin'
 
 export default async function CustomerPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -8,9 +9,7 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: profile } = await supabase
-    .from('profiles').select('role').eq('id', user.id).single()
-  if (profile?.role !== 'system_admin') redirect('/dashboard')
+  if (!await isSystemAdmin(user.id)) redirect('/dashboard')
 
   const { data: customer } = await supabase
     .from('customers').select('*').eq('id', id).single()

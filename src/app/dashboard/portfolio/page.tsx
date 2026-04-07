@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import DeleteButton from './DeleteButton'
 import ActionItems from './ActionItems'
+import { isSystemAdmin } from '@/lib/supabase/admin'
 
 function scoreColor(s: number | null) {
   if (s === null) return 'var(--gray-300)'
@@ -23,13 +24,7 @@ export default async function PortfolioPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (profile?.role !== 'system_admin') redirect('/dashboard/reports')
+  if (!await isSystemAdmin(user.id)) redirect('/dashboard/reports')
 
   // Get all assessments with plant, customer info, tracking status, and report
   const { data: assessments } = await supabase
