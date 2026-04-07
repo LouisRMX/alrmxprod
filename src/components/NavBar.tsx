@@ -54,24 +54,27 @@ function TabIcon({ name, active }: { name: string; active: boolean }) {
 }
 
 const TAB_ICONS: Record<string, string> = {
-  '/dashboard/assess': 'assess',
-  '/dashboard/portfolio': 'portfolio',
-  '/dashboard/customers': 'customers',
-  '/dashboard/reports': 'reports',
-  '/dashboard/simulator': 'simulator',
-  '/dashboard/plants': 'portfolio',
-  '/dashboard/track': 'assess',
+  '/dashboard/assess':   'assess',
+  '/dashboard/portfolio':'portfolio',
+  '/dashboard/customers':'customers',
+  '/dashboard/reports':  'reports',
+  '/dashboard/simulator':'simulator',
+  '/dashboard/plants':   'portfolio',
+  '/dashboard/compare':  'simulator',
+  '/dashboard/track':    'assess',
 }
 
 const SHORT_LABELS: Record<string, string> = {
   'New assessment': 'Assess',
-  'Portfolio': 'Portfolio',
-  'Customers': 'Clients',
-  'Reports': 'Reports',
-  'My Reports': 'Reports',
-  'My Plants': 'Plants',
-  'My Task': 'Track',
-  'Simulator': 'Sim',
+  'Portfolio':      'Portfolio',
+  'Customers':      'Clients',
+  'Reports':        'Reports',
+  'My Reports':     'Reports',
+  'My Plants':      'Plants',
+  'Overview':       'Overview',
+  'Comparison':     'Compare',
+  'My Task':        'Track',
+  'Simulator':      'Sim',
 }
 
 export default function NavBar({ user, profile, memberRole }: NavBarProps) {
@@ -93,8 +96,9 @@ export default function NavBar({ user, profile, memberRole }: NavBarProps) {
   const tabs = (() => {
     if (memberRole === 'owner') {
       return [
-        { label: 'My Plants',  href: '/dashboard/plants' },
-        { label: 'My Reports', href: '/dashboard/reports' },
+        { label: 'Overview',    href: '/dashboard/plants' },
+        { label: 'Comparison',  href: '/dashboard/compare' },
+        { label: 'Reports',     href: '/dashboard/reports' },
       ]
     }
 
@@ -106,8 +110,9 @@ export default function NavBar({ user, profile, memberRole }: NavBarProps) {
 
     if (memberRole === 'manager') {
       return [
-        { label: 'My Plants',  href: '/dashboard/plants' },
-        { label: 'My Reports', href: '/dashboard/reports' },
+        { label: 'Overview',    href: '/dashboard/plants' },
+        { label: 'Comparison',  href: '/dashboard/compare' },
+        { label: 'Reports',     href: '/dashboard/reports' },
       ]
     }
 
