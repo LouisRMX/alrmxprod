@@ -107,6 +107,7 @@ interface PanelState {
   dimLabel:     string       // display label e.g. 'Dispatch'
   kpiVal:       number
   unit:         string
+  peerReview?:  { bestPlant: string; bestVal: string; currentVal: string }
 }
 
 const DEMO_PANEL_ACTIONS: Record<string, PanelAction[]> = {
@@ -217,15 +218,16 @@ function ActionPanel({ panel, isDemo, onClose }: { panel: PanelState; isDemo?: b
 
           {loading ? (
             <div style={{ fontSize: '13px', color: 'var(--gray-400)', padding: '20px 0' }}>Loading…</div>
-          ) : actions.length === 0 ? (
-            <div style={{ fontSize: '13px', color: 'var(--gray-400)', lineHeight: 1.6, padding: '8px 0' }}>
-              No {panel.dimLabel.toLowerCase()} actions yet.{' '}
-              <Link href={panel.plantHref} style={{ color: 'var(--green)', fontWeight: 500, textDecoration: 'none' }}>
-                Open report →
-              </Link>
-            </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {actions.length === 0 && !panel.peerReview && (
+                <div style={{ fontSize: '13px', color: 'var(--gray-400)', lineHeight: 1.6, padding: '4px 0' }}>
+                  No {panel.dimLabel.toLowerCase()} actions yet.{' '}
+                  <Link href={panel.plantHref} style={{ color: 'var(--green)', fontWeight: 500, textDecoration: 'none' }}>
+                    Open report →
+                  </Link>
+                </div>
+              )}
               {actions.map(a => {
                 const cfg = STATUS_CFG[a.status as keyof typeof STATUS_CFG] ?? STATUS_CFG.todo
                 return (
@@ -245,6 +247,19 @@ function ActionPanel({ panel, isDemo, onClose }: { panel: PanelState; isDemo?: b
                   </div>
                 )
               })}
+              {panel.peerReview && (
+                <div style={{
+                  border: '1px solid #bfdbfe', borderRadius: '8px',
+                  padding: '10px 12px', background: '#eff6ff',
+                }}>
+                  <div style={{ fontSize: '10px', fontWeight: 700, color: '#1d4ed8', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: '5px' }}>
+                    Portfolio insight
+                  </div>
+                  <div style={{ fontSize: '13px', color: '#1e3a5f', lineHeight: 1.4 }}>
+                    <strong>{panel.peerReview.bestPlant}</strong> runs {panel.peerReview.bestVal} {panel.dimLabel.toLowerCase()} vs your {panel.peerReview.currentVal}. Schedule a process review — ask what changed.
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -558,15 +573,23 @@ export default function CompareView({
                       return (
                         <td key={dim.key} style={{ padding: '10px 16px' }}>
                           <div
-                            onClick={clickable ? () => setPanel({
-                              assessmentId: a.id,
-                              plantName:    plant.name,
-                              plantHref:    href,
-                              dimension:    DIM_TO_ACTION_DIM[dim.key],
-                              dimLabel:     dim.label,
-                              kpiVal:       val,
-                              unit:         dim.unit,
-                            }) : undefined}
+                            onClick={clickable ? () => {
+                              const hasPeer = best && gap > 0.15
+                              setPanel({
+                                assessmentId: a.id,
+                                plantName:    plant.name,
+                                plantHref:    href,
+                                dimension:    DIM_TO_ACTION_DIM[dim.key],
+                                dimLabel:     dim.label,
+                                kpiVal:       val,
+                                unit:         dim.unit,
+                                peerReview: hasPeer ? {
+                                  bestPlant:   best.name,
+                                  bestVal:     fmtVal(best.value, dim.unit),
+                                  currentVal:  fmtVal(val, dim.unit),
+                                } : undefined,
+                              })
+                            } : undefined}
                             style={{
                               display: 'inline-block',
                               background: bg, borderRadius: '6px',
