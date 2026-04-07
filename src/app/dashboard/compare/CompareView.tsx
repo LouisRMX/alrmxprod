@@ -139,22 +139,76 @@ const STATUS_CFG = {
 function ActionPanel({ panel, isDemo, onClose }: { panel: PanelState; isDemo?: boolean; onClose: () => void }) {
   const supabase = createClient()
   const [actions, setActions] = useState<PanelAction[]>([])
+  const [peerAction, setPeerAction] = useState<PanelAction | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     if (isDemo) {
+      if (panel.peerReview) {
+        setPeerAction({
+          id: 'demo-peer',
+          text: `Schedule a process review with ${panel.peerReview.bestPlant} — they run ${panel.peerReview.bestVal} ${panel.dimLabel.toLowerCase()} vs your ${panel.peerReview.currentVal}. Ask what changed.`,
+          status: 'todo',
+          dimension: panel.dimension,
+        })
+      }
       setActions(DEMO_PANEL_ACTIONS[panel.dimension] ?? [])
       setLoading(false)
       return
     }
+
     async function load() {
-      const { data } = await supabase
+      // Fetch regular actions (exclude peer_review source)
+      const { data: regularData } = await supabase
         .from('action_items')
         .select('id, text, status, dimension')
         .eq('assessment_id', panel.assessmentId)
         .eq('dimension', panel.dimension)
+        .neq('source', 'peer_review')
         .order('created_at', { ascending: true })
-      setActions((data ?? []) as PanelAction[])
+      setActions((regularData ?? []) as PanelAction[])
+
+      // Handle peer review action if there's a qualifying gap
+      if (panel.peerReview) {
+        const newText = `Schedule a process review with ${panel.peerReview.bestPlant} — they run ${panel.peerReview.bestVal} ${panel.dimLabel.toLowerCase()} vs your ${panel.peerReview.currentVal}. Ask what changed.`
+
+        const { data: existing } = await supabase
+          .from('action_items')
+          .select('id, text, status, dimension, value')
+          .eq('assessment_id', panel.assessmentId)
+          .eq('dimension', panel.dimension)
+          .eq('source', 'peer_review')
+          .maybeSingle()
+
+        if (!existing) {
+          // Insert for the first time
+          const { data: inserted } = await supabase
+            .from('action_items')
+            .insert({
+              assessment_id: panel.assessmentId,
+              dimension:     panel.dimension,
+              text:          newText,
+              status:        'todo',
+              source:        'peer_review',
+              value:         panel.peerReview.bestPlant,
+              checklist:     [],
+            })
+            .select('id, text, status, dimension')
+            .single()
+          if (inserted) setPeerAction(inserted as PanelAction)
+        } else {
+          // Update text if best plant has changed (value stores best plant name)
+          if (existing.value !== panel.peerReview.bestPlant) {
+            await supabase
+              .from('action_items')
+              .update({ text: newText, value: panel.peerReview.bestPlant })
+              .eq('id', existing.id)
+          }
+          // Always show live text, preserve DB status
+          setPeerAction({ id: existing.id, text: newText, status: existing.status, dimension: existing.dimension })
+        }
+      }
+
       setLoading(false)
     }
     load()
@@ -220,7 +274,7 @@ function ActionPanel({ panel, isDemo, onClose }: { panel: PanelState; isDemo?: b
             <div style={{ fontSize: '13px', color: 'var(--gray-400)', padding: '20px 0' }}>Loading…</div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {actions.length === 0 && !panel.peerReview && (
+              {actions.length === 0 && !peerAction && (
                 <div style={{ fontSize: '13px', color: 'var(--gray-400)', lineHeight: 1.6, padding: '4px 0' }}>
                   No {panel.dimLabel.toLowerCase()} actions yet.{' '}
                   <Link href={panel.plantHref} style={{ color: 'var(--green)', fontWeight: 500, textDecoration: 'none' }}>
@@ -228,6 +282,32 @@ function ActionPanel({ panel, isDemo, onClose }: { panel: PanelState; isDemo?: b
                   </Link>
                 </div>
               )}
+              {/* Peer review always first */}
+              {peerAction && (() => {
+                const cfg = STATUS_CFG[peerAction.status as keyof typeof STATUS_CFG] ?? STATUS_CFG.todo
+                const done = peerAction.status === 'done'
+                return (
+                  <div key={peerAction.id} style={{
+                    border: '1px solid var(--border)', borderRadius: '8px',
+                    padding: '10px 12px', background: 'var(--white)',
+                    opacity: done ? 0.6 : 1,
+                  }}>
+                    <div style={{
+                      fontSize: '13px', color: 'var(--gray-800)', lineHeight: 1.4, marginBottom: '6px',
+                      textDecoration: done ? 'line-through' : 'none',
+                    }}>
+                      {peerAction.text}
+                    </div>
+                    <span style={{
+                      fontSize: '10px', fontWeight: 600, padding: '2px 7px', borderRadius: '4px',
+                      background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}`,
+                    }}>
+                      {cfg.label}
+                    </span>
+                  </div>
+                )
+              })()}
+              {/* Regular actions */}
               {actions.map(a => {
                 const cfg = STATUS_CFG[a.status as keyof typeof STATUS_CFG] ?? STATUS_CFG.todo
                 return (
@@ -247,16 +327,6 @@ function ActionPanel({ panel, isDemo, onClose }: { panel: PanelState; isDemo?: b
                   </div>
                 )
               })}
-              {panel.peerReview && (
-                <div style={{ border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 12px', background: 'var(--white)' }}>
-                  <div style={{ fontSize: '13px', color: 'var(--gray-800)', lineHeight: 1.4, marginBottom: '6px' }}>
-                    Schedule a process review with {panel.peerReview.bestPlant} — they run {panel.peerReview.bestVal} {panel.dimLabel.toLowerCase()} vs your {panel.peerReview.currentVal}. Ask what changed.
-                  </div>
-                  <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 7px', borderRadius: '4px', background: STATUS_CFG.todo.bg, color: STATUS_CFG.todo.color, border: `1px solid ${STATUS_CFG.todo.border}` }}>
-                    To do
-                  </span>
-                </div>
-              )}
             </div>
           )}
         </div>
