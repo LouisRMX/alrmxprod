@@ -248,16 +248,13 @@ function ActionPanel({ panel, isDemo, onClose }: { panel: PanelState; isDemo?: b
                 )
               })}
               {panel.peerReview && (
-                <div style={{
-                  border: '1px solid #bfdbfe', borderRadius: '8px',
-                  padding: '10px 12px', background: '#eff6ff',
-                }}>
-                  <div style={{ fontSize: '10px', fontWeight: 700, color: '#1d4ed8', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: '5px' }}>
-                    Portfolio insight
+                <div style={{ border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 12px', background: 'var(--white)' }}>
+                  <div style={{ fontSize: '13px', color: 'var(--gray-800)', lineHeight: 1.4, marginBottom: '6px' }}>
+                    Schedule a process review with {panel.peerReview.bestPlant} — they run {panel.peerReview.bestVal} {panel.dimLabel.toLowerCase()} vs your {panel.peerReview.currentVal}. Ask what changed.
                   </div>
-                  <div style={{ fontSize: '13px', color: '#1e3a5f', lineHeight: 1.4 }}>
-                    <strong>{panel.peerReview.bestPlant}</strong> runs {panel.peerReview.bestVal} {panel.dimLabel.toLowerCase()} vs your {panel.peerReview.currentVal}. Schedule a process review — ask what changed.
-                  </div>
+                  <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 7px', borderRadius: '4px', background: STATUS_CFG.todo.bg, color: STATUS_CFG.todo.color, border: `1px solid ${STATUS_CFG.todo.border}` }}>
+                    To do
+                  </span>
                 </div>
               )}
             </div>
