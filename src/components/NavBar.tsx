@@ -85,9 +85,16 @@ export default function NavBar({ user, profile, memberRole }: NavBarProps) {
   const isMobile = useIsMobile()
 
   async function handleSignOut() {
+    // Clear viewAs cookie before signing out
+    document.cookie = 'viewAs=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
     await supabase.auth.signOut()
     router.push('/login')
     router.refresh()
+  }
+
+  function handleExitRoleView() {
+    document.cookie = 'viewAs=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
+    window.location.href = '/dashboard'
   }
 
   // Determine which tabs to show based on effective role.
@@ -160,6 +167,19 @@ export default function NavBar({ user, profile, memberRole }: NavBarProps) {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {isAdmin && memberRole && (
+            <button
+              onClick={handleExitRoleView}
+              style={{
+                fontSize: '11px', color: 'rgba(255,255,255,0.9)',
+                background: 'rgba(255,100,100,0.25)', border: '1px solid rgba(255,100,100,0.4)',
+                borderRadius: '6px', padding: '4px 10px', cursor: 'pointer',
+                fontFamily: 'var(--font)',
+              }}
+            >
+              Exit {memberRole} view
+            </button>
+          )}
           {!isMobile && (
             <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', fontFamily: 'var(--mono)' }}>
               {profile?.full_name || user.email} · {roleLabel}
