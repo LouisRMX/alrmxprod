@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
 interface Plant { id: string; name: string }
@@ -28,7 +27,6 @@ export default function NewAssessmentForm({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const router = useRouter()
-  const supabase = createClient()
 
   const selectedCustomer = customers.find(c => c.id === customerId)
   const plants = selectedCustomer?.plants || []
@@ -44,84 +42,53 @@ export default function NewAssessmentForm({
     setLoading(true)
     setError('')
 
-    // Follow-up path: use baseline plant, skip plant selection
+    // Follow-up path
     if (isFollowup && baselinePlant) {
-      // Mark original assessment as baseline
-      await supabase
-        .from('assessments')
-        .update({ is_baseline: true })
-        .eq('id', baselineId)
-
-      // Create follow-up assessment linked to baseline
-      const { data: assessment, error: assessErr } = await supabase
-        .from('assessments')
-        .insert({
+      const resp = await fetch('/api/admin/assessments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           plant_id: baselinePlant.id,
           analyst_id: userId,
           date,
           season,
           phase: 'followup',
           baseline_id: baselineId,
-          answers: {},
-          scores: {},
-        })
-        .select()
-        .single()
-
-      if (assessErr || !assessment) {
-        setError('Failed to create follow-up assessment')
+          is_followup: true,
+        }),
+      })
+      const json = await resp.json()
+      if (!resp.ok) {
+        setError(json.error || 'Failed to create follow-up assessment')
         setLoading(false)
         return
       }
-
-      router.push(`/dashboard/assess/${assessment.id}`)
+      router.push(`/dashboard/assess/${json.assessment.id}`)
       return
     }
 
-    let finalPlantId = plantId
-
-    // Create new plant if needed
-    if (addingPlant && newPlantName) {
-      const { data: newPlant, error: plantErr } = await supabase
-        .from('plants')
-        .insert({
-          customer_id: customerId,
-          name: newPlantName,
-          country: selectedCustomer?.country || '',
-        })
-        .select()
-        .single()
-
-      if (plantErr || !newPlant) {
-        setError('Failed to create plant')
-        setLoading(false)
-        return
-      }
-      finalPlantId = newPlant.id
-    }
-
-    // Create assessment
-    const { data: assessment, error: assessErr } = await supabase
-      .from('assessments')
-      .insert({
-        plant_id: finalPlantId,
+    // New assessment path
+    const resp = await fetch('/api/admin/assessments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...(addingPlant && newPlantName
+          ? { new_plant: { customer_id: customerId, name: newPlantName, country: selectedCustomer?.country || '' } }
+          : { plant_id: plantId }),
         analyst_id: userId,
         date,
         season,
         phase: 'workshop',
-        answers: {},
-        scores: {},
-      })
-      .select()
-      .single()
-
-    if (assessErr || !assessment) {
-      setError('Failed to create assessment')
+      }),
+    })
+    const json = await resp.json()
+    if (!resp.ok) {
+      setError(json.error || 'Failed to create assessment')
       setLoading(false)
       return
     }
 
-    router.push(`/dashboard/assess/${assessment.id}`)
+    router.push(`/dashboard/assess/${json.assessment.id}`)
   }
 
   // Follow-up form: simplified layout showing plant name read-only
