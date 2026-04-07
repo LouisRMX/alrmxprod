@@ -32,6 +32,8 @@ export interface PlantAssessmentData {
     weekOf: number
     weekTotal: number
   } | null
+  trackingTrend?: Array<{ week: number; turnaround: number }> | null
+  baselineTurnaround?: number | null
   kpi?: {
     turnaroundMin: number | null
     dispatchMin: number | null
@@ -149,6 +151,59 @@ function trackingContext(a: PlantAssessmentData): { text: string; color: string 
     return { text: `Wk ${a.trackingWeek} of 13 — tracking in progress`, color: 'var(--gray-400)' }
   }
   return null
+}
+
+// ── MiniSparkline ──────────────────────────────────────────────────────────
+
+function MiniSparkline({
+  points,
+  baseline,
+}: {
+  points: Array<{ week: number; turnaround: number }>
+  baseline: number | null
+}) {
+  if (points.length < 2) return null
+
+  const vals    = points.map(p => p.turnaround)
+  const allVals = baseline != null ? [...vals, baseline] : vals
+  const minV    = Math.min(...allVals) * 0.96
+  const maxV    = Math.max(...allVals) * 1.04
+  const range   = maxV - minV || 1
+  const W = 64, H = 22
+
+  const px = (i: number) => (i / (points.length - 1)) * W
+  const py = (v: number) => H - ((v - minV) / range) * H
+
+  const d = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${px(i).toFixed(1)},${py(p.turnaround).toFixed(1)}`).join(' ')
+
+  const last    = vals[vals.length - 1]
+  const prev    = vals[vals.length - 2]
+  const improving = last < prev  // lower turnaround = better
+  const color   = improving ? '#1a6644' : '#cc3333'
+
+  return (
+    <svg
+      width={W} height={H}
+      style={{ overflow: 'visible', flexShrink: 0, display: 'block' }}
+    >
+      {/* Baseline reference */}
+      {baseline != null && (
+        <line
+          x1={0} y1={py(baseline).toFixed(1)}
+          x2={W} y2={py(baseline).toFixed(1)}
+          stroke="var(--border)" strokeWidth={1} strokeDasharray="3,2"
+        />
+      )}
+      {/* Trend line */}
+      <path d={d} fill="none" stroke={color} strokeWidth={1.5} strokeLinejoin="round" strokeLinecap="round" />
+      {/* Latest dot */}
+      <circle
+        cx={px(points.length - 1).toFixed(1)}
+        cy={py(last).toFixed(1)}
+        r={2.5} fill={color}
+      />
+    </svg>
+  )
 }
 
 // ── PlantCard ──────────────────────────────────────────────────────────────
@@ -279,7 +334,21 @@ function PlantCard({ plant, portfolioTotalGap, dimBests }: { plant: PlantCardDat
         </div>
       )}
 
-      {/* Bottom row: status chip + tracking context + view link */}
+      {/* Tracking trend row — sparkline + context text */}
+      {(a?.trackingTrend || trackCtx) && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', marginTop: '2px' }}>
+          {a?.trackingTrend && a.trackingTrend.length >= 2 && (
+            <MiniSparkline points={a.trackingTrend} baseline={a.baselineTurnaround ?? null} />
+          )}
+          {trackCtx && (
+            <span style={{ fontSize: '11px', color: trackCtx.color, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {trackCtx.text}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Bottom row: status chip + view link */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '2px' }}>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center', minWidth: 0 }}>
           {actionCfg && (
@@ -289,11 +358,6 @@ function PlantCard({ plant, portfolioTotalGap, dimBests }: { plant: PlantCardDat
               border: `1px solid ${actionCfg.border}`, flexShrink: 0,
             }}>
               {actionCfg.label}
-            </span>
-          )}
-          {trackCtx && (
-            <span style={{ fontSize: '11px', color: trackCtx.color, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {trackCtx.text}
             </span>
           )}
         </div>
@@ -389,6 +453,27 @@ export default function PlantOverviewView({ plants, customerName, isDemo, demoPl
     pageType: 'plants',
     portfolioSummary: { totalPlants: plants.length, avgScore, totalGap, totalRecovered },
   })
+
+  // ── Urgency signal ────────────────────────────────────────────────────────
+  // Plants that need attention: have a financial gap AND either no active
+  // actions, or a worsening trend (turnaround going up over last 2 readings).
+  const urgentNoAction = sorted.filter(p => {
+    const a = p.assessment
+    if (!a || !(a.ebitda_monthly ?? 0)) return false
+    return a.primaryActionStatus === 'todo' || a.primaryActionStatus === null
+  })
+  const urgentWorsening = sorted.filter(p => {
+    const a = p.assessment
+    if (!a || !(a.ebitda_monthly ?? 0)) return false
+    return (a.trackingImprovement?.turnaroundDelta ?? 0) > 5
+  })
+  // Deduplicate
+  const urgentIds  = new Set([...urgentNoAction, ...urgentWorsening].map(p => p.id))
+  const urgentList = sorted.filter(p => urgentIds.has(p.id))
+  const urgentGap  = urgentList.reduce((s, p) => s + (p.assessment?.ebitda_monthly ?? 0), 0)
+
+  const noActionCount  = urgentNoAction.length
+  const worseningCount = urgentWorsening.filter(p => !urgentNoAction.includes(p)).length
 
   return (
     <div style={{
@@ -490,6 +575,30 @@ export default function PlantOverviewView({ plants, customerName, isDemo, demoPl
           </div>
         )}
       </div>
+
+      {/* Urgency banner */}
+      {urgentList.length > 0 && urgentGap > 0 && (
+        <div style={{
+          display: 'flex', alignItems: 'flex-start', gap: '12px',
+          background: '#fff8ed', border: '1px solid #f5cba0',
+          borderLeft: '4px solid #c96a00',
+          borderRadius: '8px', padding: '12px 16px',
+          marginBottom: '20px',
+        }}>
+          <span style={{ fontSize: '16px', flexShrink: 0, lineHeight: 1.4 }}>⚠</span>
+          <div>
+            <span style={{ fontSize: '13px', fontWeight: 700, color: '#7a3e00' }}>
+              {fmtGap(urgentGap)}/month at risk
+            </span>
+            <span style={{ fontSize: '13px', color: '#a35800' }}>
+              {' '}across {urgentList.length} plant{urgentList.length > 1 ? 's' : ''}.{' '}
+              {noActionCount > 0 && worseningCount === 0 && 'No active improvement actions.'}
+              {worseningCount > 0 && noActionCount === 0 && `${worseningCount} plant${worseningCount > 1 ? 's' : ''} showing worsening trend.`}
+              {noActionCount > 0 && worseningCount > 0 && `No active actions on ${noActionCount}. ${worseningCount} worsening.`}
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Plant cards — single column, sorted by gap */}
       {plants.length === 0 ? (

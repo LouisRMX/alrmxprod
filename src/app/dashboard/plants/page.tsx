@@ -43,12 +43,41 @@ export default async function PlantsPage() {
       assessments(
         id, date, phase, overall, scores, bottleneck,
         ebitda_monthly, report_released,
-        tracking_configs(id, started_at),
+        tracking_configs(id, started_at, baseline_turnaround),
         plant_benchmarks(turnaround_min, dispatch_min, reject_pct, util_pct),
         action_items(id, text, status)
       )
     `)
     .order('name', { ascending: true })
+
+  // ── Fetch tracking entries for all configs (for trend data) ──────────
+  const configIds: string[] = []
+  for (const plant of rawPlants || []) {
+    const assessments = Array.isArray(plant.assessments) ? plant.assessments : []
+    for (const a of assessments) {
+      const tcArr = Array.isArray(a.tracking_configs)
+        ? a.tracking_configs
+        : (a.tracking_configs ? [a.tracking_configs] : [])
+      for (const tc of tcArr) {
+        if ((tc as any)?.id) configIds.push((tc as any).id)
+      }
+    }
+  }
+
+  const { data: allEntries } = configIds.length > 0
+    ? await supabase
+        .from('tracking_entries')
+        .select('config_id, week_number, turnaround_min, dispatch_min')
+        .in('config_id', configIds)
+        .order('week_number', { ascending: true })
+    : { data: [] }
+
+  // Map configId → sorted entries[]
+  const entriesByConfig: Record<string, Array<{ week_number: number; turnaround_min: number | null; dispatch_min: number | null }>> = {}
+  for (const e of allEntries || []) {
+    if (!entriesByConfig[e.config_id]) entriesByConfig[e.config_id] = []
+    entriesByConfig[e.config_id].push(e)
+  }
 
   // ── Fetch customer name (for customer_admin) ──────────────────────────
   let customerName: string | undefined
@@ -78,12 +107,38 @@ export default async function PlantsPage() {
       return { id: plant.id, name: plant.name, country: plant.country, assessment: null }
     }
 
-    // Tracking week
+    // Tracking week + trend entries
     const tcArr = Array.isArray(latest.tracking_configs)
       ? latest.tracking_configs
       : (latest.tracking_configs ? [latest.tracking_configs] : [])
     const tc = tcArr[0] ?? null
-    const trackingWeek = tc ? trackingWeekFromDate(tc.started_at) : null
+    const trackingWeek      = tc ? trackingWeekFromDate(tc.started_at) : null
+    const baselineTurnaround: number | null = tc ? ((tc as any).baseline_turnaround ?? null) : null
+    const entries           = tc ? (entriesByConfig[tc.id] ?? []) : []
+
+    // trackingTrend: all weeks with a turnaround reading
+    const trackingTrend = entries
+      .filter(e => e.turnaround_min != null)
+      .map(e => ({ week: e.week_number, turnaround: Number(e.turnaround_min) }))
+
+    // trackingImprovement: delta latest vs previous (or baseline)
+    const withTA = trackingTrend
+    let trackingImprovement: { turnaroundDelta: number; dispatchDelta: number; weekOf: number; weekTotal: number } | null = null
+    if (withTA.length >= 1) {
+      const latest2    = withTA[withTA.length - 1]
+      const prev       = withTA.length >= 2 ? withTA[withTA.length - 2] : null
+      const baseVal    = prev?.turnaround ?? baselineTurnaround
+      const turnaroundDelta = baseVal != null ? latest2.turnaround - baseVal : 0
+
+      const withDisp   = entries.filter(e => e.dispatch_min != null)
+      const latestDisp = withDisp[withDisp.length - 1]
+      const prevDisp   = withDisp.length >= 2 ? withDisp[withDisp.length - 2] : null
+      const dispatchDelta = latestDisp && prevDisp
+        ? Number(latestDisp.dispatch_min) - Number(prevDisp.dispatch_min)
+        : 0
+
+      trackingImprovement = { turnaroundDelta, dispatchDelta, weekOf: latest2.week, weekTotal: 13 }
+    }
 
     // Scores — handle both 'logistics' and 'fleet' key names
     const raw = latest.scores as Record<string, number | null> | null
@@ -131,6 +186,9 @@ export default async function PlantsPage() {
         ebitda_monthly: latest.ebitda_monthly ?? null,
         report_released: latest.report_released ?? false,
         trackingWeek,
+        trackingImprovement,
+        trackingTrend:       trackingTrend.length > 0 ? trackingTrend : null,
+        baselineTurnaround,
         primaryActionStatus,
         topAction,
         kpi: bm ? {
