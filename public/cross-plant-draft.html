@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Cross-Plant Benchmark — Draft</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #0f1a14;
+    color: #e5e7eb;
+    min-height: 100vh;
+    padding: 40px 24px;
+  }
+
+  .container { max-width: 1100px; margin: 0 auto; }
+
+  /* Draft banner */
+  .draft-banner {
+    background: rgba(251,146,60,0.12);
+    border: 1px solid rgba(251,146,60,0.3);
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 12px;
+    color: #fb923c;
+    margin-bottom: 32px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* Header */
+  .page-header { margin-bottom: 32px; }
+  .eyebrow {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: #4ade80;
+    margin-bottom: 10px;
+  }
+  h1 {
+    font-size: 28px;
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: -0.5px;
+    margin-bottom: 8px;
+  }
+  .subtitle {
+    font-size: 14px;
+    color: rgba(255,255,255,0.45);
+    line-height: 1.6;
+  }
+
+  /* Role toggle */
+  .controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .role-toggle {
+    display: flex;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    padding: 3px;
+    gap: 2px;
+  }
+  .role-btn {
+    padding: 6px 16px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    color: rgba(255,255,255,0.45);
+    transition: all .15s;
+  }
+  .role-btn.active {
+    background: #1a3d28;
+    color: #4ade80;
+  }
+
+  /* Sort info */
+  .sort-info {
+    font-size: 12px;
+    color: rgba(255,255,255,0.3);
+  }
+
+  /* Table */
+  .table-wrap {
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px;
+    overflow: hidden;
+    margin-bottom: 20px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  thead {
+    background: rgba(255,255,255,0.04);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  th {
+    padding: 12px 16px;
+    text-align: left;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: rgba(255,255,255,0.3);
+    white-space: nowrap;
+    user-select: none;
+  }
+  th.sortable { cursor: pointer; }
+  th.sortable:hover { color: rgba(255,255,255,0.6); }
+  th.sorted { color: #4ade80; }
+  .sort-arrow { margin-left: 4px; font-size: 9px; }
+
+  tbody tr {
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    transition: background .1s;
+  }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: rgba(255,255,255,0.02); }
+  tbody tr.best-row { background: rgba(74,222,128,0.05); }
+  tbody tr.own-row { background: rgba(96,165,250,0.05); }
+  tbody tr.dimmed { opacity: 0.4; }
+
+  td { padding: 14px 16px; vertical-align: middle; }
+
+  /* Plant name cell */
+  .plant-name {
+    font-weight: 600;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .badge {
+    font-size: 9px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 4px;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .badge-best { background: rgba(74,222,128,0.15); color: #4ade80; border: 1px solid rgba(74,222,128,0.3); }
+  .badge-you  { background: rgba(96,165,250,0.15);  color: #60a5fa; border: 1px solid rgba(96,165,250,0.3); }
+  .assessed-date {
+    font-size: 10px;
+    color: rgba(255,255,255,0.25);
+    margin-top: 3px;
+  }
+  .stale { color: #fb923c; }
+
+  /* KPI cell */
+  .kpi-cell { font-family: 'SF Mono', 'Fira Code', monospace; }
+  .kpi-val { font-weight: 700; font-size: 14px; }
+  .kpi-gap { font-size: 11px; margin-top: 2px; }
+
+  .green  { color: #4ade80; }
+  .amber  { color: #fb923c; }
+  .red    { color: #f87171; }
+  .muted  { color: rgba(255,255,255,0.35); }
+
+  /* At risk */
+  .at-risk { font-family: 'SF Mono', 'Fira Code', monospace; font-weight: 700; font-size: 14px; }
+
+  /* Recommended action */
+  .recommended-action {
+    background: rgba(74,222,128,0.06);
+    border: 1px solid rgba(74,222,128,0.2);
+    border-left: 4px solid #4ade80;
+    border-radius: 10px;
+    padding: 14px 20px;
+    display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  }
+  .rec-label {
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .08em; color: #4ade80; margin-bottom: 5px;
+  }
+  .rec-text { font-size: 13px; color: rgba(255,255,255,0.7); line-height: 1.5; }
+  .rec-text strong { color: #fff; }
+  .rec-btn {
+    font-size: 12px; font-weight: 700; padding: 9px 18px; white-space: nowrap;
+    border-radius: 8px; border: none; cursor: pointer;
+    background: #4ade80; color: #0a2318; font-family: inherit;
+    transition: background .15s;
+  }
+  .rec-btn:hover { background: #22c55e; }
+
+  /* Primary drag */
+  .primary-drag {
+    background: rgba(251,146,60,0.07);
+    border: 1px solid rgba(251,146,60,0.2);
+    border-radius: 10px;
+    padding: 12px 18px;
+    font-size: 13px;
+    color: rgba(255,255,255,0.6);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .primary-drag strong { color: #fb923c; }
+
+  /* Board view — hide detail cols and verbose labels */
+  .board-col { }
+  .hide-board { }
+  .show-board { display: none; }
+  body.board .board-col  { display: none; }
+  body.board .hide-board { display: none; }
+  body.board .show-board { display: inline-flex; }
+
+  /* Urgency summary */
+  .urgency-summary {
+    background: rgba(248,113,113,0.08);
+    border: 1px solid rgba(248,113,113,0.25);
+    border-left: 4px solid #f87171;
+    border-radius: 10px;
+    padding: 14px 20px;
+    font-size: 13px;
+    color: #f87171;
+    line-height: 1.5;
+  }
+  .urgency-summary strong { color: #fff; }
+  .urgency-summary.none {
+    background: rgba(74,222,128,0.06);
+    border-color: rgba(74,222,128,0.2);
+    border-left-color: #4ade80;
+    color: #4ade80;
+  }
+
+  /* Trend */
+  .trend { font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; gap: 3px; margin-top: 4px; }
+  .trend-improving { color: #4ade80; }
+  .trend-stable    { color: rgba(255,255,255,0.3); }
+  .trend-worsening { color: #f87171; }
+
+  /* Action status */
+  .action-status {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 10px; font-weight: 600; padding: 2px 8px;
+    border-radius: 4px; margin-top: 5px;
+  }
+  .action-none    { background: rgba(248,113,113,0.12); color: #f87171; border: 1px solid rgba(248,113,113,0.2); }
+  .action-stalled { background: rgba(251,146,60,0.12);  color: #fb923c; border: 1px solid rgba(251,146,60,0.2); }
+  .action-active  { background: rgba(74,222,128,0.1);   color: #4ade80; border: 1px solid rgba(74,222,128,0.2); }
+  .action-done    { background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.3); border: 1px solid rgba(255,255,255,0.08); }
+
+  /* Urgency flag */
+  .urgency-flag {
+    font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 4px;
+    background: rgba(248,113,113,0.15); color: #f87171;
+    border: 1px solid rgba(248,113,113,0.3); letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+
+  /* CTA cell */
+  .cta-btn {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 5px 12px;
+    border-radius: 6px;
+    border: 1px solid rgba(74,222,128,0.3);
+    background: rgba(74,222,128,0.08);
+    color: #4ade80;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all .15s;
+  }
+  .cta-btn:hover {
+    background: rgba(74,222,128,0.15);
+    border-color: rgba(74,222,128,0.5);
+  }
+
+  /* Manager note */
+  .manager-note {
+    background: rgba(96,165,250,0.08);
+    border: 1px solid rgba(96,165,250,0.2);
+    border-radius: 10px;
+    padding: 14px 18px;
+    font-size: 13px;
+    color: rgba(96,165,250,0.8);
+    margin-bottom: 20px;
+    display: none;
+  }
+  .manager-note.visible { display: block; }
+
+  /* Summary panel */
+  .summary-row {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    margin-bottom: 40px;
+  }
+  .summary-card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+    padding: 14px 20px;
+    text-align: right;
+    min-width: 180px;
+  }
+  .summary-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: rgba(255,255,255,0.3);
+    margin-bottom: 5px;
+  }
+  .summary-val {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 22px;
+    font-weight: 800;
+  }
+  .summary-card.amber-card {
+    background: rgba(251,146,60,0.08);
+    border-color: rgba(251,146,60,0.2);
+  }
+  .summary-card.amber-card .summary-val { color: #fb923c; }
+
+  /* Design notes */
+  .notes {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 12px;
+    padding: 24px;
+  }
+  .notes h3 { font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.5); margin-bottom: 16px; text-transform: uppercase; letter-spacing: .08em; }
+  .notes ul { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+  .notes li { font-size: 13px; color: rgba(255,255,255,0.4); line-height: 1.5; padding-left: 16px; position: relative; }
+  .notes li::before { content: '·'; position: absolute; left: 0; color: #4ade80; }
+  .notes li strong { color: rgba(255,255,255,0.7); }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="draft-banner">
+    ⚠ Draft — localhost only. Not in production. Adjust freely.
+  </div>
+
+  <div class="page-header">
+    <div class="eyebrow">Portfolio benchmark</div>
+    <h1>Cross-plant performance</h1>
+    <p class="subtitle">Sort by any dimension. Click a column header. Best performer shown first when sorted ascending.</p>
+  </div>
+
+  <!-- Summary cards — top -->
+  <div id="summary-top" style="margin-bottom:20px;"></div>
+
+  <!-- Primary drag callout -->
+  <div id="primary-drag" style="margin-bottom:16px;"></div>
+
+  <!-- Recommended action -->
+  <div id="recommended-action" style="margin-bottom:16px;"></div>
+
+  <!-- Urgency summary -->
+  <div id="urgency-summary" style="margin-bottom:16px;"></div>
+
+  <div class="controls">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+      <div class="role-toggle">
+        <button class="role-btn active" onclick="setRole('owner')">Owner</button>
+        <button class="role-btn" onclick="setRole('manager')">Manager</button>
+      </div>
+      <div class="role-toggle" id="view-toggle">
+        <button class="role-btn active" onclick="setView('detailed')">Detailed</button>
+        <button class="role-btn" onclick="setView('board')">Board view</button>
+      </div>
+    </div>
+    <div class="sort-info" id="sort-info">Sorted by: Monthly at risk</div>
+  </div>
+
+  <div class="manager-note" id="manager-note">
+    You are seeing your plant's performance vs the portfolio average. Individual plant data is not shown.
+  </div>
+
+  <div class="table-wrap">
+    <table id="plant-table">
+      <thead>
+        <tr>
+          <th>Plant</th>
+          <th class="sortable sorted board-col" data-col="dispatch" onclick="sortBy('dispatch')">
+            Dispatch <span class="sort-arrow">↑</span>
+          </th>
+          <th class="sortable board-col" data-col="turnaround" onclick="sortBy('turnaround')">
+            Turnaround <span class="sort-arrow"></span>
+          </th>
+          <th class="sortable board-col" data-col="utilization" onclick="sortBy('utilization')">
+            Utilization <span class="sort-arrow"></span>
+          </th>
+          <th class="sortable board-col" data-col="quality" onclick="sortBy('quality')">
+            Quality <span class="sort-arrow"></span>
+          </th>
+          <th class="sortable sorted" data-col="atRisk" onclick="sortBy('atRisk')">
+            At risk /mo <span class="sort-arrow">↓</span>
+          </th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+
+
+  <div class="notes">
+    <h3>Design notes / open questions</h3>
+    <ul>
+      <li><strong>Gap vs target, not absolute:</strong> Values shown are vs each plant's own target — normalizes for delivery radius differences.</li>
+      <li><strong>Color bands:</strong> Green = within target, Amber = 1–30% over, Red = &gt;30% over target.</li>
+      <li><strong>Manager view:</strong> Only own plant + portfolio avg — not individual competitor plants.</li>
+      <li><strong>Stale data warning:</strong> Assessment older than 90 days shows date in orange.</li>
+      <li><strong>CTA framing:</strong> "See what [best plant] does differently" — not "audit why X underperforms".</li>
+      <li><strong>Open question:</strong> Should the CTA send an email, open a chat, or link to best plant's report?</li>
+      <li><strong>Open question:</strong> Should plants with incomplete assessments be hidden or shown greyed out?</li>
+    </ul>
+  </div>
+
+</div>
+
+<script>
+const PLANTS = [
+  {
+    id: 1,
+    name: 'Plant — Abu Dhabi',
+    manager: 'Khalid Al Mansoori',
+    assessedDays: 12,
+    isYou: false,
+    dispatch:    { val: 18, target: 20, unit: 'min', lowerIsBetter: true },
+    turnaround:  { val: 82, target: 90, unit: 'min', lowerIsBetter: true },
+    utilization: { val: 91, target: 88, unit: '%',   lowerIsBetter: false },
+    quality:     { val: 2.1, target: 3.0, unit: '%', lowerIsBetter: true },
+    atRisk: 0,
+    trend: { direction: 'improving', delta: -6, label: '-6 min dispatch vs last period' },
+    actions: { total: 4, inProgress: 1, done: 3 },
+  },
+  {
+    id: 2,
+    name: 'Plant — Ras Al Khaimah',
+    manager: 'Saeed Al Rashdi',
+    assessedDays: 28,
+    isYou: false,
+    dispatch:    { val: 22, target: 20, unit: 'min', lowerIsBetter: true },
+    turnaround:  { val: 89, target: 90, unit: 'min', lowerIsBetter: true },
+    utilization: { val: 88, target: 88, unit: '%',   lowerIsBetter: false },
+    quality:     { val: 3.1, target: 3.0, unit: '%', lowerIsBetter: true },
+    atRisk: 18000,
+    trend: { direction: 'improving', delta: -3, label: '-3 min dispatch vs last period' },
+    actions: { total: 3, inProgress: 2, done: 1 },
+  },
+  {
+    id: 3,
+    name: 'Plant — Ajman',
+    manager: 'Hassan Al Nuaimi',
+    assessedDays: 45,
+    isYou: true,
+    dispatch:    { val: 28, target: 20, unit: 'min', lowerIsBetter: true },
+    turnaround:  { val: 95, target: 90, unit: 'min', lowerIsBetter: true },
+    utilization: { val: 84, target: 88, unit: '%',   lowerIsBetter: false },
+    quality:     { val: 2.9, target: 3.0, unit: '%', lowerIsBetter: true },
+    atRisk: 43000,
+    trend: { direction: 'stable', delta: 0, label: 'No change vs last period' },
+    actions: { total: 5, inProgress: 0, done: 2 },
+  },
+  {
+    id: 4,
+    name: 'Plant — Dubai',
+    manager: 'Omar Al Maktoum',
+    assessedDays: 97,
+    isYou: false,
+    dispatch:    { val: 34, target: 20, unit: 'min', lowerIsBetter: true },
+    turnaround:  { val: 104, target: 90, unit: 'min', lowerIsBetter: true },
+    utilization: { val: 78, target: 88, unit: '%',   lowerIsBetter: false },
+    quality:     { val: 3.8, target: 3.0, unit: '%', lowerIsBetter: true },
+    atRisk: 89000,
+    trend: { direction: 'worsening', delta: +5, label: '+5 min dispatch vs last period' },
+    actions: { total: 2, inProgress: 0, done: 0 },
+  },
+  {
+    id: 5,
+    name: 'Plant — Sharjah',
+    manager: 'Yusuf Al Qasimi',
+    assessedDays: 14,
+    isYou: false,
+    dispatch:    { val: 41, target: 20, unit: 'min', lowerIsBetter: true },
+    turnaround:  { val: 118, target: 90, unit: 'min', lowerIsBetter: true },
+    utilization: { val: 71, target: 88, unit: '%',   lowerIsBetter: false },
+    quality:     { val: 5.2, target: 3.0, unit: '%', lowerIsBetter: true },
+    atRisk: 131000,
+    trend: { direction: 'worsening', delta: +9, label: '+9 min dispatch vs last period' },
+    actions: { total: 0, inProgress: 0, done: 0 },
+  },
+]
+
+let sortCol = 'atRisk'
+let role = 'owner'
+let viewMode = 'detailed'
+
+function setView(v) {
+  viewMode = v
+  document.querySelectorAll('#view-toggle .role-btn').forEach(b => b.classList.toggle('active', b.textContent.toLowerCase().includes(v === 'board' ? 'board' : 'detail')))
+  document.body.classList.toggle('board', v === 'board')
+}
+
+function setRole(r) {
+  role = r
+  document.querySelectorAll('.role-btn').forEach(b => b.classList.toggle('active', b.textContent.toLowerCase().includes(r)))
+  document.getElementById('manager-note').classList.toggle('visible', r === 'manager')
+  render()
+}
+
+function sortBy(col) {
+  sortCol = col
+  document.querySelectorAll('th[data-col]').forEach(th => {
+    const isSorted = th.dataset.col === col
+    th.classList.toggle('sorted', isSorted)
+    th.querySelector('.sort-arrow').textContent = isSorted ? '↑' : ''
+  })
+  document.getElementById('sort-info').textContent =
+    `Sorted by: ${col.charAt(0).toUpperCase() + col.slice(1)} — best first`
+  render()
+}
+
+function gapColor(dim) {
+  const { val, target, lowerIsBetter } = dim
+  const gap = lowerIsBetter ? val - target : target - val
+  if (gap <= 0) return 'green'
+  const pct = gap / target
+  return pct > 0.3 ? 'red' : 'amber'
+}
+
+function fmtGap(dim) {
+  const { val, target, unit, lowerIsBetter } = dim
+  const gap = lowerIsBetter ? val - target : target - val
+  if (gap <= 0) return `<span class="green">✓ within target</span>`
+  const sign = '+'
+  return `<span class="${gap / target > 0.3 ? 'red' : 'amber'}">${sign}${gap.toFixed(unit === '%' ? 1 : 0)} ${unit}</span>`
+}
+
+function fmtVal(dim) {
+  return `${dim.val}${dim.unit}`
+}
+
+function fmtMoney(n) {
+  if (n === 0) return '<span class="green">—</span>'
+  return `$${(n/1000).toFixed(0)}k`
+}
+
+// Always ascending gap from target — best (lowest gap) first
+function getSortValue(plant) {
+  if (sortCol === 'atRisk') return plant.atRisk
+  const dim = plant[sortCol]
+  return dim.lowerIsBetter ? dim.val - dim.target : dim.target - dim.val
+}
+
+function render() {
+  // Sort: best first, then worst → 2nd worst → ... → 2nd best
+  const ranked = [...PLANTS].sort((a, b) => getSortValue(a) - getSortValue(b))
+  const best = ranked[0]  // best for current sort dimension
+  const rest = ranked.slice(1).reverse()
+  const plants = [best, ...rest]
+
+  // Summary cards — top
+  const totalRiskAll = PLANTS.reduce((s, p) => s + p.atRisk, 0)
+  const primaryBottleneck = 'Dispatch'
+  const improving = PLANTS.filter(p => p.trend.direction === 'improving').length
+  document.getElementById('summary-top').innerHTML = role === 'owner' ? `
+    <div class="summary-row" style="justify-content:flex-start;margin-bottom:0;">
+      <div class="summary-card amber-card">
+        <div class="summary-label">Total recoverable</div>
+        <div class="summary-val">$${(totalRiskAll/1000).toFixed(0)}k / mo</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">Primary bottleneck</div>
+        <div class="summary-val" style="color:#fb923c;font-size:16px;padding-top:4px">${primaryBottleneck}</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">Plants improving</div>
+        <div class="summary-val" style="color:#4ade80">${improving} of ${PLANTS.length}</div>
+      </div>
+    </div>` : ''
+
+  // Recommended action — most urgent plant (worsening + no actions, highest at risk)
+  const recEl = document.getElementById('recommended-action')
+  const recCandidates = PLANTS.filter(p => p.trend.direction === 'worsening' && p.actions.inProgress === 0 && p.atRisk > 0)
+    .sort((a, b) => b.atRisk - a.atRisk)
+  if (role === 'owner' && recCandidates.length > 0) {
+    const rec = recCandidates[0]
+    const city = rec.name.split('—')[1].trim()
+    const risk = '$' + (rec.atRisk / 1000).toFixed(0) + 'k'
+    recEl.innerHTML = `
+      <div class="recommended-action">
+        <div>
+          <div class="rec-label">Recommended action</div>
+          <div class="rec-text">Schedule a performance review at <strong>${city}</strong> this week — <strong>${risk} gap</strong>, worsening, no active actions.</div>
+        </div>
+        <button class="rec-btn" onclick="scheduleIntervention('${rec.name}')">Schedule a performance review at ${city} →</button>
+      </div>`
+  } else {
+    recEl.innerHTML = ''
+  }
+
+  // Primary drag
+  const dragPlant = [...PLANTS].sort((a, b) => b.atRisk - a.atRisk)[0]
+  const dragPct = Math.round(dragPlant.atRisk / totalRiskAll * 100)
+  document.getElementById('primary-drag').innerHTML = role === 'owner' && dragPlant.atRisk > 0 ? `
+    <div class="primary-drag">
+      <span>Primary drag:</span>
+      <strong>${dragPlant.name.split('—')[1].trim()} accounts for ${dragPct}% of total portfolio gap</strong>
+      <span style="color:rgba(255,255,255,0.3)">— $${(dragPlant.atRisk/1000).toFixed(0)}k/mo</span>
+    </div>` : ''
+
+  // Urgency summary
+  const urgentPlants = PLANTS.filter(p => p.trend.direction === 'worsening' && p.actions.inProgress === 0)
+  const summaryEl = document.getElementById('urgency-summary')
+  if (role === 'owner') {
+    if (urgentPlants.length > 0) {
+      const totalRisk = urgentPlants.reduce((s, p) => s + p.atRisk, 0)
+      const fmtRisk = '$' + (totalRisk / 1000).toFixed(0) + 'k'
+      summaryEl.innerHTML = `<div class="urgency-summary"><strong>${fmtRisk}/month</strong> underperforming across ${urgentPlants.length} plant${urgentPlants.length>1?'s':''}. No active actions.</div>`
+    } else {
+      summaryEl.innerHTML = `<div class="urgency-summary none">All plants have active improvement actions in place.</div>`
+    }
+  } else {
+    summaryEl.innerHTML = ''
+  }
+
+  const tbody = document.getElementById('tbody')
+  tbody.innerHTML = ''
+
+  plants.forEach(plant => {
+    const isBest = plant.id === best.id
+    const isManager = role === 'manager'
+    const isOwn = plant.isYou
+    const isDimmed = isManager && !isOwn
+    const isPortfolioAvg = false
+
+    const tr = document.createElement('tr')
+    if (isBest && !isManager) tr.classList.add('best-row')
+    if (isOwn) tr.classList.add('own-row')
+    if (isDimmed) tr.classList.add('dimmed')
+
+    const staleClass = plant.assessedDays > 90 ? 'stale' : ''
+    const dateText = plant.assessedDays > 90
+      ? `⚠ assessed ${plant.assessedDays}d ago`
+      : `assessed ${plant.assessedDays}d ago`
+
+    const badges = []
+    if (isBest && !isManager) badges.push(`<span class="badge badge-best">Best</span>`)
+    if (isOwn && isManager) badges.push(`<span class="badge badge-you">You</span>`)
+
+    // Trend
+    const t = plant.trend
+    const trendIcon = t.direction === 'improving' ? '↘' : t.direction === 'worsening' ? '↗' : '→'
+    const trendClass = `trend-${t.direction}`
+    const trendHtml = `<div class="trend ${trendClass}">${trendIcon} ${t.label}</div>`
+
+    // Action status
+    const a = plant.actions
+    let actionClass, actionLabel
+    if (a.total === 0) {
+      actionClass = 'action-none'; actionLabel = 'No actions defined'
+    } else if (a.inProgress > 0) {
+      actionClass = 'action-active'; actionLabel = `${a.inProgress} action${a.inProgress>1?'s':''} in progress`
+    } else if (a.done === a.total) {
+      actionClass = 'action-done'; actionLabel = `${a.done} actions completed`
+    } else {
+      actionClass = 'action-stalled'; actionLabel = `${a.total - a.done} actions not started`
+    }
+
+    // Simplified labels for board view
+    const actionLabelSimple = a.inProgress > 0 ? 'Active' : a.total === 0 ? 'None' : 'Stalled'
+    const actionClassSimple = a.inProgress > 0 ? 'action-active' : a.total === 0 ? 'action-none' : 'action-stalled'
+
+    const actionHtml = `
+      <div class="action-status ${actionClass} hide-board">${actionLabel}</div>
+      <div class="action-status ${actionClassSimple} show-board">${actionLabelSimple}</div>`
+
+    // Trend: detailed vs simple
+    const trendHtmlSimple = `<span class="trend ${trendClass}" style="font-size:13px;">${trendIcon}</span>`
+    const trendHtmlFull = `<div class="trend ${trendClass} hide-board">${trendIcon} ${t.label}</div>`
+
+    // Urgency: worsening + no active actions
+    const isUrgent = t.direction === 'worsening' && a.inProgress === 0
+    const urgencyHtml = isUrgent ? `<span class="urgency-flag hide-board">Performance review needed</span>` : ''
+
+    // CTA: context-aware
+    let ctaHtml = ''
+    if (!isDimmed) {
+      if (isUrgent) {
+        ctaHtml = `<button class="cta-btn" style="border-color:rgba(248,113,113,0.4);color:#f87171;background:rgba(248,113,113,0.08)" onclick="scheduleIntervention('${plant.name}')">Schedule a performance review →</button>`
+      } else if (!isBest && plant.atRisk > 0) {
+        const bestCity = best.name.split('—')[1].trim()
+        const dimLabel = sortCol === 'atRisk' ? 'overall' : sortCol
+        ctaHtml = `<button class="cta-btn" onclick="showBestPractice('${plant.name}', '${best.name}', '${dimLabel}')">See what ${bestCity} does differently (${dimLabel}) →</button>`
+      }
+    }
+
+    tr.innerHTML = `
+      <td>
+        <div class="plant-name">
+          <span>${plant.name}</span>
+          ${badges.join('')}
+          ${urgencyHtml}
+        </div>
+        <div class="assessed-date ${staleClass} hide-board">${dateText}</div>
+        ${staleClass ? `<div class="assessed-date stale show-board">${dateText}</div>` : ''}
+        ${trendHtmlFull}
+        ${trendHtmlSimple ? `<span class="show-board" style="margin-left:4px;">${trendHtmlSimple}</span>` : ''}
+        ${actionHtml}
+      </td>
+      <td class="kpi-cell board-col">
+        <div class="kpi-val ${gapColor(plant.dispatch)}">${fmtVal(plant.dispatch)}</div>
+        <div class="kpi-gap">${fmtGap(plant.dispatch)}</div>
+      </td>
+      <td class="kpi-cell board-col">
+        <div class="kpi-val ${gapColor(plant.turnaround)}">${fmtVal(plant.turnaround)}</div>
+        <div class="kpi-gap">${fmtGap(plant.turnaround)}</div>
+      </td>
+      <td class="kpi-cell board-col">
+        <div class="kpi-val ${gapColor(plant.utilization)}">${fmtVal(plant.utilization)}</div>
+        <div class="kpi-gap">${fmtGap(plant.utilization)}</div>
+      </td>
+      <td class="kpi-cell board-col">
+        <div class="kpi-val ${gapColor(plant.quality)}">${fmtVal(plant.quality)}</div>
+        <div class="kpi-gap">${fmtGap(plant.quality)}</div>
+      </td>
+      <td class="at-risk ${plant.atRisk > 80000 ? 'red' : plant.atRisk > 20000 ? 'amber' : 'green'}">${fmtMoney(plant.atRisk)}</td>
+      <td>${ctaHtml}</td>
+    `
+    tbody.appendChild(tr)
+  })
+
+  // Manager view: append portfolio avg row
+  if (role === 'manager') {
+    const avg = {
+      dispatch:    { val: Math.round(PLANTS.reduce((s,p) => s + p.dispatch.val, 0) / PLANTS.length), target: 20, unit: 'min', lowerIsBetter: true },
+      turnaround:  { val: Math.round(PLANTS.reduce((s,p) => s + p.turnaround.val, 0) / PLANTS.length), target: 90, unit: 'min', lowerIsBetter: true },
+      utilization: { val: Math.round(PLANTS.reduce((s,p) => s + p.utilization.val, 0) / PLANTS.length), target: 88, unit: '%', lowerIsBetter: false },
+      quality:     { val: +(PLANTS.reduce((s,p) => s + p.quality.val, 0) / PLANTS.length).toFixed(1), target: 3.0, unit: '%', lowerIsBetter: true },
+    }
+    const avgRisk = Math.round(PLANTS.reduce((s,p) => s + p.atRisk, 0) / PLANTS.length)
+    const tr = document.createElement('tr')
+    tr.style.borderTop = '2px solid rgba(255,255,255,0.1)'
+    tr.innerHTML = `
+      <td>
+        <div class="plant-name muted">Portfolio avg</div>
+        <div class="assessed-date">5 plants</div>
+      </td>
+      <td class="kpi-cell"><div class="kpi-val muted">${fmtVal(avg.dispatch)}</div><div class="kpi-gap">${fmtGap(avg.dispatch)}</div></td>
+      <td class="kpi-cell"><div class="kpi-val muted">${fmtVal(avg.turnaround)}</div><div class="kpi-gap">${fmtGap(avg.turnaround)}</div></td>
+      <td class="kpi-cell"><div class="kpi-val muted">${fmtVal(avg.utilization)}</div><div class="kpi-gap">${fmtGap(avg.utilization)}</div></td>
+      <td class="kpi-cell"><div class="kpi-val muted">${fmtVal(avg.quality)}</div><div class="kpi-gap">${fmtGap(avg.quality)}</div></td>
+      <td class="at-risk muted">${fmtMoney(avgRisk)}</td>
+      <td></td>
+    `
+    tbody.appendChild(tr)
+  }
+}
+
+function showBestPractice(plantName, bestName, dimension) {
+  const city = bestName.split('—')[1].trim()
+  alert(`Draft action — "${city} on ${dimension}"\n\nIn production this shows:\n• ${city}'s bottleneck analysis for ${dimension} from their assessment\n• The 2-3 actions they completed that closed the ${dimension} gap\n• A CTA: "Schedule a cross-plant review with ${city}'s manager →"`)
+}
+
+function scheduleIntervention(plantName) {
+  alert(`Draft action — "Schedule a performance review at ${plantName.split('—')[1].trim()}"\n\nThis plant is worsening with no active actions.\n\nIn production this:\n• Opens a pre-filled booking for an onsite visit\n• Links directly to Phase 2 engagement (the $15k onsite assessment)\n• Notifies Louis with plant context pre-loaded`)
+}
+
+// Init
+render()
+</script>
+</body>
+</html>

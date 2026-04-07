@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import NavBar from '@/components/NavBar'
 import DevRoleSwitcher from '@/components/DevRoleSwitcher'
 import { getEffectiveMemberRole, type MemberRole } from '@/lib/getEffectiveMemberRole'
+import { isSystemAdmin } from '@/lib/supabase/admin'
 
 export const dynamic = 'force-dynamic'
 
@@ -16,14 +17,15 @@ export default async function DashboardLayout({
 
   if (!user) redirect('/login')
 
-  // Get profile with role
+  // Get profile with role (via RLS-aware client for display data)
   const { data: profile } = await supabase
     .from('profiles')
     .select('*')
     .eq('id', user.id)
     .single()
 
-  const isAdmin = profile?.role === 'system_admin'
+  // Use service role to bypass RLS for admin check — RLS on profiles table is unreliable
+  const isAdmin = await isSystemAdmin(user.id)
 
   // Get customer member role (for customer_admin / customer_user)
   let realMemberRole: MemberRole | null = null
@@ -51,7 +53,7 @@ export default async function DashboardLayout({
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', overflowX: 'hidden' }}>
-      <NavBar user={user} profile={profile} memberRole={effectiveRole} />
+      <NavBar user={user} profile={profile} memberRole={effectiveRole} isAdmin={isAdmin} />
       <main className="dashboard-main" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         {children}
       </main>

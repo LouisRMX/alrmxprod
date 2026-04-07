@@ -1,12 +1,13 @@
 import { createClient } from '@supabase/supabase-js'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
+import { isSystemAdmin } from '@/lib/supabase/admin'
 
 // Admin client with service role key, created lazily to avoid build-time crash
 function getAdminClient() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    process.env.SUPABASE_SECRET_KEY!,
   )
 }
 
@@ -16,13 +17,7 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (profile?.role !== 'system_admin') {
+  if (!await isSystemAdmin(user.id)) {
     return NextResponse.json({ error: 'Forbidden, system admin only' }, { status: 403 })
   }
 

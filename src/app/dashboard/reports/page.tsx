@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
+import { isSystemAdmin } from '@/lib/supabase/admin'
 
 function scoreColor(s: number | null) {
   if (s === null) return '#c8c8c8'
@@ -14,13 +15,7 @@ export default async function ReportsPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  const isAdmin = profile?.role === 'system_admin'
+  const isAdmin = await isSystemAdmin(user.id)
 
   // Admins see all assessments with reports; customers see their own
   const { data: assessments } = await supabase

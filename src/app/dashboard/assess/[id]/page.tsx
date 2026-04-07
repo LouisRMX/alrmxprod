@@ -2,6 +2,7 @@ import { redirect, notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import AssessmentTool from './AssessmentTool'
 import { getEffectiveMemberRole, type MemberRole } from '@/lib/getEffectiveMemberRole'
+import { isSystemAdmin } from '@/lib/supabase/admin'
 
 export default async function AssessmentPage({
   params
@@ -52,14 +53,7 @@ export default async function AssessmentPage({
     baselineAssessment = baseline ?? null
   }
 
-  // Get user profile role
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  const isAdmin = profile?.role === 'system_admin'
+  const isAdmin = await isSystemAdmin(user.id)
 
   // Get customer member role
   let realMemberRole: MemberRole | null = null
@@ -74,8 +68,6 @@ export default async function AssessmentPage({
     const raw = member?.role
     if (raw === 'owner' || raw === 'manager' || raw === 'operator') {
       realMemberRole = raw
-    } else if (profile?.role === 'customer_admin') {
-      realMemberRole = 'owner'
     } else {
       realMemberRole = 'manager'
     }

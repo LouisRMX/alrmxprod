@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { cookies } from 'next/headers'
+import { isSystemAdmin } from '@/lib/supabase/admin'
 
 const VALID_ROLES = ['owner', 'manager', 'operator']
 
@@ -16,13 +17,7 @@ export async function GET(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (profile?.role !== 'system_admin') {
+  if (!await isSystemAdmin(user.id)) {
     return NextResponse.json({ error: 'Forbidden, system admin only' }, { status: 403 })
   }
 

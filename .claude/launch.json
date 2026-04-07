@@ -1,0 +1,1 @@
+{"version":"0.0.1","configurations":[{"name":"alrmx-dev","runtimeExecutable":"npm","runtimeArgs":["--prefix","C:\\Users\\lsh29\\Desktop\\alrmx","run","dev"],"port":3000},{"name":"mockup","runtimeExecutable":"npx","runtimeArgs":["serve","public","-p","3001","--no-clipboard"],"port":3001}]}

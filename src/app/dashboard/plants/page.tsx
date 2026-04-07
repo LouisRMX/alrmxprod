@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import PlantOverviewView, { type PlantCardData } from '@/components/plants/PlantOverviewView'
+import { isSystemAdmin } from '@/lib/supabase/admin'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,13 +15,7 @@ export default async function PlantsPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  const isAdmin = profile?.role === 'system_admin'
+  const isAdmin = await isSystemAdmin(user.id)
 
   // Operators have no portfolio, send them to their tracking page
   if (!isAdmin) {
@@ -79,9 +74,9 @@ export default async function PlantsPage() {
     entriesByConfig[e.config_id].push(e)
   }
 
-  // ── Fetch customer name (for customer_admin) ──────────────────────────
+  // ── Fetch customer name (for non-admin users) ──────────────────────────
   let customerName: string | undefined
-  if (profile?.role === 'customer_admin') {
+  if (!isAdmin) {
     const { data: membership } = await supabase
       .from('customer_members')
       .select('customer:customers(name)')

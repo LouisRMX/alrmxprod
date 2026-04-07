@@ -11,6 +11,7 @@ interface NavBarProps {
   user: User
   profile: Profile | null
   memberRole?: MemberRole | null
+  isAdmin?: boolean
 }
 
 function TabIcon({ name, active }: { name: string; active: boolean }) {
@@ -77,11 +78,11 @@ const SHORT_LABELS: Record<string, string> = {
   'Simulator':      'Sim',
 }
 
-export default function NavBar({ user, profile, memberRole }: NavBarProps) {
+export default function NavBar({ user, profile, memberRole, isAdmin: isAdminProp }: NavBarProps) {
   const router = useRouter()
   const pathname = usePathname()
   const supabase = createClient()
-  const isAdmin = profile?.role === 'system_admin'
+  const isAdmin = isAdminProp ?? profile?.role === 'system_admin'
   const isMobile = useIsMobile()
 
   async function handleSignOut() {

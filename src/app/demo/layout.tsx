@@ -3,6 +3,7 @@ import { cookies } from 'next/headers'
 import DashboardShell from '../dashboard/DashboardShell'
 import type { MemberRole } from '@/lib/getEffectiveMemberRole'
 import type { ReactNode } from 'react'
+import { isSystemAdmin } from '@/lib/supabase/admin'
 
 export default async function DemoLayout({ children }: { children: ReactNode }) {
   const supabase = await createClient()
@@ -11,13 +12,7 @@ export default async function DemoLayout({ children }: { children: ReactNode }) 
   // If not authenticated, render children without the chat widget
   if (!user) return <>{children}</>
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  const isAdmin = profile?.role === 'system_admin'
+  const isAdmin = await isSystemAdmin(user.id)
 
   // Respect the dev role-switcher cookie so admins can test as different roles
   const cookieStore = await cookies()

@@ -4,6 +4,7 @@ import { cookies } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import DemoView from './DemoView'
 import type { MemberRole } from '@/lib/getEffectiveMemberRole'
+import { isSystemAdmin } from '@/lib/supabase/admin'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,8 +15,7 @@ export default async function DemoPage() {
   if (!user) redirect('/login?redirect=demo')
 
   // Only system_admin can use viewAs role override
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-  const isAdmin = profile?.role === 'system_admin'
+  const isAdmin = await isSystemAdmin(user.id)
 
   const cookieStore = await cookies()
   const raw = isAdmin ? cookieStore.get('viewAs')?.value : undefined
