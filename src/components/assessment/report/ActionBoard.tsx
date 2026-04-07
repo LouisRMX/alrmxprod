@@ -1085,6 +1085,83 @@ export default function ActionBoard({ assessmentId, customerId, focusActions, fo
             assignee: null,
           }))
         }
+
+        // ── Peer review actions: find better plants in portfolio ───────────
+        if (calcResult) {
+          // Fetch sibling assessments with benchmarks
+          const { data: siblings } = await supabase
+            .from('assessments')
+            .select('id, name, plant_benchmarks(turnaround_min, dispatch_min, reject_pct)')
+            .eq('customer_id', customerId)
+            .neq('id', assessmentId)
+
+          if (siblings && siblings.length > 0) {
+            type DimCfg = { kpiKey: 'turnaround_min' | 'dispatch_min' | 'reject_pct'; label: string; unit: string; currentVal: number | null }
+            const dimCfgs: Record<string, DimCfg> = {
+              Fleet:    { kpiKey: 'turnaround_min', label: 'turnaround', unit: 'min', currentVal: calcResult.ta > 0 ? Math.round(calcResult.ta) : null },
+              Dispatch: { kpiKey: 'dispatch_min',   label: 'dispatch',   unit: 'min', currentVal: calcResult.dispatchMin ?? null },
+              Quality:  { kpiKey: 'reject_pct',     label: 'rejection rate', unit: '%', currentVal: calcResult.rejectPct > 0 ? calcResult.rejectPct : null },
+            }
+
+            // Unique dimensions already in finalItems
+            const activeDims = Array.from(new Set(finalItems.map(i => i.dimension).filter(Boolean))) as string[]
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const peerToInsert: any[] = []
+
+            for (const dim of activeDims) {
+              const cfg = dimCfgs[dim]
+              if (!cfg || cfg.currentVal == null || cfg.currentVal <= 0) continue
+
+              let bestName: string | null = null
+              let bestVal: number | null = null
+
+              for (const sibling of siblings) {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const bm: any = Array.isArray(sibling.plant_benchmarks) ? sibling.plant_benchmarks[0] : sibling.plant_benchmarks
+                if (!bm) continue
+                const sibVal = bm[cfg.kpiKey] as number | null
+                if (sibVal == null || sibVal <= 0) continue
+                const gap = (cfg.currentVal - sibVal) / cfg.currentVal   // positive = sibling is better (lower)
+                if (gap > 0.15 && (bestVal === null || sibVal < bestVal)) {
+                  bestVal = sibVal
+                  bestName = sibling.name
+                }
+              }
+
+              if (bestName && bestVal !== null) {
+                const bestDisplay    = cfg.unit === '%' ? `${bestVal.toFixed(1)}%`           : `${Math.round(bestVal)} min`
+                const currentDisplay = cfg.unit === '%' ? `${cfg.currentVal.toFixed(1)}%`    : `${Math.round(cfg.currentVal)} min`
+                peerToInsert.push({
+                  assessment_id: assessmentId,
+                  text: `Schedule a peer review with ${bestName} — they run ${bestDisplay} ${cfg.label} vs your ${currentDisplay}. Ask what changed.`,
+                  status: 'todo',
+                  checklist: [],
+                  dimension: dim,
+                  source: 'ai',
+                })
+              }
+            }
+
+            if (peerToInsert.length > 0) {
+              const { data: insertedPeer } = await supabase
+                .from('action_items')
+                .insert(peerToInsert)
+                .select('*')
+              if (insertedPeer) {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                finalItems = [...finalItems, ...insertedPeer.map((row: any) => ({
+                  ...row,
+                  source: 'ai' as const,
+                  value: null,
+                  checklist: [],
+                  assignee: null,
+                  dimension: row.dimension ?? null,
+                }))]
+              }
+            }
+          }
+        }
+        // ─────────────────────────────────────────────────────────────────
       }
 
       setItems(finalItems)
