@@ -127,7 +127,7 @@ function Hero() {
             {[
               'You are losing $X every month. We show you exactly where',
               'We identify the one constraint limiting your output and margin',
-              'We stay on as your partner. Weekly tracking, monthly reviews, measurable progress',
+              'We stay on as your partner. Continuously tracking, monthly reviews, measurable progress',
             ].map(text => (
               <li key={text} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
                 <span style={{
