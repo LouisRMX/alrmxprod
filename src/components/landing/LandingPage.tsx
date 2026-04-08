@@ -652,56 +652,178 @@ function HowItWorks() {
 
 function PortfolioBenchmark() {
   const plants = [
-    { name: 'Abu Dhabi Plant',  dispatch: '18 min', gap: null,     loss: null,      best: true  },
-    { name: 'Dubai Plant',      dispatch: '34 min', gap: '+16 min', loss: '$67k/mo', best: false },
-    { name: 'Sharjah Plant',    dispatch: '41 min', gap: '+23 min', loss: '$108k/mo', best: false },
+    { name: 'Al-Noor Dammam',  country: 'SA', dispatch: 22, turnaround: 140, util: 78.0, quality: 2.8, atRisk: 141, actions: 'none', best: true },
+    { name: 'Al-Noor Riyadh East', country: 'SA', dispatch: 38, turnaround: 125, util: 82.0, quality: 2.9, atRisk: 103, actions: 'none', best: false },
+    { name: 'Al-Noor Riyadh North', country: 'SA', dispatch: 32, turnaround: 112, util: 84.0, quality: 3.0, atRisk: 115, actions: 'in_progress', best: false },
   ]
 
+  const bestDispatch = Math.min(...plants.map(p => p.dispatch))
+  const bestTurnaround = Math.min(...plants.map(p => p.turnaround))
+  const bestUtil = Math.max(...plants.map(p => p.util))
+  const bestQuality = Math.min(...plants.map(p => p.quality))
+  const totalAtRisk = plants.reduce((s, p) => s + p.atRisk, 0)
+  const improving = plants.filter(p => p.actions === 'in_progress' || p.actions === 'done').length
+
+  function kpiColor(gap: number) {
+    if (gap <= 0.05) return '#1a6644'
+    if (gap <= 0.25) return '#c96a00'
+    return '#cc3333'
+  }
+  function kpiBg(gap: number) {
+    if (gap <= 0.05) return 'transparent'
+    if (gap <= 0.25) return '#fff8ed'
+    return '#fff3f3'
+  }
+  function gapLow(val: number, best: number) { return best > 0 ? (val - best) / best : 0 }
+  function gapHigh(val: number, best: number) { return best > 0 ? (best - val) / best : 0 }
+
+  const actionStyle = (a: string) => {
+    if (a === 'in_progress') return { label: 'In progress', bg: '#fff8ed', color: '#c96a00', border: '#f5cba0' }
+    if (a === 'done') return { label: 'Done', bg: '#f0faf5', color: '#1a6644', border: '#b6e2ce' }
+    return { label: 'No actions', bg: '#fff3f3', color: '#cc3333', border: '#fcc' }
+  }
+
+  const colTemplate = '1.4fr 100px 110px 100px 90px 110px 110px 70px'
+
+  const headerCell: React.CSSProperties = {
+    fontSize: '10px', fontWeight: 700, color: T.gray400,
+    textTransform: 'uppercase', letterSpacing: '.06em',
+  }
+
   return (
-    <section style={{ background: T.dark, padding: 'clamp(64px, 8vw, 96px) 24px' }}>
-      <div style={{ maxWidth: '760px', margin: '0 auto' }}>
-        <Eyebrow text="Multi-plant portfolio" color={T.accent} />
-        <h2 style={{ fontSize: 'clamp(26px, 3.5vw, 42px)', fontWeight: 400, color: T.white, lineHeight: 1.15, letterSpacing: '-0.5px', margin: '0 0 16px', fontFamily: 'var(--serif)' }}>
+    <section style={{ background: T.gray50, padding: 'clamp(64px, 8vw, 96px) 24px' }}>
+      <div style={{ maxWidth: '1080px', margin: '0 auto' }}>
+        <Eyebrow text="Multi-plant portfolio" />
+        <h2 style={h2Style}>
           Your best plant is your benchmark.
-          <span style={{ color: T.accent }}> Not an industry average.</span>
+          <span style={{ color: T.green }}> Not an industry average.</span>
         </h2>
-        <p style={{ fontSize: '15px', color: 'rgba(255,255,255,0.5)', lineHeight: 1.7, margin: '0 0 40px', maxWidth: '560px' }}>
+        <p style={{ fontSize: '15px', color: T.gray500, lineHeight: 1.7, margin: '0 0 32px', maxWidth: '560px' }}>
           When you operate multiple plants, we show exactly which ones are underperforming relative to your own best performers, and what that gap costs every month.
         </p>
 
-        {/* Plant comparison table */}
-        <div style={{ border: '1px solid rgba(255,255,255,0.1)', borderRadius: '14px', overflow: 'hidden', marginBottom: '20px' }}>
-          {/* Header */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px 100px 110px', padding: '10px 20px', background: 'rgba(255,255,255,0.04)', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-            {['Plant', 'Dispatch', 'vs Best', 'At risk /mo'].map(h => (
-              <div key={h} style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '.08em' }}>{h}</div>
-            ))}
+        {/* Summary cards */}
+        <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: '200px', background: '#fff8ed', border: '1px solid #f5cba0', borderRadius: '10px', padding: '16px 20px' }}>
+            <div style={{ fontSize: '10px', fontWeight: 700, color: '#c96a00', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>Total recoverable</div>
+            <div style={{ fontSize: '26px', fontWeight: 800, fontFamily: 'var(--mono)', color: '#c96a00' }}>${totalAtRisk}k<span style={{ fontSize: '14px', fontWeight: 500 }}> /month</span></div>
           </div>
-          {/* Rows */}
-          {plants.map((p, i) => (
-            <div key={p.name} style={{
-              display: 'grid', gridTemplateColumns: '1fr 100px 100px 110px',
-              padding: '16px 20px', alignItems: 'center',
-              borderBottom: i < plants.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none',
-              background: p.best ? 'rgba(16,185,129,0.06)' : 'transparent',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ fontSize: '13px', color: p.best ? T.accent : 'rgba(255,255,255,0.7)', fontWeight: p.best ? 700 : 400 }}>{p.name}</span>
-                {p.best && <span style={{ fontSize: '10px', fontWeight: 700, color: T.accent, background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: '4px', padding: '1px 6px' }}>Best</span>}
-              </div>
-              <div style={{ fontSize: '13px', fontFamily: 'var(--mono)', fontWeight: 600, color: p.best ? T.accent : 'rgba(255,255,255,0.6)' }}>{p.dispatch}</div>
-              <div style={{ fontSize: '13px', fontFamily: 'var(--mono)', fontWeight: 700, color: p.gap ? T.orange : 'rgba(16,185,129,0.6)' }}>{p.gap ?? '\u2014'}</div>
-              <div style={{ fontSize: '13px', fontFamily: 'var(--mono)', fontWeight: 700, color: p.loss ? T.orange : 'rgba(255,255,255,0.3)' }}>{p.loss ?? '\u2014'}</div>
-            </div>
-          ))}
+          <div style={{ flex: 1, minWidth: '200px', background: T.white, border: `1px solid ${T.border}`, borderRadius: '10px', padding: '16px 20px' }}>
+            <div style={{ fontSize: '10px', fontWeight: 700, color: T.gray400, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>Primary bottleneck</div>
+            <div style={{ fontSize: '20px', fontWeight: 700, color: '#c96a00' }}>Dispatch</div>
+          </div>
+          <div style={{ flex: 1, minWidth: '200px', background: T.white, border: `1px solid ${T.border}`, borderRadius: '10px', padding: '16px 20px' }}>
+            <div style={{ fontSize: '10px', fontWeight: 700, color: T.gray400, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>Plants improving</div>
+            <div style={{ fontSize: '20px', fontWeight: 700, color: improving > 0 ? '#1a6644' : T.gray400 }}>{improving} <span style={{ fontSize: '14px', fontWeight: 500, color: T.gray400 }}>of {plants.length}</span></div>
+          </div>
         </div>
 
-        {/* Total */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <div style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: '10px', padding: '14px 20px', textAlign: 'right' }}>
-            <div style={{ fontSize: '11px', color: 'rgba(245,158,11,0.6)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: '4px' }}>Total recoverable across portfolio</div>
-            <div style={{ fontSize: '24px', fontWeight: 800, fontFamily: 'var(--mono)', color: T.orange }}>$175k / month</div>
+        {/* Warning banner */}
+        <div style={{
+          background: '#fff8ed', border: '1px solid #f5cba0', borderLeft: '4px solid #c96a00',
+          borderRadius: '8px', padding: '12px 16px', marginBottom: '20px',
+          fontSize: '13px', color: '#92400E', display: 'flex', alignItems: 'center', gap: '8px',
+        }}>
+          <span style={{ fontSize: '16px' }}>&#9888;</span>
+          <span><strong>${totalAtRisk - plants[0].atRisk}k/month at risk</strong> across {plants.filter(p => !p.best).length} plants. {plants.filter(p => p.actions === 'none').length > 0 ? `No active improvement actions on ${plants.filter(p => p.actions === 'none').length} plant${plants.filter(p => p.actions === 'none').length > 1 ? 's' : ''}.` : ''}</span>
+        </div>
+
+        {/* Comparison table */}
+        <div style={{ background: T.white, border: `1px solid ${T.border}`, borderRadius: '14px', overflow: 'hidden', boxShadow: T.shadow }}>
+          {/* Table header */}
+          <div style={{ display: 'grid', gridTemplateColumns: colTemplate, padding: '12px 20px', borderBottom: `1px solid ${T.border}`, background: T.gray50 }}>
+            <div style={headerCell}>Plant</div>
+            <div style={headerCell}>Dispatch</div>
+            <div style={headerCell}>Turnaround</div>
+            <div style={headerCell}>Utilization</div>
+            <div style={headerCell}>Quality</div>
+            <div style={headerCell}>At risk /mo</div>
+            <div style={headerCell}>Actions</div>
+            <div />
           </div>
+
+          {/* Rows */}
+          {plants.map((p, i) => {
+            const dGap = gapLow(p.dispatch, bestDispatch)
+            const tGap = gapLow(p.turnaround, bestTurnaround)
+            const uGap = gapHigh(p.util, bestUtil)
+            const qGap = gapLow(p.quality, bestQuality)
+            const as = actionStyle(p.actions)
+
+            return (
+              <div key={p.name} style={{
+                display: 'grid', gridTemplateColumns: colTemplate,
+                padding: '14px 20px', alignItems: 'center',
+                borderBottom: i < plants.length - 1 ? `1px solid ${T.border}` : 'none',
+                background: p.best ? '#f6fdf9' : T.white,
+              }}>
+                {/* Plant */}
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 600, color: T.dark }}>{p.name}</span>
+                    {p.best && <span style={{ fontSize: '9px', fontWeight: 700, color: '#1a6644', background: '#e6f7ef', border: '1px solid #b6e2ce', borderRadius: '4px', padding: '1px 6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Best</span>}
+                  </div>
+                  <div style={{ fontSize: '11px', color: T.gray400 }}>{p.country}</div>
+                </div>
+
+                {/* Dispatch */}
+                <div style={{ background: kpiBg(dGap), borderRadius: '4px', padding: '2px 6px', display: 'inline-block' }}>
+                  <div style={{ fontSize: '13px', fontFamily: 'var(--mono)', fontWeight: 600, color: kpiColor(dGap) }}>{p.dispatch} min</div>
+                  {p.best
+                    ? <div style={{ fontSize: '10px', color: T.gray400 }}>portfolio best</div>
+                    : <div style={{ fontSize: '10px', color: kpiColor(dGap) }}>+{p.dispatch - bestDispatch} min vs best</div>
+                  }
+                </div>
+
+                {/* Turnaround */}
+                <div style={{ background: kpiBg(tGap), borderRadius: '4px', padding: '2px 6px' }}>
+                  <div style={{ fontSize: '13px', fontFamily: 'var(--mono)', fontWeight: 600, color: kpiColor(tGap) }}>{p.turnaround} min</div>
+                  {p.best
+                    ? <div style={{ fontSize: '10px', color: T.gray400 }}>portfolio best</div>
+                    : <div style={{ fontSize: '10px', color: kpiColor(tGap) }}>+{p.turnaround - bestTurnaround} min vs best</div>
+                  }
+                </div>
+
+                {/* Utilization */}
+                <div style={{ background: kpiBg(uGap), borderRadius: '4px', padding: '2px 6px' }}>
+                  <div style={{ fontSize: '13px', fontFamily: 'var(--mono)', fontWeight: 600, color: kpiColor(uGap) }}>{p.util.toFixed(1)}%</div>
+                  {p.best
+                    ? <div style={{ fontSize: '10px', color: T.gray400 }}>portfolio best</div>
+                    : <div style={{ fontSize: '10px', color: kpiColor(uGap) }}>+{(bestUtil - p.util).toFixed(1)}pp vs best</div>
+                  }
+                </div>
+
+                {/* Quality */}
+                <div style={{ background: kpiBg(qGap), borderRadius: '4px', padding: '2px 6px' }}>
+                  <div style={{ fontSize: '13px', fontFamily: 'var(--mono)', fontWeight: 600, color: kpiColor(qGap) }}>{p.quality.toFixed(1)}%</div>
+                  {p.best
+                    ? <div style={{ fontSize: '10px', color: T.gray400 }}>portfolio best</div>
+                    : <div style={{ fontSize: '10px', color: kpiColor(qGap) }}>+{(p.quality - bestQuality).toFixed(1)}pp vs best</div>
+                  }
+                </div>
+
+                {/* At risk */}
+                <div style={{ fontSize: '14px', fontFamily: 'var(--mono)', fontWeight: 700, color: T.dark }}>
+                  ${p.atRisk}k
+                </div>
+
+                {/* Actions */}
+                <div style={{
+                  fontSize: '11px', fontWeight: 600, color: as.color,
+                  background: as.bg, border: `1px solid ${as.border}`,
+                  borderRadius: '5px', padding: '3px 8px', textAlign: 'center',
+                  whiteSpace: 'nowrap',
+                }}>
+                  {as.label}
+                </div>
+
+                {/* View */}
+                <div style={{ fontSize: '12px', color: T.green, fontWeight: 600, cursor: 'default' }}>
+                  View &#8594;
+                </div>
+              </div>
+            )
+          })}
         </div>
       </div>
     </section>
