@@ -127,6 +127,7 @@ function Hero() {
             {[
               'Monthly revenue loss - quantified in dollars from your own data',
               'We identify the one constraint limiting your output and margin',
+              'Together we execute improvements and track until the financial impact is realized',
               'We stay on as your partner. Continuously tracking, monthly reviews, measurable progress',
             ].map(text => (
               <li key={text} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
