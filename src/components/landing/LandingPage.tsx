@@ -127,7 +127,7 @@ function Hero() {
             {[
               'Quantified revenue leakage across your operation ($ / month)',
               'Clear identification of your true bottleneck',
-              'Focused actions with measurable tracking and improvement',
+              'Continuously tracking against your baseline, so improvements compound',
             ].map(text => (
               <li key={text} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
                 <span style={{
