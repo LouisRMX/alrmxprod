@@ -44,9 +44,8 @@ export default function LandingPage() {
       <Nav />
       <Hero />
       <Calculator />
-      <HowItWorks />
-      <Diagnostic />
       <PortfolioBenchmark />
+      <HowItWorks />
       <Contact />
       <FAQ />
       <Footer />
@@ -263,83 +262,6 @@ function Hero() {
           </div>
 
 
-        </div>
-      </div>
-    </section>
-  )
-}
-
-// ── Diagnostic ────────────────────────────────────────────────────────────────
-
-function Diagnostic() {
-  const dimensions = [
-    {
-      num: '01',
-      label: 'Production utilization',
-      text: 'Plant output versus installed capacity. Monthly revenue cost of running below potential.',
-    },
-    {
-      num: '02',
-      label: 'Dispatch coordination',
-      text: 'Order-to-truck time versus benchmark. Margin cost of slow or unstructured dispatch.',
-    },
-    {
-      num: '03',
-      label: 'Fleet turnaround',
-      text: 'Full delivery cycle time versus delivery radius benchmark. Monthly loss per excess minute.',
-    },
-    {
-      num: '04',
-      label: 'Quality / rejection rate',
-      text: 'Rejection percentage, material write-off at cost price, dominant cause identification.',
-    },
-  ]
-
-  return (
-    <section style={{ background: T.gray50, padding: 'clamp(64px, 8vw, 96px) 24px' }}>
-      <div style={{ maxWidth: '1080px', margin: '0 auto' }}>
-        <Eyebrow text="The diagnostic" />
-        <h2 style={h2Style}>
-          Four dimensions. Specific numbers. Calculated from your own data.
-        </h2>
-        <p style={{ fontSize: '17px', color: T.gray500, lineHeight: 1.6, margin: '0 0 36px', maxWidth: '620px' }}>
-          Every dimension produces a monthly dollar figure. Not a qualitative finding.
-          Based on data you provide during the assessment.
-        </p>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          {dimensions.map(d => (
-            <div key={d.num} style={{
-              background: T.white, border: `1px solid ${T.border}`,
-              borderRadius: '12px', padding: '22px 26px',
-              display: 'flex', gap: '20px', alignItems: 'flex-start',
-              boxShadow: T.shadow,
-              transition: 'box-shadow 0.15s, border-color 0.15s',
-            }}>
-              <span style={{
-                fontFamily: 'var(--mono)', fontSize: '13px', color: T.green,
-                fontWeight: 600, flexShrink: 0, marginTop: '2px', letterSpacing: '0.5px',
-              }}>
-                {d.num}
-              </span>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: '16px', fontWeight: 600, color: T.dark, marginBottom: '4px' }}>
-                  {d.label}
-                </div>
-                <div style={{ fontSize: '15px', color: T.gray500, lineHeight: 1.55 }}>
-                  {d.text}
-                </div>
-              </div>
-              <div style={{
-                marginLeft: 'auto', flexShrink: 0,
-                fontSize: '13px', fontWeight: 600, color: T.green,
-                background: T.greenPale, border: `1px solid ${T.greenLight}`,
-                borderRadius: '6px', padding: '5px 12px', whiteSpace: 'nowrap',
-              }}>
-                $ / month
-              </div>
-            </div>
-          ))}
         </div>
       </div>
     </section>
