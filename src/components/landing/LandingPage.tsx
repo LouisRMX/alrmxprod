@@ -431,15 +431,15 @@ function Calculator() {
   return (
     <section id="calculator" style={{ background: T.white, padding: 'clamp(64px, 8vw, 96px) 24px', borderTop: `1px solid ${T.border}` }}>
       <div style={{ maxWidth: '880px', margin: '0 auto' }}>
-        <Eyebrow text="Quick estimate" />
+        <Eyebrow text="Quick check" />
         <h2 style={{
           ...h2Style,
           fontSize: 'clamp(24px, 3.5vw, 36px)',
         }}>
-          Calculate your plant&apos;s hidden loss
+          Could your fleet be holding back your plant?
         </h2>
         <p style={{ fontSize: '15px', color: T.gray500, lineHeight: 1.6, margin: '-8px 0 36px', maxWidth: '520px' }}>
-          Most plants lose 10-30% of capacity. Enter your numbers to see your estimate.
+          A quick check to see if your fleet and plant capacity are aligned.
         </p>
 
         <div style={{
