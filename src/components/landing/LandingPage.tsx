@@ -112,7 +112,7 @@ function Hero() {
             color: T.dark, lineHeight: 1.15, letterSpacing: '-0.5px',
             margin: '0 0 18px',
           }}>
-            Every day your ready-mix plants run,
+            Every day your ready-mix plant runs,
             <span style={{ color: T.green }}> money is lost.</span>
           </h1>
 
@@ -123,23 +123,60 @@ function Hero() {
             We quantify it, identify the constraint, and turn it into recovered profit.
           </p>
 
-          <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 36px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {/* Eyebrow */}
+          <div style={{
+            display: 'inline-flex', alignItems: 'center',
+            background: T.greenPale, border: `1px solid ${T.greenLight}`,
+            borderRadius: '6px', padding: '6px 14px', marginBottom: '20px',
+          }}>
+            <span style={{ fontSize: '11px', fontWeight: 700, color: T.green, textTransform: 'uppercase', letterSpacing: '1px' }}>
+              From hidden loss to recovered profit
+            </span>
+          </div>
+
+          <h2 style={{
+            fontSize: '20px', fontWeight: 700, color: T.dark, margin: '0 0 20px',
+          }}>
+            How it works
+          </h2>
+
+          {/* Vertical timeline */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0', margin: '0 0 32px', position: 'relative' }}>
             {[
-              'Monthly revenue loss - quantified in dollars from your own data',
-              'We identify the one constraint limiting your output and margin',
-              'Together we execute improvements and track until the financial impact is realized',
-              'We stay on as your partner. Continuously tracking, monthly reviews, measurable progress',
-            ].map(text => (
-              <li key={text} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-                <span style={{
-                  color: T.white, fontSize: '10px', flexShrink: 0, marginTop: '3px',
-                  width: '18px', height: '18px', borderRadius: '50%', background: T.green,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700,
-                }}>✓</span>
-                <span style={{ fontSize: '14px', color: T.gray700, lineHeight: 1.5 }}>{text}</span>
-              </li>
+              { num: '1', label: 'Quantify', desc: 'Revenue loss in dollars from your own data', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> },
+              { num: '2', label: 'Identify', desc: 'The one constraint limiting output and margin', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg> },
+              { num: '3', label: 'Execute', desc: 'Focused improvements with your team', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> },
+              { num: '4', label: 'Track', desc: 'Financial impact until results are realized', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg> },
+            ].map((item, i) => (
+              <div key={item.num} style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', position: 'relative' }}>
+                {/* Icon + connector line */}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
+                  <div style={{
+                    width: '40px', height: '40px', borderRadius: '50%',
+                    background: T.green,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    {item.icon}
+                  </div>
+                  {i < 3 && (
+                    <div style={{
+                      width: '2px', height: '24px', background: T.gray200,
+                    }} />
+                  )}
+                </div>
+                {/* Text */}
+                <div style={{ paddingTop: '4px', paddingBottom: i < 3 ? '0' : '0' }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '2px' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 700, color: T.gray400, fontFamily: 'var(--mono)' }}>{item.num}</span>
+                    <span style={{ fontSize: '16px', fontWeight: 700, color: T.dark }}>{item.label}</span>
+                  </div>
+                  <div style={{ fontSize: '13px', color: T.gray500, lineHeight: 1.5 }}>
+                    {item.desc}
+                  </div>
+                </div>
+              </div>
             ))}
-          </ul>
+          </div>
 
           <p style={{ fontSize: '13px', color: T.gray400, margin: '0 0 14px', lineHeight: 1.5 }}>
             Let us walk you through a plant case and show how losses are identified and recovered.
@@ -155,7 +192,7 @@ function Hero() {
               letterSpacing: '0.01em',
             }}
           >
-            Book a 20-min walkthrough
+            See where you are losing money
             <span style={{ fontSize: '16px' }}>&#8594;</span>
           </a>
         </div>
@@ -171,14 +208,21 @@ function Hero() {
             padding: '22px 24px',
             boxShadow: T.shadow,
           }}>
-            <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.5px', textTransform: 'uppercase', color: T.gray400, marginBottom: '10px' }}>
-              Identified
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.5px', textTransform: 'uppercase', color: T.gray400, marginBottom: '10px' }}>
+                  Identified
+                </div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginBottom: '6px' }}>
+                  <span style={{ fontSize: '42px', fontWeight: 800, color: T.dark, lineHeight: 1, letterSpacing: '-2px', fontFamily: 'var(--mono)' }}>$359k</span>
+                  <span style={{ fontSize: '16px', color: T.gray400, fontWeight: 500 }}>/mo</span>
+                </div>
+                <div style={{ fontSize: '12px', color: T.gray400 }}>= 18% of total capacity lost</div>
+              </div>
+              <div style={{ width: '52px', height: '52px', borderRadius: '50%', background: '#FEF3C7', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={T.orangeMuted} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>
+              </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginBottom: '6px' }}>
-              <span style={{ fontSize: '42px', fontWeight: 800, color: T.dark, lineHeight: 1, letterSpacing: '-2px', fontFamily: 'var(--mono)' }}>$359k</span>
-              <span style={{ fontSize: '16px', color: T.gray400, fontWeight: 500 }}>/mo</span>
-            </div>
-            <div style={{ fontSize: '12px', color: T.gray400 }}>= 18% of total capacity lost</div>
           </div>
 
           {/* Connector */}
@@ -192,10 +236,17 @@ function Hero() {
             padding: '22px 24px',
             boxShadow: T.shadow,
           }}>
-            <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.5px', textTransform: 'uppercase', color: T.gray400, marginBottom: '10px' }}>
-              Primary constraint
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.5px', textTransform: 'uppercase', color: T.gray400, marginBottom: '10px' }}>
+                  Primary constraint
+                </div>
+                <div style={{ fontSize: '16px', fontWeight: 700, color: T.dark }}>Dispatch</div>
+              </div>
+              <div style={{ width: '52px', height: '52px', borderRadius: '50%', background: '#FEF3C7', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={T.orangeMuted} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="9" width="7" height="12" rx="1"/></svg>
+              </div>
             </div>
-            <div style={{ fontSize: '16px', fontWeight: 700, color: T.dark, marginBottom: '14px' }}>Dispatch</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: '12px', color: T.gray400 }}>Best plant</span>
@@ -228,14 +279,41 @@ function Hero() {
             padding: '22px 24px',
             boxShadow: T.shadow,
           }}>
-            <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.5px', textTransform: 'uppercase', color: T.green, marginBottom: '10px' }}>
-              Recovered
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.5px', textTransform: 'uppercase', color: T.green, marginBottom: '10px' }}>
+                  Recovered
+                </div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginBottom: '6px' }}>
+                  <span style={{ fontSize: '42px', fontWeight: 800, color: T.green, lineHeight: 1, letterSpacing: '-2px', fontFamily: 'var(--mono)' }}>$85k</span>
+                  <span style={{ fontSize: '16px', color: T.greenMid, fontWeight: 500 }}>/mo</span>
+                </div>
+                <div style={{ fontSize: '12px', color: T.greenMid }}>After 12 weeks of tracking</div>
+              </div>
+              <div style={{ width: '52px', height: '52px', borderRadius: '50%', background: T.greenLight, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={T.green} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+              </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginBottom: '6px' }}>
-              <span style={{ fontSize: '42px', fontWeight: 800, color: T.green, lineHeight: 1, letterSpacing: '-2px', fontFamily: 'var(--mono)' }}>$85k</span>
-              <span style={{ fontSize: '16px', color: T.greenMid, fontWeight: 500 }}>/mo</span>
+          </div>
+
+          {/* Closer */}
+          <div style={{
+            marginTop: '10px',
+            background: T.gray50,
+            border: `1px solid ${T.border}`,
+            borderRadius: '10px',
+            padding: '12px 16px',
+            display: 'flex', alignItems: 'center', gap: '10px',
+          }}>
+            <div style={{
+              width: '22px', height: '22px', borderRadius: '50%',
+              background: T.green, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+            }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
             </div>
-            <div style={{ fontSize: '12px', color: T.greenMid }}>After 12 weeks of tracking</div>
+            <span style={{ fontSize: '13px', fontWeight: 600, color: T.gray700 }}>
+              Real data. Measurable impact. Lasting results.
+            </span>
           </div>
 
         </div>
