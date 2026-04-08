@@ -494,7 +494,7 @@ function WhoWeAre() {
       <div style={{ maxWidth: '1080px', margin: '0 auto' }}>
         <Eyebrow text="Who we are" />
         <h2 style={h2Style}>
-          40+ years in GCC cement and concrete.
+          20+ years in GCC cement and concrete.
           <span style={{ color: T.green }}> Structured operational improvement.</span>
         </h2>
         <p style={{ fontSize: '17px', color: T.gray500, lineHeight: 1.7, margin: '0 0 40px', maxWidth: '700px' }}>
@@ -514,10 +514,10 @@ function WhoWeAre() {
               Kurt Christensen
             </div>
             <div style={{ fontSize: '14px', color: T.green, fontWeight: 600, marginBottom: '14px' }}>
-              40+ years in cement and concrete across the GCC
+              20+ years in cement and concrete across the GCC
             </div>
             <div style={{ fontSize: '15px', color: T.gray500, lineHeight: 1.65 }}>
-              Deep operational knowledge of cement plant optimization, concrete production, and ready-mix logistics in Saudi Arabia and the UAE. Founder of Alcement, advising international companies on construction and development in the region.
+              Deep operational knowledge of cement plant optimization, concrete production, and ready-mix logistics in Saudi Arabia and the UAE. Founder of Al-Cem, advising international companies on construction and development in the region.
             </div>
           </div>
 
