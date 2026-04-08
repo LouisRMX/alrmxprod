@@ -59,7 +59,7 @@ body {
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
   gap: clamp(32px, 5vw, 80px);
-  align-items: center;
+  align-items: start;
 }
 
 @media (max-width: 768px) {
