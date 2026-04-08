@@ -244,8 +244,8 @@ function Hero() {
                 <span style={{ fontSize: '13px', fontWeight: 700, color: T.green, fontFamily: 'var(--mono)' }}>19 min</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '12px', color: T.gray400 }}>Portfolio avg</span>
-                <span style={{ fontSize: '13px', fontWeight: 700, color: T.gray700, fontFamily: 'var(--mono)' }}>41 min</span>
+                <span style={{ fontSize: '12px', color: T.gray400 }}>This plant</span>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: '#DC2626', fontFamily: 'var(--mono)' }}>41 min</span>
               </div>
             </div>
             <div style={{ marginTop: '12px', display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#FEF3C7', border: '1px solid #FDE68A', borderRadius: '6px', padding: '5px 10px' }}>
