@@ -108,7 +108,7 @@ function Hero() {
         {/* ── Left: text ── */}
         <div>
           <h1 style={{
-            fontSize: 'clamp(28px, 3.5vw, 48px)', fontWeight: 400,
+            fontSize: 'clamp(32px, 4vw, 56px)', fontWeight: 400,
             fontFamily: 'var(--serif)',
             color: T.dark, lineHeight: 1.15, letterSpacing: '-0.5px',
             margin: '0 0 14px',
@@ -118,8 +118,8 @@ function Hero() {
           </h1>
 
           <p style={{
-            fontSize: 'clamp(14px, 1.6vw, 16px)', color: T.gray500,
-            lineHeight: 1.6, margin: '0 0 20px', maxWidth: '480px',
+            fontSize: 'clamp(15px, 1.6vw, 18px)', color: T.gray500,
+            lineHeight: 1.6, margin: '0 0 24px', maxWidth: '520px',
           }}>
             We quantify it, identify the constraint, and turn it into recovered profit.
           </p>
@@ -130,7 +130,7 @@ function Hero() {
             background: T.greenPale, border: `1px solid ${T.greenLight}`,
             borderRadius: '6px', padding: '5px 12px', marginBottom: '16px',
           }}>
-            <span style={{ fontSize: '10px', fontWeight: 700, color: T.green, textTransform: 'uppercase', letterSpacing: '1px' }}>
+            <span style={{ fontSize: '11px', fontWeight: 700, color: T.green, textTransform: 'uppercase', letterSpacing: '1px' }}>
               From hidden loss to recovered profit
             </span>
           </div>
@@ -146,18 +146,18 @@ function Hero() {
               <div key={item.num} style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
                   <div style={{
-                    width: '32px', height: '32px', borderRadius: '50%',
+                    width: '36px', height: '36px', borderRadius: '50%',
                     background: T.green, color: T.white,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: '12px', fontWeight: 700, fontFamily: 'var(--mono)',
+                    fontSize: '13px', fontWeight: 700, fontFamily: 'var(--mono)',
                   }}>
                     {item.num}
                   </div>
                   {i < 3 && <div style={{ width: '2px', height: '12px', background: T.gray200 }} />}
                 </div>
                 <div style={{ paddingTop: '5px' }}>
-                  <span style={{ fontSize: '14px', fontWeight: 700, color: T.dark }}>{item.label}</span>
-                  <span style={{ fontSize: '12px', color: T.gray500, marginLeft: '8px' }}>{item.desc}</span>
+                  <span style={{ fontSize: '15px', fontWeight: 700, color: T.dark }}>{item.label}</span>
+                  <span style={{ fontSize: '13px', color: T.gray500, marginLeft: '8px' }}>{item.desc}</span>
                 </div>
               </div>
             ))}
@@ -198,8 +198,8 @@ function Hero() {
               Identified
             </div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginBottom: '6px' }}>
-              <span style={{ fontSize: '42px', fontWeight: 800, color: T.dark, lineHeight: 1, letterSpacing: '-2px', fontFamily: 'var(--mono)' }}>$295k–$425k</span>
-              <span style={{ fontSize: '14px', color: T.gray500, fontWeight: 600 }}>/month lost</span>
+              <span style={{ fontSize: '48px', fontWeight: 800, color: T.dark, lineHeight: 1, letterSpacing: '-2px', fontFamily: 'var(--mono)' }}>$295k–$425k</span>
+              <span style={{ fontSize: '15px', color: T.gray500, fontWeight: 600 }}>/month lost</span>
             </div>
             <div style={{ fontSize: '12px', color: T.gray400 }}>18% of total capacity</div>
           </div>
@@ -218,7 +218,7 @@ function Hero() {
             <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.5px', textTransform: 'uppercase', color: T.gray400, marginBottom: '10px' }}>
               Primary constraint
             </div>
-            <div style={{ fontSize: '16px', fontWeight: 700, color: T.dark, marginBottom: '14px' }}>Dispatch inefficiency</div>
+            <div style={{ fontSize: '18px', fontWeight: 700, color: T.dark, marginBottom: '14px' }}>Dispatch inefficiency</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: '12px', color: T.gray400 }}>Best plant</span>
@@ -255,28 +255,12 @@ function Hero() {
               Recovered
             </div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginBottom: '6px' }}>
-              <span style={{ fontSize: '42px', fontWeight: 800, color: T.green, lineHeight: 1, letterSpacing: '-2px', fontFamily: 'var(--mono)' }}>$70k–$100k</span>
-              <span style={{ fontSize: '14px', color: T.greenMid, fontWeight: 600 }}>/month recovered</span>
+              <span style={{ fontSize: '48px', fontWeight: 800, color: T.green, lineHeight: 1, letterSpacing: '-2px', fontFamily: 'var(--mono)' }}>$70k–$100k</span>
+              <span style={{ fontSize: '15px', color: T.greenMid, fontWeight: 600 }}>/month recovered</span>
             </div>
             <div style={{ fontSize: '12px', color: T.greenMid }}>After 12 weeks</div>
           </div>
 
-          {/* Credibility label */}
-          <div style={{
-            marginTop: '10px',
-            padding: '10px 16px',
-            display: 'flex', alignItems: 'center', gap: '8px',
-          }}>
-            <div style={{
-              width: '18px', height: '18px', borderRadius: '50%',
-              background: T.green, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-            }}>
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-            </div>
-            <span style={{ fontSize: '12px', fontWeight: 600, color: T.gray500 }}>
-              Based on real plant data
-            </span>
-          </div>
 
         </div>
       </div>
