@@ -126,8 +126,8 @@ function Hero() {
           <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 36px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {[
               'You are losing $X every month. We show you exactly where',
-              'Benchmark plants against each other and act on a prioritized action list',
-              'Continuously tracking against your baseline, so improvements compound',
+              'We identify the one constraint limiting your output and margin',
+              'We stay on as your partner. Weekly tracking, monthly reviews, measurable progress',
             ].map(text => (
               <li key={text} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
                 <span style={{
