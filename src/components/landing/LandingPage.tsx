@@ -45,6 +45,7 @@ export default function LandingPage() {
       <Hero />
       <Calculator />
       <PortfolioBenchmark />
+      <WhoWeAre />
       <HowItWorks />
       <Contact />
       <FAQ />
@@ -479,6 +480,82 @@ function Calculator() {
               Based on fleet throughput vs. plant capacity. See assumptions in the ? panel.
             </p>
           </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ── Who we are ───────────────────────────────────────────────────────────────
+
+function WhoWeAre() {
+  return (
+    <section style={{ background: T.white, padding: 'clamp(64px, 8vw, 96px) 24px', borderTop: `1px solid ${T.border}` }}>
+      <div style={{ maxWidth: '1080px', margin: '0 auto' }}>
+        <Eyebrow text="Who we are" />
+        <h2 style={h2Style}>
+          40+ years in GCC cement and concrete.
+          <span style={{ color: T.green }}> Structured operational improvement.</span>
+        </h2>
+        <p style={{ fontSize: '17px', color: T.gray500, lineHeight: 1.7, margin: '0 0 40px', maxWidth: '700px' }}>
+          alRMX combines deep Middle East industry experience with data-driven diagnostics and Lean-based improvement frameworks. We do not sell software. We identify, quantify, and help you fix what limits your plant.
+        </p>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+          {/* Kurt */}
+          <div style={{
+            background: T.gray50, border: `1px solid ${T.border}`,
+            borderRadius: '14px', padding: '28px',
+          }}>
+            <div style={{ fontSize: '11px', fontWeight: 700, color: T.gray400, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>
+              Industry
+            </div>
+            <div style={{ fontSize: '20px', fontWeight: 700, color: T.dark, marginBottom: '6px' }}>
+              Kurt Christensen
+            </div>
+            <div style={{ fontSize: '14px', color: T.green, fontWeight: 600, marginBottom: '14px' }}>
+              40+ years in cement and concrete across the GCC
+            </div>
+            <div style={{ fontSize: '15px', color: T.gray500, lineHeight: 1.65 }}>
+              Deep operational knowledge of cement plant optimization, concrete production, and ready-mix logistics in Saudi Arabia and the UAE. Founder of Alcement, advising international companies on construction and development in the region.
+            </div>
+          </div>
+
+          {/* Louis */}
+          <div style={{
+            background: T.gray50, border: `1px solid ${T.border}`,
+            borderRadius: '14px', padding: '28px',
+          }}>
+            <div style={{ fontSize: '11px', fontWeight: 700, color: T.gray400, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>
+              Operations
+            </div>
+            <div style={{ fontSize: '20px', fontWeight: 700, color: T.dark, marginBottom: '6px' }}>
+              Louis Hellmann
+            </div>
+            <div style={{ fontSize: '14px', color: T.green, fontWeight: 600, marginBottom: '14px' }}>
+              Operational improvement, Lean, data-driven diagnostics
+            </div>
+            <div style={{ fontSize: '15px', color: T.gray500, lineHeight: 1.65 }}>
+              Specialist in diagnosing and transforming industrial operations. Lean and Six Sigma methodology applied to manufacturing, logistics, and supply chain. Built the alRMX diagnostic platform to quantify losses and track improvements with measurable financial impact.
+            </div>
+          </div>
+        </div>
+
+        <div style={{
+          marginTop: '32px', padding: '20px 24px',
+          background: T.greenPale, border: `1px solid ${T.greenLight}`,
+          borderRadius: '10px',
+          display: 'flex', alignItems: 'center', gap: '12px',
+        }}>
+          <div style={{
+            width: '24px', height: '24px', borderRadius: '50%',
+            background: T.green, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+          }}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <span style={{ fontSize: '15px', color: T.dark, fontWeight: 500 }}>
+            Every assessment is built on real plant-floor experience, not generic benchmarks.
+          </span>
         </div>
       </div>
     </section>
