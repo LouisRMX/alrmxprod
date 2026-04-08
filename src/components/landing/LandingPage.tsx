@@ -198,7 +198,7 @@ function Hero() {
               Identified
             </div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginBottom: '6px' }}>
-              <span style={{ fontSize: '42px', fontWeight: 800, color: T.dark, lineHeight: 1, letterSpacing: '-2px', fontFamily: 'var(--mono)' }}>$359k</span>
+              <span style={{ fontSize: '42px', fontWeight: 800, color: T.dark, lineHeight: 1, letterSpacing: '-2px', fontFamily: 'var(--mono)' }}>$295k–$425k</span>
               <span style={{ fontSize: '14px', color: T.gray500, fontWeight: 600 }}>/month lost</span>
             </div>
             <div style={{ fontSize: '12px', color: T.gray400 }}>18% of total capacity</div>
@@ -234,7 +234,7 @@ function Hero() {
               <span style={{ fontSize: '11px', color: '#92400E' }}>slower than your best plant</span>
             </div>
             <div style={{ marginTop: '12px', borderTop: `1px solid ${T.border}`, paddingTop: '12px' }}>
-              <span style={{ fontSize: '15px', fontWeight: 700, color: T.dark, fontFamily: 'var(--mono)' }}>$108k</span>
+              <span style={{ fontSize: '15px', fontWeight: 700, color: T.dark, fontFamily: 'var(--mono)' }}>$89k–$128k</span>
               <span style={{ fontSize: '12px', color: T.gray500, marginLeft: '5px' }}>/month at risk from this constraint</span>
             </div>
           </div>
@@ -255,7 +255,7 @@ function Hero() {
               Recovered
             </div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginBottom: '6px' }}>
-              <span style={{ fontSize: '42px', fontWeight: 800, color: T.green, lineHeight: 1, letterSpacing: '-2px', fontFamily: 'var(--mono)' }}>$85k</span>
+              <span style={{ fontSize: '42px', fontWeight: 800, color: T.green, lineHeight: 1, letterSpacing: '-2px', fontFamily: 'var(--mono)' }}>$70k–$100k</span>
               <span style={{ fontSize: '14px', color: T.greenMid, fontWeight: 600 }}>/month recovered</span>
             </div>
             <div style={{ fontSize: '12px', color: T.greenMid }}>After 12 weeks</div>
