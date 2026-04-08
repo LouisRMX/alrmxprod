@@ -302,39 +302,39 @@ function Diagnostic() {
         <h2 style={h2Style}>
           Four dimensions. Specific numbers. Calculated from your own data.
         </h2>
-        <p style={{ fontSize: '15px', color: T.gray500, lineHeight: 1.6, margin: '0 0 36px', maxWidth: '520px' }}>
+        <p style={{ fontSize: '17px', color: T.gray500, lineHeight: 1.6, margin: '0 0 36px', maxWidth: '620px' }}>
           Every dimension produces a monthly dollar figure. Not a qualitative finding.
           Based on data you provide during the assessment.
         </p>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           {dimensions.map(d => (
             <div key={d.num} style={{
               background: T.white, border: `1px solid ${T.border}`,
-              borderRadius: '12px', padding: '20px 22px',
+              borderRadius: '12px', padding: '22px 26px',
               display: 'flex', gap: '20px', alignItems: 'flex-start',
               boxShadow: T.shadow,
               transition: 'box-shadow 0.15s, border-color 0.15s',
             }}>
               <span style={{
-                fontFamily: 'var(--mono)', fontSize: '11px', color: T.green,
+                fontFamily: 'var(--mono)', fontSize: '13px', color: T.green,
                 fontWeight: 600, flexShrink: 0, marginTop: '2px', letterSpacing: '0.5px',
               }}>
                 {d.num}
               </span>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: '14px', fontWeight: 600, color: T.dark, marginBottom: '4px' }}>
+                <div style={{ fontSize: '16px', fontWeight: 600, color: T.dark, marginBottom: '4px' }}>
                   {d.label}
                 </div>
-                <div style={{ fontSize: '13px', color: T.gray500, lineHeight: 1.55 }}>
+                <div style={{ fontSize: '15px', color: T.gray500, lineHeight: 1.55 }}>
                   {d.text}
                 </div>
               </div>
               <div style={{
                 marginLeft: 'auto', flexShrink: 0,
-                fontSize: '11px', fontWeight: 600, color: T.green,
+                fontSize: '13px', fontWeight: 600, color: T.green,
                 background: T.greenPale, border: `1px solid ${T.greenLight}`,
-                borderRadius: '6px', padding: '4px 10px', whiteSpace: 'nowrap',
+                borderRadius: '6px', padding: '5px 12px', whiteSpace: 'nowrap',
               }}>
                 $ / month
               </div>
@@ -403,7 +403,7 @@ function Calculator() {
         }}>
           Could your fleet be holding back your plant?
         </h2>
-        <p style={{ fontSize: '15px', color: T.gray500, lineHeight: 1.6, margin: '-8px 0 36px', maxWidth: '520px' }}>
+        <p style={{ fontSize: '17px', color: T.gray500, lineHeight: 1.6, margin: '-8px 0 36px', maxWidth: '600px' }}>
           A quick check to see if your fleet and plant capacity are aligned.
         </p>
 
@@ -594,7 +594,7 @@ function HowItWorks() {
       <div style={{ maxWidth: '1080px', margin: '0 auto' }}>
         <Eyebrow text="How it works" />
         <h2 style={h2Style}>3 Phases</h2>
-        <p style={{ fontSize: '15px', color: T.gray500, lineHeight: 1.6, margin: '-12px 0 24px' }}>
+        <p style={{ fontSize: '17px', color: T.gray500, lineHeight: 1.6, margin: '-12px 0 24px' }}>
           Time to value in a few weeks.
         </p>
 
@@ -605,38 +605,38 @@ function HowItWorks() {
               background: T.gray50,
               border: `1px solid ${T.border}`,
               borderRadius: '14px',
-              padding: '28px',
+              padding: '32px',
               boxShadow: T.shadow,
             }}>
               <div style={{
-                width: '40px', height: '40px', borderRadius: '50%',
+                width: '46px', height: '46px', borderRadius: '50%',
                 background: T.dark, color: T.white,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '15px', fontWeight: 800, flexShrink: 0,
+                fontSize: '17px', fontWeight: 800, flexShrink: 0,
                 fontFamily: 'var(--mono)',
               }}>
                 {step.num}
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap', marginBottom: '10px' }}>
-                  <div style={{ fontSize: '17px', fontWeight: 700, color: T.dark }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap', marginBottom: '12px' }}>
+                  <div style={{ fontSize: '20px', fontWeight: 700, color: T.dark }}>
                     {step.label}
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px', flexShrink: 0 }}>
                     <span style={{
-                      fontSize: '18px', fontWeight: 800, fontFamily: 'var(--mono)',
+                      fontSize: '20px', fontWeight: 800, fontFamily: 'var(--mono)',
                       color: T.dark,
                     }}>
                       {step.price}
                     </span>
                     {step.priceNote && (
-                      <span style={{ fontSize: '11px', color: T.gray400, fontStyle: 'italic' }}>
+                      <span style={{ fontSize: '13px', color: T.gray400, fontStyle: 'italic' }}>
                         {step.priceNote}
                       </span>
                     )}
                   </div>
                 </div>
-                <div style={{ fontSize: '14px', color: T.gray500, lineHeight: 1.7 }}>
+                <div style={{ fontSize: '16px', color: T.gray500, lineHeight: 1.7 }}>
                   {step.text}
                 </div>
               </div>
@@ -699,7 +699,7 @@ function PortfolioBenchmark() {
           Your best plant is your benchmark.
           <span style={{ color: T.green }}> Not an industry average.</span>
         </h2>
-        <p style={{ fontSize: '15px', color: T.gray500, lineHeight: 1.7, margin: '0 0 32px', maxWidth: '560px' }}>
+        <p style={{ fontSize: '17px', color: T.gray500, lineHeight: 1.7, margin: '0 0 32px', maxWidth: '640px' }}>
           When you operate multiple plants, we show exactly which ones are underperforming relative to your own best performers, and what that gap costs every month.
         </p>
 
@@ -864,17 +864,17 @@ function Contact() {
       <div style={{ maxWidth: '680px', margin: '0 auto' }}>
         <Eyebrow text="Get started" />
         <h2 style={{
-          fontSize: 'clamp(24px, 4vw, 34px)', fontWeight: 400,
+          fontSize: 'clamp(28px, 4vw, 40px)', fontWeight: 400,
           fontFamily: 'var(--serif)',
           color: T.dark, lineHeight: 1.2, letterSpacing: '-0.5px',
           margin: '0 0 12px',
         }}>
           Book a 20-min walkthrough
         </h2>
-        <p style={{ fontSize: '15px', color: T.gray500, margin: '0 0 20px', lineHeight: 1.6 }}>
+        <p style={{ fontSize: '17px', color: T.gray500, margin: '0 0 20px', lineHeight: 1.6 }}>
           We walk you through a demo-plant case and show exactly how losses are identified, prioritized, and turned into measurable profit.
         </p>
-        <p style={{ fontSize: '12px', fontWeight: 600, color: T.gray400, margin: '0 0 10px', textTransform: 'uppercase', letterSpacing: '.06em' }}>
+        <p style={{ fontSize: '13px', fontWeight: 600, color: T.gray400, margin: '0 0 10px', textTransform: 'uppercase', letterSpacing: '.06em' }}>
           You will see
         </p>
         <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 28px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -890,11 +890,11 @@ function Contact() {
                 width: '16px', height: '16px', borderRadius: '50%', background: T.green,
                 display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700,
               }}>&#10003;</span>
-              <span style={{ fontSize: '14px', color: T.gray500, lineHeight: 1.5 }}>{item}</span>
+              <span style={{ fontSize: '16px', color: T.gray500, lineHeight: 1.5 }}>{item}</span>
             </li>
           ))}
         </ul>
-        <p style={{ fontSize: '13px', color: T.gray400, margin: '0 0 32px', lineHeight: 1.6, fontStyle: 'italic' }}>
+        <p style={{ fontSize: '15px', color: T.gray400, margin: '0 0 32px', lineHeight: 1.6, fontStyle: 'italic' }}>
           Built on 20+ years of GCC cement and concrete experience.
         </p>
 
@@ -1017,10 +1017,10 @@ function FAQ() {
               padding: '24px 0',
               borderBottom: i < FAQS.length - 1 ? `1px solid ${T.border}` : 'none',
             }}>
-              <div style={{ fontSize: '15px', fontWeight: 600, color: T.dark, marginBottom: '8px' }}>
+              <div style={{ fontSize: '17px', fontWeight: 600, color: T.dark, marginBottom: '8px' }}>
                 {faq.q}
               </div>
-              <div style={{ fontSize: '14px', color: T.gray500, lineHeight: 1.65 }}>
+              <div style={{ fontSize: '16px', color: T.gray500, lineHeight: 1.65 }}>
                 {faq.a}
               </div>
             </div>
@@ -1077,9 +1077,9 @@ function Footer() {
 function Eyebrow({ text, color = T.green }: { text: string; color?: string }) {
   return (
     <div style={{
-      fontSize: '11px', fontWeight: 700, color,
+      fontSize: '13px', fontWeight: 700, color,
       textTransform: 'uppercase', letterSpacing: '1px',
-      marginBottom: '14px',
+      marginBottom: '16px',
     }}>
       {text}
     </div>
@@ -1087,7 +1087,7 @@ function Eyebrow({ text, color = T.green }: { text: string; color?: string }) {
 }
 
 const h2Style: React.CSSProperties = {
-  fontSize: 'clamp(22px, 3.5vw, 30px)',
+  fontSize: 'clamp(28px, 3.5vw, 40px)',
   fontWeight: 400,
   fontFamily: 'var(--serif)',
   color: T.dark,
