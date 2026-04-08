@@ -200,6 +200,11 @@ function Hero() {
         {/* ── Right: data story cards ── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
 
+          {/* Label */}
+          <div style={{ fontSize: '11px', fontWeight: 600, color: T.gray400, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '10px' }}>
+            Example plant analysis
+          </div>
+
           {/* Card 1: Identified */}
           <div style={{
             background: T.white,
@@ -213,9 +218,9 @@ function Hero() {
             </div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginBottom: '6px' }}>
               <span style={{ fontSize: '42px', fontWeight: 800, color: T.dark, lineHeight: 1, letterSpacing: '-2px', fontFamily: 'var(--mono)' }}>$359k</span>
-              <span style={{ fontSize: '16px', color: T.gray400, fontWeight: 500 }}>/mo</span>
+              <span style={{ fontSize: '14px', color: T.gray500, fontWeight: 600 }}>/month lost</span>
             </div>
-            <div style={{ fontSize: '12px', color: T.gray400 }}>= 18% of total capacity lost</div>
+            <div style={{ fontSize: '12px', color: T.gray400 }}>18% of total capacity</div>
           </div>
 
           {/* Connector */}
@@ -232,7 +237,7 @@ function Hero() {
             <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.5px', textTransform: 'uppercase', color: T.gray400, marginBottom: '10px' }}>
               Primary constraint
             </div>
-            <div style={{ fontSize: '16px', fontWeight: 700, color: T.dark, marginBottom: '14px' }}>Dispatch</div>
+            <div style={{ fontSize: '16px', fontWeight: 700, color: T.dark, marginBottom: '14px' }}>Dispatch inefficiency</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: '12px', color: T.gray400 }}>Best plant</span>
@@ -245,11 +250,11 @@ function Hero() {
             </div>
             <div style={{ marginTop: '12px', display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#FEF3C7', border: '1px solid #FDE68A', borderRadius: '6px', padding: '5px 10px' }}>
               <span style={{ fontSize: '13px', fontWeight: 700, color: T.orangeMuted, fontFamily: 'var(--mono)' }}>+22 min</span>
-              <span style={{ fontSize: '11px', color: '#92400E' }}>behind your best plant</span>
+              <span style={{ fontSize: '11px', color: '#92400E' }}>slower than your best plant</span>
             </div>
             <div style={{ marginTop: '12px', borderTop: `1px solid ${T.border}`, paddingTop: '12px' }}>
               <span style={{ fontSize: '15px', fontWeight: 700, color: T.dark, fontFamily: 'var(--mono)' }}>$108k</span>
-              <span style={{ fontSize: '12px', color: T.gray400, marginLeft: '5px' }}>revenue at risk /mo</span>
+              <span style={{ fontSize: '12px', color: T.gray500, marginLeft: '5px' }}>/month at risk from this constraint</span>
             </div>
           </div>
 
@@ -270,28 +275,25 @@ function Hero() {
             </div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginBottom: '6px' }}>
               <span style={{ fontSize: '42px', fontWeight: 800, color: T.green, lineHeight: 1, letterSpacing: '-2px', fontFamily: 'var(--mono)' }}>$85k</span>
-              <span style={{ fontSize: '16px', color: T.greenMid, fontWeight: 500 }}>/mo</span>
+              <span style={{ fontSize: '14px', color: T.greenMid, fontWeight: 600 }}>/month recovered</span>
             </div>
-            <div style={{ fontSize: '12px', color: T.greenMid }}>After 12 weeks of tracking</div>
+            <div style={{ fontSize: '12px', color: T.greenMid }}>After 12 weeks</div>
           </div>
 
-          {/* Closer */}
+          {/* Credibility label */}
           <div style={{
             marginTop: '10px',
-            background: T.gray50,
-            border: `1px solid ${T.border}`,
-            borderRadius: '10px',
-            padding: '12px 16px',
-            display: 'flex', alignItems: 'center', gap: '10px',
+            padding: '10px 16px',
+            display: 'flex', alignItems: 'center', gap: '8px',
           }}>
             <div style={{
-              width: '22px', height: '22px', borderRadius: '50%',
+              width: '18px', height: '18px', borderRadius: '50%',
               background: T.green, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
             }}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
             </div>
-            <span style={{ fontSize: '13px', fontWeight: 600, color: T.gray700 }}>
-              Real data. Measurable impact. Lasting results.
+            <span style={{ fontSize: '12px', fontWeight: 600, color: T.gray500 }}>
+              Based on real plant data
             </span>
           </div>
 
