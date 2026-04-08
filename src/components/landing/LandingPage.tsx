@@ -652,11 +652,36 @@ function HowItWorks() {
 // ── Portfolio Benchmark ───────────────────────────────────────────────────────
 
 function PortfolioBenchmark() {
+  const [activePanel, setActivePanel] = useState<{ plant: string; dimension: string } | null>(null)
+
   const plants = [
     { name: 'Al-Noor Dammam',  country: 'SA', dispatch: 22, turnaround: 140, util: 78.0, quality: 2.8, atRisk: 141, actions: 'none', best: true },
-    { name: 'Al-Noor Riyadh East', country: 'SA', dispatch: 38, turnaround: 125, util: 82.0, quality: 2.9, atRisk: 103, actions: 'none', best: false },
+    { name: 'Al-Noor Riyadh East', country: 'SA', dispatch: 38, turnaround: 125, util: 82.0, quality: 2.9, atRisk: 103, actions: 'in_progress', best: false },
     { name: 'Al-Noor Riyadh North', country: 'SA', dispatch: 32, turnaround: 112, util: 84.0, quality: 3.0, atRisk: 115, actions: 'in_progress', best: false },
   ]
+
+  // Action items per plant+dimension
+  const actionItems: Record<string, { text: string; status: 'todo' | 'in_progress' | 'done' }[]> = {
+    'Al-Noor Riyadh East|Dispatch': [
+      { text: 'Schedule a process review with Al-Noor Dammam. They run 22 min dispatch vs your 38 min. Ask what changed.', status: 'todo' },
+      { text: 'Assign a dedicated dispatcher for peak hours', status: 'todo' },
+      { text: 'Implement order-to-dispatch SOP. Target 15 min', status: 'in_progress' },
+      { text: 'Lock dispatch slots during peak concrete demand hours', status: 'todo' },
+    ],
+    'Al-Noor Riyadh North|Dispatch': [
+      { text: 'Review dispatch queue management with plant manager', status: 'in_progress' },
+      { text: 'Benchmark against Dammam dispatch workflow', status: 'todo' },
+      { text: 'Install dispatch tracking board at loading bay', status: 'done' },
+    ],
+    'Al-Noor Riyadh East|Turnaround': [
+      { text: 'Analyze GPS data for route optimization opportunities', status: 'todo' },
+      { text: 'Negotiate site access windows with top 5 customers', status: 'todo' },
+    ],
+    'Al-Noor Riyadh North|Quality': [
+      { text: 'Review batching calibration logs for last 30 days', status: 'in_progress' },
+      { text: 'Schedule moisture sensor maintenance', status: 'todo' },
+    ],
+  }
 
   const bestDispatch = Math.min(...plants.map(p => p.dispatch))
   const bestTurnaround = Math.min(...plants.map(p => p.turnaround))
@@ -678,154 +703,237 @@ function PortfolioBenchmark() {
   function gapLow(val: number, best: number) { return best > 0 ? (val - best) / best : 0 }
   function gapHigh(val: number, best: number) { return best > 0 ? (best - val) / best : 0 }
 
+  const actionBadge = (s: 'todo' | 'in_progress' | 'done') => {
+    const m = { todo: { label: 'To do', bg: '#fff3f3', color: '#cc3333', border: '#fcc' }, in_progress: { label: 'In progress', bg: '#fff8ed', color: '#c96a00', border: '#f5cba0' }, done: { label: 'Done', bg: '#f0faf5', color: '#1a6644', border: '#b6e2ce' } }
+    return m[s]
+  }
+
   const actionStyle = (a: string) => {
     if (a === 'in_progress') return { label: 'In progress', bg: '#fff8ed', color: '#c96a00', border: '#f5cba0' }
     if (a === 'done') return { label: 'Done', bg: '#f0faf5', color: '#1a6644', border: '#b6e2ce' }
     return { label: 'No actions', bg: '#fff3f3', color: '#cc3333', border: '#fcc' }
   }
 
-  const colTemplate = '1.4fr 100px 110px 100px 90px 110px 110px 70px'
+  const colTemplate = '1.6fr 130px 140px 130px 115px 135px 135px 80px'
 
   const headerCell: React.CSSProperties = {
-    fontSize: '10px', fontWeight: 700, color: T.gray400,
+    fontSize: '12px', fontWeight: 700, color: T.gray400,
     textTransform: 'uppercase', letterSpacing: '.06em',
   }
 
+  function handleKpiClick(plantName: string, dimension: string, isBest: boolean) {
+    if (isBest) return
+    const key = `${plantName}|${dimension}`
+    if (activePanel?.plant === plantName && activePanel?.dimension === dimension) {
+      setActivePanel(null)
+    } else if (actionItems[key]) {
+      setActivePanel({ plant: plantName, dimension })
+    }
+  }
+
+  const panelActions = activePanel ? actionItems[`${activePanel.plant}|${activePanel.dimension}`] || [] : []
+  const panelPlant = activePanel ? plants.find(p => p.name === activePanel.plant) : null
+  const panelValue = activePanel && panelPlant ? (
+    activePanel.dimension === 'Dispatch' ? `${panelPlant.dispatch} min` :
+    activePanel.dimension === 'Turnaround' ? `${panelPlant.turnaround} min` :
+    activePanel.dimension === 'Quality' ? `${panelPlant.quality}%` : ''
+  ) : ''
+
   return (
-    <section style={{ background: T.gray50, padding: 'clamp(64px, 8vw, 96px) 24px' }}>
-      <div style={{ maxWidth: '1080px', margin: '0 auto' }}>
+    <section style={{ background: T.gray50, padding: 'clamp(64px, 8vw, 96px) clamp(24px, 3vw, 48px)', overflow: 'visible' }}>
+      <div style={{ maxWidth: '1280px', margin: '0 auto 0 clamp(24px, 3vw, 48px)' }}>
+        <div>
         <Eyebrow text="Multi-plant portfolio" />
         <h2 style={h2Style}>
-          Your best plant is your benchmark.
-          <span style={{ color: T.green }}> Not an industry average.</span>
+          Compare. Prioritize. Improve.
         </h2>
         <p style={{ fontSize: '17px', color: T.gray500, lineHeight: 1.7, margin: '0 0 32px', maxWidth: '640px' }}>
-          When you operate multiple plants, we show exactly which ones are underperforming relative to your own best performers, and what that gap costs every month.
+          See which plants underperform, what it costs you, and track the actions that close the gap.
         </p>
 
         {/* Summary cards */}
         <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
-          <div style={{ flex: 1, minWidth: '200px', background: '#fff8ed', border: '1px solid #f5cba0', borderRadius: '10px', padding: '16px 20px' }}>
-            <div style={{ fontSize: '10px', fontWeight: 700, color: '#c96a00', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>Total recoverable</div>
-            <div style={{ fontSize: '26px', fontWeight: 800, fontFamily: 'var(--mono)', color: '#c96a00' }}>${totalAtRisk}k<span style={{ fontSize: '14px', fontWeight: 500 }}> /month</span></div>
+          <div style={{ flex: 1, minWidth: '240px', background: '#fff8ed', border: '1px solid #f5cba0', borderRadius: '14px', padding: '24px 28px' }}>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: '#c96a00', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '10px' }}>Total recoverable</div>
+            <div style={{ fontSize: '36px', fontWeight: 800, fontFamily: 'var(--mono)', color: '#c96a00' }}>${totalAtRisk}k<span style={{ fontSize: '18px', fontWeight: 500 }}> /month</span></div>
           </div>
-          <div style={{ flex: 1, minWidth: '200px', background: T.white, border: `1px solid ${T.border}`, borderRadius: '10px', padding: '16px 20px' }}>
-            <div style={{ fontSize: '10px', fontWeight: 700, color: T.gray400, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>Primary bottleneck</div>
-            <div style={{ fontSize: '20px', fontWeight: 700, color: '#c96a00' }}>Dispatch</div>
+          <div style={{ flex: 1, minWidth: '240px', background: T.white, border: `1px solid ${T.border}`, borderRadius: '14px', padding: '24px 28px' }}>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: T.gray400, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '10px' }}>Primary bottleneck</div>
+            <div style={{ fontSize: '28px', fontWeight: 700, color: '#c96a00' }}>Dispatch</div>
           </div>
-          <div style={{ flex: 1, minWidth: '200px', background: T.white, border: `1px solid ${T.border}`, borderRadius: '10px', padding: '16px 20px' }}>
-            <div style={{ fontSize: '10px', fontWeight: 700, color: T.gray400, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>Plants improving</div>
-            <div style={{ fontSize: '20px', fontWeight: 700, color: improving > 0 ? '#1a6644' : T.gray400 }}>{improving} <span style={{ fontSize: '14px', fontWeight: 500, color: T.gray400 }}>of {plants.length}</span></div>
+          <div style={{ flex: 1, minWidth: '240px', background: T.white, border: `1px solid ${T.border}`, borderRadius: '14px', padding: '24px 28px' }}>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: T.gray400, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '10px' }}>Plants improving</div>
+            <div style={{ fontSize: '28px', fontWeight: 700, color: improving > 0 ? '#1a6644' : T.gray400 }}>{improving} <span style={{ fontSize: '18px', fontWeight: 500, color: T.gray400 }}>of {plants.length}</span></div>
           </div>
         </div>
 
         {/* Warning banner */}
         <div style={{
           background: '#fff8ed', border: '1px solid #f5cba0', borderLeft: '4px solid #c96a00',
-          borderRadius: '8px', padding: '12px 16px', marginBottom: '20px',
-          fontSize: '13px', color: '#92400E', display: 'flex', alignItems: 'center', gap: '8px',
+          borderRadius: '10px', padding: '16px 20px', marginBottom: '24px',
+          fontSize: '16px', color: '#92400E', display: 'flex', alignItems: 'center', gap: '10px',
         }}>
           <span style={{ fontSize: '16px' }}>&#9888;</span>
           <span><strong>${totalAtRisk - plants[0].atRisk}k/month at risk</strong> across {plants.filter(p => !p.best).length} plants. {plants.filter(p => p.actions === 'none').length > 0 ? `No active improvement actions on ${plants.filter(p => p.actions === 'none').length} plant${plants.filter(p => p.actions === 'none').length > 1 ? 's' : ''}.` : ''}</span>
         </div>
 
-        {/* Comparison table */}
-        <div style={{ background: T.white, border: `1px solid ${T.border}`, borderRadius: '14px', overflow: 'hidden', boxShadow: T.shadow }}>
-          {/* Table header */}
-          <div style={{ display: 'grid', gridTemplateColumns: colTemplate, padding: '12px 20px', borderBottom: `1px solid ${T.border}`, background: T.gray50 }}>
-            <div style={headerCell}>Plant</div>
-            <div style={headerCell}>Dispatch</div>
-            <div style={headerCell}>Turnaround</div>
-            <div style={headerCell}>Utilization</div>
-            <div style={headerCell}>Quality</div>
-            <div style={headerCell}>At risk /mo</div>
-            <div style={headerCell}>Actions</div>
-            <div />
+        </div>
+
+        {/* Table + Action panel layout */}
+        <div style={{ display: 'flex', gap: '20px', position: 'relative' }}>
+
+          {/* Comparison table */}
+          <div style={{
+            flex: 1,
+            background: T.white, border: `1px solid ${T.border}`,
+            borderRadius: '14px',
+            overflow: 'hidden', boxShadow: T.shadow,
+          }}>
+            {/* Table header */}
+            <div style={{ display: 'grid', gridTemplateColumns: colTemplate, padding: '16px 28px', borderBottom: `1px solid ${T.border}`, background: T.gray50 }}>
+              <div style={headerCell}>Plant</div>
+              <div style={headerCell}>Dispatch</div>
+              <div style={headerCell}>Turnaround</div>
+              <div style={headerCell}>Utilization</div>
+              <div style={headerCell}>Quality</div>
+              <div style={headerCell}>At risk /mo</div>
+              <div style={headerCell}>Actions</div>
+              <div />
+            </div>
+
+            {/* Rows */}
+            {plants.map((p, i) => {
+              const dGap = gapLow(p.dispatch, bestDispatch)
+              const tGap = gapLow(p.turnaround, bestTurnaround)
+              const uGap = gapHigh(p.util, bestUtil)
+              const qGap = gapLow(p.quality, bestQuality)
+              const as = actionStyle(p.actions)
+
+              const kpiCell = (val: string, gap: number, dim: string) => {
+                const isClickable = !p.best && gap > 0.05 && actionItems[`${p.name}|${dim}`]
+                const isActive = activePanel?.plant === p.name && activePanel?.dimension === dim
+                return (
+                  <div
+                    onClick={() => handleKpiClick(p.name, dim, p.best)}
+                    style={{
+                      background: isActive ? '#e0f2fe' : kpiBg(gap),
+                      borderRadius: '8px', padding: '6px 10px',
+                      cursor: isClickable ? 'pointer' : 'default',
+                      border: isActive ? '2px solid #0ea5e9' : isClickable ? `1.5px dashed ${kpiColor(gap)}40` : '2px solid transparent',
+                      transition: 'all 0.15s',
+                      position: 'relative',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <span style={{ fontSize: '15px', fontFamily: 'var(--mono)', fontWeight: 600, color: kpiColor(gap) }}>{val}</span>
+                      {isClickable && !isActive && <span style={{ fontSize: '11px', color: kpiColor(gap), opacity: 0.5 }}>&#8599;</span>}
+                    </div>
+                    {p.best
+                      ? <div style={{ fontSize: '11px', color: T.gray400 }}>portfolio best</div>
+                      : <div style={{ fontSize: '11px', color: kpiColor(gap) }}>
+                          {dim === 'Utilization' ? `+${parseFloat(val) < bestUtil ? (bestUtil - parseFloat(val)).toFixed(1) : '0'}pp vs best` : `+${parseInt(val) - (dim === 'Dispatch' ? bestDispatch : bestTurnaround)} ${dim === 'Quality' ? 'pp' : 'min'} vs best`}
+                        </div>
+                    }
+                  </div>
+                )
+              }
+
+              return (
+                <div key={p.name} style={{
+                  display: 'grid', gridTemplateColumns: colTemplate,
+                  padding: '20px 28px', alignItems: 'center',
+                  borderBottom: i < plants.length - 1 ? `1px solid ${T.border}` : 'none',
+                  background: p.best ? '#f6fdf9' : T.white,
+                }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '15px', fontWeight: 600, color: T.dark }}>{p.name}</span>
+                      {p.best && <span style={{ fontSize: '10px', fontWeight: 700, color: '#1a6644', background: '#e6f7ef', border: '1px solid #b6e2ce', borderRadius: '4px', padding: '2px 8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Best</span>}
+                    </div>
+                    <div style={{ fontSize: '12px', color: T.gray400 }}>{p.country}</div>
+                  </div>
+
+                  {kpiCell(`${p.dispatch} min`, dGap, 'Dispatch')}
+                  {kpiCell(`${p.turnaround} min`, tGap, 'Turnaround')}
+                  {kpiCell(`${p.util.toFixed(1)}%`, uGap, 'Utilization')}
+                  {kpiCell(`${p.quality.toFixed(1)}%`, qGap, 'Quality')}
+
+                  <div style={{ fontSize: '18px', fontFamily: 'var(--mono)', fontWeight: 700, color: T.dark }}>${p.atRisk}k</div>
+
+                  <div style={{
+                    fontSize: '13px', fontWeight: 600, color: as.color,
+                    background: as.bg, border: `1px solid ${as.border}`,
+                    borderRadius: '5px', padding: '4px 10px', textAlign: 'center', whiteSpace: 'nowrap',
+                  }}>{as.label}</div>
+
+                  <div style={{ fontSize: '14px', color: T.green, fontWeight: 600, cursor: 'default' }}>View &#8594;</div>
+                </div>
+              )
+            })}
           </div>
 
-          {/* Rows */}
-          {plants.map((p, i) => {
-            const dGap = gapLow(p.dispatch, bestDispatch)
-            const tGap = gapLow(p.turnaround, bestTurnaround)
-            const uGap = gapHigh(p.util, bestUtil)
-            const qGap = gapLow(p.quality, bestQuality)
-            const as = actionStyle(p.actions)
-
-            return (
-              <div key={p.name} style={{
-                display: 'grid', gridTemplateColumns: colTemplate,
-                padding: '14px 20px', alignItems: 'center',
-                borderBottom: i < plants.length - 1 ? `1px solid ${T.border}` : 'none',
-                background: p.best ? '#f6fdf9' : T.white,
-              }}>
-                {/* Plant */}
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '13px', fontWeight: 600, color: T.dark }}>{p.name}</span>
-                    {p.best && <span style={{ fontSize: '9px', fontWeight: 700, color: '#1a6644', background: '#e6f7ef', border: '1px solid #b6e2ce', borderRadius: '4px', padding: '1px 6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Best</span>}
+          {/* Action panel (outside container, to the right) */}
+          {activePanel && (
+            <div style={{
+              position: 'absolute', top: 0, left: '100%', marginLeft: '20px',
+              width: '340px',
+              background: T.white,
+              border: `1px solid ${T.border}`,
+              borderRadius: '14px',
+              boxShadow: T.shadowLg,
+              overflow: 'hidden',
+            }}>
+              {/* Panel header */}
+              <div style={{ padding: '20px', borderBottom: `1px solid ${T.border}` }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
+                  <div>
+                    <div style={{ fontSize: '11px', fontWeight: 600, color: T.gray400, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{activePanel.plant}</div>
+                    <div style={{ fontSize: '18px', fontWeight: 700, color: T.dark, marginTop: '4px' }}>{activePanel.dimension}</div>
                   </div>
-                  <div style={{ fontSize: '11px', color: T.gray400 }}>{p.country}</div>
+                  <button onClick={() => setActivePanel(null)} style={{
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    fontSize: '18px', color: T.gray400, padding: '4px',
+                  }}>&times;</button>
                 </div>
-
-                {/* Dispatch */}
-                <div style={{ background: kpiBg(dGap), borderRadius: '4px', padding: '2px 6px', display: 'inline-block' }}>
-                  <div style={{ fontSize: '13px', fontFamily: 'var(--mono)', fontWeight: 600, color: kpiColor(dGap) }}>{p.dispatch} min</div>
-                  {p.best
-                    ? <div style={{ fontSize: '10px', color: T.gray400 }}>portfolio best</div>
-                    : <div style={{ fontSize: '10px', color: kpiColor(dGap) }}>+{p.dispatch - bestDispatch} min vs best</div>
-                  }
-                </div>
-
-                {/* Turnaround */}
-                <div style={{ background: kpiBg(tGap), borderRadius: '4px', padding: '2px 6px' }}>
-                  <div style={{ fontSize: '13px', fontFamily: 'var(--mono)', fontWeight: 600, color: kpiColor(tGap) }}>{p.turnaround} min</div>
-                  {p.best
-                    ? <div style={{ fontSize: '10px', color: T.gray400 }}>portfolio best</div>
-                    : <div style={{ fontSize: '10px', color: kpiColor(tGap) }}>+{p.turnaround - bestTurnaround} min vs best</div>
-                  }
-                </div>
-
-                {/* Utilization */}
-                <div style={{ background: kpiBg(uGap), borderRadius: '4px', padding: '2px 6px' }}>
-                  <div style={{ fontSize: '13px', fontFamily: 'var(--mono)', fontWeight: 600, color: kpiColor(uGap) }}>{p.util.toFixed(1)}%</div>
-                  {p.best
-                    ? <div style={{ fontSize: '10px', color: T.gray400 }}>portfolio best</div>
-                    : <div style={{ fontSize: '10px', color: kpiColor(uGap) }}>+{(bestUtil - p.util).toFixed(1)}pp vs best</div>
-                  }
-                </div>
-
-                {/* Quality */}
-                <div style={{ background: kpiBg(qGap), borderRadius: '4px', padding: '2px 6px' }}>
-                  <div style={{ fontSize: '13px', fontFamily: 'var(--mono)', fontWeight: 600, color: kpiColor(qGap) }}>{p.quality.toFixed(1)}%</div>
-                  {p.best
-                    ? <div style={{ fontSize: '10px', color: T.gray400 }}>portfolio best</div>
-                    : <div style={{ fontSize: '10px', color: kpiColor(qGap) }}>+{(p.quality - bestQuality).toFixed(1)}pp vs best</div>
-                  }
-                </div>
-
-                {/* At risk */}
-                <div style={{ fontSize: '14px', fontFamily: 'var(--mono)', fontWeight: 700, color: T.dark }}>
-                  ${p.atRisk}k
-                </div>
-
-                {/* Actions */}
-                <div style={{
-                  fontSize: '11px', fontWeight: 600, color: as.color,
-                  background: as.bg, border: `1px solid ${as.border}`,
-                  borderRadius: '5px', padding: '3px 8px', textAlign: 'center',
-                  whiteSpace: 'nowrap',
-                }}>
-                  {as.label}
-                </div>
-
-                {/* View */}
-                <div style={{ fontSize: '12px', color: T.green, fontWeight: 600, cursor: 'default' }}>
-                  View &#8594;
+                <div style={{ fontSize: '14px', fontFamily: 'var(--mono)', fontWeight: 700, color: '#cc3333', marginTop: '4px' }}>
+                  {panelValue}, needs improvement
                 </div>
               </div>
-            )
-          })}
+
+              {/* Actions list */}
+              <div style={{ padding: '16px 20px' }}>
+                <div style={{ fontSize: '11px', fontWeight: 700, color: T.gray400, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '14px' }}>Actions</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {panelActions.map((action, i) => {
+                    const badge = actionBadge(action.status)
+                    return (
+                      <div key={i} style={{
+                        background: T.gray50, border: `1px solid ${T.border}`,
+                        borderRadius: '10px', padding: '14px 16px',
+                      }}>
+                        <div style={{ fontSize: '13px', color: T.dark, lineHeight: 1.5, marginBottom: '8px' }}>
+                          {action.text}
+                        </div>
+                        <span style={{
+                          fontSize: '10px', fontWeight: 600, color: badge.color,
+                          background: badge.bg, border: `1px solid ${badge.border}`,
+                          borderRadius: '4px', padding: '2px 8px',
+                        }}>{badge.label}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
+
+        {/* Hint */}
+        {!activePanel && (
+          <div style={{ fontSize: '15px', color: T.dark, marginTop: '16px', fontWeight: 500 }}>
+            Click any highlighted KPI to see the improvement actions &#8599;
+          </div>
+        )}
       </div>
     </section>
   )
