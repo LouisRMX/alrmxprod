@@ -686,10 +686,10 @@ function AssessmentShowcase() {
       <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
         <Eyebrow text="The assessment output" />
         <h2 style={h2Style}>
-          What you get after an assessment
+          Every loss identified. Every action prioritized. Every improvement tracked.
         </h2>
-        <p style={{ fontSize: '17px', color: T.gray500, lineHeight: 1.7, margin: '0 0 40px', maxWidth: '640px' }}>
-          A complete financial diagnosis of your plant. Every loss quantified. Every action prioritized. Every improvement tracked.
+        <p style={{ fontSize: '17px', color: T.gray500, lineHeight: 1.7, margin: '0 0 40px', maxWidth: '700px' }}>
+          A complete financial diagnosis of your plant. Every dimension quantified in dollars per month, with prioritized actions and continuously tracking.
         </p>
 
         {/* Main grid: left = diagnosis, right = actions + tracking */}
