@@ -106,15 +106,6 @@ function Hero() {
 
         {/* ── Left: text ── */}
         <div>
-          <div style={{
-            display: 'inline-flex', alignItems: 'center', gap: '6px',
-            background: T.greenPale, border: `1px solid ${T.greenLight}`,
-            borderRadius: '20px', padding: '4px 12px', marginBottom: '24px',
-          }}>
-            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: T.accent }}></span>
-            <span style={{ fontSize: '12px', fontWeight: 600, color: T.green }}>Ready-mix operations</span>
-          </div>
-
           <h1 style={{
             fontSize: 'clamp(28px, 3.5vw, 48px)', fontWeight: 400,
             fontFamily: 'var(--serif)',
