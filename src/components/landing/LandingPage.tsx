@@ -125,7 +125,7 @@ function Hero() {
 
           <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 36px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {[
-              'You are losing $X every month. We show you exactly where',
+              'Monthly revenue loss - quantified in dollars from your own data',
               'We identify the one constraint limiting your output and margin',
               'We stay on as your partner. Continuously tracking, monthly reviews, measurable progress',
             ].map(text => (
