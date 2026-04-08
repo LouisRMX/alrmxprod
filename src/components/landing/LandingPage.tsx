@@ -120,7 +120,7 @@ function Hero() {
             fontSize: 'clamp(14px, 1.6vw, 16px)', color: T.gray500,
             lineHeight: 1.6, margin: '0 0 28px', maxWidth: '480px',
           }}>
-            We quantify it, isolate the cause, and turn it into recovered profit.
+            We quantify it, identify the constraint, and turn it into recovered profit.
           </p>
 
           <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 36px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
