@@ -43,6 +43,7 @@ export default function LandingPage() {
     <div style={{ fontFamily: 'var(--font)', color: T.gray900, background: T.bg, overflowX: 'hidden' }}>
       <Nav />
       <Hero />
+      <Calculator />
       <HowItWorks />
       <Diagnostic />
       <PortfolioBenchmark />
@@ -374,6 +375,223 @@ function Diagnostic() {
               </div>
             </div>
           ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ── Calculator ───────────────────────────────────────────────────────────────
+
+function Calculator() {
+  // Visible inputs (5)
+  const [capacity, setCapacity] = useState(120)     // m³/hr plant capacity
+  const [trucks, setTrucks] = useState(18)            // number of trucks
+  const [turnaround, setTurnaround] = useState(120)   // minutes avg turnaround
+  const [dispatchMin, setDispatchMin] = useState(35)   // order-to-dispatch minutes
+  const [showInfo, setShowInfo] = useState(false)
+
+  // Hidden defaults (used in calculation, not shown to user)
+  const opHours = 10          // standard GCC operating hours
+  const mixerCap = 10         // standard mixer capacity m³
+
+  // ── Calculations ──
+  // Plant: practical ceiling is 92% of theoretical (industry standard)
+  // Fleet: dispatch efficiency modeled as 1 - (minutes / 100), capped 40-98%
+  const plantCapDaily = capacity * 0.92 * opHours                   // practical plant ceiling/day
+  const delsPerTruck = (opHours * 60) / turnaround
+  const totalDels = delsPerTruck * trucks
+  const fleetRawDaily = totalDels * mixerCap
+  const dispatchEff = Math.max(0.40, Math.min(0.98, 1 - (dispatchMin / 100)))
+  const effFleetDaily = fleetRawDaily * dispatchEff
+  const bottleneck = plantCapDaily <= effFleetDaily ? 'Plant' : 'Fleet'
+  const fleetUtilPct = Math.min(99, (effFleetDaily / plantCapDaily) * 100)
+  const gapDaily = Math.max(0, plantCapDaily - effFleetDaily)
+  const hasGap = gapDaily > 0 || fleetUtilPct < 85
+
+  const inputRow: React.CSSProperties = {
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    padding: '12px 0',
+    borderBottom: `1px solid ${T.border}`,
+  }
+  const labelStyle: React.CSSProperties = {
+    fontSize: '13px', color: T.gray700, fontWeight: 500, flex: 1,
+  }
+  const inputStyle: React.CSSProperties = {
+    width: '90px', padding: '8px 10px',
+    border: `1px solid ${T.gray200}`, borderRadius: '8px',
+    fontSize: '14px', fontFamily: 'var(--mono)', fontWeight: 600,
+    color: T.dark, textAlign: 'right',
+    background: T.white,
+  }
+  const unitStyle: React.CSSProperties = {
+    fontSize: '12px', color: T.gray400, width: '55px', textAlign: 'left', marginLeft: '8px',
+  }
+
+  return (
+    <section id="calculator" style={{ background: T.white, padding: 'clamp(64px, 8vw, 96px) 24px', borderTop: `1px solid ${T.border}` }}>
+      <div style={{ maxWidth: '880px', margin: '0 auto' }}>
+        <Eyebrow text="Quick estimate" />
+        <h2 style={{
+          ...h2Style,
+          fontSize: 'clamp(24px, 3.5vw, 36px)',
+        }}>
+          Calculate your plant&apos;s hidden loss
+        </h2>
+        <p style={{ fontSize: '15px', color: T.gray500, lineHeight: 1.6, margin: '-8px 0 36px', maxWidth: '520px' }}>
+          Most plants lose 10-30% of capacity. Enter your numbers to see your estimate.
+        </p>
+
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: '40px',
+          alignItems: 'flex-start',
+        }}>
+          {/* ── Left: inputs ── */}
+          <div style={{
+            background: T.gray50,
+            border: `1px solid ${T.border}`,
+            borderRadius: '14px',
+            padding: '24px',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <span style={{ fontSize: '13px', fontWeight: 700, color: T.dark, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Your plant
+              </span>
+              <button
+                onClick={() => setShowInfo(!showInfo)}
+                style={{
+                  background: 'none', border: `1px solid ${T.gray200}`, borderRadius: '50%',
+                  width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer', fontSize: '12px', fontWeight: 700, color: T.gray400,
+                  fontFamily: 'var(--font)',
+                }}
+              >
+                ?
+              </button>
+            </div>
+
+            {showInfo && (
+              <div style={{
+                background: T.white, border: `1px solid ${T.border}`, borderRadius: '10px',
+                padding: '14px 16px', marginBottom: '12px', fontSize: '12px', color: T.gray500, lineHeight: 1.6,
+                display: 'flex', flexDirection: 'column', gap: '8px',
+              }}>
+                <div><strong style={{ color: T.dark }}>Plant capacity</strong> Maximum hourly output your batching plant can produce.</div>
+                <div><strong style={{ color: T.dark }}>Number of trucks</strong> Total truck mixers available for delivery (owned + hired).</div>
+                <div><strong style={{ color: T.dark }}>Avg. turnaround</strong> Average time from truck loading to return, including travel, pour, and wait time on site.</div>
+                <div><strong style={{ color: T.dark }}>Dispatch time</strong> Time from receiving an order to the first truck leaving the plant. Includes scheduling, batching queue, and loading. Longer dispatch time reduces effective fleet capacity.</div>
+                <div style={{ borderTop: `1px solid ${T.border}`, paddingTop: '8px', color: T.gray400, fontSize: '11px' }}>
+                  Assumptions: 10 operating hours/day, 10 m³ mixer capacity, 92% practical plant ceiling, dispatch efficiency modeled as a function of dispatch time.
+                </div>
+              </div>
+            )}
+
+            <div style={inputRow}>
+              <span style={labelStyle}>Plant capacity</span>
+              <input type="number" value={capacity} onChange={e => setCapacity(+e.target.value)} style={inputStyle} />
+              <span style={unitStyle}>m³/hr</span>
+            </div>
+            <div style={inputRow}>
+              <span style={labelStyle}>Number of trucks</span>
+              <input type="number" value={trucks} onChange={e => setTrucks(+e.target.value)} style={inputStyle} />
+              <span style={unitStyle}>trucks</span>
+            </div>
+            <div style={inputRow}>
+              <span style={labelStyle}>Avg. turnaround</span>
+              <input type="number" value={turnaround} onChange={e => setTurnaround(+e.target.value)} style={inputStyle} />
+              <span style={unitStyle}>min</span>
+            </div>
+            <div style={{ ...inputRow, borderBottom: 'none' }}>
+              <span style={labelStyle}>Dispatch time</span>
+              <input type="number" value={dispatchMin} onChange={e => setDispatchMin(+e.target.value)} style={inputStyle} />
+              <span style={unitStyle}>min</span>
+            </div>
+          </div>
+
+          {/* ── Right: results ── */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* Main result: utilization */}
+            <div style={{
+              background: T.white,
+              border: `1px solid ${T.borderStrong}`,
+              borderRadius: '14px',
+              padding: '28px',
+              textAlign: 'center',
+            }}>
+              <div style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: T.gray400, marginBottom: '14px' }}>
+                Fleet utilization of plant capacity
+              </div>
+              <div style={{
+                fontSize: '64px', fontWeight: 800, fontFamily: 'var(--mono)',
+                color: fleetUtilPct < 60 ? '#DC2626' : fleetUtilPct < 80 ? T.orangeMuted : T.green,
+                letterSpacing: '-2px', lineHeight: 1, marginBottom: '8px',
+              }}>
+                {Math.round(fleetUtilPct)}%
+              </div>
+              <div style={{ fontSize: '13px', color: T.gray500, marginBottom: '4px' }}>
+                Your fleet can service <strong>{Math.round(fleetUtilPct)}%</strong> of your plant&apos;s capacity
+              </div>
+            </div>
+
+            {/* Capacity breakdown */}
+            <div style={{
+              background: T.gray50,
+              border: `1px solid ${T.border}`,
+              borderRadius: '14px',
+              padding: '20px 24px',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                <span style={{ fontSize: '13px', color: T.gray500 }}>Practical plant capacity</span>
+                <span style={{ fontSize: '13px', fontWeight: 700, fontFamily: 'var(--mono)', color: T.dark }}>
+                  {Math.round(plantCapDaily).toLocaleString()} m³/day
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                <span style={{ fontSize: '13px', color: T.gray500 }}>Fleet throughput</span>
+                <span style={{ fontSize: '13px', fontWeight: 700, fontFamily: 'var(--mono)', color: fleetUtilPct < 70 ? '#DC2626' : T.orangeMuted }}>
+                  {Math.round(effFleetDaily).toLocaleString()} m³/day
+                </span>
+              </div>
+              {gapDaily > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '10px', borderTop: `1px solid ${T.border}` }}>
+                  <span style={{ fontSize: '13px', color: T.gray500 }}>Capacity gap</span>
+                  <span style={{ fontSize: '13px', fontWeight: 700, fontFamily: 'var(--mono)', color: '#DC2626' }}>
+                    {Math.round(gapDaily).toLocaleString()} m³/day
+                  </span>
+                </div>
+              )}
+              {bottleneck === 'Fleet' && (
+                <div style={{ marginTop: '14px', fontSize: '12px', color: T.gray500, lineHeight: 1.6 }}>
+                  Your fleet is the binding constraint. The full assessment quantifies how much of this gap is recoverable revenue.
+                </div>
+              )}
+              {bottleneck === 'Plant' && (
+                <div style={{ marginTop: '14px', fontSize: '12px', color: T.gray500, lineHeight: 1.6 }}>
+                  Your plant is the binding constraint. The assessment identifies whether demand, scheduling, or equipment limits your output.
+                </div>
+              )}
+            </div>
+
+            {/* CTA */}
+            <a
+              href="#contact"
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
+                background: T.dark, color: T.white, textDecoration: 'none',
+                padding: '16px 24px', borderRadius: '10px', fontSize: '15px', fontWeight: 600,
+                boxShadow: T.shadowMd,
+              }}
+            >
+              Find out what this gap costs you
+              <span>&#8594;</span>
+            </a>
+
+            <p style={{ fontSize: '11px', color: T.gray400, textAlign: 'center', lineHeight: 1.5 }}>
+              Based on fleet throughput vs. plant capacity. See assumptions in the ? panel.
+            </p>
+          </div>
         </div>
       </div>
     </section>
