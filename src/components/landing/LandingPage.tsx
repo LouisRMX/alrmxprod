@@ -201,7 +201,8 @@ function Hero() {
               <span style={{ fontSize: '48px', fontWeight: 800, color: T.dark, lineHeight: 1, letterSpacing: '-2px', fontFamily: 'var(--mono)' }}>$295k–$425k</span>
               <span style={{ fontSize: '15px', color: T.gray500, fontWeight: 600 }}>/month lost</span>
             </div>
-            <div style={{ fontSize: '12px', color: T.gray400 }}>18% of total capacity</div>
+            <div style={{ fontSize: '12px', color: T.gray400, marginBottom: '4px' }}>18% of total capacity</div>
+            <div style={{ fontSize: '11px', color: T.gray300, fontStyle: 'italic' }}>Range reflects variation in production, pricing, and demand</div>
           </div>
 
           {/* Connector */}
