@@ -125,8 +125,8 @@ function Hero() {
 
           <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 36px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {[
-              'Quantified revenue leakage across your operation ($ / month)',
-              'Clear identification of your true bottleneck',
+              'Discover how much you lose each month, broken down by cause',
+              'Benchmark plants against each other and act on a prioritized action list',
               'Continuously tracking against your baseline, so improvements compound',
             ].map(text => (
               <li key={text} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
