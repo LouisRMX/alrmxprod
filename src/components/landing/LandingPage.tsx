@@ -297,7 +297,7 @@ function Diagnostic() {
 
   return (
     <section style={{ background: T.gray50, padding: 'clamp(64px, 8vw, 96px) 24px' }}>
-      <div style={{ maxWidth: '760px', margin: '0 auto' }}>
+      <div style={{ maxWidth: '1080px', margin: '0 auto' }}>
         <Eyebrow text="The diagnostic" />
         <h2 style={h2Style}>
           Four dimensions. Specific numbers. Calculated from your own data.
@@ -395,7 +395,7 @@ function Calculator() {
 
   return (
     <section id="calculator" style={{ background: T.white, padding: 'clamp(64px, 8vw, 96px) 24px', borderTop: `1px solid ${T.border}` }}>
-      <div style={{ maxWidth: '880px', margin: '0 auto' }}>
+      <div style={{ maxWidth: '1080px', margin: '0 auto' }}>
         <Eyebrow text="Quick check" />
         <h2 style={{
           ...h2Style,
@@ -591,7 +591,7 @@ function HowItWorks() {
 
   return (
     <section style={{ background: T.white, padding: 'clamp(64px, 8vw, 96px) 24px', borderTop: `1px solid ${T.border}` }}>
-      <div style={{ maxWidth: '760px', margin: '0 auto' }}>
+      <div style={{ maxWidth: '1080px', margin: '0 auto' }}>
         <Eyebrow text="How it works" />
         <h2 style={h2Style}>3 Phases</h2>
         <p style={{ fontSize: '15px', color: T.gray500, lineHeight: 1.6, margin: '-12px 0 24px' }}>
@@ -861,7 +861,7 @@ function Contact() {
 
   return (
     <section id="contact" style={{ background: T.gray50, padding: 'clamp(64px, 9vw, 100px) 24px', borderTop: `1px solid ${T.border}` }}>
-      <div style={{ maxWidth: '560px', margin: '0 auto' }}>
+      <div style={{ maxWidth: '680px', margin: '0 auto' }}>
         <Eyebrow text="Get started" />
         <h2 style={{
           fontSize: 'clamp(24px, 4vw, 34px)', fontWeight: 400,
@@ -1007,7 +1007,7 @@ const FAQS = [
 function FAQ() {
   return (
     <section style={{ background: T.white, padding: 'clamp(64px, 8vw, 96px) 24px', borderTop: `1px solid ${T.border}` }}>
-      <div style={{ maxWidth: '660px', margin: '0 auto' }}>
+      <div style={{ maxWidth: '1080px', margin: '0 auto' }}>
         <Eyebrow text="FAQ" />
         <h2 style={h2Style}>Common questions</h2>
 
