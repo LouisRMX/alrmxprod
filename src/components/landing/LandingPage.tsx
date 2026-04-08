@@ -112,15 +112,15 @@ function Hero() {
             color: T.dark, lineHeight: 1.15, letterSpacing: '-0.5px',
             margin: '0 0 18px',
           }}>
-            Turn operational inefficiencies into measurable profit
-            <span style={{ color: T.green }}> at your ready-mix plant.</span>
+            Every day your ready-mix plants run,
+            <span style={{ color: T.green }}> money is lost.</span>
           </h1>
 
           <p style={{
             fontSize: 'clamp(14px, 1.6vw, 16px)', color: T.gray500,
             lineHeight: 1.6, margin: '0 0 28px', maxWidth: '480px',
           }}>
-            We show where you lose money, what to fix first, and how to fix it.
+            We quantify it, isolate the cause, and turn it into recovered profit.
           </p>
 
           <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 36px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
