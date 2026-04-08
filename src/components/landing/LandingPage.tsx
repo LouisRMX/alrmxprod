@@ -44,6 +44,7 @@ export default function LandingPage() {
       <Nav />
       <Hero />
       <Calculator />
+      <AssessmentShowcase />
       <PortfolioBenchmark />
       <WhoWeAre />
       <HowItWorks />
@@ -643,6 +644,236 @@ function HowItWorks() {
           ))}
         </div>
 
+      </div>
+    </section>
+  )
+}
+
+// ── Assessment Showcase ──────────────────────────────────────────────────────
+
+function AssessmentShowcase() {
+  const dims = [
+    { label: 'Production', kpi: '62%', kpiLabel: 'utilization', loss: '$89k', severity: 'red' as const, desc: 'Running below installed capacity' },
+    { label: 'Dispatch', kpi: '38 min', kpiLabel: 'order-to-truck', loss: '$108k', severity: 'red' as const, desc: 'Slow dispatch coordination' },
+    { label: 'Fleet', kpi: '125 min', kpiLabel: 'avg. turnaround', loss: '$67k', severity: 'red' as const, desc: 'Excess turnaround time' },
+    { label: 'Quality', kpi: '2.9%', kpiLabel: 'rejection rate', loss: '$31k', severity: 'amber' as const, desc: 'Material and opportunity cost' },
+  ]
+
+  const actions = [
+    { text: 'Implement order-to-dispatch SOP. Target 15 min', status: 'in_progress' as const, dimension: 'Dispatch', impact: '$108k/mo' },
+    { text: 'Negotiate site access windows with top 5 customers', status: 'todo' as const, dimension: 'Fleet', impact: '$67k/mo' },
+    { text: 'Schedule process review with best-performing plant', status: 'todo' as const, dimension: 'Dispatch', impact: '$108k/mo' },
+    { text: 'Review batching calibration logs for last 30 days', status: 'done' as const, dimension: 'Quality', impact: '$31k/mo' },
+  ]
+
+  const tracking = [
+    { week: 1, ta: 125, dispatch: 38 },
+    { week: 2, ta: 122, dispatch: 36 },
+    { week: 3, ta: 118, dispatch: 33 },
+    { week: 4, ta: 115, dispatch: 30 },
+    { week: 5, ta: 112, dispatch: 28 },
+    { week: 6, ta: 110, dispatch: 26 },
+  ]
+
+  const statusStyle = (s: string) => {
+    if (s === 'in_progress') return { label: 'In progress', bg: '#fff8ed', color: '#c96a00', border: '#f5cba0' }
+    if (s === 'done') return { label: 'Done', bg: '#f0faf5', color: '#1a6644', border: '#b6e2ce' }
+    return { label: 'To do', bg: '#fff3f3', color: '#cc3333', border: '#fcc' }
+  }
+
+  return (
+    <section style={{ background: T.white, padding: 'clamp(64px, 8vw, 96px) clamp(24px, 4vw, 64px)', borderTop: `1px solid ${T.border}` }}>
+      <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
+        <Eyebrow text="The assessment output" />
+        <h2 style={h2Style}>
+          What you get after an assessment
+        </h2>
+        <p style={{ fontSize: '17px', color: T.gray500, lineHeight: 1.7, margin: '0 0 40px', maxWidth: '640px' }}>
+          A complete financial diagnosis of your plant. Every loss quantified. Every action prioritized. Every improvement tracked.
+        </p>
+
+        {/* Main grid: left = diagnosis, right = actions + tracking */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', alignItems: 'start' }}>
+
+          {/* ── Left: Plant Diagnosis ── */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+
+            {/* Plant header */}
+            <div style={{
+              background: T.gray50, border: `1px solid ${T.border}`,
+              borderRadius: '14px', padding: '24px 28px',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                <div>
+                  <div style={{ fontSize: '11px', fontWeight: 700, color: T.gray400, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>Example plant</div>
+                  <div style={{ fontSize: '22px', fontWeight: 700, color: T.dark }}>Al-Noor Riyadh East</div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: '11px', fontWeight: 700, color: T.gray400, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>Primary constraint</div>
+                  <div style={{ fontSize: '20px', fontWeight: 700, color: '#c96a00' }}>Dispatch</div>
+                </div>
+              </div>
+
+              {/* Revenue at risk */}
+              <div style={{
+                background: '#fff3f3', border: '1px solid #fcc', borderRadius: '10px',
+                padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              }}>
+                <span style={{ fontSize: '13px', color: '#991B1B', fontWeight: 500 }}>Total revenue at risk</span>
+                <span style={{ fontSize: '22px', fontWeight: 800, fontFamily: 'var(--mono)', color: '#cc3333' }}>$295k/mo</span>
+              </div>
+            </div>
+
+            {/* Dimension scores */}
+            <div style={{
+              background: T.white, border: `1px solid ${T.border}`,
+              borderRadius: '14px', overflow: 'hidden', boxShadow: T.shadow,
+            }}>
+              <div style={{ padding: '16px 24px', borderBottom: `1px solid ${T.border}`, background: T.gray50 }}>
+                <span style={{ fontSize: '12px', fontWeight: 700, color: T.gray400, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Dimension breakdown</span>
+              </div>
+              {dims.map((d, i) => (
+                <div key={d.label} style={{
+                  display: 'grid', gridTemplateColumns: '1fr auto 110px',
+                  padding: '16px 24px', alignItems: 'center', gap: '16px',
+                  borderBottom: i < dims.length - 1 ? `1px solid ${T.border}` : 'none',
+                }}>
+                  <div>
+                    <div style={{ fontSize: '15px', fontWeight: 600, color: T.dark, marginBottom: '2px' }}>{d.label}</div>
+                    <div style={{ fontSize: '12px', color: T.gray400 }}>{d.desc}</div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{
+                      fontSize: '16px', fontWeight: 700, fontFamily: 'var(--mono)',
+                      color: d.severity === 'red' ? '#cc3333' : '#c96a00',
+                    }}>
+                      {d.kpi}
+                    </div>
+                    <div style={{ fontSize: '10px', color: T.gray400 }}>{d.kpiLabel}</div>
+                  </div>
+                  <div style={{
+                    fontSize: '15px', fontWeight: 700, fontFamily: 'var(--mono)',
+                    color: '#cc3333', textAlign: 'right',
+                  }}>
+                    {d.loss}<span style={{ fontSize: '11px', color: T.gray400, fontWeight: 500 }}>/mo</span>
+                  </div>
+                </div>
+              ))}
+              {/* Bottleneck indicator */}
+              <div style={{
+                padding: '14px 24px', background: '#fff3f3',
+                display: 'flex', alignItems: 'center', gap: '8px',
+              }}>
+                <span style={{ fontSize: '14px' }}>&#9889;</span>
+                <span style={{ fontSize: '13px', fontWeight: 600, color: '#991B1B' }}>
+                  Primary constraint: Dispatch. This is where the largest recoverable value sits.
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Right: Actions + Tracking ── */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+
+            {/* Action Board */}
+            <div style={{
+              background: T.white, border: `1px solid ${T.border}`,
+              borderRadius: '14px', overflow: 'hidden', boxShadow: T.shadow,
+            }}>
+              <div style={{ padding: '16px 24px', borderBottom: `1px solid ${T.border}`, background: T.gray50, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '12px', fontWeight: 700, color: T.gray400, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Prioritized actions</span>
+                <div style={{ display: 'flex', gap: '12px', fontSize: '11px', color: T.gray400 }}>
+                  <span>&#9679; 2 To do</span>
+                  <span style={{ color: '#c96a00' }}>&#9679; 1 In progress</span>
+                  <span style={{ color: '#1a6644' }}>&#9679; 1 Done</span>
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {actions.map((a, i) => {
+                  const s = statusStyle(a.status)
+                  return (
+                    <div key={i} style={{
+                      padding: '16px 24px',
+                      borderBottom: i < actions.length - 1 ? `1px solid ${T.border}` : 'none',
+                      display: 'flex', alignItems: 'flex-start', gap: '14px',
+                      opacity: a.status === 'done' ? 0.6 : 1,
+                    }}>
+                      <div style={{
+                        width: '8px', height: '8px', borderRadius: '50%', flexShrink: 0, marginTop: '6px',
+                        background: s.color,
+                      }} />
+                      <div style={{ flex: 1 }}>
+                        <div style={{
+                          fontSize: '14px', color: T.dark, lineHeight: 1.5,
+                          textDecoration: a.status === 'done' ? 'line-through' : 'none',
+                        }}>
+                          {a.text}
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px', marginTop: '6px', alignItems: 'center' }}>
+                          <span style={{
+                            fontSize: '10px', fontWeight: 600, color: s.color,
+                            background: s.bg, border: `1px solid ${s.border}`,
+                            borderRadius: '4px', padding: '1px 6px',
+                          }}>{s.label}</span>
+                          <span style={{ fontSize: '10px', color: T.gray400 }}>{a.dimension}</span>
+                          <span style={{ fontSize: '10px', fontFamily: 'var(--mono)', color: T.gray400 }}>{a.impact}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Tracking progress */}
+            <div style={{
+              background: T.white, border: `1px solid ${T.border}`,
+              borderRadius: '14px', overflow: 'hidden', boxShadow: T.shadow,
+            }}>
+              <div style={{ padding: '16px 24px', borderBottom: `1px solid ${T.border}`, background: T.gray50 }}>
+                <span style={{ fontSize: '12px', fontWeight: 700, color: T.gray400, textTransform: 'uppercase', letterSpacing: '0.5px' }}>90-day tracking</span>
+              </div>
+              <div style={{ padding: '20px 24px' }}>
+                {/* Turnaround progress */}
+                <div style={{ marginBottom: '16px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 600, color: T.dark }}>Turnaround</span>
+                    <span style={{ fontSize: '13px', fontFamily: 'var(--mono)', color: '#1a6644', fontWeight: 700 }}>125 min &#8594; 110 min</span>
+                  </div>
+                  <div style={{ height: '8px', background: T.gray100, borderRadius: '4px', overflow: 'hidden' }}>
+                    <div style={{ width: '30%', height: '100%', background: T.green, borderRadius: '4px' }} />
+                  </div>
+                  <div style={{ fontSize: '11px', color: T.gray400, marginTop: '4px' }}>&#9660; 15 min saved. Target: 75 min</div>
+                </div>
+
+                {/* Dispatch progress */}
+                <div style={{ marginBottom: '16px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 600, color: T.dark }}>Dispatch</span>
+                    <span style={{ fontSize: '13px', fontFamily: 'var(--mono)', color: '#1a6644', fontWeight: 700 }}>38 min &#8594; 26 min</span>
+                  </div>
+                  <div style={{ height: '8px', background: T.gray100, borderRadius: '4px', overflow: 'hidden' }}>
+                    <div style={{ width: '52%', height: '100%', background: T.green, borderRadius: '4px' }} />
+                  </div>
+                  <div style={{ fontSize: '11px', color: T.gray400, marginTop: '4px' }}>&#9660; 12 min saved. Target: 15 min</div>
+                </div>
+
+                {/* Financial recovery */}
+                <div style={{
+                  background: T.greenPale, border: `1px solid ${T.greenLight}`,
+                  borderRadius: '10px', padding: '14px 18px',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                }}>
+                  <div>
+                    <div style={{ fontSize: '11px', fontWeight: 700, color: T.green, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Monthly recovery</div>
+                    <div style={{ fontSize: '11px', color: T.gray400 }}>Week 6 of 12</div>
+                  </div>
+                  <div style={{ fontSize: '24px', fontWeight: 800, fontFamily: 'var(--mono)', color: T.green }}>$47k<span style={{ fontSize: '13px', fontWeight: 500, color: T.greenMid }}>/mo</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
   )
