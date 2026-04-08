@@ -1009,6 +1009,18 @@ function PortfolioBenchmark() {
 
         </div>
 
+        {/* Interactive hint */}
+        <div style={{
+          display: 'inline-flex', alignItems: 'center', gap: '10px',
+          background: T.greenPale, border: `1px solid ${T.greenLight}`,
+          borderRadius: '8px', padding: '10px 18px', marginBottom: '16px',
+        }}>
+          <span style={{ fontSize: '16px' }}>&#9758;</span>
+          <span style={{ fontSize: '15px', fontWeight: 600, color: T.dark }}>
+            Click any highlighted KPI to see the improvement actions
+          </span>
+        </div>
+
         {/* Table + Action panel layout */}
         <div style={{ display: 'flex', gap: '20px', position: 'relative' }}>
 
@@ -1158,12 +1170,6 @@ function PortfolioBenchmark() {
           )}
         </div>
 
-        {/* Hint */}
-        {!activePanel && (
-          <div style={{ fontSize: '15px', color: T.dark, marginTop: '16px', fontWeight: 500 }}>
-            Click any highlighted KPI to see the improvement actions &#8599;
-          </div>
-        )}
       </div>
     </section>
   )
