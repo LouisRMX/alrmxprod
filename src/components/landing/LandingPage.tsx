@@ -124,23 +124,41 @@ function Hero() {
             We quantify it, identify the constraint, and turn it into recovered profit.
           </p>
 
-          {/* Compact horizontal steps */}
+          {/* Eyebrow */}
           <div style={{
-            display: 'flex', gap: '0', margin: '0 0 24px',
-            background: T.gray50, border: `1px solid ${T.border}`, borderRadius: '10px', overflow: 'hidden',
+            display: 'inline-flex', alignItems: 'center',
+            background: T.greenPale, border: `1px solid ${T.greenLight}`,
+            borderRadius: '6px', padding: '5px 12px', marginBottom: '16px',
           }}>
+            <span style={{ fontSize: '10px', fontWeight: 700, color: T.green, textTransform: 'uppercase', letterSpacing: '1px' }}>
+              From hidden loss to recovered profit
+            </span>
+          </div>
+
+          {/* Compact vertical timeline */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0', margin: '0 0 20px' }}>
             {[
-              { label: 'Quantify', desc: 'the loss' },
-              { label: 'Identify', desc: 'the constraint' },
-              { label: 'Execute', desc: 'with your team' },
-              { label: 'Track', desc: 'until recovered' },
+              { num: '1', label: 'Quantify', desc: 'Revenue loss in dollars from your own data' },
+              { num: '2', label: 'Identify', desc: 'The one constraint limiting output and margin' },
+              { num: '3', label: 'Execute', desc: 'We implement focused actions with your team' },
+              { num: '4', label: 'Track', desc: 'We track results until the financial impact is realized' },
             ].map((item, i) => (
-              <div key={item.label} style={{
-                flex: 1, padding: '12px 14px',
-                borderRight: i < 3 ? `1px solid ${T.border}` : 'none',
-              }}>
-                <div style={{ fontSize: '13px', fontWeight: 700, color: T.dark, marginBottom: '2px' }}>{item.label}</div>
-                <div style={{ fontSize: '11px', color: T.gray500 }}>{item.desc}</div>
+              <div key={item.num} style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
+                  <div style={{
+                    width: '32px', height: '32px', borderRadius: '50%',
+                    background: T.green, color: T.white,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '12px', fontWeight: 700, fontFamily: 'var(--mono)',
+                  }}>
+                    {item.num}
+                  </div>
+                  {i < 3 && <div style={{ width: '2px', height: '12px', background: T.gray200 }} />}
+                </div>
+                <div style={{ paddingTop: '5px' }}>
+                  <span style={{ fontSize: '14px', fontWeight: 700, color: T.dark }}>{item.label}</span>
+                  <span style={{ fontSize: '12px', color: T.gray500, marginLeft: '8px' }}>{item.desc}</span>
+                </div>
               </div>
             ))}
           </div>
