@@ -100,10 +100,10 @@ function Hero() {
   return (
     <section style={{
       background: T.white,
-      padding: 'clamp(40px, 5vw, 64px) 24px clamp(40px, 5vw, 64px)',
+      padding: 'clamp(40px, 5vw, 64px) clamp(24px, 4vw, 64px) clamp(40px, 5vw, 64px)',
       borderBottom: `1px solid ${T.border}`,
     }}>
-      <div className="landing-hero-grid" style={{ maxWidth: '1280px', margin: '0 auto' }}>
+      <div className="landing-hero-grid" style={{ maxWidth: '1400px', margin: '0 auto' }}>
 
         {/* ── Left: text ── */}
         <div>
@@ -118,8 +118,8 @@ function Hero() {
           </h1>
 
           <p style={{
-            fontSize: 'clamp(15px, 1.6vw, 18px)', color: T.gray500,
-            lineHeight: 1.6, margin: '0 0 24px', maxWidth: '520px',
+            fontSize: 'clamp(16px, 1.8vw, 20px)', color: T.gray500,
+            lineHeight: 1.6, margin: '0 0 28px', maxWidth: '560px',
           }}>
             We quantify it, identify the constraint, and turn it into recovered profit.
           </p>
@@ -128,15 +128,15 @@ function Hero() {
           <div style={{
             display: 'inline-flex', alignItems: 'center',
             background: T.greenPale, border: `1px solid ${T.greenLight}`,
-            borderRadius: '6px', padding: '5px 12px', marginBottom: '16px',
+            borderRadius: '6px', padding: '6px 14px', marginBottom: '20px',
           }}>
-            <span style={{ fontSize: '11px', fontWeight: 700, color: T.green, textTransform: 'uppercase', letterSpacing: '1px' }}>
+            <span style={{ fontSize: '12px', fontWeight: 700, color: T.green, textTransform: 'uppercase', letterSpacing: '1px' }}>
               From hidden loss to recovered profit
             </span>
           </div>
 
           {/* Compact vertical timeline */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0', margin: '0 0 20px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0', margin: '0 0 28px' }}>
             {[
               { num: '1', label: 'Quantify', desc: 'Revenue loss in dollars from your own data' },
               { num: '2', label: 'Identify', desc: 'The one constraint limiting output and margin' },
@@ -146,18 +146,18 @@ function Hero() {
               <div key={item.num} style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
                   <div style={{
-                    width: '36px', height: '36px', borderRadius: '50%',
+                    width: '40px', height: '40px', borderRadius: '50%',
                     background: T.green, color: T.white,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: '13px', fontWeight: 700, fontFamily: 'var(--mono)',
+                    fontSize: '14px', fontWeight: 700, fontFamily: 'var(--mono)',
                   }}>
                     {item.num}
                   </div>
-                  {i < 3 && <div style={{ width: '2px', height: '12px', background: T.gray200 }} />}
+                  {i < 3 && <div style={{ width: '2px', height: '14px', background: T.gray200 }} />}
                 </div>
-                <div style={{ paddingTop: '5px' }}>
-                  <span style={{ fontSize: '15px', fontWeight: 700, color: T.dark }}>{item.label}</span>
-                  <span style={{ fontSize: '13px', color: T.gray500, marginLeft: '8px' }}>{item.desc}</span>
+                <div style={{ paddingTop: '7px' }}>
+                  <span style={{ fontSize: '17px', fontWeight: 700, color: T.dark }}>{item.label}</span>
+                  <span style={{ fontSize: '15px', color: T.gray500, marginLeft: '10px' }}>{item.desc}</span>
                 </div>
               </div>
             ))}
@@ -167,7 +167,7 @@ function Hero() {
             style={{
               display: 'inline-flex', alignItems: 'center', gap: '10px',
               background: T.dark, color: T.white, textDecoration: 'none',
-              padding: '14px 28px', borderRadius: '10px', fontSize: '15px', fontWeight: 600,
+              padding: '16px 32px', borderRadius: '10px', fontSize: '16px', fontWeight: 600,
               boxShadow: T.shadowMd,
               transition: 'background .15s, box-shadow .15s, transform .15s',
               letterSpacing: '0.01em',
