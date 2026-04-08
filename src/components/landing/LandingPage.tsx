@@ -43,9 +43,9 @@ export default function LandingPage() {
     <div style={{ fontFamily: 'var(--font)', color: T.gray900, background: T.bg, overflowX: 'hidden' }}>
       <Nav />
       <Hero />
-      <Calculator />
       <AssessmentShowcase />
       <PortfolioBenchmark />
+      <Calculator />
       <WhoWeAre />
       <HowItWorks />
       <Contact />
