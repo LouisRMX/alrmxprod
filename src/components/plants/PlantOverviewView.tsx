@@ -215,6 +215,16 @@ function PlantCard({ plant, isMobile }: { plant: PlantCardData; isMobile: boolea
                   <span style={{ fontFamily: 'var(--mono)', fontWeight: 600, color: (a.kpi.rejectPct ?? 0) > 3 ? 'var(--red)' : 'var(--gray-700)' }}>{a.kpi.rejectPct}%</span> rejection
                 </div>
               )}
+              {a.kpi.truckUtilAnnual != null && (
+                <div style={{ fontSize: '11px', color: 'var(--gray-500)' }}>
+                  <span style={{ fontFamily: 'var(--mono)', fontWeight: 600, color: (a.kpi.truckUtilAnnual ?? 0) < 3500 ? '#c96a00' : 'var(--gray-700)' }}>{Math.round(a.kpi.truckUtilAnnual as number).toLocaleString()}</span> m³/truck/yr
+                </div>
+              )}
+              {a.kpi.m3PerDriverHour != null && (
+                <div style={{ fontSize: '11px', color: 'var(--gray-500)' }}>
+                  <span style={{ fontFamily: 'var(--mono)', fontWeight: 600, color: (a.kpi.m3PerDriverHour ?? 0) < 2.5 ? '#c96a00' : 'var(--gray-700)' }}>{a.kpi.m3PerDriverHour}</span> m³/driver-hr
+                </div>
+              )}
             </div>
           )}
 

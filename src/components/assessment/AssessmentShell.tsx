@@ -53,6 +53,9 @@ interface AssessmentShellProps {
       rejectPct: number
       delDay: number
       utilPct: number
+      truckUtilAnnual: number | null
+      m3PerDriverHour: number | null
+      avgLoadM3: number | null
     }
   }) => void
   baseline?: Answers
@@ -166,6 +169,13 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
           rejectPct:    result.rejectPct,
           delDay:       result.delDay,
           utilPct:      Math.round(result.util * 100),
+          truckUtilAnnual: result.trucks > 0 && result.delDay > 0
+            ? Math.round(result.delDay * result.effectiveMixCap * result.opD / result.trucks)
+            : null,
+          m3PerDriverHour: result.trucks > 0 && result.delDay > 0 && result.opH > 0
+            ? Math.round((result.delDay * result.effectiveMixCap / result.trucks / result.opH) * 10) / 10
+            : null,
+          avgLoadM3: result.effectiveMixCap > 0 ? Math.round(result.effectiveMixCap * 10) / 10 : null,
         } : undefined,
       })
     }, 1000)

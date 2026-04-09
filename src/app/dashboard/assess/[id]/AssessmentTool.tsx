@@ -121,6 +121,9 @@ export default function AssessmentTool({
       rejectPct: number
       delDay: number
       utilPct: number
+      truckUtilAnnual: number | null
+      m3PerDriverHour: number | null
+      avgLoadM3: number | null
     }
   }) => {
     // Queue if already saving, latest data will be saved when current save completes
@@ -168,6 +171,9 @@ export default function AssessmentTool({
           util_pct:                 b.utilPct,
           overall_score:            data.overall,
           bottleneck:               data.bottleneck ?? null,
+          truck_util_annual:        b.truckUtilAnnual ?? null,
+          m3_per_driver_hour:       b.m3PerDriverHour ?? null,
+          avg_load_m3:              b.avgLoadM3 ?? null,
         }, { onConflict: 'assessment_id' }).then(({ error: bErr }) => {
           if (bErr) console.warn('[benchmark] upsert failed:', bErr.message)
         })

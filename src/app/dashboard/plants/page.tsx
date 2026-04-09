@@ -51,7 +51,7 @@ export default async function PlantsPage() {
         id, date, phase, overall, scores, bottleneck,
         ebitda_monthly, report_released,
         tracking_configs(id, started_at, baseline_turnaround),
-        plant_benchmarks(turnaround_min, dispatch_min, reject_pct, util_pct),
+        plant_benchmarks(turnaround_min, dispatch_min, reject_pct, util_pct, truck_util_annual, m3_per_driver_hour, avg_load_m3),
         action_items(id, text, status)
       )
     `)
@@ -199,10 +199,13 @@ export default async function PlantsPage() {
         primaryActionStatus,
         topAction,
         kpi: bm ? {
-          turnaroundMin: bm.turnaround_min ?? null,
-          dispatchMin:   bm.dispatch_min   ?? null,
-          rejectPct:     bm.reject_pct     ?? null,
-          utilPct:       bm.util_pct       ?? null,
+          turnaroundMin:    bm.turnaround_min ?? null,
+          dispatchMin:      bm.dispatch_min   ?? null,
+          rejectPct:        bm.reject_pct     ?? null,
+          utilPct:          bm.util_pct       ?? null,
+          truckUtilAnnual:  bm.truck_util_annual ?? null,
+          m3PerDriverHour:  bm.m3_per_driver_hour ?? null,
+          avgLoadM3:        bm.avg_load_m3 ?? null,
         } : null,
       },
     }
