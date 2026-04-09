@@ -118,4 +118,54 @@ describe('buildValidatedDiagnosis', () => {
     expect(vd.verdict_cause).not.toMatch(/^based on/i)
     expect(vd.verdict_cause.length).toBeGreaterThan(10)
   })
+
+  test('contains plant context needed for report headers', () => {
+    const answers = makeAnswers()
+    const result = calc(answers)
+    const vd = buildValidatedDiagnosis(result, answers, { plant: 'Test Plant', country: 'SA', date: '2026-04-09' })
+
+    expect(vd.plant_name).toBe('Test Plant')
+    expect(vd.country).toBe('SA')
+    expect(vd.assessment_date).toBe('2026-04-09')
+  })
+
+  test('contains plant parameters needed for proof layer', () => {
+    const answers = makeAnswers()
+    const result = calc(answers)
+    const vd = buildValidatedDiagnosis(result, answers)
+
+    expect(vd.plant_capacity_m3hr).toBeGreaterThan(0)
+    expect(vd.operating_hours).toBeGreaterThan(0)
+    expect(vd.trucks_total).toBeGreaterThan(0)
+    expect(vd.trucks_effective).toBeGreaterThan(0)
+  })
+
+  test('contains loss breakdown detail for report financial section', () => {
+    const answers = makeAnswers()
+    const result = calc(answers)
+    const vd = buildValidatedDiagnosis(result, answers)
+
+    expect(vd.loss_breakdown_detail).toBeDefined()
+    expect(vd.loss_breakdown_detail.length).toBeGreaterThan(0)
+    for (const item of vd.loss_breakdown_detail) {
+      expect(item.dimension).toBeTruthy()
+      expect(typeof item.amount).toBe('number')
+      expect(['additive', 'overlapping', 'directional_only']).toContain(item.classification)
+    }
+  })
+
+  test('report and DecisionView use the same core numbers', () => {
+    const answers = makeAnswers()
+    const result = calc(answers)
+    const vd = buildValidatedDiagnosis(result, answers)
+
+    // These fields power both Decision tab verdict AND report executive summary
+    expect(vd.total_loss).toBeGreaterThan(0)
+    expect(vd.primary_constraint).toBeTruthy()
+    expect(vd.main_driver.amount).toBeGreaterThan(0)
+    expect(vd.combined_recovery_range.lo).toBeGreaterThan(0)
+    expect(vd.actions.length).toBeGreaterThan(0)
+    expect(vd.performance_gaps).toBeDefined()
+    expect(vd.evidence_basis).toBeTruthy()
+  })
 })

@@ -415,6 +415,18 @@ export function runValidationChecks(d: StructuredDiagnosis): ValidationResult {
 // ── Step 3: Validated Diagnosis ──────────────────────────────────────────────
 
 export interface ValidatedDiagnosis {
+  // Plant context (needed for report headers)
+  plant_name?: string
+  country?: string
+  assessment_date?: string
+
+  // Plant parameters (needed for proof layer and report)
+  plant_capacity_m3hr: number
+  operating_hours: number
+  operating_days: number
+  trucks_total: number
+  trucks_effective: number
+
   // Verdict
   total_loss: number
   total_loss_range: { lo: number; hi: number } | null
@@ -431,6 +443,7 @@ export interface ValidatedDiagnosis {
   // Financial
   main_driver: { dimension: string; amount: number }
   other_losses: number
+  loss_breakdown_detail: { dimension: string; amount: number; classification: LossClassification }[]
   lost_volume_m3: number
   margin_per_m3: number
 
@@ -505,6 +518,18 @@ export function buildValidatedDiagnosis(
   ] : null
 
   return {
+    // Plant context
+    plant_name: meta?.plant,
+    country: meta?.country,
+    assessment_date: meta?.date,
+
+    // Plant parameters
+    plant_capacity_m3hr: r.cap,
+    operating_hours: r.opH,
+    operating_days: r.opD,
+    trucks_total: r.trucks,
+    trucks_effective: r.effectiveUnits,
+
     total_loss: validation.corrected_total_loss,
     total_loss_range: lossRange,
     primary_constraint: diagnosis.primary_constraint,
@@ -522,6 +547,11 @@ export function buildValidatedDiagnosis(
       ? { dimension: mainDriver.dimension, amount: mainDriver.amount }
       : { dimension: diagnosis.primary_constraint, amount: diagnosis.monthly_loss_total },
     other_losses: otherLoss,
+    loss_breakdown_detail: diagnosis.loss_breakdown.map(l => ({
+      dimension: l.dimension,
+      amount: l.amount,
+      classification: l.classification,
+    })),
     lost_volume_m3: diagnosis.lost_volume_m3_monthly,
     margin_per_m3: diagnosis.margin_per_m3,
 
