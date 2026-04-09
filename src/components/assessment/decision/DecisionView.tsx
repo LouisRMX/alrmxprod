@@ -37,11 +37,17 @@ export default function DecisionView({ calcResult, answers, meta, phase, savedDi
   const isValidated = phase === 'complete' || phase === 'onsite'
   const isPre = !isValidated
 
-  // Separate throughput from leakage
+  // Separate throughput from leakage, with concrete labels
   const throughputLoss = vd.main_driver.amount
-  const leakageItems = vd.loss_breakdown_detail.filter(l =>
-    l.classification === 'additive' && l.dimension !== vd.main_driver.dimension
-  )
+  const leakageLabelMap: Record<string, string> = {
+    'Quality': 'Rejection (material loss)',
+    'Partial loads': 'Partial loads (underloaded trucks)',
+    'Surplus': 'Surplus concrete waste',
+    'Fleet / Turnaround': 'Fleet breakdown costs',
+  }
+  const leakageItems = vd.loss_breakdown_detail
+    .filter(l => l.classification === 'additive' && l.dimension !== vd.main_driver.dimension)
+    .map(l => ({ ...l, label: leakageLabelMap[l.dimension] || l.dimension }))
   const totalLeakage = leakageItems.reduce((s, l) => s + l.amount, 0)
   const totalLoss = throughputLoss + totalLeakage
 
@@ -89,7 +95,7 @@ export default function DecisionView({ calcResult, answers, meta, phase, savedDi
                 {fmtFull(vd.cost_only_savings)}/month
               </div>
               <div style={{ fontSize: '12px', color: 'var(--gray-400)', marginTop: '4px' }}>
-                Fuel and variable cost reduction from turnaround improvement. Not recoverable revenue.
+                This represents operational cost savings, not additional revenue. Turnaround improvement reduces fuel and variable costs.
               </div>
             </div>
           )}
@@ -103,7 +109,7 @@ export default function DecisionView({ calcResult, answers, meta, phase, savedDi
               </div>
               {leakageItems.map((l, i) => (
                 <div key={i} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                  <span style={{ fontSize: '13px', color: 'var(--gray-500)' }}>{l.dimension}</span>
+                  <span style={{ fontSize: '13px', color: 'var(--gray-500)' }}>{l.label}</span>
                   <span style={{ fontSize: '13px', fontFamily: 'var(--mono)', fontWeight: 600, color: 'var(--gray-700)' }}>{fmt(l.amount)}/mo</span>
                 </div>
               ))}
@@ -125,7 +131,7 @@ export default function DecisionView({ calcResult, answers, meta, phase, savedDi
               {vd.total_loss_range ? `${fmtFull(vd.total_loss_range.lo)}–${fmtFull(vd.total_loss_range.hi)}` : fmtFull(totalLoss)}/month
             </div>
             <div style={{ fontSize: isMobile ? '16px' : '18px', fontWeight: 500, color: 'var(--gray-500)', marginTop: '6px' }}>
-              in profit is not being captured.
+              in recoverable profit is being lost.
             </div>
           </div>
 
@@ -236,7 +242,7 @@ export default function DecisionView({ calcResult, answers, meta, phase, savedDi
             {leakageItems.map((l, i) => (
               <div key={i} style={{ padding: '12px 20px', borderBottom: i < leakageItems.length - 1 ? '1px solid var(--border)' : 'none' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                  <div style={{ fontSize: '14px', color: 'var(--gray-700)' }}>{l.dimension}</div>
+                  <div style={{ fontSize: '14px', color: 'var(--gray-700)' }}>{l.label}</div>
                   <div style={{ fontSize: '14px', fontFamily: 'var(--mono)', fontWeight: 600, color: '#c96a00' }}>{fmt(l.amount)}/mo</div>
                 </div>
               </div>
@@ -395,10 +401,30 @@ export default function DecisionView({ calcResult, answers, meta, phase, savedDi
             </div>
           )}
 
-          {/* Combined recovery range */}
-          {vd.combined_recovery_range.lo > 0 && (
-            <div style={{ fontSize: '13px', color: 'var(--gray-500)', marginBottom: '20px' }}>
-              Combined recovery potential: <span style={{ fontFamily: 'var(--mono)', fontWeight: 600, color: 'var(--green)' }}>{fmt(vd.combined_recovery_range.lo)}–{fmt(vd.combined_recovery_range.hi)}/month</span> within 90 days
+          {/* Recovery potential with breakdown */}
+          {(throughputLoss > 0 || totalLeakage > 0) && (
+            <div style={{
+              background: 'var(--green-pale)', border: '1px solid var(--green-light)',
+              borderRadius: '10px', padding: '14px 20px', marginBottom: '20px',
+            }}>
+              <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--green)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>
+                Recovery potential (90 days)
+              </div>
+              {throughputLoss > 0 && (
+                <div style={{ fontSize: '13px', color: 'var(--gray-600)', marginBottom: '4px' }}>
+                  Throughput gap: <span style={{ fontFamily: 'var(--mono)', fontWeight: 600 }}>{fmt(throughputLoss)}/mo</span>
+                </div>
+              )}
+              {totalLeakage > 0 && (
+                <div style={{ fontSize: '13px', color: 'var(--gray-600)', marginBottom: '4px' }}>
+                  Leakage: <span style={{ fontFamily: 'var(--mono)', fontWeight: 600 }}>{fmt(totalLeakage)}/mo</span>
+                </div>
+              )}
+              {vd.combined_recovery_range.lo > 0 && (
+                <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--green)', marginTop: '6px' }}>
+                  Achievable recovery: <span style={{ fontFamily: 'var(--mono)' }}>{fmt(vd.combined_recovery_range.lo)}–{fmt(vd.combined_recovery_range.hi)}/month</span>
+                </div>
+              )}
             </div>
           )}
 
