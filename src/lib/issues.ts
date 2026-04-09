@@ -5,6 +5,30 @@
 
 import type { CalcResult, Answers } from './calculations'
 
+/** Physical TAT component this issue relates to */
+export type TATComponent = 'plant-side' | 'transit' | 'site' | 'washout' | null
+
+/** How strongly the evidence supports the mechanism */
+export type EvidenceStrength = 'observed' | 'likely' | 'hypothesis'
+
+/** Mechanism-based diagnosis for an issue */
+export interface Diagnosis {
+  /** What we directly know from data/assessment */
+  observed: string
+  /** What operational mechanism most plausibly explains the excess */
+  mechanism: string
+  /** What to do about it */
+  action: string
+  /** What would confirm or disprove the mechanism on-site */
+  validation: string
+  /** How strongly the evidence supports this mechanism */
+  strength: EvidenceStrength
+  /** Which physical TAT component this affects (null if not TAT-related) */
+  tatComponent: TATComponent
+  /** Other drivers that may contribute (capacity, customer readiness, etc.) */
+  competingDrivers?: string[]
+}
+
 export interface Issue {
   sev: 'red' | 'amber'
   pin: boolean
@@ -19,6 +43,8 @@ export interface Issue {
   category: 'bottleneck' | 'independent'
   /** Operational dimension this issue belongs to, used for financial bottleneck calculation. */
   dimension?: 'Production' | 'Dispatch' | 'Fleet' | 'Quality' | 'Other'
+  /** Mechanism-based diagnosis (new structured format, optional for backward compat) */
+  diagnosis?: Diagnosis
 }
 
 /**
@@ -75,6 +101,21 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
           : `Trucks should only depart when the site confirms the pump crew is ready. Closing this gap recovers ${fmt(taLossBase)}/month.`,
       loss: taLossDeferred ? 0 : taLossBase,
       formula: taLossDeferred ? undefined : `(${r.excessMin} excess min ÷ ${r.ta} actual min) × ${r.realisticMaxDel} target del × ${r.mixCap} m³ × $${Math.round(r.contribSafe)} margin × ${Math.round(r.opD / 12)} days/month`,
+      diagnosis: {
+        observed: `Turnaround averages ${r.ta} min vs ${r.TARGET_TA}-min benchmark for ${r.radius > 0 ? r.radius + ' km' : 'your'} delivery radius. ${r.excessMin} min excess per cycle across ${r.effectiveUnits} trucks.`,
+        mechanism: r.taBreakdownEntered && r.siteWaitExcess > 0
+          ? `Site waiting time (${r.taSiteWaitMin} min, ${r.siteWaitExcess} min above benchmark) is the primary driver. Trucks arrive before sites are ready, likely due to no advance coordination or ETA communication.`
+          : r.taBreakdownEntered && r.washoutExcess > 0
+            ? `Washout time (${r.taWashoutMin} min) and general cycle inefficiency are the likely drivers. Multiple small delays compound across the cycle.`
+            : `Without detailed breakdown data, the excess is likely distributed across site waiting, plant queue, and washout. Site wait is typically the largest controllable component in GCC operations.`,
+        action: taLossDeferred
+          ? 'Address site waiting time as the priority lever. See site-wait finding below.'
+          : 'Implement pre-departure site readiness confirmation. Trucks should only leave when site confirms pump crew and foreman are ready.',
+        validation: 'Review truck arrival vs. pour-start timestamps for 1 week. Measure actual site wait, plant queue, and washout separately. GPS data can confirm transit vs. idle time split.',
+        strength: r.taBreakdownEntered ? 'observed' : 'likely',
+        tatComponent: null, // TAT itself is the total, not a component
+        competingDrivers: ['site readiness', 'plant queue length', 'transit distance', 'washout process'],
+      },
     })
   }
 
@@ -97,11 +138,22 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
 
     issues.push({
       sev: 'red', pin: bn === 'Dispatch', category: 'bottleneck', dimension: 'Dispatch',
-      t: `Dispatch score ${r.scores.dispatch}/100, primary bottleneck`,
+      t: `Dispatch coordination is the primary constraint${r.dispatchMin ? ` (${r.dispatchMin} min order-to-truck)` : ''}`,
       action: 'Measure order-to-dispatch time daily, target under 15 min',
       rec: dispRec,
       loss,
       formula: `Turnaround loss (${fmt(taLossBase)}${r.demandSufficient === false ? ' cost-only' : ''}) + 35% of capacity gap (${fmt(Math.round(r.capLeakMonthly * 0.35))})`,
+      diagnosis: {
+        observed: `Dispatch operates on ${(a.dispatch_tool as string || 'unknown tools').split(',')[0].toLowerCase()}. ${a.route_clustering === 'Rarely or never' ? 'No route clustering.' : a.route_clustering === 'Sometimes, depends on the dispatcher' ? 'Inconsistent route clustering.' : ''} ${a.plant_idle === 'Every day, always waiting for trucks' || a.plant_idle === 'Regularly, most busy periods' ? 'Plant regularly idle waiting for trucks to return.' : ''}`.trim(),
+        mechanism: `Orders are ${r.dispatchMin && r.dispatchMin > 25 ? 'processed slowly' : 'not optimally sequenced'}, creating truck bunching at the plant and uncoordinated arrivals at sites. Without route clustering, trucks travel longer routes and arrive at unprepared sites. This drives excess time in both plant-side queue and site waiting.`,
+        action: weakest
+          ? `Priority: fix ${weakest.label.toLowerCase()} first. ${weakest.val < 50 ? 'This is critically below acceptable levels.' : 'This is the weakest link in dispatch coordination.'} Then implement time-slotted dispatch with 15-min release windows.`
+          : 'Implement structured dispatch process: time-slotted release, zone routing, and pre-departure site confirmation.',
+        validation: 'Track order-to-gate time for every truck for 5 working days. Map truck departure pattern by hour to identify clustering. Call 3 sites to ask how often trucks arrive before they are ready.',
+        strength: dSubScores.length >= 3 ? 'observed' : 'likely',
+        tatComponent: 'plant-side',
+        competingDrivers: ['batching capacity', 'fleet size', 'order volume patterns'],
+      },
     })
 
     if (r.ta > r.TARGET_TA && bn !== 'Fleet') {
@@ -147,6 +199,21 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
         : 'Check batch cycle time and aggregate feed rate. Pre-staging batching before peak hours is the fastest lever.',
       loss: demandGated ? 0 : r.capLeakMonthly,
       formula: `(${r.cap} designed − ${r.actual.toFixed(1)} actual m³/hr) × ${r.opH} hr × ${Math.round(r.opD / 12)} days/month × $${Math.round(r.contribSafe)} margin`,
+      diagnosis: {
+        observed: `Plant produces ${r.actual.toFixed(1)} m³/hr against ${r.cap} m³/hr installed capacity (${Math.round(r.util * 100)}% utilization).${demandGated ? ' Demand is reported as insufficient to fill capacity.' : ''}`,
+        mechanism: demandGated
+          ? 'Low utilization is demand-driven, not operational. The plant has capacity headroom but insufficient order volume to fill it.'
+          : `Plant is underutilizing installed capacity during operating hours. ${a.batch_cycle ? 'Batch cycle is ' + (a.batch_cycle as string).split(',')[0].toLowerCase() + '.' : ''} ${a.unplanned_stops && a.unplanned_stops !== 'None, no unplanned stops' ? 'Unplanned stops are reported.' : ''} The gap may be caused by slow batching, fleet constraints preventing enough deliveries, or demand patterns that leave the plant idle during parts of the day.`.trim(),
+        action: demandGated
+          ? 'Focus on growing order book and pricing optimization before investing in production throughput.'
+          : 'Map hourly production pattern across a typical week. Identify idle periods and whether they are caused by no orders, no trucks, or slow batching. Pre-stage batching 30 min before known peak windows.',
+        validation: 'Review daily batching logs hour-by-hour for 1 week. Count idle periods and categorize cause: no order, no truck available, or equipment downtime. Check batch cycle time against plant specification.',
+        strength: demandGated ? 'observed' : 'likely',
+        tatComponent: 'plant-side',
+        competingDrivers: demandGated
+          ? ['market demand', 'pricing strategy', 'sales pipeline']
+          : ['batch cycle speed', 'fleet availability', 'demand patterns', 'aggregate feed rate'],
+      },
     })
   }
 
@@ -184,6 +251,15 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
         rec: `Plant-side rejections (~${plantPct}% of total) are caused by batching, dosing, or mix quality failures. Each rejected load wastes $${Math.round(r.materialCostPerM3 || r.contribSafe)}/m³ in raw materials. Fix: monthly sensor calibration and mandatory slump testing at dispatch.`,
         loss: r.rejectPlantSideLoss,
         formula: `${plantPct}% of total rejection loss ($${r.rejectLeakMonthly.toLocaleString()}) | ${totalFormula}`,
+        diagnosis: {
+          observed: `Rejection rate at ${r.rejectPct}%. Plant-side causes account for ~${plantPct}% of rejections.${a.batch_calibration ? ' Calibration: ' + (a.batch_calibration as string).split(',')[0].toLowerCase() + '.' : ''}`,
+          mechanism: 'Plant-side rejections are typically caused by: incorrect water-cement ratio (sensor drift or manual override), inconsistent aggregate moisture compensation, or expired admixture. Long turnaround times in hot climates compound the problem through slump loss.',
+          action: 'Calibrate water-cement sensors monthly. Implement mandatory slump test at dispatch point before every truck leaves. Review admixture dosing protocol.',
+          validation: 'Pull last 30 days of batch tickets. Identify which mix designs have highest rejection. Check sensor calibration date. Observe 5 loads from batching to slump test.',
+          strength: a.batch_calibration ? 'observed' : 'likely',
+          tatComponent: null,
+          competingDrivers: ['sensor calibration age', 'ambient temperature', 'aggregate moisture', 'admixture shelf life'],
+        },
       })
     }
 
@@ -196,6 +272,15 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
         rec: `Customer-side rejections (~${customerPct}% of total) are caused by site unreadiness, pump delays, or contractor refusals. The fix is contract enforcement and dispatch protocol, not batch control. A pre-departure confirmation call and an enforced demurrage clause address this directly.`,
         loss: r.rejectCustomerSideLoss,
         formula: `${customerPct}% of total rejection loss ($${r.rejectLeakMonthly.toLocaleString()}) | ${totalFormula}`,
+        diagnosis: {
+          observed: `${customerPct}% of rejections attributed to customer/site causes. Rejection rate: ${r.rejectPct}%.`,
+          mechanism: 'Customer-side rejections happen when: site is not ready when truck arrives (pump not set up, formwork incomplete), contractor refuses load due to scheduling change, or concrete exceeds spec due to extended wait time on site in hot conditions.',
+          action: 'Pre-departure confirmation call to site. Enforce demurrage clause after 40 min. Add return-load cost recovery clause to contracts.',
+          validation: 'Review last 20 rejections: categorize as plant-cause vs site-cause. Ask dispatcher how often sites are not ready. Check if demurrage clause exists and is enforced.',
+          strength: 'likely',
+          tatComponent: 'site',
+          competingDrivers: ['contractor scheduling', 'pump availability', 'ambient temperature', 'turnaround time (slump loss)'],
+        },
       })
     }
   }
@@ -265,6 +350,14 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
       action: 'Install dedicated washout bay with high-pressure water supply',
       rec: `Reducing washout to 10–15 min frees ${wMin - 15} min per truck per cycle.`,
       loss: wLoss,
+      diagnosis: {
+        observed: `Washout time reported at ${wMin} min per truck. Benchmark is 10-15 min. Excess: ${wMin - 15} min per cycle.`,
+        mechanism: 'Slow washout is typically caused by: low water pressure, shared washout bay with queuing, no dedicated washout station, or manual drum cleaning process.',
+        action: 'Install a dedicated high-pressure washout bay separate from the loading area. If space allows, create a two-position washout to eliminate queuing.',
+        validation: 'Time 5 consecutive washouts. Observe whether delay is water pressure, queue, or manual cleaning. Check if washout bay is shared with other plant functions.',
+        strength: 'observed',
+        tatComponent: 'washout',
+      },
     })
   }
 
@@ -296,6 +389,15 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
       rec: `Site waiting time is the single largest controllable component of your ${r.ta}-min turnaround. Reducing it by ${effectiveSiteWaitExcess} min recovers approximately ${fmt(siteWaitLoss)}/month, without adding a single truck.`,
       loss: siteWaitLoss,
       formula: `${effectiveSiteWaitExcess} actionable excess min ÷ ${r.ta} total TA × ${r.realisticMaxDel} max del/day × ${r.mixCap} m³ × ${Math.round(r.contribSafe)}/m³ × ${Math.round(r.opD / 12)} days`,
+      diagnosis: {
+        observed: `Site wait measured at ${r.taSiteWaitMin} min per delivery. Benchmark is 35 min. Excess: ${r.siteWaitExcess} min per cycle.`,
+        mechanism: `Trucks arrive before the site is ready to receive concrete. This is typically caused by: no advance ETA communication from dispatch, contractors not staging pump crew before truck arrival, or multiple trucks arriving simultaneously at unprepared sites.`,
+        action: 'Implement two changes: (1) dispatcher sends ETA to site 30 min before arrival, (2) enforce demurrage clause for wait times exceeding 40 min. This addresses both the coordination gap and the incentive structure.',
+        validation: 'On-site: observe 10 deliveries and record actual arrival-to-pour-start time. Ask site foreman: how often is the pump crew ready when the truck arrives? Check whether demurrage clause exists in contracts.',
+        strength: 'observed',
+        tatComponent: 'site',
+        competingDrivers: ['customer site readiness', 'pump crew scheduling', 'access road conditions'],
+      },
     })
   }
 
