@@ -29,16 +29,21 @@ export default function DecisionView({ calcResult, answers, meta, phase }: Decis
   const isValidated = phase === 'complete' || phase === 'onsite'
   const isPre = !isValidated
 
-  // Primary: highest-loss issue with diagnosis. Secondary: compressed signal only.
   const withDiagnosis = issues.filter(i => i.diagnosis && i.loss > 0)
   const primary = withDiagnosis[0] ?? null
-  const secondaries = withDiagnosis.slice(1).filter(i => i.dimension !== primary?.dimension)
+  // Secondaries: unique dimensions only, max 2, one line each
+  const seenDims = new Set(primary?.dimension ? [primary.dimension] : [])
+  const secondaries = withDiagnosis.slice(1).filter(i => {
+    if (!i.dimension || seenDims.has(i.dimension)) return false
+    seenDims.add(i.dimension)
+    return true
+  }).slice(0, 2)
 
   const totalLoss = r.turnaroundLeakMonthly + r.capLeakMonthly + r.rejectLeakMonthly +
     (r.partialLeakMonthly || 0) + (r.surplusLeakMonthly || 0)
   const excessMin = r.excessMin || 0
 
-  // TAT breakdown: only when we have real component data AND on-site
+  // TAT breakdown: only when validated AND real component data exists
   const hasBreakdown = r.taBreakdownEntered && isValidated
   const tatComponents = hasBreakdown ? [
     { label: 'Plant-side', actual: Math.max(0, r.ta - (r.taTransitMin || 0) - (r.taSiteWaitMin || 0) - (r.taWashoutMin || 0)), benchmark: Math.max(0, r.TARGET_TA - (r.taTransitMin ? Math.min(r.taTransitMin, r.TARGET_TA * 0.3) : r.TARGET_TA * 0.2) - 35 - 12) },
@@ -50,16 +55,16 @@ export default function DecisionView({ calcResult, answers, meta, phase }: Decis
     ? tatComponents.reduce((max, c) => (c.actual - c.benchmark > (max.actual - max.benchmark) ? c : max), tatComponents[0])
     : null
 
-  // Verdict: concrete, observable cause from first sentence of mechanism
-  function buildVerdictCause(): string {
+  // Verdict cause: decisive, concrete, no hedging. Nuance lives in diagnosis.
+  function verdictCause(): string {
     if (!primary?.diagnosis) return `turnaround is ${excessMin} min above target`
-    const mech = primary.diagnosis.mechanism
+    const raw = primary.diagnosis.mechanism
       .replace(/^Based on (the )?reported (dispatch )?(setup|inputs),?\s*/i, '')
-    const firstSentence = mech.split('.')[0].toLowerCase()
-    return firstSentence
+    // Always strip "likely" from verdict - this is the decision, not the analysis
+    return raw.split('.')[0].replace(/\blikely\b\s*/gi, '').replace(/\s+/g, ' ').trim().toLowerCase()
   }
 
-  // Actions: only from primary issue to keep single-threaded
+  // Actions: only from primary issue
   const primaryActions: { text: string; detail: string; priority: 'start' | 'next' | 'later' }[] = []
   if (primary?.diagnosis) {
     const steps = primary.diagnosis.action.split(/Step \d+:\s*/).filter(Boolean)
@@ -78,6 +83,33 @@ export default function DecisionView({ calcResult, answers, meta, phase }: Decis
   const actions = primaryActions.slice(0, 5)
 
   const demandConstrained = r.demandSufficient === false
+
+  // Diagnosis mechanism: max 3 sentences. Nuance lives here, not in verdict.
+  // "likely" kept for inferred mechanisms, stripped for observed.
+  function diagnosisMechanism(): string {
+    if (!primary?.diagnosis) return ''
+    const raw = primary.diagnosis.mechanism
+      .replace(/^Based on (the )?reported (dispatch )?(setup|inputs),?\s*/i, '')
+    const sentences = raw.split('.').map(s => s.trim()).filter(Boolean).slice(0, 3)
+    if (primary.diagnosis.strength === 'observed') {
+      return sentences.map(s => s.replace(/\blikely\b\s*/gi, '').replace(/\s+/g, ' ').trim()).join('. ') + '.'
+    }
+    return sentences.join('. ') + '.'
+  }
+
+  // Validation line: observed data for confirmed, validation step for likely
+  function validationLine(): { label: string; text: string } {
+    if (!primary?.diagnosis) return { label: '', text: '' }
+    if (isValidated && primary.diagnosis.strength === 'observed') {
+      // Use observed field which contains measured data
+      const obs = primary.diagnosis.observed.split('.').filter(s => s.trim()).slice(0, 2).join('.') + '.'
+      return { label: 'Confirmed by:', text: obs }
+    }
+    const val = primary.diagnosis.validation.split('.').filter(s => s.trim()).slice(0, 2).join('.') + '.'
+    return { label: 'To validate:', text: val }
+  }
+
+  const vLine = validationLine()
 
   return (
     <div style={{
@@ -118,8 +150,7 @@ export default function DecisionView({ calcResult, answers, meta, phase }: Decis
               <span style={{ color: 'var(--red)' }}>
                 {isPre ? fmtRange(totalLoss) : fmt(totalLoss)}/month
               </span>{' '}
-              {isPre ? 'is likely being lost because ' : 'is lost because '}
-              {buildVerdictCause()}.
+              is lost because {verdictCause()}.
             </div>
             <div style={{ fontSize: '14px', fontFamily: 'var(--mono)', color: 'var(--gray-500)' }}>
               Turnaround: {r.ta} min → {r.TARGET_TA} min target ({excessMin} min excess)
@@ -128,7 +159,7 @@ export default function DecisionView({ calcResult, answers, meta, phase }: Decis
         )}
       </div>
 
-      {/* ── TAT Breakdown (on-site with data only) ── */}
+      {/* ── TAT Breakdown (validated + data only, otherwise nothing) ── */}
       {tatComponents && (
         <div style={{
           background: 'var(--white)', border: '1px solid var(--border)',
@@ -155,8 +186,10 @@ export default function DecisionView({ calcResult, answers, meta, phase }: Decis
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                     <span style={{ fontSize: '18px', fontWeight: 700, fontFamily: 'var(--mono)', color: excess > 0 ? (isPrim ? 'var(--red)' : '#c96a00') : 'var(--gray-700)' }}>{c.actual} min</span>
-                    {excess > 0 ? <span style={{ fontSize: '11px', fontWeight: 600, color: isPrim ? 'var(--red)' : '#c96a00' }}>+{excess}</span>
-                    : <span style={{ fontSize: '11px', color: 'var(--green)', fontWeight: 600 }}>on target</span>}
+                    {excess > 0
+                      ? <span style={{ fontSize: '11px', fontWeight: 600, color: isPrim ? 'var(--red)' : '#c96a00' }}>+{excess}</span>
+                      : <span style={{ fontSize: '11px', color: 'var(--green)', fontWeight: 600 }}>on target</span>
+                    }
                   </div>
                   {isPrim && (
                     <div style={{ marginTop: '8px', fontSize: '10px', fontWeight: 700, color: 'var(--red)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
@@ -170,17 +203,6 @@ export default function DecisionView({ calcResult, answers, meta, phase }: Decis
         </div>
       )}
 
-      {/* ── Pre-assessment TAT direction (no breakdown) ── */}
-      {isPre && r.ta > r.TARGET_TA && !tatComponents && primary?.diagnosis?.tatImpactEstimate && (
-        <div style={{
-          background: 'var(--white)', border: '1px solid var(--border)',
-          borderRadius: '12px', padding: isMobile ? '16px' : '18px 24px',
-          marginBottom: '24px', fontSize: '14px', color: 'var(--gray-500)', lineHeight: 1.6,
-        }}>
-          {primary.diagnosis.tatImpactEstimate}
-        </div>
-      )}
-
       {/* ── Diagnosis ── */}
       {primary?.diagnosis && !demandConstrained && (
         <div style={{ marginBottom: '24px' }}>
@@ -188,7 +210,6 @@ export default function DecisionView({ calcResult, answers, meta, phase }: Decis
             background: 'var(--white)', border: '1px solid var(--border)',
             borderRadius: '12px', padding: isMobile ? '16px' : '20px 24px',
           }}>
-            {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ fontSize: '14px' }}>⚡</span>
@@ -199,37 +220,25 @@ export default function DecisionView({ calcResult, answers, meta, phase }: Decis
                 </span>
               </div>
               {isValidated && primary.diagnosis.strength === 'observed' && (
-                <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '4px', background: 'var(--green-light)', color: 'var(--green)' }}>
-                  confirmed
-                </span>
+                <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '4px', background: 'var(--green-light)', color: 'var(--green)' }}>confirmed</span>
               )}
             </div>
 
-            {/* Mechanism: 3 lines max, no filler */}
             <div style={{ fontSize: '14px', color: 'var(--gray-700)', lineHeight: 1.6, marginBottom: '12px' }}>
-              {primary.diagnosis.mechanism
-                .replace(/^Based on (the )?reported (dispatch )?(setup|inputs),?\s*/i, '')
-                .split('.').filter(s => s.trim()).slice(0, 3).map(s => s.trim()).join('. ')
-              }.
+              {diagnosisMechanism()}
             </div>
 
-            {/* Validation / Confirmation */}
             <div style={{
               fontSize: '12px', color: 'var(--gray-400)', lineHeight: 1.5,
               borderTop: '1px solid var(--border)', paddingTop: '10px',
             }}>
-              {isValidated && primary.diagnosis.strength === 'observed' ? (
-                <><strong style={{ color: 'var(--gray-500)' }}>Confirmed by:</strong> {primary.diagnosis.observed.split('.').slice(0, 2).join('.') + '.'}</>
-              ) : (
-                <><strong style={{ color: 'var(--gray-500)' }}>To validate:</strong> {primary.diagnosis.validation.split('.').slice(0, 2).join('.') + '.'}</>
-              )}
+              <strong style={{ color: 'var(--gray-500)' }}>{vLine.label}</strong> {vLine.text}
             </div>
           </div>
 
-          {/* Secondary issues: one line each, no explanation, no actions */}
           {secondaries.length > 0 && (
             <div style={{ marginTop: '10px', paddingLeft: '14px', borderLeft: '2px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              {secondaries.slice(0, 2).map((s, i) => (
+              {secondaries.map((s, i) => (
                 <div key={i} style={{ fontSize: '13px', color: 'var(--gray-400)' }}>
                   <strong style={{ color: 'var(--gray-500)' }}>Also contributing:</strong>{' '}
                   {s.dimension} — {fmt(s.loss)}/mo
@@ -293,7 +302,6 @@ export default function DecisionView({ calcResult, answers, meta, phase }: Decis
         </div>
       )}
 
-      {/* Footer */}
       <div style={{ fontSize: '12px', color: 'var(--gray-400)' }}>
         {isValidated ? 'Validated on-site.' : 'Based on reported data. On-site validation will confirm drivers.'}
       </div>
