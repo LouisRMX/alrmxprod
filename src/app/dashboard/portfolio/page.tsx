@@ -103,7 +103,7 @@ export default async function PortfolioPage() {
         {[
           { label: 'Total assessments', value: total.toString() },
           { label: 'Assessments completed', value: total > 0 ? `${total}` : '-' },
-          { label: 'Total EBITDA gap', value: fmt(totalEbitda) + '/mo' },
+          { label: 'Total monthly loss', value: fmt(totalEbitda) + '/mo' },
         ].map(kpi => (
           <div key={kpi.label} style={{
             background: 'var(--white)', border: '1px solid var(--border)',
@@ -137,7 +137,7 @@ export default async function PortfolioPage() {
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '700px' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--gray-50)' }}>
-                {['Plant', 'Customer', 'Date', 'Phase', 'Score', 'EBITDA gap', 'Tracking', ''].map(h => (
+                {['Plant', 'Customer', 'Date', 'Phase', 'Score', 'Monthly loss', 'Tracking', ''].map(h => (
                   <th key={h} style={{
                     padding: '10px 16px', fontSize: '11px', fontWeight: '500',
                     color: 'var(--gray-500)', textAlign: 'left', textTransform: 'uppercase', letterSpacing: '.4px'

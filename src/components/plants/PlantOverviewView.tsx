@@ -172,7 +172,7 @@ function PlantCard({ plant, isMobile }: { plant: PlantCardData; isMobile: boolea
               {fmt(a.ebitda_monthly)}
             </span>
             {a.ebitda_monthly
-              ? <span style={{ fontSize: '12px', color: '#e06060', fontWeight: 500 }}>/mo revenue at risk</span>
+              ? <span style={{ fontSize: '12px', color: '#e06060', fontWeight: 500 }}>/mo monthly loss</span>
               : <span style={{ fontSize: '12px', color: 'var(--gray-300)' }}>no gap identified</span>
             }
           </div>
@@ -184,7 +184,7 @@ function PlantCard({ plant, isMobile }: { plant: PlantCardData; isMobile: boolea
                 fontSize: '10px', fontWeight: 700, padding: '2px 7px',
                 borderRadius: '4px', background: 'var(--error-bg)', color: 'var(--red)', flexShrink: 0,
               }}>
-                ⚡ {a.bottleneck === 'Fleet' ? 'logistics' : a.bottleneck.toLowerCase()}
+                ⚡ {a.bottleneck === 'Fleet' ? 'fleet' : a.bottleneck === 'Dispatch' ? 'fleet' : a.bottleneck?.toLowerCase()}
               </span>
               {a.constraintDetail && (
                 <span style={{ fontSize: '11px', color: 'var(--gray-400)' }}>{a.constraintDetail}</span>

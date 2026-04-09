@@ -148,7 +148,7 @@ export default function SimulatorView({ calcResult, readOnly }: SimulatorViewPro
       const targetTA = result.prodDaily > 0
         ? Math.max(40, Math.round(baseline.opH * 60 * sTrucks * baseline.mixCap * dispEff / result.prodDaily))
         : sTurnaround
-      return `Trucks are the bottleneck, delivering ${Math.round(result.effFleetDaily)} m³/day but plant can produce ${Math.round(result.prodDaily)} m³/day (${gap} m³/day idle capacity). Reducing turnaround to ~${targetTA} min unlocks that gap without adding trucks.`
+      return `Fleet is the active constraint, delivering ${Math.round(result.effFleetDaily)} m³/day but plant can produce ${Math.round(result.prodDaily)} m³/day (${gap} m³/day idle capacity). Reducing turnaround to ~${targetTA} min unlocks that gap without adding trucks.`
     } else {
       return `Plant is running at full capacity (${Math.round(result.prodDaily)} m³/day), adding trucks or cutting turnaround won't increase output from here. Use the Price slider to grow revenue on existing volume, or invest in plant capacity expansion.`
     }
@@ -445,7 +445,7 @@ export default function SimulatorView({ calcResult, readOnly }: SimulatorViewPro
               {
                 title: 'Scenario output',
                 rows: [
-                  [`Binding constraint`, `min(fleet ${infoData.fleetEff}, plant ${infoData.plantCeiling})`, `${infoData.scenarioDaily} m³/day`],
+                  [`Active constraint`, `min(fleet ${infoData.fleetEff}, plant ${infoData.plantCeiling})`, `${infoData.scenarioDaily} m³/day`],
                   [`Annual`, `${infoData.scenarioDaily} m³/day × ${baseline.opD} days`, `${result.scenarioAnnual.toLocaleString()} m³/yr`],
                 ],
               },

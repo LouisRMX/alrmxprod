@@ -438,10 +438,9 @@ export default function SimulatorClient({ assessments }: SimulatorClientProps) {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
               {[
-                { label: 'Revenue at risk', value: fmtMoney(selected.ebitda_monthly || 0) + '/mo', color: '#C0392B' },
-                { label: 'Bottleneck', value: selected.bottleneck || '-', color: '#C0392B' },
+                { label: 'Monthly loss', value: fmtMoney(selected.ebitda_monthly || 0) + '/mo', color: '#C0392B' },
+                { label: 'Constraint', value: selected.bottleneck || '-', color: '#C0392B' },
                 { label: 'Annual volume', value: fmtVolume(result.baselineAnnual), color: 'var(--gray-900)' },
-                { label: 'EBITDA gap', value: fmtMoney(selected.ebitda_monthly || 0) + '/mo', color: '#C0392B' },
               ].map(kpi => (
                 <div key={kpi.label}>
                   <div style={{ fontSize: '10px', color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: '4px' }}>
