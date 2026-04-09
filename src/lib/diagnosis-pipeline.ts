@@ -463,6 +463,12 @@ export interface ValidatedDiagnosis {
   actions: ActionItem[]
   combined_recovery_range: { lo: number; hi: number }
 
+  // Recovery opportunities (separate from loss, not in total)
+  recovery_opportunities: { label: string; amount: number }[]
+
+  // Demand-constrained: cost-only savings (separate from total loss)
+  cost_only_savings: number
+
   // Precision
   approved_precision: 'point_estimate' | 'range' | 'directional'
 
@@ -593,6 +599,11 @@ export function buildValidatedDiagnosis(
 
     actions: validation.corrected_actions,
     combined_recovery_range: { lo: recoveryLo, hi: recoveryHi },
+
+    recovery_opportunities: [
+      ...(r.demurrageOpportunity > 0 ? [{ label: 'Demurrage enforcement', amount: r.demurrageOpportunity }] : []),
+    ],
+    cost_only_savings: r.demandSufficient === false ? r.turnaroundLeakMonthlyCostOnly : 0,
 
     approved_precision: validation.approved_precision,
     flags: validation.flags,

@@ -156,14 +156,14 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
     saveTimerRef.current = setTimeout(() => {
       // Total loss from CalcResult fields directly (single source of truth)
       // A: Active constraint (only one): turnaroundLeak OR capLeak (never both)
-      // B: Additive independent: rejectMaterialLoss + partial + surplus + breakdown + demurrage
+      // B: Additive independent: rejectMaterialLoss + partial + surplus + breakdown
+      // Demurrage excluded from total: it's a recovery opportunity, not an operational loss
       // rejectOpportunityCost excluded: overlaps with throughput (wasted cycle = lost delivery)
       const throughputLoss = result.turnaroundLeakMonthly + result.capLeakMonthly // only one is >0
       const additiveLoss = result.rejectMaterialLoss
         + result.partialLeakMonthly
         + result.surplusLeakMonthly
         + result.breakdownCostMonthly
-        + result.demurrageOpportunity
       onSave({
         answers: updatedAnswers,
         scores: result.scores,
