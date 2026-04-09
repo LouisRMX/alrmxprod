@@ -433,9 +433,12 @@ export function calc(answers: Answers, meta?: { season?: string }, overrides?: C
   // ── Bottleneck-based throughput loss ────────────────────────────────────
   // Compare on m3/day basis. Only the active constraint carries financial loss.
 
-  // Fleet throughput: actual delivered volume per day (proxy for fleet-constrained throughput)
-  // Valid proxy only when demandSufficient !== false (guarded below)
-  const fleetDailyM3 = delDay * effectiveMixCap
+  // Fleet capacity: what fleet CAN deliver at current TAT (not what it actually delivers)
+  // Uses truck count × cycles per day × nominal mixer capacity
+  // This correctly identifies the constraint even when actual output is limited by plant
+  const fleetDailyM3 = ta > 0 && effectiveUnits > 0
+    ? effectiveUnits * Math.floor((opH * 60) / ta) * effectiveMixCap
+    : delDay * effectiveMixCap // fallback to actual if TAT unknown
 
   // Fleet target: what fleet could deliver at target TAT, capped at plant capacity
   const targetFleetDailyM3 = realisticMaxDel * effectiveMixCap
@@ -457,14 +460,17 @@ export function calc(answers: Answers, meta?: { season?: string }, overrides?: C
   const hasNearConstraint = constraintRatio > 0.85
 
   // Throughput loss: calculated only at the active constraint
+  // Demand guard: computed after demandSufficient is resolved (line ~558)
+  // Placeholder here, overwritten below after demand context is known
   const lostDailyM3 = Math.max(0, targetDailyM3 - actualDailyM3)
-  const turnaroundLeakMonthly = isFleetConstrained && lostDailyM3 > 0
+  let turnaroundLeakMonthly = isFleetConstrained && lostDailyM3 > 0
     ? Math.round(lostDailyM3 * contribSafe * (opD / 12) * seasonalFactor)
     : 0
 
   // capLeakMonthly: only carries loss when plant IS the active constraint
   // When fleet is constraining, capLeak is a downstream effect (not additive)
-  const capLeakMonthly = !isFleetConstrained ? capLeakMonthlyRaw : 0
+  // Note: demand guard applied later (after demandSufficient is resolved)
+  let capLeakMonthly = !isFleetConstrained ? capLeakMonthlyRaw : 0
 
   // Fuel (needed before turnaroundLeakMonthlyCostOnly)
   const fuelPerDel = +(a.fuel_per_delivery ?? 0) || 0
@@ -560,6 +566,14 @@ export function calc(answers: Answers, meta?: { season?: string }, overrides?: C
     dsAnswer === 'Both, we could sell more, and operations are also holding us back' ? true :
     dsAnswer === 'Demand, our volume reflects available orders, not operational limits' ? false :
     null
+
+  // Demand guard: when demand is the constraint, throughput improvement won't fill orders
+  // TAT: use cost-only version (fuel + variable overhead savings)
+  // Cap: zero (can't recover margin without orders)
+  if (demandSufficient === false) {
+    turnaroundLeakMonthly = turnaroundLeakMonthlyCostOnly
+    capLeakMonthly = 0
+  }
 
   // Reject leak, two components:
   // 1. Material loss: cement + aggregates + admixtures wasted on every rejected load (adjusted by liability)
