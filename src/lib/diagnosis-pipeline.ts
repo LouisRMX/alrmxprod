@@ -440,6 +440,14 @@ export interface ValidatedDiagnosis {
   observed_signals: string[]
   inferred_signals: string[]
 
+  // Production context
+  actual_monthly_m3: number
+  utilization_pct: number
+
+  // Quality context
+  reject_pct: number
+  reject_plant_fraction: number  // 0-1
+
   // Financial
   main_driver: { dimension: string; amount: number }
   other_losses: number
@@ -461,8 +469,12 @@ export interface ValidatedDiagnosis {
   flags: string[]
   validation_checks: ValidationCheck[]
 
-  // Limits
-  not_accounted_for: string[]
+  // Limits (split: global = always apply, case = depends on this plant's data)
+  global_model_limits: string[]
+  case_specific_missing_data: string[]
+
+  // Management context (observed on-site, for report credibility)
+  management_context?: string
 
   // Evidence
   evidence_basis: string
@@ -530,6 +542,12 @@ export function buildValidatedDiagnosis(
     trucks_total: r.trucks,
     trucks_effective: r.effectiveUnits,
 
+    // Production + quality context
+    actual_monthly_m3: r.monthlyM3 || Math.round(r.actual * r.opH * (r.opD / 12)),
+    utilization_pct: Math.round(r.util * 100),
+    reject_pct: r.rejectPct,
+    reject_plant_fraction: r.rejectPlantFraction,
+
     total_loss: validation.corrected_total_loss,
     total_loss_range: lossRange,
     primary_constraint: diagnosis.primary_constraint,
@@ -564,7 +582,19 @@ export function buildValidatedDiagnosis(
     flags: validation.flags,
     validation_checks: validation.checks,
 
-    not_accounted_for: diagnosis.not_accounted_for,
+    global_model_limits: [
+      'Traffic congestion patterns not modeled',
+      'Project type variation (high-rise vs ground pour) not differentiated',
+      'Driver behavior and break patterns not captured',
+      'Seasonal demand variation applied as a factor, not measured',
+    ],
+    case_specific_missing_data: [
+      ...(r.taBreakdownEntered ? [] : ['Detailed TAT component breakdown not available']),
+      ...(r.dispatchMin ? [] : ['Dispatch time not reported']),
+      ...(!r.taSiteWaitMin ? ['Site waiting time not measured per delivery'] : []),
+      ...(!r.fuelPerDel ? ['Fuel cost per delivery not provided'] : []),
+    ],
+    management_context: undefined, // Set manually during on-site if management has a different hypothesis
     evidence_basis: diagnosis.evidence_basis,
 
     tat_actual: r.ta,
