@@ -24,16 +24,21 @@ interface DecisionViewProps {
   answers: Answers
   meta?: { country?: string; plant?: string; date?: string }
   phase?: string
+  /** Saved snapshot from database. If provided, used directly instead of live recomputation. */
+  savedDiagnosis?: ValidatedDiagnosis | null
 }
 
-export default function DecisionView({ calcResult, answers, meta, phase }: DecisionViewProps) {
+export default function DecisionView({ calcResult, answers, meta, phase, savedDiagnosis }: DecisionViewProps) {
   const isMobile = useIsMobile()
   const r = calcResult
   const [showCalcDetail, setShowCalcDetail] = useState(false)
   const [showMoreActions, setShowMoreActions] = useState(false)
 
-  // Single source of truth: validated diagnosis from pipeline
-  const vd = useMemo(() => buildValidatedDiagnosis(r, answers, meta), [r, answers, meta])
+  // Use saved snapshot if available, otherwise compute live (fallback for old assessments)
+  const vd = useMemo(
+    () => savedDiagnosis || buildValidatedDiagnosis(r, answers, meta),
+    [savedDiagnosis, r, answers, meta]
+  )
 
   const isValidated = phase === 'complete' || phase === 'onsite'
   const isPre = !isValidated

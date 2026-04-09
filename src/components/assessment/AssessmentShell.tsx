@@ -12,6 +12,7 @@ import ReportView from './report/ReportView'
 import OwnerReportView from './report/OwnerReportView'
 import SimulatorView from './simulator/SimulatorView'
 import DecisionView from './decision/DecisionView'
+import { buildValidatedDiagnosis } from '@/lib/diagnosis-pipeline'
 import TrackingTab from './tracking/TrackingTab'
 import GpsUploadView from '@/components/gps-upload/GpsUploadView'
 import { useIsMobile } from '@/hooks/useIsMobile'
@@ -57,6 +58,7 @@ interface AssessmentShellProps {
       m3PerDriverHour: number | null
       avgLoadM3: number | null
     }
+    validatedDiagnosis?: Record<string, unknown> | null
   }) => void
   baseline?: Answers
   requestMode?: AssessmentMode
@@ -76,9 +78,11 @@ interface AssessmentShellProps {
   customSections?: Section[]
   // Follow-up: baseline data for comparison in report view
   baselineData?: { answers: Answers; date: string }
+  // Saved diagnosis snapshot from database (if available)
+  savedDiagnosis?: Record<string, unknown> | null
 }
 
-export default function AssessmentShell({ initialAnswers, phase, season, country, plant, date, assessmentId, customerId, report, reportReleased, isAdmin, userRole, onSave, baseline, requestMode, onAnswersChange, demoBanner, extraTab, hideModeTabs, focusActions, customSections, baselineData }: AssessmentShellProps) {
+export default function AssessmentShell({ initialAnswers, phase, season, country, plant, date, assessmentId, customerId, report, reportReleased, isAdmin, userRole, onSave, baseline, requestMode, onAnswersChange, demoBanner, extraTab, hideModeTabs, focusActions, customSections, baselineData, savedDiagnosis }: AssessmentShellProps) {
   const [answers, setAnswers] = useState<Answers>(initialAnswers)
   const [currentSection, setCurrentSection] = useState(0)
   // Owner starts on report (they have no questions tab)
@@ -177,9 +181,12 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
             : null,
           avgLoadM3: result.effectiveMixCap > 0 ? Math.round(result.effectiveMixCap * 10) / 10 : null,
         } : undefined,
+        validatedDiagnosis: result.overall !== null
+          ? buildValidatedDiagnosis(result, updatedAnswers, { country: country || '', plant: plant || '', date: date || '' }) as unknown as Record<string, unknown>
+          : null,
       })
     }, 1000)
-  }, [onSave, country])
+  }, [onSave, country, plant, date])
 
   // Cleanup timer on unmount
   useEffect(() => {
@@ -359,6 +366,7 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
           answers={answers}
           meta={{ country, plant, date }}
           phase={phase}
+          savedDiagnosis={savedDiagnosis as import('@/lib/diagnosis-pipeline').ValidatedDiagnosis | undefined}
         />
       )}
 

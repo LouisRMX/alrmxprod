@@ -23,6 +23,7 @@ interface Assessment {
   report: { executive?: string; diagnosis?: string; actions?: string } | null
   report_released?: boolean
   focus_actions?: string[] | null
+  validated_diagnosis?: Record<string, unknown> | null
 }
 
 export default function AssessmentTool({
@@ -125,6 +126,7 @@ export default function AssessmentTool({
       m3PerDriverHour: number | null
       avgLoadM3: number | null
     }
+    validatedDiagnosis?: Record<string, unknown> | null
   }) => {
     // Queue if already saving, latest data will be saved when current save completes
     if (savingRef.current) {
@@ -142,6 +144,7 @@ export default function AssessmentTool({
       overall: data.overall,
       bottleneck: data.bottleneck,
       ebitda_monthly: data.ebitdaMonthly,
+      validated_diagnosis: data.validatedDiagnosis ?? null,
       hidden_rev_monthly: data.hiddenRevMonthly,
     }).eq('id', assessment.id)
 
@@ -376,6 +379,7 @@ export default function AssessmentTool({
           requestMode={requestedMode as import('@/components/assessment/ModeTabs').AssessmentMode | undefined}
           focusActions={assessment.focus_actions}
           baselineData={baselineAssessment ? { answers: baselineAssessment.answers as Answers, date: baselineAssessment.date } : undefined}
+          savedDiagnosis={assessment.validated_diagnosis}
         />
       )}
 
