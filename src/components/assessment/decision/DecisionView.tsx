@@ -70,10 +70,20 @@ export default function DecisionView({ calcResult, answers, meta, phase, savedDi
 
       {demandConstrained ? (
         <div style={{ marginBottom: '32px' }}>
-          <div style={{ fontSize: isMobile ? '18px' : '22px', fontWeight: 600, color: '#c96a00', lineHeight: 1.4 }}>
+          <div style={{ fontSize: isMobile ? '18px' : '22px', fontWeight: 600, color: '#c96a00', lineHeight: 1.4, marginBottom: '12px' }}>
             Your plant has capacity, but the order book does not fill it.
             Growing demand is the priority before optimizing operations.
           </div>
+          {totalLoss > 0 && (
+            <div style={{ fontSize: '14px', color: 'var(--gray-500)', lineHeight: 1.5 }}>
+              <span style={{ fontFamily: 'var(--mono)', fontWeight: 600 }}>{fmtFull(totalLoss)}/month</span> in operational cost reduction potential from turnaround improvement. This is not recoverable revenue. It represents fuel and variable cost savings only.
+            </div>
+          )}
+          {excessMin > 0 && (
+            <div style={{ fontSize: '13px', fontFamily: 'var(--mono)', color: 'var(--gray-400)', marginTop: '6px' }}>
+              Turnaround: {vd.tat_actual} min → {vd.tat_target} min target ({excessMin} min excess)
+            </div>
+          )}
         </div>
       ) : (
         <>

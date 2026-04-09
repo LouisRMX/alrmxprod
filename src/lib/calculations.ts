@@ -398,11 +398,18 @@ export function calc(answers: Answers, meta?: { season?: string }, overrides?: C
 
   // Derive effective load per trip from actual production ÷ actual monthly deliveries.
   // Captures partial loads and mixed-fleet averaging automatically.
-  // Falls back to mixer_capacity (or default 7 m³) if data is unavailable.
+  // Falls back to nominal mixer_capacity if derived value is unreliable.
   const monthlyDels = delDay > 0 ? delDay * workingDaysMonth : 0
-  const derivedMixCap = monthlyDels > 0 && monthlyM3 > 0
+  const derivedMixCapRaw = monthlyDels > 0 && monthlyM3 > 0
     ? Math.min(12, Math.max(3, monthlyM3 / monthlyDels))
     : 0
+  // Guard: if derived deviates >30% from nominal, inputs are likely inconsistent.
+  // Fall back to nominal in that case to prevent cascading calculation errors.
+  const mixCapDeviation = derivedMixCapRaw > 0 && mixCap > 0
+    ? Math.abs(derivedMixCapRaw - mixCap) / mixCap
+    : 0
+  const mixCapInconsistent = derivedMixCapRaw > 0 && mixCapDeviation > 0.30
+  const derivedMixCap = mixCapInconsistent ? 0 : derivedMixCapRaw // 0 triggers fallback below
   const effectiveMixCap = derivedMixCap > 0 ? derivedMixCap : mixCap
   const DELIVERY_RADIUS_MAP: Record<string, number> = {
     'Most deliveries under 5 km, dense urban core':       4,
@@ -421,8 +428,9 @@ export function calc(answers: Answers, meta?: { season?: string }, overrides?: C
   const effectiveUnits = qualifiedDrivers > 0 ? Math.min(operativeTrucks, qualifiedDrivers) : operativeTrucks
   const driverConstrained = qualifiedDrivers > 0 && qualifiedDrivers < operativeTrucks * 0.85
 
-  const maxDelDay = effectiveUnits > 0 && ta > 0 ? Math.floor(effectiveUnits * (opH * 60 / ta)) : 0
-  const realisticMaxDel = effectiveUnits > 0 ? Math.floor(effectiveUnits * (opH * 60 / TARGET_TA) * fleetUtilFactorFrac) : 0
+  // Continuous trips: no floor() to avoid artificial jumps from estimated TAT
+  const maxDelDay = effectiveUnits > 0 && ta > 0 ? Math.round(effectiveUnits * (opH * 60 / ta)) : 0
+  const realisticMaxDel = effectiveUnits > 0 ? Math.round(effectiveUnits * (opH * 60 / TARGET_TA) * fleetUtilFactorFrac) : 0
   const rawHidden = Math.max(0, realisticMaxDel - delDay)
   const hiddenSuspect = operativeTrucks > 0 && rawHidden > operativeTrucks * 3
   const hiddenDel = rawHidden
@@ -434,11 +442,12 @@ export function calc(answers: Answers, meta?: { season?: string }, overrides?: C
   // Compare on m3/day basis. Only the active constraint carries financial loss.
 
   // Fleet capacity: what fleet CAN deliver at current TAT (not what it actually delivers)
-  // Uses truck count × cycles per day × nominal mixer capacity
-  // This correctly identifies the constraint even when actual output is limited by plant
+  // Uses continuous trips (opH*60/ta, not floor) because TAT is typically estimated from
+  // dropdown categories, not precisely measured. Floor creates artificial jumps at thresholds.
+  // When GPS-measured TAT is available in future, consider switching to floor for that source.
   const fleetDailyM3 = ta > 0 && effectiveUnits > 0
-    ? effectiveUnits * Math.floor((opH * 60) / ta) * effectiveMixCap
-    : delDay * effectiveMixCap // fallback to actual if TAT unknown
+    ? effectiveUnits * ((opH * 60) / ta) * effectiveMixCap
+    : delDay * effectiveMixCap
 
   // Fleet target: what fleet could deliver at target TAT, capped at plant capacity
   const targetFleetDailyM3 = realisticMaxDel * effectiveMixCap
@@ -705,13 +714,15 @@ export function calc(answers: Answers, meta?: { season?: string }, overrides?: C
   // Overall + bottleneck
   const valid = [utilScore, dispScore, logisticsScore, qualityScore].filter((v) => v !== null) as number[]
   const overall = valid.length ? Math.round(valid.reduce((s, v) => s + v, 0) / valid.length) : null
+  // Bottleneck: determined by active constraint, not by lowest score.
+  // Dispatch is a mechanism, never a constraint label.
   let bottleneck: string | null = null
-  if (valid.length >= 2) {
-    const scores: Record<string, number | null> = { Production: utilScore, Dispatch: dispScore, Fleet: logisticsScore, Quality: qualityScore }
-    const validScores = Object.entries(scores).filter(([, v]) => v !== null) as [string, number][]
-    const mn = Math.min(...validScores.map(([, v]) => v))
-    const worst = validScores.find(([, v]) => v === mn)
-    bottleneck = worst ? worst[0] : null
+  if (demandSufficient === false) {
+    bottleneck = 'Demand'
+  } else if (isFleetConstrained) {
+    bottleneck = 'Fleet'
+  } else if (cap > 0 && actual > 0) {
+    bottleneck = 'Production'
   }
 
   // Warnings
