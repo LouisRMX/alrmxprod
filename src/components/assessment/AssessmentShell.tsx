@@ -154,16 +154,22 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
   const triggerSave = useCallback((updatedAnswers: Answers, result: CalcResult) => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
     saveTimerRef.current = setTimeout(() => {
-      // Compute totalLoss with correct bottleneck logic (max of overlapping, not sum)
-      const iss = buildIssues(result, updatedAnswers, { country: country || '' })
-      const bnLoss = Math.max(0, ...iss.filter(i => i.category === 'bottleneck' && i.loss > 0).map(i => i.loss))
-      const indLoss = iss.filter(i => i.category === 'independent').reduce((s, i) => s + i.loss, 0)
+      // Total loss from CalcResult fields directly (single source of truth)
+      // A: Active constraint (only one): turnaroundLeak OR capLeak (never both)
+      // B: Additive independent: rejectMaterialLoss + partial + surplus + breakdown + demurrage
+      // rejectOpportunityCost excluded: overlaps with throughput (wasted cycle = lost delivery)
+      const throughputLoss = result.turnaroundLeakMonthly + result.capLeakMonthly // only one is >0
+      const additiveLoss = result.rejectMaterialLoss
+        + result.partialLeakMonthly
+        + result.surplusLeakMonthly
+        + result.breakdownCostMonthly
+        + result.demurrageOpportunity
       onSave({
         answers: updatedAnswers,
         scores: result.scores,
         overall: result.overall,
         bottleneck: result.bottleneck,
-        ebitdaMonthly: bnLoss + indLoss,
+        ebitdaMonthly: throughputLoss + additiveLoss,
         hiddenRevMonthly: result.hiddenRevMonthly,
         benchmark: result.overall !== null ? {
           radius:       result.radius,

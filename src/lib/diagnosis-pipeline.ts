@@ -155,10 +155,11 @@ export function buildStructuredDiagnosis(
     })
   }
 
-  if (r.rejectLeakMonthly > 0) {
+  if (r.rejectMaterialLoss > 0) {
+    // Only material loss is additive. Opportunity cost (wasted cycle) overlaps with throughput.
     lossBreakdown.push({
       dimension: 'Quality',
-      amount: r.rejectLeakMonthly,
+      amount: r.rejectMaterialLoss,
       method: 'reject_rate_x_volume_x_material_cost',
       classification: 'additive',
       overlaps_with: null,
