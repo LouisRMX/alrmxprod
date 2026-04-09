@@ -190,26 +190,54 @@ export default function DecisionView({ calcResult, answers, meta, phase, savedDi
               {/* A. Constraint validation */}
               <div style={{ marginBottom: '16px' }}>
                 <div style={{ fontWeight: 700, color: 'var(--gray-700)', marginBottom: '6px', fontSize: '13px' }}>Why {constraint} is the active constraint</div>
-                {constraint === 'Fleet' && (
-                  <div>Fleet can deliver {fmt(r.effectiveUnits * ((r.opH * 60) / r.ta) * r.effectiveMixCap)} m³/day at current TAT. Plant can produce {fmt(Math.round(r.cap * 0.92 * r.opH))} m³/day. Fleet capacity is below plant capacity, making fleet the binding constraint. Production is not the bottleneck because the plant has idle capacity.</div>
-                )}
-                {constraint === 'Production' && (
-                  <div>Plant practical capacity ({fmt(Math.round(r.cap * 0.92 * r.opH))} m³/day) is below fleet delivery capacity. The plant cannot batch fast enough to fill all trucks. Fleet is not the bottleneck because trucks have idle time waiting for batching.</div>
-                )}
+                {constraint === 'Fleet' && (() => {
+                  const fleetM3 = Math.round(r.effectiveUnits * ((r.opH * 60) / r.ta) * r.effectiveMixCap)
+                  const plantM3 = Math.round(r.cap * 0.92 * r.opH)
+                  return (<>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 20px', marginBottom: '8px' }}>
+                      <span>Fleet capacity: <strong style={{ fontFamily: 'var(--mono)', color: 'var(--gray-700)' }}>{fleetM3.toLocaleString()} m³/day</strong></span>
+                      <span>Plant capacity: <strong style={{ fontFamily: 'var(--mono)', color: 'var(--gray-700)' }}>{plantM3.toLocaleString()} m³/day</strong></span>
+                    </div>
+                    <div>Fleet capacity is below plant capacity. Production is not the constraint because the plant has idle capacity.</div>
+                    <div style={{ marginTop: '6px', fontStyle: 'italic', color: 'var(--gray-400)' }}>
+                      This is a Fleet constraint because trucks complete too few cycles per day.
+                    </div>
+                  </>)
+                })()}
+                {constraint === 'Production' && (() => {
+                  const plantM3 = Math.round(r.cap * 0.92 * r.opH)
+                  return (<>
+                    <div>Plant practical capacity: <strong style={{ fontFamily: 'var(--mono)' }}>{plantM3.toLocaleString()} m³/day</strong>. This is below fleet delivery capacity. The plant cannot batch fast enough to fill all trucks.</div>
+                    <div style={{ marginTop: '6px', fontStyle: 'italic', color: 'var(--gray-400)' }}>
+                      This is a Production constraint because the batching plant limits output, not the fleet.
+                    </div>
+                  </>)
+                })()}
               </div>
 
-              {/* B. Throughput calculation */}
+              {/* B. Throughput calculation (step-by-step, scannable) */}
               <div style={{ marginBottom: '16px' }}>
                 <div style={{ fontWeight: 700, color: 'var(--gray-700)', marginBottom: '6px', fontSize: '13px' }}>Throughput loss calculation</div>
-                {constraint === 'Fleet' && excessMin > 0 ? (
-                  <div>
-                    TAT {vd.tat_actual} min → {Math.round((r.opH * 60) / r.ta * 10) / 10} trips/truck/day × {vd.trucks_effective} trucks × {r.effectiveMixCap.toFixed(1)} m³ = {fmt(Math.round(r.effectiveUnits * ((r.opH * 60) / r.ta) * r.effectiveMixCap))} m³/day actual.
-                    At target TAT ({vd.tat_target} min): {fmt(Math.round(Math.min(r.effectiveUnits * ((r.opH * 60) / r.TARGET_TA) * r.effectiveMixCap * 0.85, r.cap * 0.92 * r.opH)))} m³/day achievable.
-                    Gap × ${vd.margin_per_m3}/m³ × {Math.round(r.opD / 12)} days = <strong style={{ color: '#C0392B' }}>{fmt(throughputLoss)}/mo</strong>.
-                  </div>
-                ) : (
-                  <div>
-                    Plant at {vd.utilization_pct}% utilization vs 85% target. Gap: {fmt(vd.lost_volume_m3)} m³/mo × ${vd.margin_per_m3}/m³ = <strong style={{ color: '#C0392B' }}>{fmt(throughputLoss)}/mo</strong>.
+                {constraint === 'Fleet' && excessMin > 0 ? (() => {
+                  const tripsPerTruck = Math.round((r.opH * 60) / r.ta * 10) / 10
+                  const actualDailyM3 = Math.round(r.effectiveUnits * ((r.opH * 60) / r.ta) * r.effectiveMixCap)
+                  const targetDailyM3 = Math.round(Math.min(r.effectiveUnits * ((r.opH * 60) / r.TARGET_TA) * r.effectiveMixCap * 0.85, r.cap * 0.92 * r.opH))
+                  const gapDaily = targetDailyM3 - actualDailyM3
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <div>TAT: {vd.tat_actual} min → <strong>{tripsPerTruck} trips</strong> per truck per day</div>
+                      <div>→ <strong>{actualDailyM3.toLocaleString()} m³/day</strong> actual output</div>
+                      <div style={{ marginTop: '4px' }}>At target ({vd.tat_target} min):</div>
+                      <div>→ <strong>{targetDailyM3.toLocaleString()} m³/day</strong> achievable</div>
+                      <div style={{ marginTop: '4px' }}>Gap: <strong>{gapDaily.toLocaleString()} m³/day</strong></div>
+                      <div>→ <strong style={{ color: '#C0392B' }}>{fmt(throughputLoss)}/month</strong></div>
+                    </div>
+                  )
+                })() : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <div>Plant at <strong>{vd.utilization_pct}%</strong> utilization vs 85% target</div>
+                    <div>Gap: <strong>{vd.lost_volume_m3.toLocaleString()} m³/month</strong></div>
+                    <div>→ <strong style={{ color: '#C0392B' }}>{fmt(throughputLoss)}/month</strong></div>
                   </div>
                 )}
               </div>
@@ -237,11 +265,15 @@ export default function DecisionView({ calcResult, answers, meta, phase, savedDi
                     <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--green)', background: 'var(--green-light)', padding: '1px 6px', borderRadius: '3px', marginRight: '6px' }}>Observed</span>{s}
                   </div>
                 ))}
-                {vd.inferred_signals.slice(0, 1).map((s, i) => (
-                  <div key={`i${i}`}>
-                    <span style={{ fontSize: '10px', fontWeight: 700, color: '#c96a00', background: '#FFF8ED', padding: '1px 6px', borderRadius: '3px', marginRight: '6px' }}>Inferred</span>{s}
-                  </div>
-                ))}
+                {vd.inferred_signals.slice(0, 1).map((s, i) => {
+                  // Strengthen inferred by grounding in evidence, remove standalone "likely"
+                  const grounded = s.replace(/\blikely\b\s*/gi, '').replace(/\s+/g, ' ').trim()
+                  return (
+                    <div key={`i${i}`}>
+                      <span style={{ fontSize: '10px', fontWeight: 700, color: '#c96a00', background: '#FFF8ED', padding: '1px 6px', borderRadius: '3px', marginRight: '6px' }}>Inferred</span>{grounded}
+                    </div>
+                  )
+                })}
               </div>
 
               {/* What would improve */}
