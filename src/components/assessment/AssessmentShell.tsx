@@ -11,6 +11,7 @@ import GuidedMode from './guided/GuidedMode'
 import ReportView from './report/ReportView'
 import OwnerReportView from './report/OwnerReportView'
 import SimulatorView from './simulator/SimulatorView'
+import DecisionView from './decision/DecisionView'
 import TrackingTab from './tracking/TrackingTab'
 import GpsUploadView from '@/components/gps-upload/GpsUploadView'
 import { useIsMobile } from '@/hooks/useIsMobile'
@@ -94,9 +95,9 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
   // operator = questions + track (data input only)
   // null/admin = full access
   const allowedModes = useMemo((): AssessmentMode[] => {
-    if (userRole === 'owner')    return ['report', 'simulator', 'track']
+    if (userRole === 'owner')    return ['report', 'decision', 'simulator', 'track']
     if (userRole === 'operator') return ['questions', 'track']
-    return ['questions', 'report', 'simulator', 'track', 'gps']
+    return ['questions', 'report', 'decision', 'simulator', 'track', 'gps']
   }, [userRole])
 
   const canEdit = !userRole || userRole === 'manager' || userRole === 'operator'
@@ -339,6 +340,15 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
           userRole={userRole}
           focusActions={focusActions}
           baselineData={baselineData && baselineCalcResult ? { ...baselineData, calcResult: baselineCalcResult } : undefined}
+        />
+      )}
+
+      {mode === 'decision' && (
+        <DecisionView
+          calcResult={calcResult}
+          answers={answers}
+          meta={{ country, plant, date }}
+          phase={phase}
         />
       )}
 
