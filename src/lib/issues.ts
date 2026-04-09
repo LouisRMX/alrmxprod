@@ -129,7 +129,9 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
   }
 
   if (r.scores.dispatch !== null && r.scores.dispatch < 65) {
-    const loss = taLossBase + Math.round(r.capLeakMonthly * 0.35)
+    // Dispatch is a mechanism, not a loss carrier. loss: 0.
+    // TAT issue carries the financial loss. Dispatch explains the cause.
+    const loss = 0
 
     const dSubScores = [
       { label: 'Order to dispatch', val: { 'Under 15 minutes, fast response': 100, '15 to 25 minutes, acceptable': 70, '25 to 40 minutes, slow': 40, 'Over 40 minutes, critical bottleneck': 10 }[a.order_to_dispatch as string], weight: '40%' },
@@ -149,9 +151,9 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
       sev: 'red', pin: bn === 'Dispatch', category: 'bottleneck', dimension: 'Dispatch',
       t: `Dispatch coordination is the primary constraint${r.dispatchMin ? ` (${r.dispatchMin} min order-to-truck)` : ''}`,
       action: 'Measure order-to-dispatch time daily, target under 15 min',
-      rec: dispRec,
+      rec: dispRec.replace(/Turnaround excess of \d+ min is included in the dollar estimate\./, 'See turnaround finding for financial impact.'),
       loss,
-      formula: `Turnaround loss (${fmt(taLossBase)}${r.demandSufficient === false ? ' cost-only' : ''}) + 35% of capacity gap (${fmt(Math.round(r.capLeakMonthly * 0.35))})`,
+      formula: 'Dispatch is a mechanism. Financial loss is carried by the turnaround gap.',
       diagnosis: {
         observed: `Dispatch runs on ${(a.dispatch_tool as string || 'unknown tools').split(',')[0].toLowerCase()}. ${a.route_clustering === 'Rarely or never' ? 'No geographic zone routing in place.' : a.route_clustering === 'Sometimes, depends on the dispatcher' ? 'Zone routing is informal and inconsistent.' : 'Zone routing is in place.'} ${a.plant_idle === 'Every day, always waiting for trucks' || a.plant_idle === 'Regularly, most busy periods' ? 'Batching plant sits idle daily waiting for trucks to return.' : ''} ${r.dispatchMin ? `Order-to-truck time: ~${r.dispatchMin} min.` : ''}`.trim(),
         mechanism: `Based on the reported dispatch setup, truck departures are likely not time-spaced, creating queue buildup at the batching plant during peak ordering periods. ${a.route_clustering === 'Rarely or never' ? 'Without zone routing, trucks serving the same area depart at different times and cross paths, adding avoidable transit time.' : ''} ${a.plant_idle === 'Every day, always waiting for trucks' || a.plant_idle === 'Regularly, most busy periods' ? 'The reported daily plant idle time suggests trucks return in waves rather than at staggered intervals.' : ''} Sites likely receive no advance notice of arrival, reducing site readiness at truck arrival.`,

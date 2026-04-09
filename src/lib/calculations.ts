@@ -375,7 +375,10 @@ export function calc(answers: Answers, meta?: { season?: string }, overrides?: C
     ? (SUMMER_PROD_DROP_MAP[a.summer_prod_drop as string] ?? 1.0)
     : 1.0
 
-  const capLeakMonthly = Math.round(unusedCapAnnual * contribSafe / 12 * seasonalFactor)
+  // Cap leak: gap between actual and TARGET utilization (not 100%)
+  // A plant at 67% with 85% target has 18pp gap, not 33pp
+  const targetCapAnnual = Math.max(0, (cap * utilisationTargetFrac - actual) * opH * opD)
+  const capLeakMonthly = Math.round(targetCapAnnual * contribSafe / 12 * seasonalFactor)
 
   // Fleet
   const trucks = +(a.n_trucks ?? 0) || 0
@@ -423,8 +426,11 @@ export function calc(answers: Answers, meta?: { season?: string }, overrides?: C
   const hiddenConfidence: 'high' | 'low' = hiddenSuspect ? 'low' : 'high'
   const hiddenRevMonthly = Math.round(hiddenDel * effectiveMixCap * contribSafe * (opD / 12))
   const excessMin = Math.max(0, ta - TARGET_TA)
-  const turnaroundLeakMonthly = ta > 0 && effectiveUnits > 0
-    ? Math.round(excessMin / ta * realisticMaxDel * effectiveMixCap * contribSafe * (opD / 12) * seasonalFactor)
+  // Turnaround leak: lost deliveries × m3 × margin
+  // Simple: (what fleet could deliver at target TA) - (what fleet actually delivers) × m3 × margin
+  const lostDelsPerDay = Math.max(0, realisticMaxDel - delDay)
+  const turnaroundLeakMonthly = lostDelsPerDay > 0 && effectiveMixCap > 0
+    ? Math.round(lostDelsPerDay * effectiveMixCap * contribSafe * (opD / 12) * seasonalFactor)
     : 0
 
   // Fuel (needed before turnaroundLeakMonthlyCostOnly)
