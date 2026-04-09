@@ -28,6 +28,7 @@ export default function DecisionView({ calcResult, answers, meta, phase, savedDi
   const r = calcResult
   const [showCalcDetail, setShowCalcDetail] = useState(false)
   const [showMoreActions, setShowMoreActions] = useState(false)
+  const [expandedAction, setExpandedAction] = useState<number | null>(null)
 
   const vd = useMemo(
     () => savedDiagnosis || buildValidatedDiagnosis(r, answers, meta),
@@ -179,41 +180,77 @@ export default function DecisionView({ calcResult, answers, meta, phase, savedDi
             </button>
           </div>
 
-          {/* ═══ PROOF LAYER ═══ */}
+          {/* ═══ PROOF LAYER (Layer 2: expandable, defensible) ═══ */}
           {showCalcDetail && (
             <div style={{
               background: 'var(--gray-50)', border: '1px solid var(--border)',
               borderRadius: '10px', padding: '18px 22px', marginBottom: '24px',
               fontSize: '13px', color: 'var(--gray-500)', lineHeight: 1.7,
             }}>
-              <div style={{ fontWeight: 700, color: 'var(--gray-700)', marginBottom: '14px', fontSize: '14px' }}>How this estimate was calculated</div>
-              <div style={{ marginBottom: '12px' }}>
-                <div style={{ fontWeight: 600, color: 'var(--gray-600)', marginBottom: '6px' }}>Inputs</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 24px' }}>
-                  <span>Plant capacity: <strong style={{ fontFamily: 'var(--mono)', color: 'var(--gray-700)' }}>{vd.plant_capacity_m3hr} m³/hr</strong></span>
-                  <span>Utilization: <strong style={{ fontFamily: 'var(--mono)', color: 'var(--gray-700)' }}>{vd.utilization_pct}%</strong> (target 85%)</span>
-                  <span>Turnaround: <strong style={{ fontFamily: 'var(--mono)', color: 'var(--gray-700)' }}>{vd.tat_actual} min</strong> (target {vd.tat_target} min)</span>
-                  <span>Trucks: <strong style={{ fontFamily: 'var(--mono)', color: 'var(--gray-700)' }}>{vd.trucks_total}</strong> ({vd.trucks_effective} effective)</span>
-                  <span>Margin: <strong style={{ fontFamily: 'var(--mono)', color: 'var(--gray-700)' }}>${vd.margin_per_m3}/m³</strong></span>
-                </div>
+              {/* A. Constraint validation */}
+              <div style={{ marginBottom: '16px' }}>
+                <div style={{ fontWeight: 700, color: 'var(--gray-700)', marginBottom: '6px', fontSize: '13px' }}>Why {constraint} is the active constraint</div>
+                {constraint === 'Fleet' && (
+                  <div>Fleet can deliver {fmt(r.effectiveUnits * ((r.opH * 60) / r.ta) * r.effectiveMixCap)} m³/day at current TAT. Plant can produce {fmt(Math.round(r.cap * 0.92 * r.opH))} m³/day. Fleet capacity is below plant capacity, making fleet the binding constraint. Production is not the bottleneck because the plant has idle capacity.</div>
+                )}
+                {constraint === 'Production' && (
+                  <div>Plant practical capacity ({fmt(Math.round(r.cap * 0.92 * r.opH))} m³/day) is below fleet delivery capacity. The plant cannot batch fast enough to fill all trucks. Fleet is not the bottleneck because trucks have idle time waiting for batching.</div>
+                )}
               </div>
+
+              {/* B. Throughput calculation */}
+              <div style={{ marginBottom: '16px' }}>
+                <div style={{ fontWeight: 700, color: 'var(--gray-700)', marginBottom: '6px', fontSize: '13px' }}>Throughput loss calculation</div>
+                {constraint === 'Fleet' && excessMin > 0 ? (
+                  <div>
+                    TAT {vd.tat_actual} min → {Math.round((r.opH * 60) / r.ta * 10) / 10} trips/truck/day × {vd.trucks_effective} trucks × {r.effectiveMixCap.toFixed(1)} m³ = {fmt(Math.round(r.effectiveUnits * ((r.opH * 60) / r.ta) * r.effectiveMixCap))} m³/day actual.
+                    At target TAT ({vd.tat_target} min): {fmt(Math.round(Math.min(r.effectiveUnits * ((r.opH * 60) / r.TARGET_TA) * r.effectiveMixCap * 0.85, r.cap * 0.92 * r.opH)))} m³/day achievable.
+                    Gap × ${vd.margin_per_m3}/m³ × {Math.round(r.opD / 12)} days = <strong style={{ color: '#C0392B' }}>{fmt(throughputLoss)}/mo</strong>.
+                  </div>
+                ) : (
+                  <div>
+                    Plant at {vd.utilization_pct}% utilization vs 85% target. Gap: {fmt(vd.lost_volume_m3)} m³/mo × ${vd.margin_per_m3}/m³ = <strong style={{ color: '#C0392B' }}>{fmt(throughputLoss)}/mo</strong>.
+                  </div>
+                )}
+              </div>
+
+              {/* C. Leakage calculations */}
+              {leakageItems.length > 0 && (
+                <div style={{ marginBottom: '16px' }}>
+                  <div style={{ fontWeight: 700, color: 'var(--gray-700)', marginBottom: '6px', fontSize: '13px' }}>Leakage calculations</div>
+                  {leakageItems.map((l, i) => (
+                    <div key={i} style={{ marginBottom: '4px' }}>
+                      {l.label}: <strong style={{ fontFamily: 'var(--mono)', color: '#c96a00' }}>{fmt(l.amount)}/mo</strong>
+                      {l.dimension === 'Quality' && vd.reject_pct > 0 && (
+                        <span style={{ color: 'var(--gray-400)' }}> ({vd.reject_pct}% × volume × ${Math.round(r.materialCostPerM3)}/m³ material cost)</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* D. Confidence + evidence */}
               <div style={{ marginBottom: '12px' }}>
-                <div style={{ fontWeight: 600, color: 'var(--gray-600)', marginBottom: '4px' }}>Evidence</div>
+                <div style={{ fontWeight: 700, color: 'var(--gray-700)', marginBottom: '6px', fontSize: '13px' }}>Evidence basis</div>
                 {vd.observed_signals.slice(0, 2).map((s, i) => (
-                  <div key={i} style={{ marginBottom: '4px' }}>
+                  <div key={`o${i}`} style={{ marginBottom: '4px' }}>
                     <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--green)', background: 'var(--green-light)', padding: '1px 6px', borderRadius: '3px', marginRight: '6px' }}>Observed</span>{s}
                   </div>
                 ))}
                 {vd.inferred_signals.slice(0, 1).map((s, i) => (
-                  <div key={i}>
+                  <div key={`i${i}`}>
                     <span style={{ fontSize: '10px', fontWeight: 700, color: '#c96a00', background: '#FFF8ED', padding: '1px 6px', borderRadius: '3px', marginRight: '6px' }}>Inferred</span>{s}
                   </div>
                 ))}
               </div>
-              <div>
-                <div style={{ fontWeight: 600, color: 'var(--gray-600)', marginBottom: '4px' }}>What would improve this estimate</div>
-                <div style={{ color: 'var(--gray-400)' }}>{vd.case_specific_missing_data.join(' · ') || 'No critical data gaps.'}</div>
-              </div>
+
+              {/* What would improve */}
+              {vd.case_specific_missing_data.length > 0 && (
+                <div>
+                  <div style={{ fontWeight: 600, color: 'var(--gray-600)', marginBottom: '4px' }}>What would improve this estimate</div>
+                  <div style={{ color: 'var(--gray-400)' }}>{vd.case_specific_missing_data.join(' · ')}</div>
+                </div>
+              )}
             </div>
           )}
 
@@ -371,25 +408,59 @@ export default function DecisionView({ calcResult, answers, meta, phase, savedDi
                 <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Prioritized actions</div>
               </div>
 
-              {vd.actions.slice(0, showMoreActions ? undefined : 3).map((a, i) => (
-                <div key={i} style={{
-                  padding: '14px 20px',
-                  borderBottom: i < (showMoreActions ? vd.actions.length : Math.min(3, vd.actions.length)) - 1 ? '1px solid var(--border)' : 'none',
-                  background: i === 0 ? 'var(--green-pale)' : 'var(--white)',
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: '14px', fontWeight: i === 0 ? 600 : 400, color: 'var(--gray-900)' }}>
-                        {i + 1}. {a.text}
+              {vd.actions.slice(0, showMoreActions ? undefined : 3).map((a, i) => {
+                const isExpanded = expandedAction === i
+                return (
+                  <div key={i} style={{
+                    padding: '14px 20px',
+                    borderBottom: i < (showMoreActions ? vd.actions.length : Math.min(3, vd.actions.length)) - 1 ? '1px solid var(--border)' : 'none',
+                    background: i === 0 ? 'var(--green-pale)' : 'var(--white)',
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: '14px', fontWeight: i === 0 ? 600 : 400, color: 'var(--gray-900)', cursor: 'pointer' }}
+                          onClick={() => setExpandedAction(isExpanded ? null : i)}
+                        >
+                          {i + 1}. {a.text} <span style={{ fontSize: '10px', color: 'var(--gray-400)' }}>{isExpanded ? '▾' : '▸'}</span>
+                        </div>
+                        {a.detail && !isExpanded && <div style={{ fontSize: '12px', color: 'var(--gray-400)', marginTop: '2px' }}>{a.detail}</div>}
                       </div>
-                      {a.detail && <div style={{ fontSize: '12px', color: 'var(--gray-400)', marginTop: '2px' }}>{a.detail}</div>}
+                      <span style={{ fontSize: '11px', color: 'var(--gray-400)', flexShrink: 0 }}>
+                        {a.time_horizon === 'this_week' ? 'This week' : a.time_horizon === 'this_month' ? 'This month' : 'Later'}
+                      </span>
                     </div>
-                    <span style={{ fontSize: '11px', color: 'var(--gray-400)', flexShrink: 0 }}>
-                      {a.time_horizon === 'this_week' ? 'This week' : a.time_horizon === 'this_month' ? 'This month' : 'Later'}
-                    </span>
+
+                    {/* Layer 3: Action implementation detail */}
+                    {isExpanded && (
+                      <div style={{
+                        marginTop: '10px', padding: '12px 14px',
+                        background: 'var(--white)', border: '1px solid var(--border)',
+                        borderRadius: '8px', fontSize: '13px', color: 'var(--gray-500)', lineHeight: 1.6,
+                      }}>
+                        {a.detail && (
+                          <div style={{ marginBottom: '8px' }}>
+                            <strong style={{ color: 'var(--gray-600)' }}>What to do:</strong> {a.detail}
+                          </div>
+                        )}
+                        <div style={{ marginBottom: '6px' }}>
+                          <strong style={{ color: 'var(--gray-600)' }}>Area:</strong> {a.dimension}
+                        </div>
+                        <div style={{ marginBottom: '6px' }}>
+                          <strong style={{ color: 'var(--gray-600)' }}>Timeline:</strong> {a.time_horizon === 'this_week' ? 'Start this week' : a.time_horizon === 'this_month' ? 'Implement this month' : 'Plan for next month'}
+                        </div>
+                        <div>
+                          <strong style={{ color: 'var(--gray-600)' }}>How to verify:</strong> {
+                            a.dimension === 'Dispatch' ? 'Plot truck departure times for 3 days. Count trucks departing within same 15-min window.'
+                            : a.dimension === 'Fleet' ? 'Time 10 consecutive deliveries end-to-end. Compare to baseline TAT.'
+                            : a.dimension === 'Quality' ? 'Track rejection tickets for 2 weeks. Group by cause and time of day.'
+                            : 'Track the relevant KPI weekly and compare to baseline.'
+                          }
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                )
+              })}
 
               {vd.actions.length > 3 && !showMoreActions && (
                 <div style={{ padding: '10px 20px' }}>
