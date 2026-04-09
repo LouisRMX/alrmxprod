@@ -376,9 +376,12 @@ export function calc(answers: Answers, meta?: { season?: string }, overrides?: C
     : 1.0
 
   // Cap leak: gap between actual and TARGET utilization (not 100%)
-  // A plant at 67% with 85% target has 18pp gap, not 33pp
+  // Only carries loss when production (not fleet) is the active constraint
+  // When fleet is the constraint, capLeak is a downstream effect, not additive
   const targetCapAnnual = Math.max(0, (cap * utilisationTargetFrac - actual) * opH * opD)
-  const capLeakMonthly = Math.round(targetCapAnnual * contribSafe / 12 * seasonalFactor)
+  const capLeakMonthlyRaw = Math.round(targetCapAnnual * contribSafe / 12 * seasonalFactor)
+  // Actual assignment happens after fleet comparison (see bottleneck section below)
+  // For now store the raw value; the exported capLeakMonthly will be gated by constraint
 
   // Fleet
   const trucks = +(a.n_trucks ?? 0) || 0
@@ -426,12 +429,42 @@ export function calc(answers: Answers, meta?: { season?: string }, overrides?: C
   const hiddenConfidence: 'high' | 'low' = hiddenSuspect ? 'low' : 'high'
   const hiddenRevMonthly = Math.round(hiddenDel * effectiveMixCap * contribSafe * (opD / 12))
   const excessMin = Math.max(0, ta - TARGET_TA)
-  // Turnaround leak: lost deliveries × m3 × margin
-  // Simple: (what fleet could deliver at target TA) - (what fleet actually delivers) × m3 × margin
-  const lostDelsPerDay = Math.max(0, realisticMaxDel - delDay)
-  const turnaroundLeakMonthly = lostDelsPerDay > 0 && effectiveMixCap > 0
-    ? Math.round(lostDelsPerDay * effectiveMixCap * contribSafe * (opD / 12) * seasonalFactor)
+
+  // ── Bottleneck-based throughput loss ────────────────────────────────────
+  // Compare on m3/day basis. Only the active constraint carries financial loss.
+
+  // Fleet throughput: actual delivered volume per day (proxy for fleet-constrained throughput)
+  // Valid proxy only when demandSufficient !== false (guarded below)
+  const fleetDailyM3 = delDay * effectiveMixCap
+
+  // Fleet target: what fleet could deliver at target TAT, capped at plant capacity
+  const targetFleetDailyM3 = realisticMaxDel * effectiveMixCap
+
+  // Plant practical capacity: 92% of rated capacity × hours (physical ceiling)
+  const plantDailyM3 = cap * 0.92 * opH
+
+  // Actual daily output (from reported monthly production, most reliable source)
+  const actualDailyM3 = actual * opH
+
+  // Target daily throughput: fleet target, but never more than plant can produce
+  const targetDailyM3 = Math.min(targetFleetDailyM3, plantDailyM3)
+
+  // Active constraint identification
+  const isFleetConstrained = fleetDailyM3 < plantDailyM3
+
+  // Near-constraint: secondary is within 85% of primary
+  const constraintRatio = Math.min(fleetDailyM3, plantDailyM3) / Math.max(fleetDailyM3, plantDailyM3, 1)
+  const hasNearConstraint = constraintRatio > 0.85
+
+  // Throughput loss: calculated only at the active constraint
+  const lostDailyM3 = Math.max(0, targetDailyM3 - actualDailyM3)
+  const turnaroundLeakMonthly = isFleetConstrained && lostDailyM3 > 0
+    ? Math.round(lostDailyM3 * contribSafe * (opD / 12) * seasonalFactor)
     : 0
+
+  // capLeakMonthly: only carries loss when plant IS the active constraint
+  // When fleet is constraining, capLeak is a downstream effect (not additive)
+  const capLeakMonthly = !isFleetConstrained ? capLeakMonthlyRaw : 0
 
   // Fuel (needed before turnaroundLeakMonthlyCostOnly)
   const fuelPerDel = +(a.fuel_per_delivery ?? 0) || 0
