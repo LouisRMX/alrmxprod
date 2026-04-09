@@ -476,6 +476,21 @@ export interface ValidatedDiagnosis {
   // Management context (observed on-site, for report credibility)
   management_context?: string
 
+  // Executive narrative (2-3 sentences: what, why, what it means)
+  executive_narrative: string
+
+  // Claim strength: how strong is the primary conclusion
+  claim_strength: 'confirmed' | 'strongly_supported' | 'directional'
+  claim_strength_basis: string
+
+  // Business implication: what changes if constraint is addressed
+  business_implication: {
+    output_increase_m3: number     // additional m3/month achievable
+    utilization_target_pct: number // utilization after improvement
+    financial_recovery_range: { lo: number; hi: number }
+    summary: string                // one-sentence implication
+  }
+
   // Evidence
   evidence_basis: string
 
@@ -594,11 +609,116 @@ export function buildValidatedDiagnosis(
       ...(!r.taSiteWaitMin ? ['Site waiting time not measured per delivery'] : []),
       ...(!r.fuelPerDel ? ['Fuel cost per delivery not provided'] : []),
     ],
-    management_context: undefined, // Set manually during on-site if management has a different hypothesis
+    management_context: undefined,
+
+    // Executive narrative: what, why, what it means
+    executive_narrative: buildExecutiveNarrative(r, diagnosis, validation),
+
+    // Claim strength
+    ...buildClaimStrength(r, diagnosis),
+
+    // Business implication
+    business_implication: buildBusinessImplication(r, diagnosis, validation),
+
     evidence_basis: diagnosis.evidence_basis,
 
     tat_actual: r.ta,
     tat_target: r.TARGET_TA,
     tat_breakdown: tatBreakdown,
+  }
+}
+
+// ── Narrative Builders ───────────────────────────────────────────────────────
+
+function buildExecutiveNarrative(
+  r: CalcResult,
+  d: StructuredDiagnosis,
+  v: ValidationResult,
+): string {
+  const loss = v.corrected_total_loss
+  const constraint = d.primary_constraint
+  const utilPct = Math.round(r.util * 100)
+  const targetUtil = 85
+
+  if (d.demand_constrained) {
+    return `This plant operates at ${utilPct}% utilization with available capacity to produce more. However, the order book does not support higher output. Growing demand is the priority before investing in operational improvements.`
+  }
+
+  // What is happening
+  const what = `This plant is losing approximately $${Math.round(loss / 1000)}k/month in recoverable value, operating at ${utilPct}% utilization despite sufficient demand.`
+
+  // Why
+  const constraintLabel = constraint === 'Fleet' ? 'fleet turnaround' : constraint.toLowerCase()
+  const taExcess = Math.max(0, r.ta - r.TARGET_TA)
+  const why = taExcess > 0
+    ? `The primary driver is ${constraintLabel}. Turnaround averages ${r.ta} min against a ${r.TARGET_TA}-min target, reducing deliveries per truck from ${r.TARGET_TA > 0 ? Math.floor((r.opH * 60) / r.TARGET_TA) : '?'} to ${r.ta > 0 ? Math.floor((r.opH * 60) / r.ta) : '?'} per day.`
+    : `The primary driver is ${constraintLabel}, which limits effective throughput below plant capacity.`
+
+  // What it means
+  const recoveryLo = Math.round(v.corrected_total_loss * 0.40 / 1000)
+  const recoveryHi = Math.round(v.corrected_total_loss * 0.65 / 1000)
+  const whatItMeans = `Addressing this constraint can recover $${recoveryLo}k-$${recoveryHi}k/month within 90 days, bringing utilization toward ${targetUtil}%.`
+
+  return `${what} ${why} ${whatItMeans}`
+}
+
+function buildClaimStrength(
+  r: CalcResult,
+  d: StructuredDiagnosis,
+): { claim_strength: 'confirmed' | 'strongly_supported' | 'directional'; claim_strength_basis: string } {
+  // Rules:
+  // confirmed: TAT breakdown entered + on-site observations + core metrics validated
+  // strongly_supported: core metrics reported + multiple consistent signals
+  // directional: limited data, inference-heavy
+
+  const hasBreakdown = r.taBreakdownEntered
+  const hasMultipleSignals = d.observed_signals.length >= 2
+  const hasCoreMetrics = d.performance_gaps.turnaround !== undefined && d.performance_gaps.utilization !== undefined
+
+  if (hasBreakdown && hasMultipleSignals && hasCoreMetrics) {
+    return {
+      claim_strength: 'confirmed',
+      claim_strength_basis: 'TAT component breakdown available. Multiple operational signals observed. Core metrics validated.',
+    }
+  }
+
+  if (hasCoreMetrics && hasMultipleSignals) {
+    return {
+      claim_strength: 'strongly_supported',
+      claim_strength_basis: 'Core performance metrics reported. Multiple consistent signals support the identified constraint. Detailed TAT breakdown would strengthen the conclusion.',
+    }
+  }
+
+  return {
+    claim_strength: 'directional',
+    claim_strength_basis: 'Based on limited operational data. The identified constraint is the most plausible driver but should be confirmed with additional measurement.',
+  }
+}
+
+function buildBusinessImplication(
+  r: CalcResult,
+  d: StructuredDiagnosis,
+  v: ValidationResult,
+): { output_increase_m3: number; utilization_target_pct: number; financial_recovery_range: { lo: number; hi: number }; summary: string } {
+  const currentUtil = Math.round(r.util * 100)
+  const targetUtil = Math.min(90, currentUtil + Math.round((85 - currentUtil) * 0.7))
+  const currentMonthly = r.monthlyM3 || Math.round(r.actual * r.opH * (r.opD / 12))
+  const targetMonthly = Math.round(r.cap * (targetUtil / 100) * r.opH * (r.opD / 12))
+  const outputIncrease = Math.max(0, targetMonthly - currentMonthly)
+
+  const recoveryLo = Math.round(v.corrected_total_loss * 0.40)
+  const recoveryHi = Math.round(v.corrected_total_loss * 0.65)
+
+  const constraint = d.primary_constraint === 'Fleet' ? 'fleet turnaround' : d.primary_constraint.toLowerCase()
+
+  const summary = d.demand_constrained
+    ? `Growing the order book is the priority. The plant has capacity to increase output by ~${Math.round(outputIncrease / 100) * 100} m3/month once demand supports it.`
+    : `Fixing ${constraint} can increase output by ~${Math.round(outputIncrease / 100) * 100} m3/month, bringing utilization from ${currentUtil}% toward ${targetUtil}% and recovering $${Math.round(recoveryLo / 1000)}k-$${Math.round(recoveryHi / 1000)}k/month.`
+
+  return {
+    output_increase_m3: outputIncrease,
+    utilization_target_pct: targetUtil,
+    financial_recovery_range: { lo: recoveryLo, hi: recoveryHi },
+    summary,
   }
 }
