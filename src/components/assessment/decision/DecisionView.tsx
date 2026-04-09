@@ -184,36 +184,113 @@ export default function DecisionView({ calcResult, answers, meta, phase }: Decis
             )}
           </div>
 
-          {/* ═══ (9+10) PROOF LAYER (expandable) ═══ */}
-          {showCalcDetail && (
-            <div style={{
-              background: 'var(--gray-50)', border: '1px solid var(--border)',
-              borderRadius: '10px', padding: '18px 22px', marginBottom: '24px',
-              fontSize: '13px', color: 'var(--gray-500)', lineHeight: 1.6,
-            }}>
-              <div style={{ fontWeight: 700, color: 'var(--gray-700)', marginBottom: '12px', fontSize: '14px' }}>How this estimate was calculated</div>
+          {/* ═══ PROOF LAYER (expandable, fully dynamic) ═══ */}
+          {showCalcDetail && (() => {
+            const actualDaily = r.actual > 0 ? Math.round(r.actual * r.opH) : 0
+            const potentialDaily = r.cap > 0 ? Math.round(r.cap * 0.92 * r.opH) : 0
+            const gapDaily = Math.max(0, potentialDaily - actualDaily)
+            const gapMonthly = Math.round(gapDaily * (r.opD / 12))
+            const lossFromGap = Math.round(gapMonthly * r.contribSafe)
 
-              <div style={{ marginBottom: '12px' }}>
-                <div style={{ fontWeight: 600, color: 'var(--gray-600)', marginBottom: '4px' }}>Inputs used</div>
-                <div>Plant capacity: {r.cap} m³/hr · Utilization: {Math.round(r.util * 100)}% · Turnaround: {r.ta} min · Trucks: {r.trucks} · Contribution margin: ${Math.round(r.contribSafe)}/m³{r.dispatchMin ? ` · Dispatch: ~${r.dispatchMin} min` : ''}</div>
-              </div>
+            // Which metric deviates most
+            const taGapPct = r.TARGET_TA > 0 ? Math.round(((r.ta - r.TARGET_TA) / r.TARGET_TA) * 100) : 0
+            const utilGapPct = Math.round((0.85 - r.util) * 100)
 
-              <div style={{ marginBottom: '12px' }}>
-                <div style={{ fontWeight: 600, color: 'var(--gray-600)', marginBottom: '4px' }}>Logic</div>
-                <div>We estimate lost output from the gap between actual and achievable fleet throughput, then translate lost volume into dollars using contribution margin per m³. The loss is attributed to the primary operational constraint.</div>
-              </div>
+            return (
+              <div style={{
+                background: 'var(--gray-50)', border: '1px solid var(--border)',
+                borderRadius: '10px', padding: '18px 22px', marginBottom: '24px',
+                fontSize: '13px', color: 'var(--gray-500)', lineHeight: 1.7,
+              }}>
+                <div style={{ fontWeight: 700, color: 'var(--gray-700)', marginBottom: '14px', fontSize: '14px' }}>How this estimate was calculated</div>
 
-              <div style={{ marginBottom: '12px' }}>
-                <div style={{ fontWeight: 600, color: 'var(--gray-600)', marginBottom: '4px' }}>Confidence basis</div>
-                <div>{confidence === 'High' ? 'Inputs validated during on-site plant visit.' : isPre ? 'Based on self-reported operational data (14 assessment questions).' : 'Based on reported operational data collected during assessment.'}</div>
-              </div>
+                {/* 1. Inputs */}
+                <div style={{ marginBottom: '14px' }}>
+                  <div style={{ fontWeight: 600, color: 'var(--gray-600)', marginBottom: '6px' }}>Inputs from this plant</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 24px' }}>
+                    <span>Plant capacity: <strong style={{ color: 'var(--gray-700)', fontFamily: 'var(--mono)' }}>{r.cap} m³/hr</strong></span>
+                    <span>Utilization: <strong style={{ color: 'var(--gray-700)', fontFamily: 'var(--mono)' }}>{Math.round(r.util * 100)}%</strong> (target 85%)</span>
+                    <span>Turnaround: <strong style={{ color: 'var(--gray-700)', fontFamily: 'var(--mono)' }}>{r.ta} min</strong> (target {r.TARGET_TA} min)</span>
+                    <span>Trucks: <strong style={{ color: 'var(--gray-700)', fontFamily: 'var(--mono)' }}>{r.trucks}</strong> ({r.effectiveUnits} effective)</span>
+                    <span>Margin: <strong style={{ color: 'var(--gray-700)', fontFamily: 'var(--mono)' }}>${Math.round(r.contribSafe)}/m³</strong></span>
+                    {r.dispatchMin ? <span>Dispatch: <strong style={{ color: 'var(--gray-700)', fontFamily: 'var(--mono)' }}>~{r.dispatchMin} min</strong> (target 15 min)</span> : null}
+                  </div>
+                </div>
 
-              <div>
-                <div style={{ fontWeight: 600, color: 'var(--gray-600)', marginBottom: '4px' }}>What would tighten the estimate</div>
-                <div>3 days of truck departure timestamps · Site readiness timestamps · GPS trip timing · Dispatch sequence logs</div>
+                {/* 2. How loss is estimated */}
+                <div style={{ marginBottom: '14px' }}>
+                  <div style={{ fontWeight: 600, color: 'var(--gray-600)', marginBottom: '6px' }}>How the loss is estimated</div>
+                  <div>
+                    {r.ta > r.TARGET_TA
+                      ? `Because turnaround is ${r.ta} min vs the ${r.TARGET_TA}-min target, each of the ${r.effectiveUnits} trucks completes fewer cycles per day. At ${r.ta} min per cycle, a truck can do ${Math.floor((r.opH * 60) / r.ta)} trips/day instead of ${Math.floor((r.opH * 60) / r.TARGET_TA)} at target. `
+                      : `Plant runs at ${Math.round(r.util * 100)}% of capacity. `
+                    }
+                    {actualDaily > 0 && potentialDaily > 0
+                      ? `This plant produces ~${actualDaily} m³/day but could produce ~${potentialDaily} m³/day at practical capacity. That is a gap of ~${gapDaily} m³/day, or ~${gapMonthly.toLocaleString()} m³/month. `
+                      : ''
+                    }
+                    {r.contribSafe > 0
+                      ? `At $${Math.round(r.contribSafe)}/m³ contribution margin, the lost volume translates to ~${fmtFull(lossFromGap)}/month.`
+                      : ''
+                    }
+                  </div>
+                </div>
+
+                {/* 3. Why this constraint */}
+                <div style={{ marginBottom: '14px' }}>
+                  <div style={{ fontWeight: 600, color: 'var(--gray-600)', marginBottom: '6px' }}>Why {causeLabel.toLowerCase()} is the primary driver</div>
+                  <div>
+                    {causeLabel.toLowerCase().includes('dispatch')
+                      ? `Turnaround exceeds target by ${taGapPct}% (${excessMin} min excess). ${r.dispatchMin ? `Order-to-truck time is ~${r.dispatchMin} min vs a 15-min target.` : ''} Without structured dispatch, trucks queue at the plant during peak periods and arrive at unprepared sites. Improving dispatch flow directly reduces queue time and site waiting, which are the two largest controllable components of turnaround.`
+                      : causeLabel.toLowerCase().includes('fleet') || causeLabel.toLowerCase().includes('turnaround')
+                      ? `Turnaround is ${taGapPct}% above target (${r.ta} min vs ${r.TARGET_TA} min). Each excess minute reduces the number of deliveries per truck per day. With ${r.effectiveUnits} trucks, the compounding effect is ${r.effectiveUnits} × ${excessMin} min = ${r.effectiveUnits * excessMin} truck-minutes lost per day.`
+                      : causeLabel.toLowerCase().includes('site')
+                      ? `Site waiting time of ${r.taSiteWaitMin} min (${r.siteWaitExcess} min above benchmark) is the largest single component of the turnaround gap. Each minute a truck waits at site with a loaded drum is a minute it cannot use for another delivery.`
+                      : causeLabel.toLowerCase().includes('production')
+                      ? `Plant utilization is ${Math.round(r.util * 100)}%, which is ${utilGapPct} points below the 85% operational target. The batching plant has capacity that is not being used during operating hours.`
+                      : `The identified constraint accounts for the largest share of the financial gap between actual and achievable performance.`
+                    }
+                  </div>
+                </div>
+
+                {/* 4. Confidence */}
+                <div style={{ marginBottom: '14px' }}>
+                  <div style={{ fontWeight: 600, color: 'var(--gray-600)', marginBottom: '6px' }}>Confidence and validation</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    {observedLine && (
+                      <div><span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--green)', background: 'var(--green-light)', padding: '1px 6px', borderRadius: '3px', marginRight: '6px' }}>Observed</span>{observedLine}</div>
+                    )}
+                    {inferredLine && (
+                      <div><span style={{ fontSize: '10px', fontWeight: 700, color: '#c96a00', background: '#FFF8ED', padding: '1px 6px', borderRadius: '3px', marginRight: '6px' }}>Inferred</span>{inferredLine}</div>
+                    )}
+                    <div style={{ marginTop: '4px', color: 'var(--gray-400)' }}>
+                      {confidence === 'High' ? 'All key inputs validated during on-site plant visit.' : isPre ? 'Based on self-reported data (14 assessment questions). On-site validation will confirm.' : 'Based on reported operational data. Key metrics should be verified with plant records.'}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 5. What improves accuracy */}
+                <div>
+                  <div style={{ fontWeight: 600, color: 'var(--gray-600)', marginBottom: '6px' }}>What would improve this estimate</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                    {[
+                      r.ta > r.TARGET_TA ? '3 days of truck departure timestamps' : null,
+                      r.taSiteWaitMin == null ? 'Site wait timing per delivery' : null,
+                      'GPS trip data (transit vs. idle split)',
+                      r.dispatchMin ? 'Dispatch sequence log for peak periods' : null,
+                      r.rejectPct > 1.5 ? 'Rejection tickets with cause classification' : null,
+                    ].filter(Boolean).map((item, i) => (
+                      <span key={i} style={{
+                        fontSize: '12px', padding: '3px 10px', borderRadius: '5px',
+                        background: 'var(--white)', border: '1px solid var(--border)',
+                        color: 'var(--gray-500)',
+                      }}>{item}</span>
+                    ))}
+                  </div>
+                </div>
               </div>
-            </div>
-          )}
+            )
+          })()}
 
           {/* ═══ (4) LOSS BREAKDOWN (simplified) ═══ */}
           <div style={{
