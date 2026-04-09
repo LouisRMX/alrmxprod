@@ -636,30 +636,44 @@ function buildExecutiveNarrative(
   v: ValidationResult,
 ): string {
   const loss = v.corrected_total_loss
-  const constraint = d.primary_constraint
   const utilPct = Math.round(r.util * 100)
-  const targetUtil = 85
 
   if (d.demand_constrained) {
-    return `This plant operates at ${utilPct}% utilization with available capacity to produce more. However, the order book does not support higher output. Growing demand is the priority before investing in operational improvements.`
+    return `This plant has capacity to produce more but the order book does not fill it. At ${utilPct}% utilization, growing demand is the priority before optimizing operations.`
   }
 
-  // What is happening
-  const what = `This plant is losing approximately $${Math.round(loss / 1000)}k/month in recoverable value, operating at ${utilPct}% utilization despite sufficient demand.`
+  // Rounded loss (no false precision)
+  const lossRounded = Math.round(loss / 10000) * 10 // round to nearest 10k
+  const lossStr = lossRounded >= 1000 ? `$${(lossRounded / 1000).toFixed(1)}M` : `$${lossRounded}k`
 
-  // Why
-  const constraintLabel = constraint === 'Fleet' ? 'fleet turnaround' : constraint.toLowerCase()
-  const taExcess = Math.max(0, r.ta - r.TARGET_TA)
-  const why = taExcess > 0
-    ? `The primary driver is ${constraintLabel}. Turnaround averages ${r.ta} min against a ${r.TARGET_TA}-min target, reducing deliveries per truck from ${r.TARGET_TA > 0 ? Math.floor((r.opH * 60) / r.TARGET_TA) : '?'} to ${r.ta > 0 ? Math.floor((r.opH * 60) / r.ta) : '?'} per day.`
-    : `The primary driver is ${constraintLabel}, which limits effective throughput below plant capacity.`
+  // Concrete cause from verdict
+  const cause = d.primary_mechanism
+    .replace(/^Based on (the )?reported (dispatch )?(setup|inputs),?\s*/i, '')
+    .split('.')[0]
+    .replace(/\blikely\b\s*/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase()
 
-  // What it means
+  // Deliveries impact
+  const delsActual = r.ta > 0 ? Math.floor((r.opH * 60) / r.ta) : 0
+  const delsTarget = r.TARGET_TA > 0 ? Math.floor((r.opH * 60) / r.TARGET_TA) : 0
+  const delsPhrase = delsActual > 0 && delsTarget > delsActual
+    ? `, reducing each truck from ${delsTarget} to ${delsActual} deliveries per day`
+    : ''
+
+  // Concrete action from primary
+  const primaryAction = d.actions[0]?.text || 'operational improvements'
+  const secondaryAction = d.actions[1]?.text || ''
+  const actionPhrase = secondaryAction
+    ? `${primaryAction.charAt(0).toUpperCase() + primaryAction.slice(1)} and ${secondaryAction.toLowerCase()}`
+    : primaryAction.charAt(0).toUpperCase() + primaryAction.slice(1)
+
+  // Recovery
   const recoveryLo = Math.round(v.corrected_total_loss * 0.40 / 1000)
   const recoveryHi = Math.round(v.corrected_total_loss * 0.65 / 1000)
-  const whatItMeans = `Addressing this constraint can recover $${recoveryLo}k-$${recoveryHi}k/month within 90 days, bringing utilization toward ${targetUtil}%.`
 
-  return `${what} ${why} ${whatItMeans}`
+  return `~${lossStr}/month in value is not being captured. ${cause.charAt(0).toUpperCase() + cause.slice(1)}${delsPhrase}. ${actionPhrase} can recover $${recoveryLo}k-$${recoveryHi}k/month within 90 days.`
 }
 
 function buildClaimStrength(
