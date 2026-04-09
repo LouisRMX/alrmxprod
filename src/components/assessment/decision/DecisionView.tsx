@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import type { CalcResult, Answers } from '@/lib/calculations'
-import { buildIssues } from '@/lib/issues'
+import { buildValidatedDiagnosis, type ValidatedDiagnosis } from '@/lib/diagnosis-pipeline'
 import { useIsMobile } from '@/hooks/useIsMobile'
 
 function fmt(n: number): string {
@@ -29,97 +29,32 @@ interface DecisionViewProps {
 export default function DecisionView({ calcResult, answers, meta, phase }: DecisionViewProps) {
   const isMobile = useIsMobile()
   const r = calcResult
-  const issues = buildIssues(r, answers, meta)
   const [showCalcDetail, setShowCalcDetail] = useState(false)
   const [showMoreActions, setShowMoreActions] = useState(false)
+
+  // Single source of truth: validated diagnosis from pipeline
+  const vd = useMemo(() => buildValidatedDiagnosis(r, answers, meta), [r, answers, meta])
 
   const isValidated = phase === 'complete' || phase === 'onsite'
   const isPre = !isValidated
 
-  const withDiagnosis = issues.filter(i => i.diagnosis && i.loss > 0)
-  const primary = withDiagnosis[0] ?? null
-
-  // Loss totals
-  const totalLoss = r.turnaroundLeakMonthly + r.capLeakMonthly + r.rejectLeakMonthly +
-    (r.partialLeakMonthly || 0) + (r.surplusLeakMonthly || 0)
-  const excessMin = r.excessMin || 0
-
-  // Loss by dimension
-  const dimTotals: Record<string, number> = {}
-  for (const issue of issues) {
-    if (issue.loss > 0 && issue.dimension) {
-      dimTotals[issue.dimension] = (dimTotals[issue.dimension] || 0) + issue.loss
-    }
-  }
-  const sortedDims = Object.entries(dimTotals).sort((a, b) => b[1] - a[1])
-  const mainDriverDim = sortedDims[0]
-  const otherLoss = sortedDims.slice(1).reduce((s, [, v]) => s + v, 0)
-
-  // Cause label
-  const causeLabel = primary?.dimension === 'Fleet' && primary?.diagnosis?.tatComponent === 'site'
-    ? 'Site Waiting' : primary?.dimension === 'Fleet' ? 'Fleet Turnaround'
-    : primary?.dimension || 'Turnaround'
-
-  // Operational context
-  const capacityPct = r.util > 0 ? Math.round((1 - r.util) * 100) : null
-
-  // Mechanism
-  function diagnosisMechanism(): string {
-    if (!primary?.diagnosis) return ''
-    const raw = primary.diagnosis.mechanism
-      .replace(/^Based on (the )?reported (dispatch )?(setup|inputs),?\s*/i, '')
-    const sentences = raw.split('.').map(s => s.trim()).filter(Boolean).slice(0, 2)
-    if (primary.diagnosis.strength === 'observed') {
-      return sentences.map(s => s.replace(/\blikely\b\s*/gi, '').replace(/\s+/g, ' ').trim()).join('. ') + '.'
-    }
-    return sentences.join('. ') + '.'
-  }
-
-  // Evidence
-  const observedLine = primary?.diagnosis?.observed
-    ? primary.diagnosis.observed.split('.').filter(s => s.trim()).slice(0, 2).join('.').trim() + '.'
-    : null
-  const inferredSentences = primary?.diagnosis?.mechanism
-    ? primary.diagnosis.mechanism.replace(/^Based on (the )?reported (dispatch )?(setup|inputs),?\s*/i, '').split('.').filter(s => s.trim())
-    : []
-  const inferredLine = inferredSentences.length > 1 ? inferredSentences[1].trim() + '.' : null
-
-  // Actions from primary only, with estimated recovery
-  const primaryActions: { text: string; detail: string }[] = []
-  if (primary?.diagnosis) {
-    const steps = primary.diagnosis.action.split(/Step \d+:\s*/).filter(Boolean)
-    for (const step of steps) {
-      const lines = step.split(/\.\s+/).filter(Boolean)
-      const text = lines[0]?.trim() || step.trim()
-      const detail = lines.slice(1).join('. ').trim()
-      if (text && !primaryActions.some(a => a.text === text)) {
-        primaryActions.push({ text, detail })
-      }
-    }
-  }
-  // Estimate recovery per action: primary action gets ~60%, second ~25%, rest ~15%
-  const mainDriverLoss = mainDriverDim ? mainDriverDim[1] : totalLoss
-  const recoveryEstimates = [
-    Math.round(mainDriverLoss * 0.55),
-    Math.round(mainDriverLoss * 0.25),
-    Math.round(mainDriverLoss * 0.12),
-    Math.round(mainDriverLoss * 0.08),
-  ]
-
-  const demandConstrained = r.demandSufficient === false
-  const confidence = primary?.diagnosis?.strength === 'observed' ? 'High' : isPre ? 'Preliminary' : 'Medium'
+  // All rendering uses validated diagnosis only
+  const totalLoss = vd.total_loss
+  const excessMin = Math.max(0, vd.tat_actual - vd.tat_target)
+  const causeLabel = vd.primary_constraint === 'Fleet' ? 'Fleet Turnaround' : vd.primary_constraint
+  const capacityPct = vd.performance_gaps.utilization ? vd.performance_gaps.utilization.gap : null
+  const confidence = vd.confidence === 'high' ? 'High' : vd.confidence === 'medium-high' ? 'Medium-High' : isPre ? 'Preliminary' : 'Medium'
+  const demandConstrained = vd.demand_constrained
 
   // TAT breakdown (validated + data only)
-  const hasBreakdown = r.taBreakdownEntered && isValidated
-  const tatComponents = hasBreakdown ? [
-    { label: 'Plant-side', actual: Math.max(0, r.ta - (r.taTransitMin || 0) - (r.taSiteWaitMin || 0) - (r.taWashoutMin || 0)), benchmark: Math.max(0, r.TARGET_TA - (r.taTransitMin ? Math.min(r.taTransitMin, r.TARGET_TA * 0.3) : r.TARGET_TA * 0.2) - 35 - 12) },
-    { label: 'Transit', actual: r.taTransitMin || Math.round(r.radius * 2 * 1.5) || 0, benchmark: r.taTransitMin || Math.round(r.radius * 2 * 1.5) || 0 },
-    { label: 'Site', actual: r.taSiteWaitMin || 0, benchmark: 35 },
-    { label: 'Washout', actual: r.taWashoutMin || 0, benchmark: 12 },
-  ] : null
+  const tatComponents = vd.tat_breakdown && isValidated ? vd.tat_breakdown : null
   const primaryComponent = tatComponents
     ? tatComponents.reduce((max, c) => (c.actual - c.benchmark > (max.actual - max.benchmark) ? c : max), tatComponents[0])
     : null
+
+  // Evidence
+  const observedLine = vd.observed_signals.length > 0 ? vd.observed_signals[0] : null
+  const inferredLine = vd.inferred_signals.length > 0 ? vd.inferred_signals[0] : null
 
   return (
     <div style={{
@@ -143,13 +78,13 @@ export default function DecisionView({ calcResult, answers, meta, phase }: Decis
               fontSize: isMobile ? '32px' : '42px', fontWeight: 800, lineHeight: 1.1,
               color: '#C0392B',
             }}>
-              {isPre ? fmtRange(totalLoss) : fmtFull(totalLoss)}/month
+              {vd.total_loss_range ? `${fmtFull(vd.total_loss_range.lo)}–${fmtFull(vd.total_loss_range.hi)}` : fmtFull(totalLoss)}/month
             </div>
             <div style={{
               fontSize: isMobile ? '20px' : '26px', fontWeight: 700, lineHeight: 1.3,
               color: 'var(--gray-900)', marginTop: '4px',
             }}>
-              is being lost due to {causeLabel.toLowerCase()}.
+              is lost because {vd.verdict_cause}.
             </div>
           </div>
 
@@ -297,33 +232,33 @@ export default function DecisionView({ calcResult, answers, meta, phase }: Decis
             marginBottom: '28px', paddingBottom: '20px',
             borderBottom: '1px solid var(--border)',
           }}>
-            {mainDriverDim && (
+            {vd.main_driver && (
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '4px' }}>
                 <span style={{ fontSize: '14px', color: 'var(--gray-500)' }}>Main driver:</span>
                 <span style={{ fontSize: '16px', fontWeight: 700, fontFamily: 'var(--mono)', color: '#C0392B' }}>
-                  {mainDriverDim[0] === 'Fleet' ? 'Logistics' : mainDriverDim[0]} — {fmt(mainDriverDim[1])}/mo
+                  {vd.main_driver.dimension === 'Fleet / Turnaround' ? 'Logistics' : vd.main_driver.dimension} — {fmt(vd.main_driver.amount)}/mo
                 </span>
               </div>
             )}
-            {otherLoss > 0 && (
+            {vd.other_losses > 0 && (
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
                 <span style={{ fontSize: '14px', color: 'var(--gray-500)' }}>Other losses:</span>
                 <span style={{ fontSize: '14px', fontFamily: 'var(--mono)', color: 'var(--gray-500)' }}>
-                  {fmt(otherLoss)}/mo
+                  {fmt(vd.other_losses)}/mo
                 </span>
               </div>
             )}
           </div>
 
           {/* ═══ (5) IDENTIFIED CAUSE ═══ */}
-          {primary?.diagnosis && (
+          {vd.mechanism_detail && (
             <div style={{ marginBottom: '24px' }}>
               <div style={{ fontSize: '17px', fontWeight: 700, color: 'var(--gray-900)', marginBottom: '10px' }}>
                 Identified cause: <span style={{ color: '#C0392B' }}>{causeLabel}</span>
               </div>
 
               <div style={{ fontSize: '14px', color: 'var(--gray-700)', lineHeight: 1.6, marginBottom: '14px' }}>
-                {diagnosisMechanism()}
+                {vd.mechanism_detail}
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '14px' }}>
@@ -383,7 +318,7 @@ export default function DecisionView({ calcResult, answers, meta, phase }: Decis
           )}
 
           {/* ═══ (7+8) ACTIONS WITH RECOVERY ═══ */}
-          {primaryActions.length > 0 && (
+          {vd.actions.length > 0 && (
             <div style={{
               marginBottom: '24px', paddingTop: '20px',
               borderTop: '1px solid var(--border)',
@@ -392,7 +327,7 @@ export default function DecisionView({ calcResult, answers, meta, phase }: Decis
                 Actions to take:
               </div>
 
-              {primaryActions.slice(0, showMoreActions ? undefined : 2).map((a, i) => (
+              {vd.actions.slice(0, showMoreActions ? undefined : 2).map((a, i) => (
                 <div key={i} style={{
                   display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
                   gap: '16px', padding: '14px 18px', marginBottom: '8px',
@@ -406,18 +341,18 @@ export default function DecisionView({ calcResult, answers, meta, phase }: Decis
                     </div>
                     {a.detail && <div style={{ fontSize: '12px', color: 'var(--gray-400)', marginTop: '2px' }}>{a.detail}</div>}
                   </div>
-                  {recoveryEstimates[i] > 0 && (
+                  {i === 0 && vd.combined_recovery_range.lo > 0 && (
                     <div style={{
-                      fontSize: '14px', fontWeight: 700, fontFamily: 'var(--mono)',
+                      fontSize: '12px', fontWeight: 600, fontFamily: 'var(--mono)',
                       color: 'var(--green)', whiteSpace: 'nowrap', flexShrink: 0,
                     }}>
-                      +~{fmt(recoveryEstimates[i])}/mo
+                      Combined: +{fmt(vd.combined_recovery_range.lo)}–{fmt(vd.combined_recovery_range.hi)}/mo
                     </div>
                   )}
                 </div>
               ))}
 
-              {primaryActions.length > 2 && !showMoreActions && (
+              {vd.actions.length > 2 && !showMoreActions && (
                 <button
                   onClick={() => setShowMoreActions(true)}
                   style={{
@@ -425,7 +360,7 @@ export default function DecisionView({ calcResult, answers, meta, phase }: Decis
                     cursor: 'pointer', fontFamily: 'var(--font)', padding: '4px 0', marginTop: '4px',
                   }}
                 >
-                  + {primaryActions.length - 2} more actions
+                  + {vd.actions.length - 2} more actions
                 </button>
               )}
             </div>
