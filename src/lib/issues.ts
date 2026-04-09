@@ -108,17 +108,17 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
       diagnosis: {
         observed: `Turnaround averages ${r.ta} min vs ${r.TARGET_TA}-min operational target for ${r.radius > 0 ? r.radius + ' km' : 'your'} delivery radius. ${r.excessMin} min excess per cycle across ${r.effectiveUnits} active trucks.`,
         mechanism: r.taBreakdownEntered && r.siteWaitExcess > 0
-          ? `Trucks sit idle at sites for ${r.taSiteWaitMin} min (${r.siteWaitExcess} min above the 35-min benchmark) because they arrive before pump crews are staged and formwork is ready. No ETA is communicated to site before departure.`
+          ? `Trucks sit idle at sites for ${r.taSiteWaitMin} min (${r.siteWaitExcess} min above the 35-min benchmark) because they arrive before pump crews are staged and formwork is ready. This is most pronounced during morning peaks and large pours. No ETA is communicated to site before departure.`
           : r.taBreakdownEntered && r.washoutExcess > 0
             ? `Washout takes ${r.taWashoutMin} min per truck (benchmark 12 min), adding ${r.washoutExcess} min of avoidable idle time per cycle. Combined with smaller delays at plant and site, total cycle time compounds well above target.`
             : `The ${r.excessMin}-min excess is likely concentrated in site waiting (trucks arriving before sites are ready) and plant queue (trucks competing for batching slots during peak hours). These are the two largest controllable components in GCC ready-mix operations.`,
         action: taLossDeferred
-          ? 'Address site waiting time first: require dispatcher to call site 30 min before truck arrival and confirm pump crew is staged.'
-          : 'Step 1: Dispatcher calls site 30 min before each truck arrival to confirm readiness. Step 2: Enforce demurrage charge for site waits exceeding 40 min. Step 3: Track actual site wait per delivery for 2 weeks to measure improvement.',
+          ? 'Address site waiting time as the priority lever: introduce structured ETA communication to sites 30 min before truck arrival.'
+          : 'Step 1: Introduce structured ETA communication to sites (initially via WhatsApp, 30 min before arrival). Step 2: Enforce demurrage charge for site waits exceeding 40 min. Step 3: Track actual site wait per delivery for 2 weeks to measure improvement.',
         validation: 'Time 10 consecutive deliveries end-to-end. Record: gate departure time, site arrival, pour start, pour end, departure from site, return to plant. This gives you the actual breakdown to confirm where the excess sits.',
         strength: r.taBreakdownEntered ? 'observed' : 'likely',
         tatComponent: null,
-        tatImpactEstimate: `Full ${r.excessMin}-min TAT gap. Likely ${Math.round(r.excessMin * 0.45)}-${Math.round(r.excessMin * 0.65)} min from site waiting, ${Math.round(r.excessMin * 0.2)}-${Math.round(r.excessMin * 0.35)} min from plant-side queue.`,
+        tatImpactEstimate: `Full ${r.excessMin}-min TAT gap. Likely ${Math.round(r.excessMin * 0.45)}-${Math.round(r.excessMin * 0.65)} min located in site waiting, ${Math.round(r.excessMin * 0.2)}-${Math.round(r.excessMin * 0.35)} min in plant-side queue.`,
         impact: 'high',
         competingDrivers: ['site readiness', 'plant queue length', 'transit distance', 'washout process'],
       },
@@ -151,14 +151,14 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
       formula: `Turnaround loss (${fmt(taLossBase)}${r.demandSufficient === false ? ' cost-only' : ''}) + 35% of capacity gap (${fmt(Math.round(r.capLeakMonthly * 0.35))})`,
       diagnosis: {
         observed: `Dispatch runs on ${(a.dispatch_tool as string || 'unknown tools').split(',')[0].toLowerCase()}. ${a.route_clustering === 'Rarely or never' ? 'No geographic zone routing in place.' : a.route_clustering === 'Sometimes, depends on the dispatcher' ? 'Zone routing is informal and inconsistent.' : 'Zone routing is in place.'} ${a.plant_idle === 'Every day, always waiting for trucks' || a.plant_idle === 'Regularly, most busy periods' ? 'Batching plant sits idle daily waiting for trucks to return from deliveries.' : ''} ${r.dispatchMin ? `Order-to-truck time: ~${r.dispatchMin} min.` : ''}`.trim(),
-        mechanism: `Orders are released without time spacing, causing ${r.trucks > 10 ? '3-5' : '2-3'} trucks to queue simultaneously at the batching plant during the 06:00-10:00 peak window. Without zone routing, trucks from the same area depart at different times and cross paths, adding transit time. Sites receive no advance notice of arrival, so pump crews are not staged when trucks arrive.`,
+        mechanism: `Orders are released without time spacing, causing ${r.trucks > 10 ? '3-5' : '2-3'} trucks to queue simultaneously at the batching plant during the 06:00-10:00 peak window. This bunching repeats in a second wave around 13:00-14:00 when morning trucks return. Without zone routing, trucks from the same area depart at different times and cross paths, adding transit time. Sites receive no advance notice of arrival, so pump crews are not staged when trucks arrive.`,
         action: weakest
-          ? `Step 1: ${weakest.label === 'Order to dispatch' ? 'Introduce 15-min release windows: no more than 2 trucks dispatched within any 15-min slot' : weakest.label === 'Route clustering' ? 'Group deliveries by geographic zone and assign fixed trucks per zone during peak hours (06:00-10:00)' : weakest.label === 'Plant idle time' ? 'Stagger return windows: assign expected return times per truck and batch-prep accordingly' : 'Move from WhatsApp to a shared dispatch board (digital or physical) visible to all drivers'}. Step 2: Call each site 30 min before truck arrival to confirm pump crew readiness.`
-          : 'Step 1: Introduce 15-min release windows, max 2 trucks per slot. Step 2: Group deliveries by zone for morning peak. Step 3: Call site 30 min before each arrival.',
+          ? `Step 1: ${weakest.label === 'Order to dispatch' ? 'Introduce structured time-slotted dispatch: maximum 2 trucks released within any 15-min window' : weakest.label === 'Route clustering' ? 'Implement geographic zone routing: assign fixed truck-zone pairs during peak hours (06:00-10:00)' : weakest.label === 'Plant idle time' ? 'Introduce return-time scheduling: assign expected return windows per truck and pre-stage batching accordingly' : 'Establish a shared dispatch board (digital or physical) visible to all drivers with real-time truck status'}. Step 2: Introduce structured ETA communication to sites 30 min before each arrival.`
+          : 'Step 1: Introduce time-slotted dispatch (max 2 trucks per 15-min window). Step 2: Implement zone routing for morning peak. Step 3: Structured ETA communication to sites 30 min before arrival.',
         validation: 'Plot truck departure times on a timeline for 3 consecutive days. Count how many trucks depart within the same 15-min window. Record how many sites had pump crew ready on truck arrival. This confirms whether bunching and site unreadiness are the actual drivers.',
         strength: dSubScores.length >= 3 ? 'observed' : 'likely',
         tatComponent: 'plant-side',
-        tatImpactEstimate: r.excessMin > 0 ? `Likely contributor to ${Math.round(r.excessMin * 0.3)}-${Math.round(r.excessMin * 0.5)} min of plant-side queue and ${Math.round(r.excessMin * 0.2)}-${Math.round(r.excessMin * 0.35)} min of site waiting excess.` : undefined,
+        tatImpactEstimate: r.excessMin > 0 ? `Coordination quality likely influences ${Math.round(r.excessMin * 0.3)}-${Math.round(r.excessMin * 0.5)} min of plant-side queue time and ${Math.round(r.excessMin * 0.2)}-${Math.round(r.excessMin * 0.35)} min of site waiting.` : undefined,
         impact: 'high',
         competingDrivers: ['batching capacity (if batch cycle > 8 min)', 'fleet size relative to order volume', 'customer order patterns (clustered morning orders)'],
       },
@@ -405,12 +405,12 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
       formula: `${effectiveSiteWaitExcess} actionable excess min ÷ ${r.ta} total TA × ${r.realisticMaxDel} max del/day × ${r.mixCap} m³ × ${Math.round(r.contribSafe)}/m³ × ${Math.round(r.opD / 12)} days`,
       diagnosis: {
         observed: `Site wait measured at ${r.taSiteWaitMin} min per delivery. Benchmark: 35 min. Excess: ${r.siteWaitExcess} min per cycle, multiplied across ${r.effectiveUnits} trucks and ${Math.round(r.opD / 12)} days/month.`,
-        mechanism: `Trucks arrive at sites where the pump crew is not yet staged, formwork is incomplete, or access is blocked by other trades. The driver waits with a loaded drum while concrete workability degrades. No ETA is communicated before departure, so the site has no signal to prepare. On hot days (>35°C), each excess minute also increases slump loss and rejection risk.`,
-        action: 'Step 1: Dispatcher WhatsApps or calls site foreman exactly 30 min before truck arrival with ETA and load details. Step 2: Add demurrage clause to all contracts: $2/min charge after 40 min site wait. Step 3: Track site wait per delivery for 2 weeks and share data with top 5 customers.',
+        mechanism: `Trucks arrive at sites where the pump crew is not yet staged, formwork is incomplete, or access is blocked by other trades. No ETA is communicated before departure, so the site has no signal to prepare. This is most pronounced during morning peaks and large pours, where multiple trucks arrive within short intervals. On hot days (>35°C), each excess minute also increases slump loss and rejection risk.`,
+        action: 'Step 1: Introduce structured ETA communication (initially via WhatsApp, 30 min before arrival) with load details and expected pour time. Step 2: Add demurrage clause to all contracts: $2/min charge after 40 min site wait. Step 3: Track site wait per delivery for 2 weeks and share data with top 5 customers.',
         validation: 'On-site: time 10 consecutive deliveries from gate arrival to first concrete poured. Ask each site foreman: "Did you know the truck was coming, and when?" Check whether existing contracts include a demurrage clause.',
         strength: 'observed',
         tatComponent: 'site',
-        tatImpactEstimate: `${effectiveSiteWaitExcess} min of the ${r.excessMin}-min TAT gap is directly from site waiting excess.`,
+        tatImpactEstimate: `Site waiting accounts for ${effectiveSiteWaitExcess} of the ${r.excessMin} excess minutes in TAT.`,
         impact: 'high',
         competingDrivers: ['contractor site management', 'pump crew availability', 'access road / traffic at site', 'weather (concrete workability window)'],
       },
