@@ -1,7 +1,7 @@
 'use client'
 
 import type { CalcResult, Answers } from '@/lib/calculations'
-import { buildIssues, type Issue, type Diagnosis } from '@/lib/issues'
+import { buildIssues } from '@/lib/issues'
 import { useIsMobile } from '@/hooks/useIsMobile'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -10,6 +10,12 @@ function fmt(n: number): string {
   if (n >= 1_000_000) return '$' + (n / 1_000_000).toFixed(1) + 'M'
   if (n >= 1_000) return '$' + Math.round(n / 1_000) + 'k'
   return '$' + Math.round(n)
+}
+
+function fmtRange(n: number): string {
+  const lo = Math.round(n * 0.82)
+  const hi = Math.round(n * 1.18)
+  return `${fmt(lo)}–${fmt(hi)}`
 }
 
 interface DecisionViewProps {
@@ -24,6 +30,10 @@ export default function DecisionView({ calcResult, answers, meta, phase }: Decis
   const r = calcResult
   const issues = buildIssues(r, answers, meta)
 
+  // Phase determines certainty level
+  const isValidated = phase === 'complete' || phase === 'onsite'
+  const isPre = !isValidated
+
   // Primary issue: highest loss with diagnosis
   const withDiagnosis = issues.filter(i => i.diagnosis && i.loss > 0)
   const primary = withDiagnosis[0] ?? null
@@ -33,7 +43,7 @@ export default function DecisionView({ calcResult, answers, meta, phase }: Decis
   const totalLoss = r.turnaroundLeakMonthly + r.capLeakMonthly + r.rejectLeakMonthly +
     (r.partialLeakMonthly || 0) + (r.surplusLeakMonthly || 0)
 
-  // TAT breakdown
+  // TAT breakdown (only shown when validated with component data)
   const hasBreakdown = r.taBreakdownEntered
   const excessMin = r.excessMin || 0
   const tatComponents = hasBreakdown ? [
@@ -59,17 +69,19 @@ export default function DecisionView({ calcResult, answers, meta, phase }: Decis
     },
   ] : null
 
-  // Find primary loss driver component
   const primaryComponent = tatComponents
     ? tatComponents.reduce((max, c) => (c.actual - c.benchmark > (max.actual - max.benchmark) ? c : max), tatComponents[0])
     : null
 
-  // Build verdict sentence
-  const verdictMechanism = primary?.diagnosis?.mechanism
-    ? primary.diagnosis.mechanism.split('.')[0] + '.'
-    : primary?.t || 'Turnaround exceeds target.'
+  // Build verdict cause text
+  const primaryDimension = primary?.dimension === 'Fleet' && primary?.diagnosis?.tatComponent === 'site'
+    ? 'site waiting' : primary?.dimension === 'Fleet' ? 'fleet turnaround'
+    : primary?.dimension === 'Dispatch' ? 'dispatch coordination'
+    : primary?.dimension === 'Production' ? 'underutilized plant capacity'
+    : primary?.dimension === 'Quality' ? 'quality and rejection losses'
+    : 'turnaround exceeding target'
 
-  // Extract actions from top issues, deduplicate, limit to 5
+  // Extract actions from top issues
   const allActions: { text: string; detail: string; priority: 'start' | 'next' | 'later' }[] = []
   for (const issue of withDiagnosis.slice(0, 3)) {
     const d = issue.diagnosis
@@ -89,10 +101,7 @@ export default function DecisionView({ calcResult, answers, meta, phase }: Decis
   }
   const actions = allActions.slice(0, 5)
 
-  // Demand-constrained
   const demandConstrained = r.demandSufficient === false
-
-  const onSiteValidated = phase === 'complete' || phase === 'onsite'
 
   return (
     <div style={{
@@ -100,6 +109,15 @@ export default function DecisionView({ calcResult, answers, meta, phase }: Decis
       padding: isMobile ? '16px' : '28px 32px',
       maxWidth: '900px',
     }}>
+
+      {/* ── Phase label ── */}
+      <div style={{
+        fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px',
+        color: isValidated ? 'var(--green)' : '#c96a00',
+        marginBottom: '20px',
+      }}>
+        {isValidated ? 'Validated diagnosis' : 'Preliminary diagnosis'}
+      </div>
 
       {/* ── Section 1: The Verdict ── */}
       <div style={{ marginBottom: '32px' }}>
@@ -121,13 +139,17 @@ export default function DecisionView({ calcResult, answers, meta, phase }: Decis
               fontSize: isMobile ? '22px' : '28px', fontWeight: 700, color: 'var(--gray-900)',
               lineHeight: 1.3, marginBottom: '10px',
             }}>
-              <span style={{ color: 'var(--red)' }}>{fmt(totalLoss)}/month</span> is lost because{' '}
-              <span style={{ color: 'var(--gray-700)' }}>
-                {primary?.diagnosis
-                  ? verdictMechanism.toLowerCase().replace(/^based on (the )?reported (dispatch )?((setup|inputs),?\s*)/i, '')
-                  : `turnaround is ${excessMin} min above target`
-                }
-              </span>
+              {isPre ? (
+                <>
+                  <span style={{ color: 'var(--red)' }}>{fmtRange(totalLoss)}/month</span>{' '}
+                  is likely being lost due to {primaryDimension}.
+                </>
+              ) : (
+                <>
+                  <span style={{ color: 'var(--red)' }}>{fmt(totalLoss)}/month</span>{' '}
+                  is lost because of {primaryDimension}.
+                </>
+              )}
             </div>
             <div style={{ fontSize: '14px', fontFamily: 'var(--mono)', color: 'var(--gray-500)' }}>
               Turnaround: {r.ta} min → {r.TARGET_TA} min target ({excessMin} min excess)
@@ -147,51 +169,41 @@ export default function DecisionView({ calcResult, answers, meta, phase }: Decis
             Your truck&apos;s cycle: {r.ta} min
           </div>
 
-          {tatComponents ? (
+          {tatComponents && !isPre ? (
+            /* On-site: full component breakdown */
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)', gap: '12px' }}>
               {tatComponents.map(c => {
                 const excess = Math.max(0, c.actual - c.benchmark)
-                const isPrimary = c === primaryComponent && excess > 0
+                const isPrimaryComp = c === primaryComponent && excess > 0
                 const pct = r.ta > 0 ? (c.actual / r.ta) * 100 : 0
                 return (
                   <div key={c.label} style={{
-                    border: `1.5px solid ${isPrimary ? 'var(--red)' : excess > 0 ? '#f5cba0' : 'var(--border)'}`,
+                    border: `1.5px solid ${isPrimaryComp ? 'var(--red)' : excess > 0 ? '#f5cba0' : 'var(--border)'}`,
                     borderRadius: '10px', padding: '14px',
-                    background: isPrimary ? '#fff3f3' : excess > 0 ? '#fffaf5' : 'var(--gray-50)',
+                    background: isPrimaryComp ? '#fff3f3' : excess > 0 ? '#fffaf5' : 'var(--gray-50)',
                   }}>
                     <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--gray-500)', marginBottom: '8px' }}>
                       {c.label}
                     </div>
-
-                    {/* Bar */}
                     <div style={{ height: '8px', background: 'var(--gray-100)', borderRadius: '4px', overflow: 'hidden', marginBottom: '8px' }}>
                       <div style={{
                         width: `${pct}%`, height: '100%', borderRadius: '4px',
-                        background: excess > 0 ? (isPrimary ? 'var(--red)' : '#d97706') : 'var(--green)',
+                        background: excess > 0 ? (isPrimaryComp ? 'var(--red)' : '#d97706') : 'var(--green)',
                       }} />
                     </div>
-
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                      <span style={{ fontSize: '18px', fontWeight: 700, fontFamily: 'var(--mono)', color: excess > 0 ? (isPrimary ? 'var(--red)' : '#c96a00') : 'var(--gray-700)' }}>
+                      <span style={{ fontSize: '18px', fontWeight: 700, fontFamily: 'var(--mono)', color: excess > 0 ? (isPrimaryComp ? 'var(--red)' : '#c96a00') : 'var(--gray-700)' }}>
                         {c.actual} min
                       </span>
                       {excess > 0 && (
-                        <span style={{ fontSize: '11px', fontWeight: 600, color: isPrimary ? 'var(--red)' : '#c96a00' }}>
-                          +{excess}
-                        </span>
+                        <span style={{ fontSize: '11px', fontWeight: 600, color: isPrimaryComp ? 'var(--red)' : '#c96a00' }}>+{excess}</span>
                       )}
                       {excess === 0 && (
-                        <span style={{ fontSize: '11px', color: 'var(--green)', fontWeight: 600 }}>
-                          on target
-                        </span>
+                        <span style={{ fontSize: '11px', color: 'var(--green)', fontWeight: 600 }}>on target</span>
                       )}
                     </div>
-
-                    {isPrimary && (
-                      <div style={{
-                        marginTop: '8px', fontSize: '10px', fontWeight: 700,
-                        color: 'var(--red)', textTransform: 'uppercase', letterSpacing: '0.3px',
-                      }}>
+                    {isPrimaryComp && (
+                      <div style={{ marginTop: '8px', fontSize: '10px', fontWeight: 700, color: 'var(--red)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
                         ▲ Primary loss driver
                       </div>
                     )}
@@ -200,9 +212,14 @@ export default function DecisionView({ calcResult, answers, meta, phase }: Decis
               })}
             </div>
           ) : (
-            <div style={{ fontSize: '14px', color: 'var(--gray-400)', lineHeight: 1.6 }}>
-              Detailed breakdown not yet available.
-              On-site timing of 10 deliveries will reveal where the excess sits.
+            /* Pre-assessment: no fake breakdown, just total + direction */
+            <div style={{ fontSize: '14px', color: 'var(--gray-500)', lineHeight: 1.6 }}>
+              Total turnaround exceeds target by {excessMin} min. The exact time distribution across plant queue, transit, site waiting, and washout will be confirmed on-site.
+              {primary?.diagnosis?.tatImpactEstimate && (
+                <span style={{ display: 'block', marginTop: '8px', color: 'var(--gray-400)', fontStyle: 'italic' }}>
+                  {primary.diagnosis.tatImpactEstimate}
+                </span>
+              )}
             </div>
           )}
         </div>
@@ -224,22 +241,28 @@ export default function DecisionView({ calcResult, answers, meta, phase }: Decis
                    primary.dimension || 'Primary issue'}
                 </span>
               </div>
-              <span style={{
-                fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '4px',
-                background: primary.diagnosis.strength === 'observed' ? 'var(--green-light)' : '#fff8ed',
-                color: primary.diagnosis.strength === 'observed' ? 'var(--green)' : '#c96a00',
-              }}>
-                {primary.diagnosis.strength}
-              </span>
+              {isValidated && (
+                <span style={{
+                  fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '4px',
+                  background: 'var(--green-light)', color: 'var(--green)',
+                }}>
+                  confirmed
+                </span>
+              )}
             </div>
 
-            {/* Mechanism, 2-3 lines max */}
+            {/* Mechanism */}
             <div style={{ fontSize: '14px', color: 'var(--gray-700)', lineHeight: 1.6, marginBottom: '12px' }}>
-              {primary.diagnosis.mechanism.split('.').slice(0, 3).join('.') + '.'}
+              {isPre
+                ? primary.diagnosis.mechanism
+                    .replace(/^Based on (the )?reported (dispatch )?(setup|inputs),?\s*/i, '')
+                    .split('.').slice(0, 3).join('.') + '.'
+                : primary.diagnosis.mechanism.split('.').slice(0, 3).join('.') + '.'
+              }
             </div>
 
-            {/* TAT impact */}
-            {primary.diagnosis.tatImpactEstimate && (
+            {/* TAT impact (on-site only, pre shows it in breakdown section) */}
+            {isValidated && primary.diagnosis.tatImpactEstimate && (
               <div style={{ fontSize: '13px', color: 'var(--gray-500)', marginBottom: '12px', fontStyle: 'italic' }}>
                 {primary.diagnosis.tatImpactEstimate}
               </div>
@@ -250,7 +273,7 @@ export default function DecisionView({ calcResult, answers, meta, phase }: Decis
               fontSize: '12px', color: 'var(--gray-400)', lineHeight: 1.5,
               borderTop: '1px solid var(--border)', paddingTop: '10px',
             }}>
-              <strong style={{ color: 'var(--gray-500)' }}>To confirm:</strong>{' '}
+              <strong style={{ color: 'var(--gray-500)' }}>{isPre ? 'To validate:' : 'Confirmed by:'}</strong>{' '}
               {primary.diagnosis.validation.split('.').slice(0, 2).join('.') + '.'}
             </div>
           </div>
@@ -263,13 +286,10 @@ export default function DecisionView({ calcResult, answers, meta, phase }: Decis
             }}>
               <strong style={{ color: 'var(--gray-500)' }}>Also contributing:</strong>{' '}
               {secondary.dimension === 'Fleet' ? 'Fleet turnaround' : secondary.dimension} —{' '}
-              {secondary.diagnosis.mechanism.split('.')[0].toLowerCase()}{' '}
-              <span style={{
-                fontSize: '10px', fontWeight: 600, padding: '1px 5px', borderRadius: '3px',
-                background: '#fff8ed', color: '#c96a00',
-              }}>
-                {secondary.diagnosis.strength}
-              </span>
+              {secondary.diagnosis.mechanism.split('.')[0]
+                .replace(/^Based on (the )?reported (dispatch )?(setup|inputs),?\s*/i, '')
+                .toLowerCase()
+              }
             </div>
           )}
         </div>
@@ -335,10 +355,10 @@ export default function DecisionView({ calcResult, answers, meta, phase }: Decis
       )}
 
       {/* ── Section 5: Confidence footer ── */}
-      <div style={{ fontSize: '12px', color: 'var(--gray-400)', lineHeight: 1.5 }}>
-        {onSiteValidated
-          ? 'Assessment validated on-site. Mechanisms confirmed.'
-          : 'Assessment based on reported data. On-site validation recommended to confirm breakdown and mechanisms.'
+      <div style={{ fontSize: '12px', color: 'var(--gray-400)' }}>
+        {isValidated
+          ? 'Validated on-site.'
+          : 'Based on reported data. On-site validation will confirm drivers.'
         }
       </div>
     </div>
