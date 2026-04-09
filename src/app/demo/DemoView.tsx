@@ -331,8 +331,12 @@ export default function DemoView({ userRole = null, isOverridden = false }: Demo
   const supabase = createClient()
   const [demoPhase, setDemoPhase] = useState<DemoPhase>('workshop')
 
-  // Allowed modes per role, mirrors AssessmentShell logic
-  const allowedModes: AssessmentMode[] = userRole === 'owner'
+  // Allowed modes per role + phase
+  // Pre-assessment: only what 14 remote questions can support
+  // On-site: full product after plant visit
+  const allowedModes: AssessmentMode[] = demoPhase === 'workshop'
+    ? (userRole === 'operator' ? ['track'] : ['questions', 'decision'])
+    : userRole === 'owner'
     ? ['report', 'decision', 'simulator', 'track']
     : userRole === 'operator'
     ? ['track']
@@ -462,7 +466,7 @@ export default function DemoView({ userRole = null, isOverridden = false }: Demo
           </div>
           {/* Centre: phase switch button */}
           <button
-            onClick={() => setDemoPhase(p => p === 'workshop' ? 'onsite' : 'workshop')}
+            onClick={() => { setDemoPhase(p => p === 'workshop' ? 'onsite' : 'workshop'); setDemoView('plants') }}
             style={{
               display: 'flex', flexDirection: 'column', alignItems: 'center',
               background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)',
@@ -529,7 +533,7 @@ export default function DemoView({ userRole = null, isOverridden = false }: Demo
         allowedModes={allowedModes}
         extraTabs={userRole !== 'operator' ? [
           { label: 'Overview',   shortLabel: 'Overview', onClick: () => setDemoView('plants'),  active: demoView === 'plants'  },
-          { label: 'Comparison', shortLabel: 'Compare',  onClick: () => setDemoView('compare'), active: demoView === 'compare' },
+          ...(demoPhase === 'onsite' ? [{ label: 'Comparison', shortLabel: 'Compare',  onClick: () => setDemoView('compare'), active: demoView === 'compare' }] : []),
         ] : undefined}
       />
 
