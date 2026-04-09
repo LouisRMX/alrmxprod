@@ -1023,6 +1023,7 @@ function ScoreOverview({ calcResult, meta, phase }: {
   const belowBenchmark = dims.filter(d => Math.round(d.score) < 75).length
   const plantName = meta?.plant || 'Plant'
   const phaseLabel = phase === 'workshop' ? 'Pre-assessment' : phase === 'onsite' ? 'On-site Assessment' : 'Assessment'
+  const bottleneck = calcResult.bottleneck
 
   function chipStyle(score: number): React.CSSProperties {
     const s = Math.round(score)
@@ -1040,16 +1041,17 @@ function ScoreOverview({ calcResult, meta, phase }: {
       flexDirection: isMobile ? 'row' : 'row', gap: isMobile ? '16px' : '32px',
       flexWrap: 'wrap',
     }}>
-      {/* Score circle */}
-      <div style={{
-        width: isMobile ? '64px' : '80px', height: isMobile ? '64px' : '80px', borderRadius: '50%',
-        border: `4px solid ${overallStyle.color}`,
-        display: 'flex', flexDirection: 'column',
-        alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-      }}>
-        <span style={{ fontSize: isMobile ? '22px' : '28px', fontWeight: 700, color: overallStyle.color, lineHeight: 1 }}>{overall}</span>
-        <span style={{ fontSize: '11px', color: '#9b9b9b' }}>/100</span>
-      </div>
+      {/* Constraint indicator */}
+      {bottleneck && (
+        <div style={{
+          padding: '10px 16px', borderRadius: '8px',
+          background: '#fff3f3', border: '1px solid #fcc', flexShrink: 0,
+          textAlign: 'center',
+        }}>
+          <div style={{ fontSize: '10px', color: '#991B1B', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600, marginBottom: '2px' }}>Constraint</div>
+          <div style={{ fontSize: '18px', fontWeight: 700, color: '#cc3333' }}>{bottleneck}</div>
+        </div>
+      )}
       {/* Right side */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: '17px', fontWeight: 700, color: '#1a1a1a', marginBottom: '4px' }}>
@@ -1057,7 +1059,7 @@ function ScoreOverview({ calcResult, meta, phase }: {
         </div>
         <div style={{ fontSize: '12px', color: '#666', marginBottom: '14px' }}>
           {belowBenchmark > 0
-            ? `Performance below benchmark on ${belowBenchmark} of ${dims.length} dimension${dims.length !== 1 ? 's' : ''}`
+            ? `${belowBenchmark} of ${dims.length} dimension${dims.length !== 1 ? 's' : ''} below benchmark`
             : 'All dimensions at or above benchmark'}
         </div>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
@@ -1067,7 +1069,7 @@ function ScoreOverview({ calcResult, meta, phase }: {
               fontWeight: 600, border: '1.5px solid',
               ...chipStyle(d.score),
             }}>
-              {d.label} {Math.round(d.score)}
+              {d.label}
             </span>
           ))}
         </div>

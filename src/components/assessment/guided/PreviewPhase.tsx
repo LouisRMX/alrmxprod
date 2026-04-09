@@ -2,7 +2,6 @@
 
 import type { CalcResult, Answers } from '@/lib/calculations'
 import { buildIssues, type Issue } from '@/lib/issues'
-import ScoreLivePanel from '../ScoreLivePanel'
 
 interface PreviewPhaseProps {
   calcResult: CalcResult
@@ -55,11 +54,16 @@ export default function PreviewPhase({ calcResult, answers, meta, onGenerateRepo
         </p>
       </div>
 
-      <ScoreLivePanel
-        scores={calcResult.scores}
-        overall={calcResult.overall}
-        bottleneck={calcResult.bottleneck}
-      />
+      {/* Bottleneck indicator */}
+      {calcResult.bottleneck && (
+        <div style={{
+          background: 'var(--error-bg)', border: '1px solid var(--error-border)',
+          borderRadius: '8px', padding: '10px 14px', marginBottom: '12px',
+          fontSize: '13px', color: 'var(--red)', fontWeight: 500,
+        }}>
+          ⚡ Primary constraint: {calcResult.bottleneck}
+        </div>
+      )}
 
       {/* Total monthly opportunity */}
       {totalMonthly > 0 && (

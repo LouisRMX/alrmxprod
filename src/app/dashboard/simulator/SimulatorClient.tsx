@@ -420,7 +420,7 @@ export default function SimulatorClient({ assessments }: SimulatorClientProps) {
         >
           {assessments.map(a => (
             <option key={a.id} value={a.id}>
-              {a.plant?.name || '-'}, {a.plant?.customer?.name || '-'}, Score: {a.overall}/100, {a.bottleneck || '-'}
+              {a.plant?.name || '-'}, {a.plant?.customer?.name || '-'}, {a.bottleneck || '-'}
             </option>
           ))}
         </select>
@@ -438,7 +438,7 @@ export default function SimulatorClient({ assessments }: SimulatorClientProps) {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
               {[
-                { label: 'Overall score', value: `${selected.overall}/100`, color: scoreColor(selected.overall || 0) },
+                { label: 'Revenue at risk', value: fmtMoney(selected.ebitda_monthly || 0) + '/mo', color: '#C0392B' },
                 { label: 'Bottleneck', value: selected.bottleneck || '-', color: '#C0392B' },
                 { label: 'Annual volume', value: fmtVolume(result.baselineAnnual), color: 'var(--gray-900)' },
                 { label: 'EBITDA gap', value: fmtMoney(selected.ebitda_monthly || 0) + '/mo', color: '#C0392B' },

@@ -144,8 +144,8 @@ export interface SimBaseline {
   contrib: number
   TARGET_TA: number
   dispatchMin: number  // baseline order-to-dispatch minutes (same scale as scenario)
-  dispatchScore: number // 0-100 baseline (kept for score display)
-  qualityScore: number // 0-100 baseline
+  dispatchMin_baseline: number // baseline dispatch time
+  rejectPct: number // baseline rejection %
 }
 
 export interface SimScenario {

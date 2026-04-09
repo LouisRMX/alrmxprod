@@ -297,8 +297,8 @@ function makeBaseline(overrides: Partial<SimBaseline> = {}): SimBaseline {
     contrib: 20,
     TARGET_TA: 83, // 60 + 15*1.5 = 82.5 → 83
     dispatchMin: 25,
-    dispatchScore: 65,
-    qualityScore: 60,
+    dispatchMin_baseline: 25,
+    rejectPct: 3,
     ...overrides,
   }
 }

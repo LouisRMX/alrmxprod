@@ -118,10 +118,9 @@ export default async function ReportsPage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexShrink: 0, marginLeft: '16px' }}>
                 {a.overall !== null && (
                   <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: '24px', fontWeight: '700', fontFamily: 'var(--mono)', color: scoreColor(a.overall) }}>
-                      {a.overall}
+                    <div style={{ fontSize: '14px', fontWeight: '700', color: a.bottleneck ? '#c96a00' : 'var(--gray-400)' }}>
+                      {a.bottleneck || '-'}
                     </div>
-                    <div style={{ fontSize: '10px', color: 'var(--gray-400)' }}>/100</div>
                   </div>
                 )}
                 <Link href={`/dashboard/assess/${a.id}`} style={{

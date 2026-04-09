@@ -42,7 +42,7 @@ export interface PlantCardData {
   assessmentHref?: string   // override link (used by demo to point all cards to /demo)
 }
 
-type SortKey = 'score_asc' | 'score_desc' | 'gap' | 'name'
+type SortKey = 'risk' | 'gap' | 'name'
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -113,9 +113,6 @@ function PlantCard({ plant, isMobile }: { plant: PlantCardData; isMobile: boolea
   const href = plant.assessmentHref
     ?? (a ? `/dashboard/assess/${a.id}` : undefined)
 
-  // Normalize fleet score, older DB rows may use 'fleet' key
-  const fleetScore = a?.scores?.logistics ?? a?.scores?.fleet ?? null
-
   const cardStyle: React.CSSProperties = {
     background: 'var(--white)',
     border: `1px solid ${hovered && href ? 'var(--green)' : 'var(--border)'}`,
@@ -146,16 +143,8 @@ function PlantCard({ plant, isMobile }: { plant: PlantCardData; isMobile: boolea
           {plant.name}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-          {a?.overall !== null && a?.overall !== undefined && (
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px' }}>
-              <span style={{ fontSize: '15px', fontWeight: 700, fontFamily: 'var(--mono)', color: scoreColor(a.overall) }}>
-                {a.overall}
-              </span>
-              <span style={{ fontSize: '10px', color: 'var(--gray-400)' }}>/100</span>
-              {isImproving && (
-                <span style={{ fontSize: '12px', color: 'var(--phase-complete)', marginLeft: '2px', fontWeight: 700 }}>↑</span>
-              )}
-            </div>
+          {isImproving && (
+            <span style={{ fontSize: '12px', color: 'var(--phase-complete)', fontWeight: 700 }}>↑ Improving</span>
           )}
           <span style={{ fontSize: '10px', color: 'var(--gray-400)', fontFamily: 'var(--mono)', background: 'var(--gray-50)', padding: '2px 6px', borderRadius: '4px' }}>
             {plant.country}
@@ -164,7 +153,7 @@ function PlantCard({ plant, isMobile }: { plant: PlantCardData; isMobile: boolea
       </div>
 
       {/* Body */}
-      {!a || a.overall === null ? (
+      {!a || (a.overall === null && a.ebitda_monthly === null) ? (
         <div style={{ padding: '10px 0' }}>
           <PhaseBadge phase={a?.phase || 'workshop'} />
           <div style={{ fontSize: '12px', color: 'var(--gray-400)', marginTop: '8px' }}>
@@ -188,17 +177,43 @@ function PlantCard({ plant, isMobile }: { plant: PlantCardData; isMobile: boolea
             }
           </div>
 
-          {/* Constraint, chip + detail on one line */}
+          {/* Constraint chip */}
           {a.bottleneck && (
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', flexWrap: 'wrap' }}>
               <span style={{
                 fontSize: '10px', fontWeight: 700, padding: '2px 7px',
                 borderRadius: '4px', background: 'var(--error-bg)', color: 'var(--red)', flexShrink: 0,
               }}>
-                ⚡ {a.bottleneck === 'Fleet' ? 'Logistics' : a.bottleneck}
+                ⚡ {a.bottleneck === 'Fleet' ? 'logistics' : a.bottleneck.toLowerCase()}
               </span>
               {a.constraintDetail && (
                 <span style={{ fontSize: '11px', color: 'var(--gray-400)' }}>{a.constraintDetail}</span>
+              )}
+            </div>
+          )}
+
+          {/* KPI row */}
+          {a.kpi && (
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+              {a.kpi.dispatchMin != null && (
+                <div style={{ fontSize: '11px', color: 'var(--gray-500)' }}>
+                  <span style={{ fontFamily: 'var(--mono)', fontWeight: 600, color: (a.kpi.dispatchMin ?? 0) > 25 ? 'var(--red)' : 'var(--gray-700)' }}>{a.kpi.dispatchMin} min</span> dispatch
+                </div>
+              )}
+              {a.kpi.turnaroundMin != null && (
+                <div style={{ fontSize: '11px', color: 'var(--gray-500)' }}>
+                  <span style={{ fontFamily: 'var(--mono)', fontWeight: 600, color: (a.kpi.turnaroundMin ?? 0) > 100 ? 'var(--red)' : 'var(--gray-700)' }}>{a.kpi.turnaroundMin} min</span> turnaround
+                </div>
+              )}
+              {a.kpi.utilPct != null && (
+                <div style={{ fontSize: '11px', color: 'var(--gray-500)' }}>
+                  <span style={{ fontFamily: 'var(--mono)', fontWeight: 600, color: (a.kpi.utilPct ?? 0) < 70 ? 'var(--red)' : 'var(--gray-700)' }}>{a.kpi.utilPct}%</span> utilization
+                </div>
+              )}
+              {a.kpi.rejectPct != null && (
+                <div style={{ fontSize: '11px', color: 'var(--gray-500)' }}>
+                  <span style={{ fontFamily: 'var(--mono)', fontWeight: 600, color: (a.kpi.rejectPct ?? 0) > 3 ? 'var(--red)' : 'var(--gray-700)' }}>{a.kpi.rejectPct}%</span> rejection
+                </div>
               )}
             </div>
           )}
@@ -238,8 +253,8 @@ function PlantCard({ plant, isMobile }: { plant: PlantCardData; isMobile: boolea
         </>
       )}
 
-      {/* Pending footer (no href, no score) */}
-      {(!a || a.overall === null) && (
+      {/* Pending footer */}
+      {(!a || (a.overall === null && a.ebitda_monthly === null)) && (
         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
           <span style={{ fontSize: '11px', color: 'var(--gray-300)' }}>Pending</span>
         </div>
@@ -299,26 +314,13 @@ interface PlantOverviewViewProps {
 
 export default function PlantOverviewView({ plants, customerName, isDemo, demoPlantCount, onDemoPlantCountChange }: PlantOverviewViewProps) {
   const isMobile = useIsMobile()
-  const [sort, setSort] = useState<SortKey>('score_asc')
+  const [sort, setSort] = useState<SortKey>('risk')
 
   // ── Sort ──
   const sorted = useMemo(() => {
     return [...plants].sort((a, b) => {
-      if (sort === 'score_asc') {
-        const sa = a.assessment?.overall ?? null
-        const sb = b.assessment?.overall ?? null
-        if (sa === null && sb === null) return 0
-        if (sa === null) return 1
-        if (sb === null) return -1
-        return sa - sb
-      }
-      if (sort === 'score_desc') {
-        const sa = a.assessment?.overall ?? null
-        const sb = b.assessment?.overall ?? null
-        if (sa === null && sb === null) return 0
-        if (sa === null) return 1
-        if (sb === null) return -1
-        return sb - sa
+      if (sort === 'risk') {
+        return (b.assessment?.ebitda_monthly ?? 0) - (a.assessment?.ebitda_monthly ?? 0)
       }
       if (sort === 'gap') {
         return (b.assessment?.ebitda_monthly ?? 0) - (a.assessment?.ebitda_monthly ?? 0)
@@ -328,22 +330,17 @@ export default function PlantOverviewView({ plants, customerName, isDemo, demoPl
   }, [plants, sort])
 
   // ── Summary stats ──
-  const withScore = plants.filter(p => p.assessment?.overall !== null && p.assessment !== null)
-  const avgScore = withScore.length > 0
-    ? Math.round(withScore.reduce((s, p) => s + p.assessment!.overall!, 0) / withScore.length)
-    : null
   const totalGap = plants.reduce((s, p) => s + (p.assessment?.ebitda_monthly ?? 0), 0)
   const totalRecovered = plants.reduce((s, p) => s + (p.assessment?.recoveredMonthly ?? 0), 0)
   const atRisk = plants.filter(p => {
-    const score = p.assessment?.overall
-    return score !== null && score !== undefined && score < 60
+    const gap = p.assessment?.ebitda_monthly
+    return gap !== null && gap !== undefined && gap > 50000
   }).length
 
   const SORT_OPTS: { key: SortKey; label: string }[] = [
-    { key: 'score_asc',  label: 'Risk first' },
-    { key: 'score_desc', label: 'Best first' },
-    { key: 'gap',        label: 'Biggest gap' },
-    { key: 'name',       label: 'A–Z' },
+    { key: 'risk', label: 'Risk first' },
+    { key: 'gap',  label: 'Biggest gap' },
+    { key: 'name', label: 'A–Z' },
   ]
 
   return (
@@ -446,12 +443,18 @@ export default function PlantOverviewView({ plants, customerName, isDemo, demoPl
           </div>
         </div>
 
-        {/* Avg score chip */}
+        {/* Primary bottleneck chip */}
         <div style={{ background: 'var(--white)', border: '1px solid var(--border)', borderRadius: '10px', padding: isMobile ? '12px 14px' : '14px 18px' }}>
-          <div style={{ fontSize: '10px', color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: '5px' }}>Avg score</div>
-          <div style={{ fontSize: isMobile ? '18px' : '22px', fontWeight: 700, fontFamily: 'var(--mono)', color: avgScore !== null ? scoreColor(avgScore) : 'var(--gray-300)', lineHeight: 1 }}>
-            {avgScore !== null ? `${avgScore}/100` : '-'}
-          </div>
+          <div style={{ fontSize: '10px', color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: '5px', fontWeight: 600 }}>Primary bottleneck</div>
+          {(() => {
+            const bottlenecks = plants.map(p => p.assessment?.bottleneck).filter(Boolean)
+            const most = bottlenecks.length > 0 ? bottlenecks.sort((a, b) =>
+              bottlenecks.filter(v => v === b).length - bottlenecks.filter(v => v === a).length
+            )[0] : null
+            return <div style={{ fontSize: isMobile ? '16px' : '20px', fontWeight: 700, color: most ? '#c96a00' : 'var(--gray-300)', lineHeight: 1 }}>
+              {most ? (most === 'Fleet' ? 'Logistics' : most) : '-'}
+            </div>
+          })()}
         </div>
 
         {/* At-risk chip */}
@@ -466,7 +469,7 @@ export default function PlantOverviewView({ plants, customerName, isDemo, demoPl
           {atRisk > 0 ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ fontSize: isMobile ? '24px' : '30px', fontWeight: 800, fontFamily: 'var(--mono)', color: '#c07000', lineHeight: 1 }}>{atRisk}</span>
-              <span style={{ fontSize: '11px', color: '#b07a00', fontWeight: 500, lineHeight: 1.3 }}>plant{atRisk !== 1 ? 's' : ''}<br />below 60</span>
+              <span style={{ fontSize: '11px', color: '#b07a00', fontWeight: 500, lineHeight: 1.3 }}>plant{atRisk !== 1 ? 's' : ''}<br />need action</span>
             </div>
           ) : (
             <div style={{ fontSize: isMobile ? '18px' : '22px', fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--phase-complete)', lineHeight: 1 }}>✓ None</div>
@@ -484,8 +487,8 @@ export default function PlantOverviewView({ plants, customerName, isDemo, demoPl
         }}>
           <span>⚠</span>
           <span>
-            <strong>{atRisk} plant{atRisk !== 1 ? 's' : ''}</strong> scoring below 60
-            , prioritise these first. Click to see the full diagnosis.
+            <strong>{atRisk} plant{atRisk !== 1 ? 's' : ''}</strong> with significant revenue at risk.
+            Prioritise these first. Click to see the full diagnosis.
           </span>
         </div>
       )}

@@ -40,8 +40,8 @@ export default function SimulatorView({ calcResult, readOnly }: SimulatorViewPro
     contrib: r.contrib,
     TARGET_TA: r.TARGET_TA,
     dispatchMin: r.dispatchMin ?? 20,
-    dispatchScore: r.scores.dispatch ?? 50,
-    qualityScore: r.scores.quality ?? 50,
+    dispatchMin_baseline: r.dispatchMin ?? 20,
+    rejectPct: r.rejectPct ?? 0,
   }), [r])
 
   const [sTurnaround, setSTurnaround] = useState(r.ta || 90)

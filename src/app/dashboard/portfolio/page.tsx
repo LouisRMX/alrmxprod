@@ -102,7 +102,7 @@ export default async function PortfolioPage() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px', marginBottom: '24px' }}>
         {[
           { label: 'Total assessments', value: total.toString() },
-          { label: 'Average score', value: avgScore ? `${avgScore}/100` : '-' },
+          { label: 'Assessments completed', value: total > 0 ? `${total}` : '-' },
           { label: 'Total EBITDA gap', value: fmt(totalEbitda) + '/mo' },
         ].map(kpi => (
           <div key={kpi.label} style={{

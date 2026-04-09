@@ -95,12 +95,12 @@ export default function ExportPDF({ calcResult, answers, meta, report }: ExportP
     setExporting(false)
   }, [meta])
 
-  const scores = [
-    { label: 'Production', value: calcResult.scores.prod },
-    { label: 'Dispatch', value: calcResult.scores.dispatch },
-    { label: 'Fleet', value: calcResult.scores.logistics },
-    { label: 'Quality', value: calcResult.scores.quality },
-    { label: 'Overall', value: calcResult.overall },
+  const kpis = [
+    { label: 'Utilization', value: calcResult.util ? `${Math.round(calcResult.util * 100)}%` : '-' },
+    { label: 'Dispatch', value: calcResult.dispatchMin ? `${calcResult.dispatchMin} min` : '-' },
+    { label: 'Turnaround', value: calcResult.ta ? `${Math.round(calcResult.ta)} min` : '-' },
+    { label: 'Rejection', value: calcResult.rejectPct ? `${calcResult.rejectPct}%` : '-' },
+    { label: 'Constraint', value: calcResult.bottleneck || '-' },
   ]
 
   return (
@@ -148,25 +148,20 @@ export default function ExportPDF({ calcResult, answers, meta, report }: ExportP
           </div>
         </div>
 
-        {/* Scores */}
+        {/* KPIs */}
         <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
-          {scores.map(s => (
-            <div key={s.label} style={{
+          {kpis.map(k => (
+            <div key={k.label} style={{
               flex: 1, textAlign: 'center', padding: '12px 8px',
-              background: scoreBg(s.value), borderRadius: '8px',
-              border: `1px solid ${s.value !== null && s.value >= 80 ? '#9FE1CB' : s.value !== null && s.value >= 60 ? '#F9E79F' : s.value !== null ? '#F5B7B1' : '#e0e0e0'}`,
+              background: '#f9fafb', borderRadius: '8px',
+              border: '1px solid #e0e0e0',
             }}>
               <div style={{ fontSize: '10px', color: '#6b6b6b', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '.5px' }}>
-                {s.label}
+                {k.label}
               </div>
-              <div style={{ fontSize: '28px', fontWeight: 700, fontFamily: "'DM Mono', monospace", color: scoreColor(s.value), marginTop: '2px' }}>
-                {s.value !== null ? s.value : '-'}
+              <div style={{ fontSize: '18px', fontWeight: 700, fontFamily: "'DM Mono', monospace", color: '#1a1a1a', marginTop: '2px' }}>
+                {k.value}
               </div>
-              {s.label === 'Overall' && financialBottleneck && (
-                <div style={{ fontSize: '9px', color: '#C0392B', fontWeight: 600, marginTop: '2px' }}>
-                  Financial driver: {financialBottleneck}
-                </div>
-              )}
             </div>
           ))}
         </div>

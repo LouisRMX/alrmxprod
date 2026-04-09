@@ -7,7 +7,6 @@ import { buildIssues } from '@/lib/issues'
 import ModeTabs, { type AssessmentMode } from './ModeTabs'
 import Sidebar from './Sidebar'
 import SectionView from './SectionView'
-import ScoreLivePanel from './ScoreLivePanel'
 import GuidedMode from './guided/GuidedMode'
 import ReportView from './report/ReportView'
 import OwnerReportView from './report/OwnerReportView'
@@ -269,14 +268,16 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             {mode === 'questions' && (
               <>
-                {/* Live scores, hidden for owner (they don't edit), shown for others */}
-                {showScorePanel && (
+                {/* Bottleneck indicator */}
+                {showScorePanel && calcResult.bottleneck && (
                   <div style={{ padding: '12px 20px 0' }}>
-                    <ScoreLivePanel
-                      scores={calcResult.scores}
-                      overall={calcResult.overall}
-                      bottleneck={calcResult.bottleneck}
-                    />
+                    <div style={{
+                      background: 'var(--error-bg)', border: '1px solid var(--error-border)',
+                      borderRadius: '8px', padding: '10px 14px',
+                      fontSize: '13px', color: 'var(--red)', fontWeight: 500,
+                    }}>
+                      ⚡ Primary constraint: {calcResult.bottleneck}
+                    </div>
                   </div>
                 )}
 

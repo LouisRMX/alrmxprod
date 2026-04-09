@@ -55,7 +55,7 @@ export default function ActionItems({ assessments, lastLogged }: ActionItemsProp
         type: 'write_report',
         assessmentId: a.id,
         plantName: pName,
-        detail: `Score ${a.overall}/100, report not written`,
+        detail: `Assessment complete, report not written`,
       })
     }
 
