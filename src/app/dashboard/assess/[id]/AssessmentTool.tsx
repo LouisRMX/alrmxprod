@@ -145,6 +145,8 @@ export default function AssessmentTool({
       bottleneck: data.bottleneck,
       ebitda_monthly: data.ebitdaMonthly,
       validated_diagnosis: data.validatedDiagnosis ?? null,
+      diagnosis_generated_at: data.validatedDiagnosis ? new Date().toISOString() : null,
+      diagnosis_schema_version: data.validatedDiagnosis ? 1 : null,
       hidden_rev_monthly: data.hiddenRevMonthly,
     }).eq('id', assessment.id)
 
