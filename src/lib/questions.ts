@@ -201,6 +201,25 @@ export const SECTIONS: Section[] = [
         },
       },
       {
+        id: 'material_stoppages',
+        label: 'In the last 3 months, how many times did the plant stop production because cement or raw materials were not available?',
+        hint: 'Ask directly: "In the last 3 months, did you ever have to stop batching because you ran out of cement or aggregates?" Even 1 day of stoppage is significant.',
+        field: 'Ask the plant manager or batch operator. They will remember stoppages because they are operational crises.',
+        howto: 'This is a direct question. Most plant managers will know immediately. If they say it happened, ask how many times and roughly how many total days were lost.',
+        type: 'opts',
+        opts: [
+          'Never, no material stoppages in last 3 months',
+          'Once, 1 to 2 days lost',
+          '2 to 3 times, 3 to 7 days lost',
+          'More than 3 times, frequent disruption',
+        ],
+        info: {
+          what: 'How often the plant stopped due to material shortage in the last quarter.',
+          why: 'Material stoppages are hidden inside the utilization gap. Without this question, we attribute all lost production to fleet or plant constraints. This separates material-driven downtime from operational inefficiency.',
+          calc: 'Not scored. Estimated days mapped to context: 0 / 1.5 / 5 / 10 days per quarter. Shown as explanatory context in the report, not as a separate financial loss.',
+        },
+      },
+      {
         id: 'ramadan_schedule',
         label: 'Does this plant adjust its dispatch schedule during Ramadan?',
         hint: 'During Ramadan, site activity typically shifts earlier (5am–11am peak) and drops sharply after noon. Plants that do not adjust dispatch schedules miss the morning peak and incur idle truck costs in the afternoon.',

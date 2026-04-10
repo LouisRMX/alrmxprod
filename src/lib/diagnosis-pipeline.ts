@@ -449,6 +449,10 @@ export interface ValidatedDiagnosis {
   reject_pct: number
   reject_plant_fraction: number  // 0-1
 
+  // Material context
+  material_stoppage_days_quarter: number  // 0 if no stoppages
+  material_context: string | null         // explanatory text for report
+
   // Calculation trace (single source of truth, all downstream must reference these)
   calc_trace: {
     fleet_daily_m3: number
@@ -588,6 +592,27 @@ export function buildValidatedDiagnosis(
     utilization_pct: Math.round(r.util * 100),
     reject_pct: r.rejectPct,
     reject_plant_fraction: r.rejectPlantFraction,
+
+    // Material context
+    material_stoppage_days_quarter: (() => {
+      const map: Record<string, number> = {
+        'Once, 1 to 2 days lost': 1.5,
+        '2 to 3 times, 3 to 7 days lost': 5,
+        'More than 3 times, frequent disruption': 10,
+      }
+      return map[answers.material_stoppages as string] || 0
+    })(),
+    material_context: (() => {
+      const map: Record<string, number> = {
+        'Once, 1 to 2 days lost': 1.5,
+        '2 to 3 times, 3 to 7 days lost': 5,
+        'More than 3 times, frequent disruption': 10,
+      }
+      const days = map[answers.material_stoppages as string] || 0
+      if (days === 0) return null
+      const monthlyDays = Math.round(days / 3 * 10) / 10
+      return `~${days} days of production stopped due to material shortage in the last quarter (~${monthlyDays} days/month). This is already included in the reported production figure and does not add to the total loss.`
+    })(),
 
     // Calculation trace: single source of truth
     calc_trace: (() => {

@@ -91,7 +91,7 @@ export function getGuidedTriggers(r: CalcResult, a: Answers, meta?: { country?: 
       icon: '',
       title: 'GCC operational factors',
       why: 'GCC-specific factors, Ramadan, summer heat, cement and aggregate supply.',
-      ids: ['ramadan_schedule', 'summer_cooling', 'silo_days', 'aggregate_days'],
+      ids: ['ramadan_schedule', 'summer_cooling', 'silo_days', 'material_stoppages', 'aggregate_days'],
     })
   }
 

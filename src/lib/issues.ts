@@ -335,6 +335,28 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
     issues.push({ sev: 'amber', pin: false, category: 'independent', dimension: 'Other', t: 'Cement stock 2–5 days, vulnerable to supply disruption', action: 'Increase reorder point, extend to 7+ days before Ramadan and public holidays', rec: 'Irregular delivery schedules create real stoppage risk at this buffer level.', loss: 0 })
   }
 
+  // Material stoppages (contextual, no $ loss, decompose utilization gap)
+  const STOPPAGE_DAYS_MAP: Record<string, number> = {
+    'Once, 1 to 2 days lost': 1.5,
+    '2 to 3 times, 3 to 7 days lost': 5,
+    'More than 3 times, frequent disruption': 10,
+  }
+  const stoppageDays = STOPPAGE_DAYS_MAP[a.material_stoppages as string] || 0
+  if (stoppageDays > 0) {
+    const monthlyStoppageDays = Math.round(stoppageDays / 3 * 10) / 10 // quarterly to monthly
+    const lostM3FromStoppage = r.actual > 0 ? Math.round(monthlyStoppageDays * r.actual * r.opH) : 0
+    issues.push({
+      sev: stoppageDays >= 5 ? 'red' : 'amber',
+      pin: false, category: 'independent', dimension: 'Other',
+      t: `Material shortage caused ~${stoppageDays} days of production stoppage in the last quarter${lostM3FromStoppage > 0 ? ` (~${lostM3FromStoppage} m\u00B3/month of the utilization gap)` : ''}`,
+      action: stoppageDays >= 5
+        ? 'Secure a standing delivery contract with guaranteed minimum frequency. Consider a secondary supplier.'
+        : 'Review cement delivery schedule and increase reorder point to prevent recurrence.',
+      rec: `Material stoppages are already included in the reported production figure. This is not an additional loss. It explains part of the utilization gap: approximately ${monthlyStoppageDays} days/month of the gap is material-driven, not operationally driven.`,
+      loss: 0, // No $ loss: already captured in throughput via lower actual_prod
+    })
+  }
+
   if (a.ramadan_schedule === 'No, same schedule year-round' && GCC_COUNTRIES.includes(country)) {
     const ramadanLoss = r.delDay > 0 && r.contrib > 0 ? Math.round(r.delDay * r.mixCap * r.contrib * (30 / 365) * 0.20) : 0
     issues.push({
