@@ -449,6 +449,21 @@ export interface ValidatedDiagnosis {
   reject_pct: number
   reject_plant_fraction: number  // 0-1
 
+  // Calculation trace (single source of truth, all downstream must reference these)
+  calc_trace: {
+    fleet_daily_m3: number
+    plant_daily_m3: number
+    actual_daily_m3: number
+    target_daily_m3: number       // min(fleet@target, plant) - the achievable ceiling
+    gap_daily_m3: number          // target - actual
+    working_days_month: number
+    gap_monthly_m3: number        // gap_daily × working_days
+    margin_per_m3: number
+    throughput_loss_usd: number   // gap_monthly × margin
+    trips_per_truck: number
+    trips_per_truck_target: number
+  }
+
   // Financial
   main_driver: { dimension: string; amount: number }
   other_losses: number
@@ -569,6 +584,37 @@ export function buildValidatedDiagnosis(
     utilization_pct: Math.round(r.util * 100),
     reject_pct: r.rejectPct,
     reject_plant_fraction: r.rejectPlantFraction,
+
+    // Calculation trace: single source of truth
+    calc_trace: (() => {
+      const fleetDailyM3 = r.ta > 0 && r.effectiveUnits > 0
+        ? Math.round(r.effectiveUnits * ((r.opH * 60) / r.ta) * r.effectiveMixCap)
+        : 0
+      const plantDailyM3 = Math.round(r.cap * 0.92 * r.opH)
+      const actualDailyM3 = Math.round(r.actual * r.opH)
+      const targetFleetM3 = r.TARGET_TA > 0 && r.effectiveUnits > 0
+        ? Math.round(r.effectiveUnits * ((r.opH * 60) / r.TARGET_TA) * r.effectiveMixCap * 0.85)
+        : 0
+      const targetDailyM3 = Math.min(targetFleetM3, plantDailyM3)
+      const gapDailyM3 = Math.max(0, targetDailyM3 - actualDailyM3)
+      const workingDays = Math.round(r.opD / 12)
+      const gapMonthlyM3 = gapDailyM3 * workingDays
+      const tripsPerTruck = r.ta > 0 ? Math.round(((r.opH * 60) / r.ta) * 10) / 10 : 0
+      const tripsTarget = r.TARGET_TA > 0 ? Math.round(((r.opH * 60) / r.TARGET_TA) * 10) / 10 : 0
+      return {
+        fleet_daily_m3: fleetDailyM3,
+        plant_daily_m3: plantDailyM3,
+        actual_daily_m3: actualDailyM3,
+        target_daily_m3: targetDailyM3,
+        gap_daily_m3: gapDailyM3,
+        working_days_month: workingDays,
+        gap_monthly_m3: gapMonthlyM3,
+        margin_per_m3: r.contribSafe,
+        throughput_loss_usd: Math.round(gapMonthlyM3 * r.contribSafe),
+        trips_per_truck: tripsPerTruck,
+        trips_per_truck_target: tripsTarget,
+      }
+    })(),
 
     total_loss: validation.corrected_total_loss,
     total_loss_range: lossRange,
@@ -747,4 +793,50 @@ function buildBusinessImplication(
     financial_recovery_range: { lo: recoveryLo, hi: recoveryHi },
     summary,
   }
+}
+
+// ── Debug / Trace Mode ───────────────────────────────────────────────────────
+
+export function printCalculationTrace(vd: ValidatedDiagnosis): string {
+  const t = vd.calc_trace
+  const lines: string[] = [
+    '=== CALCULATION TRACE ===',
+    '',
+    '--- BASE INPUTS ---',
+    `Plant capacity:    ${vd.plant_capacity_m3hr} m³/hr`,
+    `Operating hours:   ${vd.operating_hours} hr/day`,
+    `Operating days:    ${vd.operating_days} days/yr`,
+    `Working days/mo:   ${t.working_days_month}`,
+    `Trucks:            ${vd.trucks_total} total, ${vd.trucks_effective} effective`,
+    `Margin:            $${t.margin_per_m3}/m³`,
+    `TAT:               ${vd.tat_actual} min (target ${vd.tat_target} min)`,
+    '',
+    '--- DERIVED VALUES ---',
+    `Trips/truck/day:   ${t.trips_per_truck} (target ${t.trips_per_truck_target})`,
+    `Fleet capacity:    ${t.fleet_daily_m3} m³/day`,
+    `Plant capacity:    ${t.plant_daily_m3} m³/day`,
+    `Actual output:     ${t.actual_daily_m3} m³/day`,
+    `Target output:     ${t.target_daily_m3} m³/day (min of fleet@target, plant)`,
+    '',
+    '--- THROUGHPUT CHAIN ---',
+    `Gap daily:         ${t.gap_daily_m3} m³/day (${t.target_daily_m3} - ${t.actual_daily_m3})`,
+    `Gap monthly:       ${t.gap_monthly_m3} m³/mo (${t.gap_daily_m3} × ${t.working_days_month} days)`,
+    `Throughput loss:    $${t.throughput_loss_usd.toLocaleString()}/mo (${t.gap_monthly_m3} × $${t.margin_per_m3})`,
+    '',
+    '--- VALIDATION ---',
+    `gap_daily = target - actual: ${t.target_daily_m3} - ${t.actual_daily_m3} = ${t.target_daily_m3 - t.actual_daily_m3} ${t.target_daily_m3 - t.actual_daily_m3 === t.gap_daily_m3 ? '✓' : '✗ MISMATCH'}`,
+    `gap_monthly = gap_daily × days: ${t.gap_daily_m3} × ${t.working_days_month} = ${t.gap_daily_m3 * t.working_days_month} ${t.gap_daily_m3 * t.working_days_month === t.gap_monthly_m3 ? '✓' : '✗ MISMATCH'}`,
+    `throughput_usd = gap_monthly × margin: ${t.gap_monthly_m3} × ${t.margin_per_m3} = ${t.gap_monthly_m3 * t.margin_per_m3} ${t.gap_monthly_m3 * t.margin_per_m3 === t.throughput_loss_usd ? '✓' : '✗ MISMATCH'}`,
+    '',
+    '--- CONSTRAINT ---',
+    `Active: ${vd.primary_constraint}`,
+    `Fleet < Plant: ${t.fleet_daily_m3 < t.plant_daily_m3}`,
+    `Demand constrained: ${vd.demand_constrained}`,
+    '',
+    '--- TOTAL LOSS ---',
+    `Throughput:        $${t.throughput_loss_usd.toLocaleString()}`,
+    `Leakage:           $${vd.other_losses.toLocaleString()}`,
+    `Total:             $${vd.total_loss.toLocaleString()}`,
+  ]
+  return lines.join('\n')
 }
