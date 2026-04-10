@@ -130,6 +130,9 @@ export interface CalcResult {
   price: number
   dispatchMin: number | null
   warnings: string[]
+  /** 'sufficient' = reliable for financial estimates, 'directional' = show ranges only,
+   *  'insufficient' = core inputs contradict, cannot produce reliable estimate */
+  dataQuality: 'sufficient' | 'directional' | 'insufficient'
 }
 
 export interface SimBaseline {
@@ -756,6 +759,14 @@ export function calc(answers: Answers, meta?: { season?: string }, overrides?: C
   }
   if (workingDaysMonth > 0 && opD > 0 && workingDaysMonth > opD / 12 * 1.3) warnings.push('Working days this month exceeds annual average by >30%, check working_days_month or op_days.')
 
+  // Data quality gate
+  const hasInconsistentWarning = warnings.some(w => w.startsWith('INCONSISTENT:'))
+  const hasMultipleWarnings = warnings.length >= 3
+  const dataQuality: 'sufficient' | 'directional' | 'insufficient' =
+    hasInconsistentWarning ? 'insufficient' :
+    hasMultipleWarnings ? 'directional' :
+    'sufficient'
+
   const materialCostPerM3 = cement + agg + admix
 
   return {
@@ -794,6 +805,7 @@ export function calc(answers: Answers, meta?: { season?: string }, overrides?: C
     overall, bottleneck, price,
     dispatchMin: DISPATCH_MIN_MAP[a.order_to_dispatch as string] ?? null,
     warnings,
+    dataQuality,
   }
 }
 

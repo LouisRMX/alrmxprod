@@ -137,28 +137,40 @@ export default function DecisionView({ calcResult, answers, meta, phase, savedDi
           </div>
 
           {/* Split: throughput + leakage */}
-          <div style={{ display: 'flex', gap: '16px', marginBottom: '20px', flexWrap: 'wrap' }}>
-            <div style={{ fontSize: '14px', color: 'var(--gray-700)' }}>
-              <span style={{ fontFamily: 'var(--mono)', fontWeight: 700, color: '#C0392B' }}>{fmt(throughputLoss)}</span> from constrained output <span style={{ fontSize: '12px', color: 'var(--gray-400)' }}>({constraint})</span>
-            </div>
-            {totalLeakage > 0 && (
+          {isValidated ? (
+            <div style={{ display: 'flex', gap: '16px', marginBottom: '20px', flexWrap: 'wrap' }}>
               <div style={{ fontSize: '14px', color: 'var(--gray-700)' }}>
-                <span style={{ fontFamily: 'var(--mono)', fontWeight: 700, color: '#c96a00' }}>{fmt(totalLeakage)}</span> from operational leakage
+                <span style={{ fontFamily: 'var(--mono)', fontWeight: 700, color: '#C0392B' }}>{fmt(throughputLoss)}</span> from constrained output <span style={{ fontSize: '12px', color: 'var(--gray-400)' }}>({constraint})</span>
               </div>
-            )}
-          </div>
+              {totalLeakage > 0 && (
+                <div style={{ fontSize: '14px', color: 'var(--gray-700)' }}>
+                  <span style={{ fontFamily: 'var(--mono)', fontWeight: 700, color: '#c96a00' }}>{fmt(totalLeakage)}</span> from operational leakage
+                </div>
+              )}
+            </div>
+          ) : (
+            <div style={{ fontSize: '14px', color: 'var(--gray-500)', marginBottom: '20px', lineHeight: 1.6 }}>
+              Primary driver is likely within fleet throughput (turnaround time) or plant capacity. On-site validation will confirm which constraint is active and the exact split between throughput loss and operational leakage.
+            </div>
+          )}
 
           {/* Primary issue + action */}
           <div style={{
             background: 'var(--gray-50)', border: '1px solid var(--border)',
             borderRadius: '10px', padding: '16px 20px', marginBottom: '24px',
           }}>
-            <div style={{ fontSize: '13px', color: 'var(--gray-500)', marginBottom: '6px' }}>
-              <strong style={{ color: 'var(--gray-700)' }}>Primary issue:</strong> {constraint} is limiting throughput{excessMin > 0 ? ` (TAT ${vd.tat_actual} min vs ${vd.tat_target} min target)` : ''}.
-            </div>
+            {isValidated ? (
+              <div style={{ fontSize: '13px', color: 'var(--gray-500)', marginBottom: '6px' }}>
+                <strong style={{ color: 'var(--gray-700)' }}>Primary issue:</strong> {constraint} is limiting throughput{excessMin > 0 ? ` (TAT ${vd.tat_actual} min vs ${vd.tat_target} min target)` : ''}.
+              </div>
+            ) : (
+              <div style={{ fontSize: '13px', color: 'var(--gray-500)', marginBottom: '6px' }}>
+                <strong style={{ color: 'var(--gray-700)' }}>Likely drivers:</strong> Turnaround time ({vd.tat_actual} min vs {vd.tat_target} min target) and plant utilization ({vd.utilization_pct}% vs 85% target). Constraint identification requires on-site validation.
+              </div>
+            )}
             {vd.actions.length > 0 && (
               <div style={{ fontSize: '13px', color: 'var(--gray-500)' }}>
-                <strong style={{ color: 'var(--gray-700)' }}>Action:</strong> {vd.actions[0].text}
+                <strong style={{ color: 'var(--gray-700)' }}>Recommended first action:</strong> {vd.actions[0].text}
               </div>
             )}
           </div>
@@ -300,8 +312,9 @@ export default function DecisionView({ calcResult, answers, meta, phase, savedDi
             <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                 <div>
-                  <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--gray-900)' }}>Constrained output</div>
-                  <div style={{ fontSize: '12px', color: 'var(--gray-400)' }}>Active constraint: {constraint}</div>
+                  <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--gray-900)' }}>{isPre ? 'Throughput gap' : 'Constrained output'}</div>
+                  {isValidated && <div style={{ fontSize: '12px', color: 'var(--gray-400)' }}>Active constraint: {constraint}</div>}
+                  {isPre && <div style={{ fontSize: '12px', color: 'var(--gray-400)' }}>Constraint to be confirmed on-site</div>}
                 </div>
                 <div style={{ fontSize: '18px', fontWeight: 700, fontFamily: 'var(--mono)', color: '#C0392B' }}>{fmt(throughputLoss)}/mo</div>
               </div>
@@ -344,8 +357,8 @@ export default function DecisionView({ calcResult, answers, meta, phase, savedDi
             </div>
           )}
 
-          {/* ═══ 3. CONSTRAINT SECTION ═══ */}
-          {constraint === 'Fleet' && excessMin > 0 && (
+          {/* ═══ 3. CONSTRAINT SECTION (validated only) ═══ */}
+          {isValidated && constraint === 'Fleet' && excessMin > 0 && (
             <div style={{
               background: 'var(--white)', border: '1px solid var(--border)',
               borderRadius: '12px', padding: '18px 20px', marginBottom: '24px',
@@ -405,7 +418,7 @@ export default function DecisionView({ calcResult, answers, meta, phase, savedDi
             </div>
           )}
 
-          {constraint === 'Production' && (
+          {isValidated && constraint === 'Production' && (
             <div style={{
               background: 'var(--white)', border: '1px solid var(--border)',
               borderRadius: '12px', padding: '18px 20px', marginBottom: '24px',
@@ -426,6 +439,18 @@ export default function DecisionView({ calcResult, answers, meta, phase, savedDi
               </div>
               <div style={{ marginTop: '14px', fontSize: '13px', color: 'var(--gray-500)', lineHeight: 1.6 }}>
                 {vd.mechanism_detail}
+              </div>
+            </div>
+          )}
+
+          {/* Pre-diagnosis: directional driver summary instead of constraint section */}
+          {isPre && (
+            <div style={{
+              background: '#FFF8ED', border: '1px solid #F5CBA0',
+              borderRadius: '10px', padding: '16px 20px', marginBottom: '24px',
+            }}>
+              <div style={{ fontSize: '13px', color: '#92400E', lineHeight: 1.6 }}>
+                <strong>Pre-diagnosis note:</strong> Based on reported data, the profit gap is driven by a combination of fleet turnaround (TAT {vd.tat_actual} min vs {vd.tat_target} min target) and plant utilization ({vd.utilization_pct}% vs 85% target). On-site validation is required to confirm the active constraint and precise loss allocation.
               </div>
             </div>
           )}

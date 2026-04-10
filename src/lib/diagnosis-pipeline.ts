@@ -513,6 +513,10 @@ export interface ValidatedDiagnosis {
     summary: string                // one-sentence implication
   }
 
+  // Data quality gate
+  data_quality: 'sufficient' | 'directional' | 'insufficient'
+  data_warnings: string[]
+
   // Evidence
   evidence_basis: string
 
@@ -677,6 +681,9 @@ export function buildValidatedDiagnosis(
 
     // Business implication
     business_implication: buildBusinessImplication(r, diagnosis, validation),
+
+    data_quality: r.dataQuality,
+    data_warnings: r.warnings.filter(w => w.startsWith('INCONSISTENT:')),
 
     evidence_basis: diagnosis.evidence_basis,
 
