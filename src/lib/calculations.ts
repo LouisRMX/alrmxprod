@@ -177,6 +177,7 @@ export interface SimResult {
 export interface CalcOverrides {
   utilisationTarget?: number  // 0–100, default 85
   fleetUtilFactor?: number    // 0–100, default 85
+  estimatedInputs?: boolean   // true for pre-diagnosis: use nominal mixCap, skip derivation
 }
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -397,19 +398,19 @@ export function calc(answers: Answers, meta?: { season?: string }, overrides?: C
   const delDay = +(a.deliveries_day ?? 0) || 0
 
   // Derive effective load per trip from actual production ÷ actual monthly deliveries.
-  // Captures partial loads and mixed-fleet averaging automatically.
-  // Falls back to nominal mixer_capacity if derived value is unreliable.
+  // For pre-diagnosis (estimatedInputs=true): skip derivation, use nominal mixCap directly.
+  // Reason: pre-diagnosis inputs are self-reported and often inconsistent. Derivation
+  // amplifies inconsistency. Nominal mixCap is stable and sufficient for directional estimates.
+  const useNominalMixCap = overrides?.estimatedInputs === true
   const monthlyDels = delDay > 0 ? delDay * workingDaysMonth : 0
-  const derivedMixCapRaw = monthlyDels > 0 && monthlyM3 > 0
+  const derivedMixCapRaw = (!useNominalMixCap && monthlyDels > 0 && monthlyM3 > 0)
     ? Math.min(12, Math.max(3, monthlyM3 / monthlyDels))
     : 0
-  // Guard: if derived deviates >30% from nominal, inputs are likely inconsistent.
-  // Fall back to nominal in that case to prevent cascading calculation errors.
   const mixCapDeviation = derivedMixCapRaw > 0 && mixCap > 0
     ? Math.abs(derivedMixCapRaw - mixCap) / mixCap
     : 0
   const mixCapInconsistent = derivedMixCapRaw > 0 && mixCapDeviation > 0.30
-  const derivedMixCap = mixCapInconsistent ? 0 : derivedMixCapRaw // 0 triggers fallback below
+  const derivedMixCap = mixCapInconsistent ? 0 : derivedMixCapRaw
   const effectiveMixCap = derivedMixCap > 0 ? derivedMixCap : mixCap
   const DELIVERY_RADIUS_MAP: Record<string, number> = {
     'Most deliveries under 5 km, dense urban core':       4,
@@ -727,6 +728,14 @@ export function calc(answers: Answers, meta?: { season?: string }, overrides?: C
 
   // Warnings
   const warnings: string[] = []
+  // Hard input validation checks for pre-diagnosis robustness
+  const maxPossibleProd = cap * opH * workingDaysMonth
+  if (cap > 0 && monthlyM3 > maxPossibleProd * 1.05) {
+    warnings.push('INCONSISTENT: Reported production exceeds plant capacity. Results are directional estimates only.')
+  }
+  if (delDay > 0 && effectiveUnits > 0 && delDay > effectiveUnits * 15) {
+    warnings.push('INCONSISTENT: Reported deliveries per day exceed realistic truck capacity. Results are directional estimates only.')
+  }
   if (cap > 0 && actual > cap * 1.1) warnings.push('Production rate exceeds designed plant capacity by >10%, check actual_prod or plant_cap.')
   if (delDay > 0 && mixCap > 0 && workingDaysMonth > 0 && monthlyM3 > 0 && delDay * mixCap * workingDaysMonth > monthlyM3 * 1.3) {
     warnings.push('Delivery count suggests higher volume than reported production, check deliveries_day or actual_prod.')

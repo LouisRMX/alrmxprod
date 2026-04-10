@@ -92,7 +92,8 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
     userRole === 'owner' ? 'report' : 'questions'
   )
   const [guidedMode, setGuidedMode] = useState(phase === 'onsite' && Object.keys(initialAnswers).length < 20)
-  const [overrides, setOverrides] = useState<CalcOverrides>({})
+  const isPreDiagnosis = phase === 'workshop'
+  const [overrides, setOverrides] = useState<CalcOverrides>({ estimatedInputs: isPreDiagnosis })
   const isMobile = useIsMobile()
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
