@@ -30,37 +30,35 @@ function answersMatchDefaults(current: Answers, defaults: Answers): boolean {
 // Pre-assessment (workshop): core questions filled remotely by plant manager.
 // On-site: All questions filled during Louis's plant visit.
 //
-// Plant profile (Saudi mid-size, Vision 2030 supply zone):
-//   20-truck fleet (17 operative), 10 h/day, 245 days/year, 20 days this month
-//   Deliveries mostly 12–20 km (suburban/outer city) → TARGET_TA = 84 min
-//   Actual turnaround: 100–125 min range (calc midpoint 112 min → +28 min excess)
-//   86 deliveries/day, actual_prod 10,000 m³/month → effectiveMixCap ≈ 5.8 m³
-//   Rated capacity 75 m³/hr → utilisation ~84%, close to 85% target
-//   Contribution margin: $60 − $23 − $12 − $5 = $20/m³ (fuel further reduces)
-//   dispatch score ≈ 48 (< 65) → dispatch issue fires: bnLoss = TA $58k + 35%×cap $36k = $94k
-//   rejectLeak ≈ $21k/month (independent) → total recoverable = $94k + $21k = $115k/month
-//   scores: prod ≈ 82, dispatch ≈ 48, fleet ≈ 71, quality ≈ 70 → overall ≈ 68
+// Plant profile (Saudi mid-large, Vision 2030 supply zone, Riyadh suburban):
+//   24-truck fleet (21 operative), 12 h/day, 260 days/year, 22 days this month
+//   Deliveries mostly 12-20 km (suburban/outer city) → TARGET_TA = 84 min
+//   Actual turnaround: 100-125 min range (calc midpoint 112 min → +28 min excess)
+//   110 deliveries/day, actual_prod 17,000 m³/month
+//   Rated capacity 90 m³/hr, twin-shaft → utilisation ~72%
+//   Contribution margin: $64 - $18 - $9 - $4 = $33/m³
+//   Recovery range: $54k-$88k/month (40-65% of $136k total loss)
 // ─────────────────────────────────────────────────────────────────────────────
 
 // The questions sent to the plant before the visit (PRE_ASSESSMENT_IDS)
 const WORKSHOP_ANSWERS: Answers = {
-  price_m3:           '60',
-  cement_cost:        '23',
-  aggregate_cost:     '12',
-  admix_cost:         '5',
-  plant_cap:          '75',
-  actual_prod:        '10000',
-  op_hours:           '10',
-  op_days:            '245',
-  n_trucks:           '20',
-  deliveries_day:     '86',
+  price_m3:           '64',
+  cement_cost:        '18',
+  aggregate_cost:     '9',
+  admix_cost:         '4',
+  plant_cap:          '90',
+  actual_prod:        '17000',
+  op_hours:           '12',
+  op_days:            '260',
+  n_trucks:           '24',
+  deliveries_day:     '110',
   turnaround:         '100 to 125 minutes, slow',
-  reject_pct:         '3.5',
+  reject_pct:         '3',
   delivery_radius:    'Most deliveries 12 to 20 km, suburban / outer city',
   dispatch_tool:      'Spreadsheet combined with WhatsApp',
   order_to_dispatch:  '25 to 40 minutes, slow',
   prod_data_source:   'System records, read from batch computer or dispatch system',
-  biggest_pain:       'Trucks are stuck at construction sites during the morning peak and we lose afternoon orders, especially in summer.',
+  biggest_pain:       'Trucks wait too long at construction sites. We lose 2-3 hours of productive time every morning because sites are not ready when trucks arrive.',
   demand_sufficient:  'Operations, we have more demand than we can currently produce or deliver',
 }
 
@@ -69,20 +67,20 @@ const ONSITE_ANSWERS: Answers = {
   ...WORKSHOP_ANSWERS,
 
   // Economics depth
-  aggregate_cost:     '12',
-  admix_cost:         '5',
-  fuel_per_delivery:  '5',
+  aggregate_cost:     '9',
+  admix_cost:         '4',
+  fuel_per_delivery:  '6',
   water_cost:         '0',
   silo_days:          '5 to 10 days, adequate',
   aggregate_days:     '2 to 5 days, tight, supply-sensitive',
   mix_split:          'Mostly standard strength, over 70% is C20 to C30',
   ramadan_schedule:   'Partially, informal earlier start, no formal plan',
-  working_days_month: '20',
+  working_days_month: '22',
   typical_month:      'Yes, normal month, representative of typical operations',
 
   // Fleet depth
-  truck_availability: '17',
-  qualified_drivers:  '16',
+  truck_availability: '21',
+  qualified_drivers:  '20',
   delivery_radius:    'Most deliveries 12 to 20 km, suburban / outer city',
   partial_load_size:  '6.5',
   site_wait_time:     '52',
@@ -107,7 +105,7 @@ const ONSITE_ANSWERS: Answers = {
 
   // Quality & maintenance
   maint_programme:    'Informal, some checks but no written programme',
-  truck_breakdowns:   '4',
+  truck_breakdowns:   '5',
   return_liability:   'Plant always absorbs the cost',
   demurrage_policy:   'Clause exists but rarely enforced',
   top_customer_pct:   '41',

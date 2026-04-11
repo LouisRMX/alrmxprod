@@ -57,15 +57,15 @@ export async function POST(req: NextRequest) {
   // Skip when demoOverride === true (user has changed inputs and wants a live generation)
   if (assessmentId === 'demo' && !demoOverride) {
     const DEMO_TEXTS: Record<string, string> = {
-      executive: `Turnaround time at an estimated 112 minutes is 28 minutes above the 84-minute target for suburban Saudi delivery zones. This excess compresses the number of trips each truck can complete per shift. At 20 trucks averaging 5.4 trips per day instead of the achievable 7.1, the fleet delivers roughly 500 m3/day against a target of 690 m3/day.
+      executive: `Turnaround time at an estimated 112 minutes is 28 minutes above the 84-minute target for suburban Saudi delivery zones. This excess compresses the number of trips each truck can complete per shift. At 24 trucks averaging 6.4 trips per day instead of the achievable 8.6, the fleet delivers roughly 773 m3/day against a target of 994 m3/day.
 
-The plant manager identifies trucks stuck at construction sites during morning peak as the primary challenge. This is consistent with the turnaround data: when trucks arrive at sites without coordinated timing, site queuing extends every cycle. Dispatch is managed via spreadsheet and WhatsApp, meaning each departure depends on manual coordination rather than a pre-planned sequence. This is the mechanism that inflates turnaround, not a separate problem.
+The plant manager reports that trucks wait too long at construction sites, losing 2-3 hours of productive time every morning because sites are not ready when trucks arrive. This is consistent with the turnaround data: uncoordinated arrival timing at sites extends every cycle. Dispatch is managed via spreadsheet and WhatsApp, meaning each departure depends on manual coordination rather than a pre-planned sequence. This is the mechanism that inflates turnaround, not a separate problem.
 
-The 28-minute turnaround excess is the single driver of the throughput gap. Rejection rate at 3.5% adds material cost but does not constrain how many trips the fleet completes. Utilisation at 67% is the mathematical result of a 112-minute cycle with this fleet size, not an independent cause. Reducing turnaround time is the lever that unlocks both more volume and higher utilisation simultaneously.`,
+The 28-minute turnaround excess is the single driver of the throughput gap. Rejection rate at 3% adds material cost but does not constrain how many trips the fleet completes. Utilisation at 72% is the mathematical result of a 112-minute cycle with this fleet size, not an independent cause. Reducing turnaround time is the lever that unlocks both more volume and higher utilisation simultaneously.`,
 
-      diagnosis: `The data points toward fleet turnaround as the likely constraint. Each truck completes 5.4 trips per day against an achievable 7.1 at target turnaround. That difference, 1.7 trips per truck across 20 trucks, represents the core of the throughput gap. Utilisation at 67% is what a 112-minute cycle produces with this fleet. It is a consequence, not a separate problem.
+      diagnosis: `The data points toward fleet turnaround as the likely constraint. Each truck completes 6.4 trips per day against an achievable 8.6 at target turnaround. That difference, 2.2 trips per truck across 24 trucks, represents the core of the throughput gap. Utilisation at 72% is what a 112-minute cycle produces with this fleet. It is a consequence, not a separate problem.
 
-Rejection rate at 3.5% is above the 3% target but does not constrain throughput. Material cost from rejections adds to operational leakage but fixing rejection alone would not increase the number of deliveries per day. The binding limit is how often each truck moves, not what happens to individual loads.
+Rejection rate at 3% sits above target and adds direct material cost per rejected load, but it does not limit throughput. Each rejection is an additive cost, it does not block the next delivery cycle. The throughput gap is driven by turnaround time. Fixing turnaround recovers volume. Fixing rejection recovers material cost. Both matter, but they are separate levers.
 
 The on-site assessment will determine: where in the 112-minute cycle the time is physically lost (plant queue, site wait, or uncoordinated dispatch timing); whether the turnaround excess is consistent across all shifts or concentrated in peak hours; and whether the fleet constraint is purely a turnaround issue or partly driven by truck availability. These questions require direct observation.`,
 
@@ -82,7 +82,7 @@ The on-site assessment will determine: where in the 112-minute cycle the time is
 5. Identify your 3 highest-volume delivery sites this month: These are the sites where cycle time improvements will have the most impact. Note their distance from the plant and any known queuing issues.
 
 Next Step
-This pre-assessment has established, based on reported data, that the plant has an estimated $33k-$53k per month in recoverable margin. This figure is derived from the gap between actual fleet output (5.4 trips/truck/day) and target output (7.1 trips/truck/day at 84-minute turnaround), multiplied by the plant's $20/m3 contribution margin, with a 40-65% execution range applied. Current utilisation at 67% is what a 112-minute turnaround produces with this fleet size. It is a symptom, not a separate cause. What this assessment cannot confirm is where in the 112-minute cycle the time is physically lost, or whether the excess is consistent across shifts or concentrated in peak hours. An on-site assessment of approximately 4 weeks will convert this preliminary view into a validated diagnosis with confirmed constraint identification and a prioritized action plan.`,
+This pre-assessment has established, based on reported data, that the plant has an estimated $54k-$88k per month in recoverable margin. This figure is derived from the gap between actual fleet output (6.4 trips/truck/day) and target output (8.6 trips/truck/day at 84-minute turnaround), multiplied by the plant's $33/m3 contribution margin, with a 40-65% execution range applied. Current utilisation at 72% is what a 112-minute turnaround produces with this fleet size. It is a symptom, not a separate cause. What this assessment cannot confirm is where in the 112-minute cycle the time is physically lost, or whether the excess is consistent across shifts or concentrated in peak hours. An on-site assessment of approximately 4 weeks will convert this preliminary view into a validated diagnosis with confirmed constraint identification and a prioritized action plan.`,
     }
     const text = DEMO_TEXTS[type]
     if (!text) return NextResponse.json({ error: 'Invalid report type' }, { status: 400 })
@@ -197,19 +197,19 @@ When this data is available, reference the plant's position relative to comparab
 
 const EXAMPLE_EXECUTIVE = `EXAMPLE OF TARGET QUALITY — match this tone, structure, and level of specificity. Do not copy content. Use it as a calibration standard only.
 
-"Turnaround time at an estimated 112 minutes is 28 minutes above the 84-minute target for suburban Saudi delivery zones. This excess compresses the number of trips each truck can complete per shift. At 20 trucks averaging 5.4 trips per day instead of the achievable 7.1, the fleet delivers roughly 500 m3/day against a target of 690 m3/day.
+"Turnaround time at an estimated 112 minutes is 28 minutes above the 84-minute target for suburban Saudi delivery zones. This excess compresses the number of trips each truck can complete per shift. At 24 trucks averaging 6.4 trips per day instead of the achievable 8.6, the fleet delivers roughly 773 m3/day against a target of 994 m3/day.
 
 The plant manager identifies trucks stuck at construction sites during morning peak as the primary challenge. This is consistent with the turnaround data: when trucks arrive at sites without coordinated timing, site queuing extends every cycle. Dispatch coordination via spreadsheet and WhatsApp is the mechanism that inflates turnaround, not a separate problem.
 
-The 28-minute turnaround excess is the single driver of the throughput gap. Rejection rate at 3.5% adds material cost but does not constrain how many trips the fleet completes. Utilisation at 67% is the mathematical result of a 112-minute cycle with this fleet size, not an independent cause."
+The 28-minute turnaround excess is the single driver of the throughput gap. Rejection rate at 3% adds material cost but does not constrain how many trips the fleet completes. Utilisation at 72% is the mathematical result of a 112-minute cycle with this fleet size, not an independent cause."
 
 END OF EXAMPLE`
 
 const EXAMPLE_DIAGNOSIS = `EXAMPLE OF TARGET QUALITY — match this tone, structure, and level of specificity. Do not copy content. Use it as a calibration standard only.
 
-"The data points toward fleet turnaround as the likely constraint. Each truck completes 5.4 trips per day against an achievable 7.1 at target turnaround. That difference, 1.7 trips per truck across 20 trucks, represents the core of the throughput gap. Utilisation at 67% is what a 112-minute cycle produces with this fleet. It is a consequence, not a separate problem.
+"The data points toward fleet turnaround as the likely constraint. Each truck completes 6.4 trips per day against an achievable 8.6 at target turnaround. That difference, 2.2 trips per truck across 24 trucks, represents the core of the throughput gap. Utilisation at 72% is what a 112-minute cycle produces with this fleet. It is a consequence, not a separate problem.
 
-Rejection rate at 3.5% sits above the 3% target and adds direct material cost per rejected load, but it does not limit throughput. Each rejection is an additive cost, it does not block the next delivery cycle. The throughput gap is driven by turnaround time. Fixing turnaround recovers volume. Fixing rejection recovers material cost. Both matter, but they are separate levers.
+Rejection rate at 3% sits at the target threshold and adds direct material cost per rejected load, but it does not limit throughput. Each rejection is an additive cost, it does not block the next delivery cycle. The throughput gap is driven by turnaround time. Fixing turnaround recovers volume. Fixing rejection recovers material cost. Both matter, but they are separate levers.
 
 The on-site assessment will determine: where in the 112-minute cycle the time is physically lost (plant queue, site wait, or uncoordinated dispatch timing); whether the excess is consistent across shifts or concentrated in peak hours; and whether the fleet constraint is purely turnaround or partly truck availability."
 
@@ -230,7 +230,7 @@ const EXAMPLE_ACTIONS = `EXAMPLE OF TARGET QUALITY — match this tone, structur
 5. Identify your 3 highest-volume delivery sites this month: These are where cycle time improvements have the most impact.
 
 Next Step
-This pre-assessment has established that the plant has an estimated $33k-$53k per month in recoverable margin. This figure is derived from the gap between actual fleet output (5.4 trips/truck/day) and target output (7.1 trips/truck/day), multiplied by $20/m3 contribution margin, with a 40-65% execution range. Current utilisation at 67% is what a 112-minute turnaround produces. It is a symptom, not a cause. An on-site assessment will convert this preliminary view into a validated diagnosis."
+This pre-assessment has established that the plant has an estimated $54k-$88k per month in recoverable margin. This figure is derived from the gap between actual fleet output (6.4 trips/truck/day) and target output (8.6 trips/truck/day), multiplied by $33/m3 contribution margin, with a 40-65% execution range. Current utilisation at 72% is what a 112-minute turnaround produces with this fleet size. It is a symptom, not a cause. An on-site assessment will convert this preliminary view into a validated diagnosis."
 
 END OF EXAMPLE`
 
