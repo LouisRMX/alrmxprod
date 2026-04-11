@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
   // Skip when demoOverride === true (user has changed inputs and wants a live generation)
   if (assessmentId === 'demo' && !demoOverride) {
     const DEMO_TEXTS: Record<string, string> = {
-      executive: `Turnaround time at an estimated 112 minutes is 28 minutes above the 84-minute target for suburban Saudi delivery zones. This excess compresses the number of trips each truck can complete per shift. At 20 trucks averaging 5.4 trips per day instead of the achievable 7.1, the fleet delivers roughly 500 m3/day against a capacity of over 620 m3/day.
+      executive: `Turnaround time at an estimated 112 minutes is 28 minutes above the 84-minute target for suburban Saudi delivery zones. This excess compresses the number of trips each truck can complete per shift. At 20 trucks averaging 5.4 trips per day instead of the achievable 7.1, the fleet delivers roughly 500 m3/day against a target of 690 m3/day.
 
 The plant manager identifies trucks stuck at construction sites during morning peak as the primary challenge. This is consistent with the turnaround data: when trucks arrive at sites without coordinated timing, site queuing extends every cycle. Dispatch is managed via spreadsheet and WhatsApp, meaning each departure depends on manual coordination rather than a pre-planned sequence. This is the mechanism that inflates turnaround, not a separate problem.
 
@@ -82,7 +82,7 @@ The on-site assessment will determine: where in the 112-minute cycle the time is
 5. Identify your 3 highest-volume delivery sites this month: These are the sites where cycle time improvements will have the most impact. Note their distance from the plant and any known queuing issues.
 
 Next Step
-This pre-assessment has established, based on reported data, that the plant has an estimated $59k-$111k per month in recoverable margin. This figure is derived from the gap between actual fleet output (5.4 trips/truck/day) and target output (7.1 trips/truck/day at 84-minute turnaround), multiplied by the plant's $20/m3 contribution margin, with a 40-65% execution range applied. Current utilisation at 67% is what a 112-minute turnaround produces with this fleet size. It is a symptom, not a separate cause. What this assessment cannot confirm is where in the 112-minute cycle the time is physically lost, or whether the excess is consistent across shifts or concentrated in peak hours. An on-site assessment of approximately 4 weeks will convert this preliminary view into a validated diagnosis with confirmed constraint identification and a prioritized action plan.`,
+This pre-assessment has established, based on reported data, that the plant has an estimated $33k-$53k per month in recoverable margin. This figure is derived from the gap between actual fleet output (5.4 trips/truck/day) and target output (7.1 trips/truck/day at 84-minute turnaround), multiplied by the plant's $20/m3 contribution margin, with a 40-65% execution range applied. Current utilisation at 67% is what a 112-minute turnaround produces with this fleet size. It is a symptom, not a separate cause. What this assessment cannot confirm is where in the 112-minute cycle the time is physically lost, or whether the excess is consistent across shifts or concentrated in peak hours. An on-site assessment of approximately 4 weeks will convert this preliminary view into a validated diagnosis with confirmed constraint identification and a prioritized action plan.`,
     }
     const text = DEMO_TEXTS[type]
     if (!text) return NextResponse.json({ error: 'Invalid report type' }, { status: 400 })
@@ -197,7 +197,7 @@ When this data is available, reference the plant's position relative to comparab
 
 const EXAMPLE_EXECUTIVE = `EXAMPLE OF TARGET QUALITY — match this tone, structure, and level of specificity. Do not copy content. Use it as a calibration standard only.
 
-"Turnaround time at an estimated 112 minutes is 28 minutes above the 84-minute target for suburban Saudi delivery zones. This excess compresses the number of trips each truck can complete per shift. At 20 trucks averaging 5.4 trips per day instead of the achievable 7.1, the fleet delivers roughly 500 m3/day against a capacity of over 620 m3/day.
+"Turnaround time at an estimated 112 minutes is 28 minutes above the 84-minute target for suburban Saudi delivery zones. This excess compresses the number of trips each truck can complete per shift. At 20 trucks averaging 5.4 trips per day instead of the achievable 7.1, the fleet delivers roughly 500 m3/day against a target of 690 m3/day.
 
 The plant manager identifies trucks stuck at construction sites during morning peak as the primary challenge. This is consistent with the turnaround data: when trucks arrive at sites without coordinated timing, site queuing extends every cycle. Dispatch coordination via spreadsheet and WhatsApp is the mechanism that inflates turnaround, not a separate problem.
 
@@ -230,7 +230,7 @@ const EXAMPLE_ACTIONS = `EXAMPLE OF TARGET QUALITY — match this tone, structur
 5. Identify your 3 highest-volume delivery sites this month: These are where cycle time improvements have the most impact.
 
 Next Step
-This pre-assessment has established that the plant has an estimated $59k-$111k per month in recoverable margin. This figure is derived from the gap between actual fleet output (5.4 trips/truck/day) and target output (7.1 trips/truck/day), multiplied by $20/m3 contribution margin, with a 40-65% execution range. Current utilisation at 67% is what a 112-minute turnaround produces. It is a symptom, not a cause. An on-site assessment will convert this preliminary view into a validated diagnosis."
+This pre-assessment has established that the plant has an estimated $33k-$53k per month in recoverable margin. This figure is derived from the gap between actual fleet output (5.4 trips/truck/day) and target output (7.1 trips/truck/day), multiplied by $20/m3 contribution margin, with a 40-65% execution range. Current utilisation at 67% is what a 112-minute turnaround produces. It is a symptom, not a cause. An on-site assessment will convert this preliminary view into a validated diagnosis."
 
 END OF EXAMPLE`
 
@@ -370,13 +370,15 @@ CRITICAL CONSTRAINTS FOR PRE-ASSESSMENT:
 
 PLANT DATA (self-reported, not verified):
 Turnaround: ${dx.tat_actual} min (target: ${dx.tat_target} min)
+${dx.management_context ? `Plant manager's stated challenge: "${dx.management_context}"
+Note: Reference this in paragraph 1 to anchor the opening in what the plant already observes. Paraphrase, do not quote verbatim.` : ''}
 Dispatch coordination: managed via ${dx.performance_gaps['dispatch'] ? 'manual tools' : 'unknown method'} (dispatch is a mechanism that explains WHY turnaround is high, not a separate metric)
 Rejection rate: ${dx.reject_pct}% (target: <3%)
 Utilisation: ${dx.utilization_pct}% (target: 85%) — consequence of turnaround and fleet size, not an independent cause
 Fleet: ${dx.trucks_effective} effective trucks of ${dx.trucks_total} assigned
 
 WRITE EXACTLY TWO PARAGRAPHS. No headings. No bullets.
-Paragraph 1: What the reported data suggests about where margin is being lost. Name the likely area but frame as directional. Use actual numbers vs targets.
+Paragraph 1: What the reported data suggests about where margin is being lost. Name the likely area but frame as directional. Use actual numbers vs targets. If the plant manager's stated challenge is available, anchor the opening in it.
 Paragraph 2: What cannot be determined remotely. Name 2-3 things the on-site assessment will clarify. End with one sentence framing the on-site visit as the logical next step.`
   }
 
@@ -404,7 +406,8 @@ Fleet: ${dx.trucks_effective} effective trucks of ${dx.trucks_total} assigned
 
 Observed signals: ${dx.observed_signals.join(' · ') || 'none'}
 Inferred signals: ${dx.inferred_signals.join(' · ') || 'none'}
-${dx.management_context ? `Management context: ${dx.management_context}` : ''}
+${dx.management_context ? `Plant manager's stated challenge: "${dx.management_context}"
+Note: Reference this in paragraph 1 to anchor the opening in what the plant already observes. Paraphrase, do not quote verbatim.` : ''}
 ${buildIdleSignal(answers)}
 ${benchmarks ? buildMarketContext(benchmarks) : ''}
 WRITE EXACTLY THREE PARAGRAPHS. No headings. No bullets. No labels.
