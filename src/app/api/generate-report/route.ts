@@ -327,6 +327,35 @@ Paragraph 2: Why this level of performance holds. What operational habits or dis
 Paragraph 3: What to monitor. One or two areas that could slip if not actively maintained. Specific to this plant's numbers.`
   }
 
+  // ── PRE-ASSESSMENT EXECUTIVE: directional, no constraint label, ranges ──
+  if (ctx.phase === 'workshop') {
+    return `${RULES}
+
+You are writing the initial analysis section of a Pre-Assessment Report for ${ctx.plant} in ${ctx.country}.
+
+This is based on a small set of self-reported data points collected remotely. No on-site verification has been done.
+
+CRITICAL CONSTRAINTS FOR PRE-ASSESSMENT:
+- All figures are directional estimates, not confirmed values.
+- Do NOT name a definitive constraint. Say "the data points toward [area] as the likely driver, to be confirmed on-site."
+- Do NOT reference scores (xx/100). Do NOT reference TAT component breakdown (site wait, transit split).
+- Use ranges: "between $${Math.round((ctx.totalLossMonthly as number) * 0.7 / 1000)}k and $${Math.round((ctx.totalLossMonthly as number) * 1.3 / 1000)}k per month" instead of a single figure.
+- Frame all findings as preliminary: "the data suggests", "initial indicators point to", "based on reported figures".
+
+PLANT DATA (self-reported, not verified):
+Turnaround: ${ctx.turnaround} min (target: ${ctx.targetTA} min)
+Dispatch time: ${ctx.dispatchMin ?? '-'} min (target: 15 min)
+Rejection rate: ${ctx.rejectPct ?? '-'}% (target: <3%)
+Utilisation: ${ctx.utilPct}% (target: 85%)
+Fleet: ${ctx.trucks} trucks
+
+WRITE EXACTLY TWO PARAGRAPHS. No headings. No bullets.
+
+Paragraph 1: State what the reported data suggests about where operational margin is being lost. Name the likely area (turnaround, dispatch, quality, utilisation) but frame it as directional, not confirmed. Use the actual numbers vs targets to support the observation.
+
+Paragraph 2: State what cannot be determined from remote data alone. Name 2-3 specific things the on-site assessment will clarify (e.g. where in the turnaround the time is physically lost, whether dispatch figures reflect a consistent pattern or peak-hour average, whether the constraint is fleet-side or production-side). End with one sentence framing the on-site visit as the logical next step.`
+  }
+
   return `${RULES}
 
 You are writing the Executive Explanation section of a Plant Intelligence Report for ${ctx.plant} in ${ctx.country}.
@@ -410,6 +439,39 @@ Name the dimensions that are performing well and explain, in operational terms, 
 
 Paragraph 3, What to monitor:
 Identify the one or two dimensions most likely to slip first if operational discipline softens, based on the actual metrics and their margin above target. One sentence per dimension. Conclude with what early signal would indicate the constraint is forming.`
+  }
+
+  // ── PRE-ASSESSMENT DIAGNOSIS: preliminary, no scores, no TAT components ──
+  if (ctx.phase === 'workshop') {
+    const totalLow = Math.round((ctx.totalLossMonthly as number) * 0.7 / 1000)
+    const totalHigh = Math.round((ctx.totalLossMonthly as number) * 1.3 / 1000)
+
+    return `${RULES}
+
+You are writing the Preliminary Analysis section of a Pre-Assessment Report for ${ctx.plant} in ${ctx.country}.
+
+This is based on self-reported data collected remotely. No on-site verification.
+
+CRITICAL CONSTRAINTS FOR PRE-ASSESSMENT:
+- Do NOT reference scores (xx/100). Do NOT reference TAT component breakdown.
+- Do NOT name a definitive constraint. Use "likely" or "appears to be".
+- Use ranges: "$${totalLow}k-$${totalHigh}k/month" not a single figure.
+- Frame all analysis as preliminary.
+
+PLANT DATA (self-reported, not verified):
+Likely constraint area: ${ctx.bottleneck} (to be confirmed on-site)
+Estimated recoverable range: $${totalLow}k-$${totalHigh}k/month
+Turnaround: ${ctx.turnaround} min (target: ${ctx.targetTA} min)
+Dispatch time: ${ctx.dispatchMin ?? '-'} min (target: 15 min)
+Rejection rate: ${ctx.rejectPct ?? '-'}% (target: <3%)
+Utilisation: ${ctx.utilPct}% (target: 85%)
+Fleet: ${ctx.trucks} trucks
+
+WRITE EXACTLY TWO PARAGRAPHS. No headings. No bullets.
+
+Paragraph 1: Based on the reported metrics, describe what the numbers suggest about how the operation is performing. Name the 1-2 dimensions furthest from target and what that implies about daily operations. Use the actual numbers. Do not speculate on root causes that require on-site observation.
+
+Paragraph 2: State what the on-site assessment will determine. Be specific: name 2-3 operational questions that can only be answered by observing the plant (e.g. actual truck cycle timing, dispatch behavior during peak hours, whether reported figures match typical days). Frame the on-site visit as converting this preliminary view into a validated diagnosis.`
   }
 
   const bottleneck = ctx.bottleneck as string
@@ -500,6 +562,47 @@ Exactly 3 sentences:
 Sentence 1: What this assessment has confirmed.
 Sentence 2: What an on-site visit would verify or add, not what it would fix, because nothing is obviously broken.
 Sentence 3: A concrete suggestion for maintaining this performance, a monitoring discipline, periodic review, or one area to develop further.`
+  }
+
+  // ── PRE-ASSESSMENT ACTIONS: preparation only, no operational fixes ──
+  if (ctx.phase === 'workshop') {
+    const painCtx = buildPainContext(ctx)
+    const totalLow = Math.round((ctx.totalLossMonthly as number) * 0.7 / 1000)
+    const totalHigh = Math.round((ctx.totalLossMonthly as number) * 1.3 / 1000)
+
+    return `RULES:
+- Plain text only. No markdown, no asterisks, no bold, no headings with #, no bullet dashes.
+- Never invent data. Use only the figures provided.
+- All financial figures are POTENTIAL RANGES, not confirmed.
+- No jargon. Banned: optimize, leverage, streamline, robust, synergy, utilize, actionable.
+- Short sentences. One idea per sentence.
+- Do not use sales pitch language.
+- Do NOT recommend specific operational fixes (retarder protocols, demurrage enforcement, maintenance schedules). These require on-site verification.
+- All actions must be preparation or measurement actions that the plant can do before the on-site visit.
+
+You are writing the Preparation section of a Pre-Assessment Report for ${ctx.plant} in ${ctx.country}. This is based on self-reported data. No on-site visit has been done.
+
+CONTEXT:
+Likely constraint area: ${ctx.bottleneck} (to be confirmed)
+Estimated recoverable range: $${totalLow}k-$${totalHigh}k/month
+Turnaround: ${ctx.turnaround} min (target: ${ctx.targetTA} min)
+Dispatch time: ${ctx.dispatchMin ?? '-'} min (target: 15 min)
+Rejection rate: ${ctx.rejectPct ?? '-'}% (target: <3%)
+${painCtx}
+WRITE EXACTLY TWO SECTIONS:
+
+Section 1, heading "Before the on-site visit" on its own line
+3 to 5 numbered actions. Each must be:
+- A measurement or data-gathering action (not an operational fix)
+- Something the plant can start doing this week with zero cost
+- Specific enough that someone knows whether it was done or not
+Examples: start logging dispatch times on a whiteboard, pull last 3 months of rejection records, gather delivery ticket copies for one typical week, ask the dispatcher to note which trucks wait longest at plant queue.
+
+Section 2, heading "Next Step" on its own line
+Exactly 3 sentences:
+Sentence 1: What this pre-assessment has established based on reported data, the estimated financial range at stake.
+Sentence 2: What it cannot confirm yet. Name 2 specific unknowns that require on-site observation.
+Sentence 3: The on-site assessment as the natural next step, framed as an observation, not a sales pitch.`
   }
 
   const RULES = `RULES:

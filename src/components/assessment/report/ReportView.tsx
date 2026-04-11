@@ -1966,6 +1966,7 @@ function FullReportDrawer({
   totalLoss, isAdmin, phase, financialBottleneck, readOnly,
 }: FullReportDrawerProps) {
   const isMobile = useIsMobile()
+  const isPre = phase === 'workshop'
   const plantName = meta?.plant || 'Full Report'
   const dateStr = meta?.date || ''
 
@@ -2076,17 +2077,17 @@ function FullReportDrawer({
                   <div style={{ padding: '16px 20px', background: '#f6fbf8', borderRight: isMobile ? 'none' : '1px solid #e8e8e6', borderBottom: isMobile ? '1px solid #e8e8e6' : 'none' }}>
                     <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.3px', textTransform: 'uppercase', color: '#7ab89a', marginBottom: '4px' }}>Operational Score</div>
                     <div style={{ fontSize: '36px', fontWeight: 800, color: '#1a6644', lineHeight: 1, letterSpacing: '-1px' }}>{calcResult.overall}</div>
-                    <div style={{ fontSize: '10px', color: '#9b9b9b', marginTop: '2px' }}>out of 100</div>
+                    <div style={{ fontSize: '10px', color: '#9b9b9b', marginTop: '2px' }}>{isPre ? 'Preliminary' : 'out of 100'}</div>
                   </div>
                   <div style={{ padding: '16px 20px', background: '#fff5f5', borderRight: isMobile ? 'none' : '1px solid #e8e8e6', borderBottom: isMobile ? '1px solid #e8e8e6' : 'none' }}>
-                    <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.3px', textTransform: 'uppercase', color: '#c0a0a0', marginBottom: '4px' }}>Total recoverable</div>
-                    <div style={{ fontSize: '28px', fontWeight: 800, color: '#cc3333', lineHeight: 1, letterSpacing: '-1px' }}>{fmtK(totalLoss)}</div>
-                    <div style={{ fontSize: '10px', color: '#c09090', marginTop: '2px' }}>per month</div>
+                    <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.3px', textTransform: 'uppercase', color: '#c0a0a0', marginBottom: '4px' }}>{isPre ? 'Estimated range' : 'Total recoverable'}</div>
+                    <div style={{ fontSize: '28px', fontWeight: 800, color: '#cc3333', lineHeight: 1, letterSpacing: '-1px' }}>{isPre ? `${fmtK(Math.round(totalLoss * 0.7))}-${fmtK(Math.round(totalLoss * 1.3))}` : fmtK(totalLoss)}</div>
+                    <div style={{ fontSize: '10px', color: '#c09090', marginTop: '2px' }}>per month{isPre ? ' (directional)' : ''}</div>
                   </div>
                   <div style={{ padding: '16px 20px', background: '#fafafa' }}>
-                    <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.3px', textTransform: 'uppercase', color: '#aaa', marginBottom: '4px' }}>Primary constraint</div>
-                    <div style={{ fontSize: '22px', fontWeight: 800, color: '#111', lineHeight: 1.1, letterSpacing: '-0.3px' }}>{bottleneckLabel}</div>
-                    <div style={{ fontSize: '10px', color: '#aaa', marginTop: '2px' }}>{fmtK(bnLossDrawer)} / month</div>
+                    <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.3px', textTransform: 'uppercase', color: '#aaa', marginBottom: '4px' }}>{isPre ? 'Likely constraint area' : 'Primary constraint'}</div>
+                    <div style={{ fontSize: '22px', fontWeight: 800, color: '#111', lineHeight: 1.1, letterSpacing: '-0.3px' }}>{isPre ? 'To be confirmed' : bottleneckLabel}</div>
+                    <div style={{ fontSize: '10px', color: '#aaa', marginTop: '2px' }}>{isPre ? `Likely: ${bottleneckLabel}` : `${fmtK(bnLossDrawer)} / month`}</div>
                   </div>
                 </div>
                 {/* Snapshot bullets */}
@@ -2111,9 +2112,9 @@ function FullReportDrawer({
             )
           })()}
 
-          {/* 2. EXECUTIVE EXPLANATION, why the bottleneck occurs */}
+          {/* 2. EXECUTIVE EXPLANATION */}
           <AISection
-            title="Why the operation is constrained"
+            title={isPre ? 'What the data suggests' : 'Why the operation is constrained'}
             text={texts.executive}
             generating={generating === 'executive'}
             onGenerate={() => onGenerate('executive')}
@@ -2124,9 +2125,9 @@ function FullReportDrawer({
 
           <Divider />
 
-          {/* 3. CONSTRAINT ANALYSIS */}
+          {/* 3. CONSTRAINT / PRELIMINARY ANALYSIS */}
           <AISection
-            title="Constraint Analysis"
+            title={isPre ? 'Preliminary Analysis' : 'Constraint Analysis'}
             text={texts.diagnosis}
             generating={generating === 'diagnosis'}
             onGenerate={() => onGenerate('diagnosis')}
@@ -2137,9 +2138,9 @@ function FullReportDrawer({
 
           <Divider />
 
-          {/* 4. ACTION PLAN */}
+          {/* 4. ACTIONS / PREPARATION */}
           <AISection
-            title="Action Plan"
+            title={isPre ? 'Preparation & Next Steps' : 'Action Plan'}
             text={texts.actions}
             generating={generating === 'actions'}
             onGenerate={() => onGenerate('actions')}
@@ -2586,11 +2587,12 @@ function RecoverableValueCard({ totalLoss, financialBottleneck }: {
 }
 
 // ── Score Grid ─────────────────────────────────────────────────────────────
-function ScoreGrid({ calcResult, financialBottleneck, issues, onSwitchToTracking }: {
+function ScoreGrid({ calcResult, financialBottleneck, issues, onSwitchToTracking, isPre }: {
   calcResult: CalcResult
   financialBottleneck: string | null
   issues: Issue[]
   onSwitchToTracking?: () => void
+  isPre?: boolean
 }) {
   const isMobile = useIsMobile()
   if (calcResult.overall === null) return null
@@ -2704,15 +2706,16 @@ function ScoreGrid({ calcResult, financialBottleneck, issues, onSwitchToTracking
               </div>
               <div>
                 <div style={{ fontSize: '16px', fontWeight: 700, color: '#1a1a1a', lineHeight: 1.2 }}>. {bottleneck.label}</div>
-                <div style={{ display: 'inline-block', fontSize: '9px', fontWeight: 700, letterSpacing: '.8px', textTransform: 'uppercase', color: '#1a6644', background: '#e8f5ee', border: '1px solid #b8dfc8', borderRadius: '4px', padding: '2px 7px', marginTop: '5px' }}>
-                  Primary constraint
+                <div style={{ display: 'inline-block', fontSize: '9px', fontWeight: 700, letterSpacing: '.8px', textTransform: 'uppercase', color: isPre ? '#b8860b' : '#1a6644', background: isPre ? '#fff8e1' : '#e8f5ee', border: `1px solid ${isPre ? '#f5cba0' : '#b8dfc8'}`, borderRadius: '4px', padding: '2px 7px', marginTop: '5px' }}>
+                  {isPre ? 'Likely constraint area' : 'Primary constraint'}
                 </div>
               </div>
             </div>
             {bnLoss > 0 && (
               <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '22px', fontWeight: 800, color: '#1a1a1a', lineHeight: 1, letterSpacing: '-1px' }}>{fmtK(bnLoss)}<span style={{ fontSize: '13px', fontWeight: 500, color: '#888', marginLeft: '4px' }}>/mo</span></div>
-                <div style={{ fontSize: '11px', color: '#aaa', marginTop: '2px' }}>≈ {fmtK(bnDailyLoss)} / day</div>
+                <div style={{ fontSize: '22px', fontWeight: 800, color: '#1a1a1a', lineHeight: 1, letterSpacing: '-1px' }}>{isPre ? `${fmtK(Math.round(bnLoss * 0.7))}-${fmtK(Math.round(bnLoss * 1.3))}` : fmtK(bnLoss)}<span style={{ fontSize: '13px', fontWeight: 500, color: '#888', marginLeft: '4px' }}>/mo</span></div>
+                {!isPre && <div style={{ fontSize: '11px', color: '#aaa', marginTop: '2px' }}>≈ {fmtK(bnDailyLoss)} / day</div>}
+                {isPre && <div style={{ fontSize: '11px', color: '#b8860b', marginTop: '2px' }}>directional estimate</div>}
               </div>
             )}
           </div>
@@ -2724,7 +2727,7 @@ function ScoreGrid({ calcResult, financialBottleneck, issues, onSwitchToTracking
 
               {/* Root cause, single compact line */}
               <div style={{ marginBottom: '14px' }}>
-                <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#aaa', marginBottom: '5px' }}>Root cause</div>
+                <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#aaa', marginBottom: '5px' }}>{isPre ? 'Preliminary indicator' : 'Root cause'}</div>
                 <div style={{ fontSize: '13px', fontWeight: 600, color: '#1a1a1a', display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap' }}>
                   {bnDetail.rootCauseLabel}
                   {bnDetail.rootCauseMetric && (
@@ -3078,6 +3081,7 @@ interface ReportViewProps {
 
 export default function ReportView({ calcResult, answers, meta, report, assessmentId, customerId, reportReleased, isAdmin, overrides, onOverrideChange, phase, onSwitchToTracking, demoBanner, userRole, focusActions }: ReportViewProps) {
   const isMobile = useIsMobile()
+  const isPre = phase === 'workshop'
   const supabase = createClient()
   const issues = buildIssues(calcResult, answers, meta)
   const financialBottleneck = getFinancialBottleneck(issues)
@@ -3140,6 +3144,7 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
   // Build context for AI generation
   // totalLoss already applies bottleneck logic (max of overlapping, not sum), use this, not raw sum
   const aiContext = useMemo(() => ({
+    phase: phase ?? 'onsite',
     plant: meta?.plant || '',
     country: meta?.country || '',
     date: meta?.date || '',
@@ -3408,7 +3413,7 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
       {/* 0b. MANAGER NEXT STEPS, removed; content merged into Action Board */}
 
       {/* 1. SCORE GRID (ImpactHook merged in) */}
-      <ScoreGrid calcResult={calcResult} financialBottleneck={financialBottleneck} issues={issues} onSwitchToTracking={onSwitchToTracking} />
+      <ScoreGrid calcResult={calcResult} financialBottleneck={financialBottleneck} issues={issues} onSwitchToTracking={onSwitchToTracking} isPre={isPre} />
 
       {/* 4. WHY THIS HAPPENS + START HERE */}
       <WhyAndStartHere
@@ -3440,8 +3445,8 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
             }}
           >
             <div>
-              <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '4px' }}>Full operational report</div>
-              <div style={{ fontSize: '14px', fontWeight: 600, color: '#fff' }}>AI diagnosis · Root cause analysis · Action plan →</div>
+              <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '4px' }}>{isPre ? 'Pre-assessment report' : 'Full operational report'}</div>
+              <div style={{ fontSize: '14px', fontWeight: 600, color: '#fff' }}>{isPre ? 'Directional analysis · Preparation plan · On-site scope →' : 'AI diagnosis · Root cause analysis · Action plan →'}</div>
             </div>
             <span style={{ fontSize: '20px', color: 'rgba(255,255,255,0.6)' }}>›</span>
           </button>
