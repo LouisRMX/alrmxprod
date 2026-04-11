@@ -209,7 +209,7 @@ const EXAMPLE_DIAGNOSIS = `EXAMPLE OF TARGET QUALITY — match this tone, struct
 
 "The data points toward fleet turnaround as the likely constraint. Each truck completes 5.4 trips per day against an achievable 7.1 at target turnaround. That difference, 1.7 trips per truck across 20 trucks, represents the core of the throughput gap. Utilisation at 67% is what a 112-minute cycle produces with this fleet. It is a consequence, not a separate problem.
 
-Rejection rate at 3.5% does not constrain throughput. Material cost from rejections adds to operational leakage but fixing rejection alone would not increase deliveries per day. The binding limit is how often each truck moves.
+Rejection rate at 3.5% sits above the 3% target and adds direct material cost per rejected load, but it does not limit throughput. Each rejection is an additive cost, it does not block the next delivery cycle. The throughput gap is driven by turnaround time. Fixing turnaround recovers volume. Fixing rejection recovers material cost. Both matter, but they are separate levers.
 
 The on-site assessment will determine: where in the 112-minute cycle the time is physically lost (plant queue, site wait, or uncoordinated dispatch timing); whether the excess is consistent across shifts or concentrated in peak hours; and whether the fleet constraint is purely turnaround or partly truck availability."
 
@@ -468,6 +468,7 @@ CRITICAL CONSTRAINTS:
 - Do NOT name a definitive constraint. Use "likely" or "appears to be".
 - Use ranges: "$${Math.round(lo / 1000)}k-$${Math.round(hi / 1000)}k/month".
 - Frame all analysis as preliminary.
+- Rejection rate is ALWAYS additive leakage, never a throughput constraint. It adds material cost but does not limit how many trips the fleet completes. Never open a paragraph with rejection as the primary finding. Never frame rejection as "the likely constraint." Turnaround time is the throughput driver. Rejection is a cost driver. They are not interchangeable.
 
 PLANT DATA (self-reported, not verified):
 Likely constraint area: ${dx.primary_constraint} (to be confirmed on-site)
