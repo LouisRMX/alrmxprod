@@ -6,6 +6,7 @@ import type { CalcResult, Answers, CalcOverrides } from '@/lib/calculations'
 import type { Phase } from '@/lib/questions'
 import { calcLossRange } from '@/lib/calculations'
 import { buildIssues, getFinancialBottleneck, type Issue } from '@/lib/issues'
+import { buildValidatedDiagnosis } from '@/lib/diagnosis-pipeline'
 import { benchmarkTag, liveBenchmarkTag, gcQuartile, type LiveBenchmarkData } from '@/lib/benchmarks'
 import { useBenchmarks } from '@/hooks/useBenchmarks'
 import { useIsMobile } from '@/hooks/useIsMobile'
@@ -3141,53 +3142,21 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
   const hasAllSections = !!(texts.executive && texts.diagnosis && texts.actions)
   const hasAnySections = !!(texts.executive || texts.diagnosis || texts.actions)
 
-  // Build context for AI generation
-  // totalLoss already applies bottleneck logic (max of overlapping, not sum), use this, not raw sum
+  // Build ValidatedDiagnosis (single source of truth for AI prompts)
+  const dx = useMemo(() =>
+    buildValidatedDiagnosis(calcResult, answers, meta),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [assessmentId, calcResult, answers, meta])
+
+  // Context sent to API: dx + raw answers (for fields not yet on VD) + phase + benchmark buckets
   const aiContext = useMemo(() => ({
-    phase: phase ?? 'onsite',
-    plant: meta?.plant || '',
-    country: meta?.country || '',
-    date: meta?.date || '',
-    scores: calcResult.scores,
-    overall: calcResult.overall,
-    bottleneck: financialBottleneck,
-    totalLossMonthly: totalLoss,
-    bnLossMonthly: bnLoss,
-    bnDailyLoss,
-    dailyLoss,
-    hiddenRevMonthly: calcResult.hiddenRevMonthly,
-    utilPct: Math.round(calcResult.util * 100),
-    turnaround: calcResult.ta,
-    targetTA: calcResult.TARGET_TA,
-    dispatchMin: calcResult.dispatchMin,
-    rejectPct: Math.round(calcResult.rejectPct),
-    rejectPlantFraction:    Math.round(calcResult.rejectPlantFraction * 100),
-    rejectPlantSideLoss:    calcResult.rejectPlantSideLoss,
-    rejectCustomerSideLoss: calcResult.rejectCustomerSideLoss,
-    trucks: calcResult.trucks,
-    cap: calcResult.cap,
-    performingWell: totalLoss === 0 && issues.length === 0 && calcResult.overall !== null,
-    issues: issues.slice(0, 8).map(i => ({
-      t: i.t, action: i.action, rec: i.rec,
-      loss: i.loss, sev: i.sev, category: i.category, formula: i.formula, dimension: i.dimension,
-    })),
+    dx,
     answers,
-    // TAT component breakdown (on-site, optional)
-    ta_transit_min: answers?.ta_transit_min ?? null,
-    ta_site_wait_min: answers?.ta_site_wait_min ?? null,
-    ta_unload_min: answers?.ta_unload_min ?? null,
-    ta_washout_return_min: answers?.ta_washout_return_min ?? null,
-    // Behavioural signals (on-site, optional)
-    plant_idle: answers?.plant_idle ?? null,
-    route_clustering: answers?.route_clustering ?? null,
-    order_notice: answers?.order_notice ?? null,
-    // Plant manager context (pre-assessment, optional)
-    biggest_pain: answers?.biggest_pain ?? null,
-    // Segmentation buckets, used server-side for benchmark percentile lookup
+    phase: phase ?? 'onsite',
     radiusBucket: calcResult.radius < 10 ? 'short' : calcResult.radius <= 20 ? 'medium' : 'long',
     fleetBucket:  calcResult.trucks <= 5 ? 'small' : calcResult.trucks <= 15 ? 'medium' : 'large',
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [assessmentId, calcResult, answers, meta])
+  }), [dx, answers, phase, calcResult])
 
   const saveSection = useCallback(async (section: string, text: string) => {
     const clean = stripMarkdown(text)

@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server'
 import { checkRateLimit, checkSpendCap, trackSpend } from '@/lib/rate-limit'
 import { stripMarkdown } from '@/lib/stripMarkdown'
 import { NextRequest, NextResponse } from 'next/server'
+import type { ValidatedDiagnosis } from '@/lib/diagnosis-pipeline'
+import type { Answers } from '@/lib/calculations'
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
@@ -45,6 +47,11 @@ export async function POST(req: NextRequest) {
   if (!assessmentId || !type || !context) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   }
+
+  // Extract ValidatedDiagnosis, raw answers, and phase from context
+  const dx = context.dx as ValidatedDiagnosis | undefined
+  const answers = (context.answers ?? {}) as Answers
+  const phase = (context.phase ?? 'onsite') as string
 
   // Demo mode: return fixed pre-written report text, no database access needed
   // Skip when demoOverride === true (user has changed inputs and wants a live generation)
@@ -134,10 +141,15 @@ This pre-assessment has established the financial picture based on what the plan
     }
   }
 
+  // dx may be undefined for very old assessments or edge cases; fall back gracefully
+  if (!dx) {
+    return NextResponse.json({ error: 'ValidatedDiagnosis missing from context' }, { status: 400 })
+  }
+
   const prompts: Record<string, string> = {
-    executive: buildExecutivePrompt(context, benchmarks),
-    diagnosis: buildDiagnosisPrompt(context, benchmarks),
-    actions: buildActionsPrompt(context),
+    executive: buildExecutivePrompt(dx, answers, phase, benchmarks),
+    diagnosis: buildDiagnosisPrompt(dx, answers, phase, benchmarks),
+    actions: buildActionsPrompt(dx, answers, phase),
   }
 
   const prompt = prompts[type]
@@ -194,481 +206,414 @@ Rejection , median: ${b.reject.p50}% · top quartile: ${b.reject.p25}%
 When this data is available, reference the plant's position relative to comparable operations. Use language like "comparable plants" or "similar operations in this segment". Do not call it an "industry average". Be direct: if the plant is below median on a key metric, state it.`
 }
 
-// ── Helper: TAT component breakdown (on-site only, validated) ──
-function buildTATBreakdown(ctx: Record<string, unknown>): string | null {
-  const transit = ctx.ta_transit_min as number | null
-  const siteWait = ctx.ta_site_wait_min as number | null
-  const unload = ctx.ta_unload_min as number | null
-  const washout = ctx.ta_washout_return_min as number | null
+// ══════════════════════════════════════════════════════════════════════════
+// HELPER FUNCTIONS
+// ══════════════════════════════════════════════════════════════════════════
 
-  const components = [transit, siteWait, unload, washout]
-  const filled = components.filter(v => v !== null && v !== undefined)
+// ── TAT breakdown: reads from ValidatedDiagnosis.tat_breakdown (pre-validated by pipeline) ──
+function buildTATBreakdown(dx: ValidatedDiagnosis): string {
+  if (!dx.tat_breakdown || dx.tat_breakdown.length === 0) return ''
 
-  // Require at least 3 of 4 components
-  if (filled.length < 3) return null
+  const largest = [...dx.tat_breakdown].sort((a, b) => b.actual - a.actual)[0]
+  const total = dx.tat_breakdown.reduce((s, c) => s + c.actual, 0)
 
-  const reportedTotal = filled.reduce((a, b) => a + (b ?? 0), 0)
-  const actualTA = ctx.turnaround as number
-
-  // Sanity check: reject if component sum deviates >20% from dropdown-derived TAT
-  // Note: the dropdown is the less precise source (25-min range), components are more reliable
-  if (actualTA > 0 && Math.abs(reportedTotal - actualTA) / actualTA > 0.20) return null
-
-  const largest = [
-    { label: 'site wait', value: siteWait },
-    { label: 'transit', value: transit },
-    { label: 'unloading', value: unload },
-    { label: 'washout/weighbridge', value: washout },
-  ]
-    .filter(x => x.value !== null)
-    .sort((a, b) => (b.value ?? 0) - (a.value ?? 0))[0]
-
-  return `TAT breakdown (on-site measurement, more precise than the dropdown-derived total):
-  Transit (both ways): ${transit ?? 'not recorded'} min
-  Site wait: ${siteWait ?? 'not recorded'} min
-  Unloading: ${unload ?? 'not recorded'} min
-  Washout/weighbridge: ${washout ?? 'not recorded'} min
-  Component total: ${reportedTotal} min (dropdown TAT: ${actualTA} min)
-  Largest component: ${largest.label} (${largest.value} min)
-The TAT component breakdown is the more precise data source. The overall turnaround figure comes from a dropdown with a 25-minute range. If components sum within 20% of the dropdown value, trust the components. Name the dominant component directly and specifically.`
+  return `TAT breakdown (on-site measurement):
+${dx.tat_breakdown.map(c => `  ${c.label}: ${c.actual} min (benchmark: ${c.benchmark} min)`).join('\n')}
+  Component total: ${total} min (reported TAT: ${dx.tat_actual} min)
+  Largest component: ${largest.label} (${largest.actual} min)
+The TAT component breakdown is more precise than the dropdown-derived total. Name the dominant component directly and specifically.`
 }
 
-// ── Helper: Plant idle signal (on-site only) ──
-function buildIdleSignal(ctx: Record<string, unknown>): string {
-  const idle = ctx.plant_idle as string | null
+// ── Plant idle signal: reads raw answer field ──
+// TODO: plant_idle, route_clustering, order_notice should be extracted
+// into ValidatedDiagnosis by the pipeline. When that is done, this
+// answers parameter can be removed and helpers migrate fully to dx.
+function buildIdleSignal(answers: Answers): string {
+  const idle = answers?.plant_idle as string | null
   if (!idle) return ''
 
-  // Options: 'Never, a truck is always available' | 'Occasionally, a few times per week' |
-  //          'Regularly, most busy periods' | 'Every day, always waiting for trucks'
   const isNever = idle.toLowerCase().includes('never')
   if (isNever) return `Plant idle signal: plant does not report waiting for trucks. This does not rule out fleet constraint but reduces its likelihood.`
 
   const isRegular = idle.toLowerCase().includes('regularly') || idle.toLowerCase().includes('every day')
-  const isOccasional = idle.toLowerCase().includes('occasionally')
+  if (isRegular) return `Plant idle signal: plant reports sitting ready with no truck available regularly. This confirms fleet is the binding constraint, not production capacity. Reference this directly when explaining the constraint mechanism.`
 
-  if (isRegular) return `Plant idle signal: plant reports sitting ready with no truck available — regularly (most busy periods) or every day. This confirms fleet is the binding constraint, not production capacity. Reference this directly when explaining the constraint mechanism.`
-  if (isOccasional) return `Plant idle signal: plant reports occasionally waiting for trucks (a few times per week). This suggests fleet may be the binding constraint during peak periods but is not yet a persistent system-wide limit.`
+  const isOccasional = idle.toLowerCase().includes('occasionally')
+  if (isOccasional) return `Plant idle signal: plant reports occasionally waiting for trucks (a few times per week). This suggests fleet may be the binding constraint during peak periods.`
 
   return ''
 }
 
-// ── Helper: biggest_pain free text (pre-assessment only, actions prompt only) ──
-function buildPainContext(ctx: Record<string, unknown>): string {
-  const pain = ctx.biggest_pain as string | null
+// ── Pain context: reads from ValidatedDiagnosis.management_context ──
+function buildPainContext(dx: ValidatedDiagnosis): string {
+  const pain = dx.management_context
   if (!pain || pain.trim().length < 10) return ''
 
-  return `Plant manager's stated challenge (their own words): "${pain}"
-Note: This is self-reported and may describe a symptom rather than the root cause. Use it to make the actions section feel plant-specific — reference it where it aligns with the data. If it contradicts the diagnostic findings, do not suppress it: briefly acknowledge the tension (e.g. "the plant manager identifies X as the main issue — the data suggests Y is upstream of that"). Paraphrase the concern in the report. Do not repeat exact phrasing from the input.`
+  return `Plant manager's stated challenge: "${pain}"
+Note: This is self-reported and may describe a symptom rather than the root cause. Use it to make the actions section feel plant-specific. If it contradicts the diagnostic findings, briefly acknowledge the tension. Paraphrase the concern in the report. Do not repeat exact phrasing from the input.`
 }
 
-// ── Helper: Dispatch context (on-site only, executive + diagnosis) ──
-function buildDispatchContext(ctx: Record<string, unknown>): string {
-  const clustering = ctx.route_clustering as string | null
-  const notice = ctx.order_notice as string | null
+// ── Dispatch context: reads raw answer fields ──
+// TODO: plant_idle, route_clustering, order_notice should be extracted
+// into ValidatedDiagnosis by the pipeline. When that is done, this
+// answers parameter can be removed and helpers migrate fully to dx.
+function buildDispatchContext(answers: Answers): string {
+  const clustering = answers?.route_clustering as string | null
+  const notice = answers?.order_notice as string | null
 
   if (!clustering && !notice) return ''
 
   const lines = []
   if (clustering) lines.push(`Route clustering: ${clustering}`)
   if (notice) lines.push(`Customer order notice: ${notice}`)
-
-  lines.push(`Note: Use these to explain the structural cause of dispatch delays. If clustering is absent and notice is short, the dispatch system is reactive by design — trucks are dispatched in response to demand rather than pre-positioned. Name this specifically if the data supports it.`)
+  lines.push(`Note: Use these to explain the structural cause of dispatch delays. If clustering is absent and notice is short, the dispatch system is reactive by design.`)
 
   return lines.join('\n')
 }
 
-// ── Helper: Clustering signal for actions prompt ──
-function buildClusteringSignal(ctx: Record<string, unknown>): string {
-  const clustering = ctx.route_clustering as string | null
+// ── Clustering signal for actions: reads raw answer field ──
+// TODO: plant_idle, route_clustering, order_notice should be extracted
+// into ValidatedDiagnosis by the pipeline. When that is done, this
+// answers parameter can be removed and helpers migrate fully to dx.
+function buildClusteringSignal(answers: Answers): string {
+  const clustering = answers?.route_clustering as string | null
   if (!clustering) return ''
 
-  // Options: 'Always, formal zone system' | 'Usually, informal grouping' |
-  //          'Sometimes, depends on the dispatcher' | 'Rarely or never'
   const absent = clustering.toLowerCase().includes('sometimes') ||
                  clustering.toLowerCase().includes('rarely')
-
   if (!absent) return ''
 
   return `Route clustering: ${clustering}.
-Note: Zone-based dispatch grouping is a zero-cost immediate action. Include it in the immediate actions section if dispatch is the primary constraint or a significant secondary issue. Frame it as a concrete protocol, not a general suggestion.`
+Note: Zone-based dispatch grouping is a zero-cost immediate action. Include it in the immediate actions section if dispatch is the primary constraint. Frame it as a concrete protocol, not a general suggestion.`
 }
 
-function buildExecutivePrompt(ctx: Record<string, unknown>, benchmarks: BenchmarkContext | null = null) {
+// ══════════════════════════════════════════════════════════════════════════
+// PROMPT BUILDERS
+// ══════════════════════════════════════════════════════════════════════════
+
+function buildExecutivePrompt(dx: ValidatedDiagnosis, answers: Answers, phase: string, benchmarks: BenchmarkContext | null = null) {
   const RULES = `RULES:
 - Plain text only. No markdown, no asterisks, no bold, no headings with #, no bullet dashes, no numbered lists.
 - Never invent data. Use only the figures provided.
-- Do NOT repeat revenue figures, scores, or bullet metrics, those are already shown above this text in the UI.
+- Do NOT repeat revenue figures or bullet metrics, those are already shown above this text in the UI.
 - No jargon. Banned: optimize, leverage, streamline, robust, synergy, utilize, actionable, deep dive.
 - Short sentences. One idea per sentence.
 - If this text could apply to any ready-mix plant, it is too generic. Rewrite until it is specific to this plant.
-- All analysis is based on reported input data. Do not present conclusions as absolute facts. Frame insights as data-consistent interpretations of the reported metrics.
-- If TAT breakdown is absent or failed validation: do not speculate on which component drives the turnaround excess. State only that the breakdown was not recorded.`
+- All analysis is based on reported input data. Do not present conclusions as absolute facts.
+- Use observed_signals as confirmed facts. Use inferred_signals as interpretations: frame with "suggests", "indicates", "points to". Never present inferred signals as observed facts.
+- Do not present utilisation as an independent cause. It is always the consequence of turnaround and fleet size combined.
+- If TAT breakdown is absent: do not speculate on which component drives the turnaround excess.`
 
-  const tatBreakdown = buildTATBreakdown(ctx)
-  const idleSignal = buildIdleSignal(ctx)
-  const dispatchCtx = buildDispatchContext(ctx)
+  const performingWell = dx.total_loss === 0 && dx.actions.length === 0 && dx.data_quality !== 'insufficient'
 
-  if (ctx.performingWell) {
+  if (performingWell) {
     return `${RULES}
 
-You are writing a short operational explanation for a well-performing ready-mix concrete plant. The reader has already seen the scores and metrics. Your job is to explain in plain language why the plant is performing well and what operational discipline this reflects.
+You are writing a short operational explanation for a well-performing ready-mix concrete plant.
 
 PLANT DATA:
-Plant: ${ctx.plant}, ${ctx.country}
-Overall score: ${ctx.overall}/100
-Utilisation: ${ctx.utilPct}% (target: 85%) | Turnaround: ${ctx.turnaround} min (target: ${ctx.targetTA} min)
+Plant: ${dx.plant_name}, ${dx.country}
+Utilisation: ${dx.utilization_pct}% (target: 85%) | Turnaround: ${dx.tat_actual} min (target: ${dx.tat_target} min)
 
 WRITE THREE SHORT PARAGRAPHS, no headings, no labels:
-
-Paragraph 1: What the data shows about operational flow. What is working at the process level, not just that the numbers are good, but what that implies about how the plant is run day-to-day.
-
-Paragraph 2: Why this level of performance holds. What operational habits or disciplines are likely keeping these metrics stable.
-
-Paragraph 3: What to monitor. One or two areas that could slip if not actively maintained. Specific to this plant's numbers.`
+Paragraph 1: What the data shows about operational flow and what that implies about how the plant is run.
+Paragraph 2: Why this level of performance holds. What operational habits are keeping these metrics stable.
+Paragraph 3: What to monitor. One or two areas that could slip if not actively maintained.`
   }
 
-  // ── PRE-ASSESSMENT EXECUTIVE: directional, no constraint label, ranges ──
-  if (ctx.phase === 'workshop') {
+  // ── PRE-ASSESSMENT EXECUTIVE ──
+  if (phase === 'workshop') {
+    const lo = dx.total_loss_range?.lo ?? Math.round(dx.total_loss * 0.7)
+    const hi = dx.total_loss_range?.hi ?? Math.round(dx.total_loss * 1.3)
+    const dispatchGap = dx.performance_gaps['dispatch']
     return `${RULES}
 
-You are writing the initial analysis section of a Pre-Assessment Report for ${ctx.plant} in ${ctx.country}.
-
-This is based on a small set of self-reported data points collected remotely. No on-site verification has been done.
+You are writing the initial analysis section of a Pre-Assessment Report for ${dx.plant_name} in ${dx.country}.
+This is based on self-reported data collected remotely. No on-site verification.
 
 CRITICAL CONSTRAINTS FOR PRE-ASSESSMENT:
 - All figures are directional estimates, not confirmed values.
 - Do NOT name a definitive constraint. Say "the data points toward [area] as the likely driver, to be confirmed on-site."
-- Do NOT reference scores (xx/100). Do NOT reference TAT component breakdown (site wait, transit split).
-- Use ranges: "between $${Math.round((ctx.totalLossMonthly as number) * 0.7 / 1000)}k and $${Math.round((ctx.totalLossMonthly as number) * 1.3 / 1000)}k per month" instead of a single figure.
-- Frame all findings as preliminary: "the data suggests", "initial indicators point to", "based on reported figures".
+- Do NOT reference TAT component breakdown (site wait, transit split).
+- Use ranges: "between $${Math.round(lo / 1000)}k and $${Math.round(hi / 1000)}k per month".
+- Frame all findings as preliminary.
 
 PLANT DATA (self-reported, not verified):
-Turnaround: ${ctx.turnaround} min (target: ${ctx.targetTA} min)
-Dispatch time: ${ctx.dispatchMin ?? '-'} min (target: 15 min)
-Rejection rate: ${ctx.rejectPct ?? '-'}% (target: <3%)
-Utilisation: ${ctx.utilPct}% (target: 85%)
-Fleet: ${ctx.trucks} trucks
+Turnaround: ${dx.tat_actual} min (target: ${dx.tat_target} min)
+Dispatch time: ${dispatchGap?.actual ?? '-'} min (target: ${dispatchGap?.target ?? 15} min)
+Rejection rate: ${dx.reject_pct}% (target: <3%)
+Utilisation: ${dx.utilization_pct}% (target: 85%) — consequence of turnaround and fleet size, not an independent cause
+Fleet: ${dx.trucks_effective} effective trucks of ${dx.trucks_total} assigned
 
 WRITE EXACTLY TWO PARAGRAPHS. No headings. No bullets.
-
-Paragraph 1: State what the reported data suggests about where operational margin is being lost. Name the likely area (turnaround, dispatch, quality, utilisation) but frame it as directional, not confirmed. Use the actual numbers vs targets to support the observation.
-
-Paragraph 2: State what cannot be determined from remote data alone. Name 2-3 specific things the on-site assessment will clarify (e.g. where in the turnaround the time is physically lost, whether dispatch figures reflect a consistent pattern or peak-hour average, whether the constraint is fleet-side or production-side). End with one sentence framing the on-site visit as the logical next step.`
+Paragraph 1: What the reported data suggests about where margin is being lost. Name the likely area but frame as directional. Use actual numbers vs targets.
+Paragraph 2: What cannot be determined remotely. Name 2-3 things the on-site assessment will clarify. End with one sentence framing the on-site visit as the logical next step.`
   }
 
+  // ── ON-SITE EXECUTIVE ──
+  const tatSection = buildTATBreakdown(dx)
+  const dispatchGap = dx.performance_gaps['dispatch']
   return `${RULES}
 
-You are writing the Executive Explanation section of a Plant Intelligence Report for ${ctx.plant} in ${ctx.country}.
-
-This is NOT a summary. Do not list findings. Do not repeat financial figures or scores, those are already shown above this text.
-
-PURPOSE: Explain WHY the primary bottleneck occurs and HOW it constrains the operation. Cause-effect logic only.
+You are writing the Executive Explanation section of a Plant Intelligence Report for ${dx.plant_name} in ${dx.country}.
+PURPOSE: Explain WHY the primary constraint occurs and HOW it constrains the operation. Cause-effect logic only.
 
 PLANT DATA:
-Primary bottleneck: ${ctx.bottleneck}
-Turnaround: ${ctx.turnaround} min (target: ${ctx.targetTA} min)
-${tatBreakdown ?? ''}
-Dispatch time: ${ctx.dispatchMin ?? '-'} min (target: 15 min)
-${dispatchCtx}
-Rejection rate: ${ctx.rejectPct ?? '-'}% (target: <3%)${ctx.rejectPlantFraction != null && (ctx.rejectPct as number) > 0 ? `
-  → Plant-side: ~${ctx.rejectPlantFraction}% of rejections ($${ctx.rejectPlantSideLoss}/month), batch/dosing/mix quality
-  → Customer-side: ~${100 - (ctx.rejectPlantFraction as number)}% of rejections ($${ctx.rejectCustomerSideLoss}/month), site unreadiness/pump delays/contractor` : ''}
-Utilisation: ${ctx.utilPct}% (target: 85%)
-Fleet: ${ctx.trucks} trucks
-${idleSignal}
+Primary constraint: ${dx.primary_constraint}
+Confidence: ${dx.confidence} | Claim strength: ${dx.claim_strength}
+Claim basis: ${dx.claim_strength_basis}
+
+Turnaround: ${dx.tat_actual} min (target: ${dx.tat_target} min)
+${tatSection}
+Dispatch gap: ${dispatchGap?.actual ?? '-'} min (target: ${dispatchGap?.target ?? 15} min)
+${buildDispatchContext(answers)}
+Rejection: ${dx.reject_pct}% | Plant-side fraction: ${Math.round(dx.reject_plant_fraction * 100)}%
+Utilisation: ${dx.utilization_pct}% (target: 85%) — consequence of turnaround and fleet size, not an independent cause
+Fleet: ${dx.trucks_effective} effective trucks of ${dx.trucks_total} assigned
+
+Observed signals: ${dx.observed_signals.join(' · ') || 'none'}
+Inferred signals: ${dx.inferred_signals.join(' · ') || 'none'}
+${dx.management_context ? `Management context: ${dx.management_context}` : ''}
+${buildIdleSignal(answers)}
 ${benchmarks ? buildMarketContext(benchmarks) : ''}
 WRITE EXACTLY THREE PARAGRAPHS. No headings. No bullets. No labels.
 
-COMPRESSION RULES, strictly enforced:
-- Each paragraph contains ONE core idea and ONE cause-effect relationship. Nothing else.
-- Maximum 2–3 sentences per paragraph.
-- No examples. No illustrative scenarios. No storytelling.
-- No throat-clearing. Start with the operational fact.
-- If a sentence does not add a new idea or new causal link, cut it.
-- Prefer direct statements over explanations.
-- Write the conclusion first in each paragraph, then support it briefly.
+COMPRESSION RULES:
+- Each paragraph: ONE core idea, ONE cause-effect relationship. Max 2-3 sentences.
+- No examples, no storytelling. Start with the operational fact.
 
-Paragraph 1: State the measured gap as a fact (use the actual metric vs target). Then state the most likely operational cause, framed as inference, not assertion. Use language like "indicates", "suggests", "points to". Do not claim to know what the plant does or does not have.
-
-Paragraph 2: State the downstream consequence that follows directly from the gap in paragraph 1. Use only what the data confirms, turnaround time, cycle count, utilisation. Do not introduce specifics (shift length, number of deliveries) unless they appear in the plant data above.
-
-Paragraph 3: State why this dimension is the binding constraint over the others. Reference ALL other dimensions that are off-target (e.g. rejection rate, utilisation, turnaround) and briefly state why each is secondary, either smaller financial gap, already partially constrained by the primary issue, or not yet at the point of system-wide impact. One sentence per secondary dimension. End with one sentence confirming why the primary constraint unlocks the most recovery.`
+Paragraph 1: State the measured gap as fact. Then state the most likely cause, using observed_signals as facts and inferred_signals as interpretations.
+Paragraph 2: State the downstream consequence for the system. Use calc_trace numbers (trips per truck, m3/day gap) to make it concrete.
+Paragraph 3: Why this is the binding constraint over the others. One sentence per secondary dimension. End confirming why the primary constraint unlocks the most recovery.`
 }
 
-function buildDiagnosisPrompt(ctx: Record<string, unknown>, benchmarks: BenchmarkContext | null = null) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const scores = ctx.scores as any
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const issues = ctx.issues as any[]
-
+function buildDiagnosisPrompt(dx: ValidatedDiagnosis, answers: Answers, phase: string, benchmarks: BenchmarkContext | null = null) {
   const RULES = `RULES:
 - Plain text only. No markdown, no asterisks, no bold, no headings with #, no bullet dashes.
 - Never invent data. Use only the figures provided.
 - All financial figures are POTENTIAL, frame as "up to $X" or "recoverable", never as confirmed losses.
 - No jargon. Banned: optimize, leverage, streamline, robust, synergy, utilize, actionable, deep dive.
 - Short sentences. One idea per sentence.
-- Write for a plant owner who is intelligent and has no patience for consultants who talk around things.
-- All analysis is based on reported input data. Do not present conclusions as absolute facts. Frame insights as data-consistent interpretations of the reported metrics.
-- Limit cognitive load. Avoid combining multiple operational dimensions in the same paragraph unless strictly necessary.
-- If TAT breakdown is absent or failed validation: do not speculate on which component drives the turnaround excess. State only that the breakdown was not recorded.`
+- Write for a plant owner who is intelligent and has no patience for consultants.
+- Do not present utilisation as an independent cause alongside turnaround. Utilisation is the output of turnaround and fleet size combined.
+- The calc_trace is provided so you can explain the mechanism quantitatively. Use the actual numbers to explain what is happening.
+- If data_quality is "directional" or flags are present, acknowledge the limitation in one sentence. Do not repeat each flag.
+- If TAT breakdown is absent: do not speculate on which component drives the turnaround excess.`
 
-  const tatBreakdown = buildTATBreakdown(ctx)
-  const idleSignal = buildIdleSignal(ctx)
-  const dispatchCtx = buildDispatchContext(ctx)
+  const performingWell = dx.total_loss === 0 && dx.actions.length === 0 && dx.data_quality !== 'insufficient'
 
-  if (ctx.performingWell) {
+  if (performingWell) {
     return `${RULES}
 
-You are writing the Constraint Analysis section for a well-performing ready-mix concrete plant. No binding constraint was found. Your job is to explain what the absence of constraint indicates about how this operation is run.
+You are writing the Constraint Analysis section for a well-performing ready-mix concrete plant. No binding constraint was found.
 
 PLANT DATA:
-Plant: ${ctx.plant}, ${ctx.country}
-Overall score: ${ctx.overall}/100
-Utilisation: ${ctx.utilPct}% (target: 85%)
-Turnaround: ${ctx.turnaround} min (target: ${ctx.targetTA} min)
-Dispatch: ${ctx.dispatchMin ?? '-'} min (target: 15 min)
-Scores, Production: ${scores?.prod ?? '-'}/100 | Dispatch: ${scores?.dispatch ?? '-'}/100 | Fleet: ${scores?.logistics ?? '-'}/100 | Quality: ${scores?.quality ?? '-'}/100
+Plant: ${dx.plant_name}, ${dx.country}
+Utilisation: ${dx.utilization_pct}% (target: 85%)
+Turnaround: ${dx.tat_actual} min (target: ${dx.tat_target} min)
 
-WRITE THREE PARAGRAPHS. No headings. No bullet points. No metric listings.
-
-Paragraph 1, System state:
-Describe what the operation looks like when no single dimension is constraining throughput. What does it mean for the whole system that turnaround, dispatch, and utilisation are all close to target simultaneously? One core idea. Max 3 sentences.
-
-Paragraph 2, What the scores indicate:
-Name the dimensions that are performing well and explain, in operational terms, not score terms, what that implies about the day-to-day discipline of the plant. Be specific to the actual numbers. Do not list scores. Weave them into a coherent observation. Max 3 sentences.
-
-Paragraph 3, What to monitor:
-Identify the one or two dimensions most likely to slip first if operational discipline softens, based on the actual metrics and their margin above target. One sentence per dimension. Conclude with what early signal would indicate the constraint is forming.`
+WRITE THREE PARAGRAPHS. No headings. No bullet points.
+Paragraph 1: What the operation looks like when no single dimension is constraining throughput. Max 3 sentences.
+Paragraph 2: What the metrics indicate about day-to-day discipline. Be specific to the actual numbers.
+Paragraph 3: What to monitor. One or two dimensions most likely to slip first.`
   }
 
-  // ── PRE-ASSESSMENT DIAGNOSIS: preliminary, no scores, no TAT components ──
-  if (ctx.phase === 'workshop') {
-    const totalLow = Math.round((ctx.totalLossMonthly as number) * 0.7 / 1000)
-    const totalHigh = Math.round((ctx.totalLossMonthly as number) * 1.3 / 1000)
+  // ── PRE-ASSESSMENT DIAGNOSIS ──
+  if (phase === 'workshop') {
+    const lo = dx.total_loss_range?.lo ?? Math.round(dx.total_loss * 0.7)
+    const hi = dx.total_loss_range?.hi ?? Math.round(dx.total_loss * 1.3)
+    const dispatchGap = dx.performance_gaps['dispatch']
 
     return `${RULES}
 
-You are writing the Preliminary Analysis section of a Pre-Assessment Report for ${ctx.plant} in ${ctx.country}.
-
+You are writing the Preliminary Analysis section of a Pre-Assessment Report for ${dx.plant_name} in ${dx.country}.
 This is based on self-reported data collected remotely. No on-site verification.
 
-CRITICAL CONSTRAINTS FOR PRE-ASSESSMENT:
-- Do NOT reference scores (xx/100). Do NOT reference TAT component breakdown.
+CRITICAL CONSTRAINTS:
+- Do NOT reference TAT component breakdown.
 - Do NOT name a definitive constraint. Use "likely" or "appears to be".
-- Use ranges: "$${totalLow}k-$${totalHigh}k/month" not a single figure.
+- Use ranges: "$${Math.round(lo / 1000)}k-$${Math.round(hi / 1000)}k/month".
 - Frame all analysis as preliminary.
 
 PLANT DATA (self-reported, not verified):
-Likely constraint area: ${ctx.bottleneck} (to be confirmed on-site)
-Estimated recoverable range: $${totalLow}k-$${totalHigh}k/month
-Turnaround: ${ctx.turnaround} min (target: ${ctx.targetTA} min)
-Dispatch time: ${ctx.dispatchMin ?? '-'} min (target: 15 min)
-Rejection rate: ${ctx.rejectPct ?? '-'}% (target: <3%)
-Utilisation: ${ctx.utilPct}% (target: 85%)
-Fleet: ${ctx.trucks} trucks
+Likely constraint area: ${dx.primary_constraint} (to be confirmed on-site)
+Estimated recoverable range: $${Math.round(lo / 1000)}k-$${Math.round(hi / 1000)}k/month
+Turnaround: ${dx.tat_actual} min (target: ${dx.tat_target} min)
+Dispatch time: ${dispatchGap?.actual ?? '-'} min (target: ${dispatchGap?.target ?? 15} min)
+Rejection rate: ${dx.reject_pct}% (target: <3%)
+Utilisation: ${dx.utilization_pct}% (target: 85%)
+Fleet: ${dx.trucks_effective} effective trucks of ${dx.trucks_total} assigned
 
 WRITE EXACTLY TWO PARAGRAPHS. No headings. No bullets.
-
-Paragraph 1: Based on the reported metrics, describe what the numbers suggest about how the operation is performing. Name the 1-2 dimensions furthest from target and what that implies about daily operations. Use the actual numbers. Do not speculate on root causes that require on-site observation.
-
-Paragraph 2: State what the on-site assessment will determine. Be specific: name 2-3 operational questions that can only be answered by observing the plant (e.g. actual truck cycle timing, dispatch behavior during peak hours, whether reported figures match typical days). Frame the on-site visit as converting this preliminary view into a validated diagnosis.`
+Paragraph 1: What the numbers suggest about performance. Name the 1-2 dimensions furthest from target. Use actual numbers.
+Paragraph 2: What the on-site assessment will determine. Name 2-3 operational questions that can only be answered by observing the plant.`
   }
 
-  const bottleneck = ctx.bottleneck as string
-  const secondaryDims = ['Dispatch', 'Fleet', 'Quality', 'Production']
-    .filter(d => d !== bottleneck)
-    .map(d => {
-      const scoreMap: Record<string, number | null> = {
-        Dispatch: scores?.dispatch ?? null,
-        Fleet: scores?.logistics ?? null,
-        Quality: scores?.quality ?? null,
-        Production: scores?.prod ?? null,
-      }
-      return `${d}: ${scoreMap[d] ?? '-'}/100`
-    })
-    .join(' · ')
+  // ── ON-SITE DIAGNOSIS ──
+  const ct = dx.calc_trace
+  const tatSection = buildTATBreakdown(dx)
+  const dispatchGap = dx.performance_gaps['dispatch']
 
   return `${RULES}
 
-You are writing the Constraint Analysis section of a Plant Intelligence Report for ${ctx.plant} in ${ctx.country}.
-
-IMPORTANT: The reader has already read "Why the operation is constrained", they know what the bottleneck is and how it occurs at the point of failure. Do NOT re-explain the bottleneck mechanism. Start from its consequences for the system as a whole.
+You are writing the Constraint Analysis section of a Plant Intelligence Report for ${dx.plant_name} in ${dx.country}.
+The reader already knows the bottleneck mechanism. Start from its consequences for the system.
 
 PLANT DATA:
-Primary constraint: ${bottleneck}
-Bottleneck loss: up to $${ctx.bnLossMonthly}/month ($${ctx.bnDailyLoss}/day)
-Total recoverable (all areas): up to $${ctx.totalLossMonthly}/month
-Turnaround: ${ctx.turnaround} min (target: ${ctx.targetTA} min)
-${tatBreakdown ?? ''}
-Dispatch time: ${ctx.dispatchMin ?? '-'} min (target: 15 min)
-${dispatchCtx}
-Rejection rate: ${ctx.rejectPct ?? '-'}% (target: <3%)${ctx.rejectPlantFraction != null && (ctx.rejectPct as number) > 0 ? `
-  → Plant-side: ~${ctx.rejectPlantFraction}% ($${ctx.rejectPlantSideLoss}/month), batch/dosing/mix quality
-  → Customer-side: ~${100 - (ctx.rejectPlantFraction as number)}% ($${ctx.rejectCustomerSideLoss}/month), site/pump/contractor` : ''}
-Utilisation: ${ctx.utilPct}% (target: 85%)
-Fleet: ${ctx.trucks} trucks
-${idleSignal}
-Scores, constraint: ${bottleneck} ${scores?.[bottleneck.toLowerCase() as keyof typeof scores] ?? (bottleneck === 'Fleet' ? scores?.logistics : null) ?? '-'}/100 | secondary: ${secondaryDims}
+Primary constraint: ${dx.primary_constraint}
+Verdict cause: ${dx.verdict_cause}
+Mechanism: ${dx.mechanism_detail}
+
+Bottleneck loss: up to $${dx.main_driver.amount}/month
+Recovery range: $${dx.combined_recovery_range.lo}-$${dx.combined_recovery_range.hi}/month
+
+Calculation trace:
+  Fleet daily output: ${ct.fleet_daily_m3} m3/day
+  Plant daily capacity: ${ct.plant_daily_m3} m3/day
+  Actual daily output: ${ct.actual_daily_m3} m3/day
+  Target daily output: ${ct.target_daily_m3} m3/day
+  Gap: ${ct.gap_daily_m3} m3/day x ${ct.working_days_month} days = ${ct.gap_monthly_m3} m3/month
+  Margin: $${ct.margin_per_m3}/m3
+  Trips per truck: ${ct.trips_per_truck} actual vs ${ct.trips_per_truck_target} target
+
+Loss breakdown:
+${dx.loss_breakdown_detail.map(l => `  ${l.dimension}: $${l.amount}/month (${l.classification})`).join('\n')}
+
+Performance gaps:
+${Object.entries(dx.performance_gaps).map(([k, v]) => `  ${k}: ${v.actual} vs target ${v.target}`).join('\n')}
+
+Turnaround: ${dx.tat_actual} min (target: ${dx.tat_target} min)
+${tatSection}
+Dispatch: ${dispatchGap?.actual ?? '-'} min (target: ${dispatchGap?.target ?? 15} min)
+${buildDispatchContext(answers)}
+Rejection: ${dx.reject_pct}% | Plant-side: ${Math.round(dx.reject_plant_fraction * 100)}%
+Utilisation: ${dx.utilization_pct}% — consequence of turnaround and fleet, not independent cause
+Fleet: ${dx.trucks_effective} effective of ${dx.trucks_total}
+${buildIdleSignal(answers)}
+
+Flags: ${dx.flags.length > 0 ? dx.flags.join(' · ') : 'none'}
+Data quality: ${dx.data_quality}${dx.data_warnings.length > 0 ? ' — ' + dx.data_warnings.join(', ') : ''}
 ${benchmarks ? buildMarketContext(benchmarks) : ''}
-WRITE 3–4 PARAGRAPHS. No headings. No bullet points. No findings. No metric listings.
+WRITE 3-4 PARAGRAPHS. No headings. No bullet points.
 
-Paragraph 1, System consequence:
-State what happens to overall throughput and fleet utilisation as a result of the constraint.
-Not what the constraint is, what it does to the system as a whole.
-One core idea. One cause-effect chain. Max 3 sentences.
-
-Paragraph 2, Why other dimensions are secondary:
-For each underperforming dimension that is NOT the constraint, state in one sentence why fixing it first would not unlock system throughput.
-Base this on the actual scores and metrics above.
-Be direct: name each dimension and give a specific operational reason it is secondary.
-Do not list them as bullets, weave them into prose.
-
-Paragraph 3, What resolving the constraint enables:
-If the constraint is fixed, what becomes operationally possible?
-Do not state financial figures, focus on capacity, delivery cadence, and fleet utilisation.
-Max 3 sentences. Conclusion first, then one supporting observation.
-
-Paragraph 4 (include only if data supports it), Next constraint:
-If another dimension is close to becoming the binding limit once the primary is resolved, name it and explain why in 1–2 sentences.
-Only include this paragraph if a secondary score is below 65 or a metric is meaningfully off-target.`
+Paragraph 1, System consequence: What happens to throughput and fleet utilisation as a result of the constraint. Use calc_trace numbers (trips per truck, m3/day gap). Max 3 sentences.
+Paragraph 2, Why other dimensions are secondary: For each underperforming dimension not the constraint, one sentence on why fixing it first would not unlock throughput. Use performance_gaps data.
+Paragraph 3, What resolving the constraint enables: Capacity, delivery cadence, fleet utilisation. No financial figures. Max 3 sentences.
+Paragraph 4 (only if data supports it): Next constraint if another dimension is close to becoming the binding limit.`
 }
 
-function buildActionsPrompt(ctx: Record<string, unknown>) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const issues = ctx.issues as any[]
+function buildActionsPrompt(dx: ValidatedDiagnosis, answers: Answers, phase: string) {
+  const performingWell = dx.total_loss === 0 && dx.actions.length === 0 && dx.data_quality !== 'insufficient'
 
-  if (ctx.performingWell) {
+  if (performingWell) {
     return `RULES:
 - Plain text only. No markdown, no asterisks, no bold, no headings with #, no bullet dashes.
 - Do not manufacture urgency that does not exist.
 - Short sentences. One idea per sentence.
-- Do not use: optimize, leverage, streamline, robust, synergy, utilize, actionable.
 
-You are writing the Next Step section of a Plant Intelligence Report for a well-performing ready-mix concrete plant. No significant losses were found.
+You are writing the Next Step section for a well-performing ready-mix plant. No significant losses found.
 
 CONTEXT:
-Plant: ${ctx.plant}, ${ctx.country}
-Overall score: ${ctx.overall}/100
-Utilisation: ${ctx.utilPct}%, target: 85%
-Turnaround: ${ctx.turnaround} min, target: ${ctx.targetTA} min
-Hidden revenue headroom: up to $${ctx.hiddenRevMonthly}/month
+Plant: ${dx.plant_name}, ${dx.country}
+Utilisation: ${dx.utilization_pct}%, target: 85%
+Turnaround: ${dx.tat_actual} min, target: ${dx.tat_target} min
 
 WRITE TWO SECTIONS:
-
-One sentence (no heading): Name what the data confirms about this operation. What does the absence of major issues tell us? Specific to the numbers.
-
-Next Step, heading on its own line
-Exactly 3 sentences:
-Sentence 1: What this assessment has confirmed.
-Sentence 2: What an on-site visit would verify or add, not what it would fix, because nothing is obviously broken.
-Sentence 3: A concrete suggestion for maintaining this performance, a monitoring discipline, periodic review, or one area to develop further.`
+One sentence (no heading): What the data confirms about this operation.
+Next Step, heading on its own line: Exactly 3 sentences (confirmed, what on-site adds, maintenance suggestion).`
   }
 
-  // ── PRE-ASSESSMENT ACTIONS: preparation only, no operational fixes ──
-  if (ctx.phase === 'workshop') {
-    const painCtx = buildPainContext(ctx)
-    const totalLow = Math.round((ctx.totalLossMonthly as number) * 0.7 / 1000)
-    const totalHigh = Math.round((ctx.totalLossMonthly as number) * 1.3 / 1000)
+  // ── PRE-ASSESSMENT ACTIONS ──
+  if (phase === 'workshop') {
+    const lo = dx.total_loss_range?.lo ?? Math.round(dx.total_loss * 0.7)
+    const hi = dx.total_loss_range?.hi ?? Math.round(dx.total_loss * 1.3)
+    const dispatchGap = dx.performance_gaps['dispatch']
 
     return `RULES:
 - Plain text only. No markdown, no asterisks, no bold, no headings with #, no bullet dashes.
 - Never invent data. Use only the figures provided.
 - All financial figures are POTENTIAL RANGES, not confirmed.
 - No jargon. Banned: optimize, leverage, streamline, robust, synergy, utilize, actionable.
-- Short sentences. One idea per sentence.
-- Do not use sales pitch language.
+- Short sentences. Do not use sales pitch language.
 - Do NOT recommend specific operational fixes (retarder protocols, demurrage enforcement, maintenance schedules). These require on-site verification.
-- All actions must be preparation or measurement actions that the plant can do before the on-site visit.
+- All actions must be preparation or measurement actions.
+- If utilisation is below target, do not present it as an independent problem. Explain it as the mathematical consequence of the turnaround and fleet combination. ${dx.utilization_pct}% utilisation is what a ${dx.tat_actual}-minute turnaround produces with this fleet size. It is a symptom, not a separate cause.
 
-You are writing the Preparation section of a Pre-Assessment Report for ${ctx.plant} in ${ctx.country}. This is based on self-reported data. No on-site visit has been done.
+You are writing the Preparation section of a Pre-Assessment Report for ${dx.plant_name} in ${dx.country}. Based on self-reported data. No on-site visit done.
 
 CONTEXT:
-Likely constraint area: ${ctx.bottleneck} (to be confirmed)
-Estimated recoverable range: $${totalLow}k-$${totalHigh}k/month
-Turnaround: ${ctx.turnaround} min (target: ${ctx.targetTA} min)
-Dispatch time: ${ctx.dispatchMin ?? '-'} min (target: 15 min)
-Rejection rate: ${ctx.rejectPct ?? '-'}% (target: <3%)
-${painCtx}
+Likely constraint area: ${dx.primary_constraint} (to be confirmed)
+Estimated recoverable range: $${Math.round(lo / 1000)}k-$${Math.round(hi / 1000)}k/month
+Recovery basis: gap between actual and target fleet output x $${dx.margin_per_m3}/m3 contribution margin x 40-65% execution range
+Note: Include one sentence in Next Step explaining where the recovery figure comes from. Derived from reported fleet output gap and contribution margin, not an external benchmark.
+Utilisation: ${dx.utilization_pct}% (target: 85%)
+Turnaround: ${dx.tat_actual} min (target: ${dx.tat_target} min)
+Dispatch time: ${dispatchGap?.actual ?? '-'} min (target: ${dispatchGap?.target ?? 15} min)
+Rejection rate: ${dx.reject_pct}% (target: <3%)
+${buildPainContext(dx)}
 WRITE EXACTLY TWO SECTIONS:
 
 Section 1, heading "Before the on-site visit" on its own line
-3 to 5 numbered actions. Each must be:
-- A measurement or data-gathering action (not an operational fix)
-- Something the plant can start doing this week with zero cost
-- Specific enough that someone knows whether it was done or not
-Examples: start logging dispatch times on a whiteboard, pull last 3 months of rejection records, gather delivery ticket copies for one typical week, ask the dispatcher to note which trucks wait longest at plant queue.
+3 to 5 numbered actions. Each: measurement or data-gathering (not operational fix), zero cost, specific enough to confirm done.
 
 Section 2, heading "Next Step" on its own line
 Exactly 3 sentences:
-Sentence 1: What this pre-assessment has established based on reported data, the estimated financial range at stake.
-Sentence 2: What it cannot confirm yet. Name 2 specific unknowns that require on-site observation.
+Sentence 1: What this pre-assessment has established, the estimated financial range at stake.
+Sentence 2: What it cannot confirm yet. Name 2 specific unknowns requiring on-site observation.
 Sentence 3: The on-site assessment as the natural next step, framed as an observation, not a sales pitch.`
   }
 
+  // ── ON-SITE ACTIONS ──
   const RULES = `RULES:
 - Plain text only. No markdown, no asterisks, no bold, no headings with #, no bullet dashes.
 - Never invent data. Use only the figures provided.
 - All financial figures are POTENTIAL, frame as "up to $X" or "recoverable", never as confirmed losses.
 - No jargon. Banned: optimize, leverage, streamline, robust, synergy, utilize, actionable.
 - Short sentences. One idea per sentence.
-- Do not use sales pitch language: propose, recommend, our team, we would like to.
+- Do not use sales pitch language.
 - Warm, direct, experienced. The consultant has seen this pattern before.
-- All analysis is based on reported input data. Do not present conclusions as absolute facts. Frame insights as data-consistent interpretations of the reported metrics.`
-
-  const topIssues = issues
-    .filter(i => i.loss > 0)
-    .slice(0, 5)
-
-  const immediateActions = topIssues
-    .filter(i => i.sev === 'high' || i.loss > 5000)
-    .slice(0, 3)
-    .map(i => `${i.t}: ${i.action} (up to $${Math.round(i.loss / 1000)}k/month)`)
-
-  const secondaryIssues = topIssues
-    .filter(i => i.dimension !== ctx.bottleneck && i.loss > 0)
-    .slice(0, 2)
-    .map(i => `${i.t}: up to $${Math.round(i.loss / 1000)}k/month`)
+- Actions in the prompt are pre-diagnosed from the data. Use them as the basis. Do not invent actions not supported by the diagnosis.
+- Recovery opportunities (demurrage etc.) are separate from the loss figure. Never add them to the recoverable range. Mention them as incremental upside only.
+- If approved_precision is "directional", frame all figures as directional estimates. If "range", use the lo-hi range. If "point_estimate", use the specific figure.`
 
   return `${RULES}
 
-You are writing the Actions section of a Plant Intelligence Report for ${ctx.plant} in ${ctx.country}. This report will be reviewed by the consultant, then presented to the plant owner before any on-site visit.
+You are writing the Actions section of a Plant Intelligence Report for ${dx.plant_name} in ${dx.country}.
 
 CONTEXT:
-Primary bottleneck: ${ctx.bottleneck}
-Bottleneck loss: up to $${ctx.bnLossMonthly}/month
-Total recoverable: up to $${ctx.totalLossMonthly}/month
-Overall score: ${ctx.overall}/100
-Turnaround: ${ctx.turnaround} min (target: ${ctx.targetTA} min)
-Dispatch time: ${ctx.dispatchMin ?? '-'} min (target: 15 min)
-Rejection rate: ${ctx.rejectPct ?? '-'}% (target: <3%)
+Primary constraint: ${dx.primary_constraint}
+Bottleneck loss: up to $${dx.main_driver.amount}/month
+Recovery range: $${dx.combined_recovery_range.lo}-$${dx.combined_recovery_range.hi}/month
+Recovery basis: gap between actual and target fleet output x $${dx.margin_per_m3}/m3 contribution margin x 40-65% execution range
+Approved precision: ${dx.approved_precision}
 
-IMMEDIATE ACTIONS from the data (use these, add operational detail):
-${immediateActions.join('\n')}
+Actions from diagnosis:
+${dx.actions.map(a => `  [${a.time_horizon}] ${a.text}: ${a.detail}`).join('\n')}
 
-SECONDARY OPPORTUNITIES (brief mention only):
-${secondaryIssues.join('\n')}
-${buildPainContext(ctx)}
-${buildClusteringSignal(ctx)}
+Recovery opportunities (separate from loss):
+${dx.recovery_opportunities.map(r => `  ${r.label}: $${r.amount}/month potential`).join('\n')}
+
+${dx.cost_only_savings > 0 ? `Cost-only savings (demand-constrained): $${dx.cost_only_savings}/month` : ''}
+
+Business implication: ${dx.business_implication.summary}
+
+${buildPainContext(dx)}
+${buildClusteringSignal(answers)}
 WRITE EXACTLY FOUR SECTIONS:
 
 Section 1, heading "Immediate, this week" on its own line
-3 to 5 actions, each numbered. Each action must be:
-- Specific to this plant's data (use the actual numbers)
-- Measurable (the plant manager knows whether it happened or not)
-- Zero capital, process, protocol, conversation, or instruction only
-Format each action as: [Number]. [Action title]: [One sentence on what to do and how to confirm it is done.]
+3 to 5 actions, numbered. Each: specific to this plant's data, measurable, zero capital.
+Format: [Number]. [Action title]: [One sentence on what to do and how to confirm done.]
 
 Section 2, heading "Short-term, weeks 2 to 4" on its own line
-3 actions. These build on the immediate actions: SOPs, tracking systems, enforcement mechanisms. Same format as above.
+3 actions. Build on immediate: SOPs, tracking systems, enforcement mechanisms.
 
 Section 3, heading "Validation, months 1 to 3" on its own line
-2 to 3 actions. These confirm the changes are holding and quantify the improvement. Include what to measure and how. Reference the 90-day tracking programme if the plant is enrolling.
+2 to 3 actions. Confirm changes are holding and quantify improvement.
 
 Section 4, heading "Next Step" on its own line
 Exactly 3 sentences:
-Sentence 1: What this assessment has established, the financial picture based on what the plant reports about itself.
-Sentence 2: What it cannot tell us yet. Specifically name 2 of the most relevant unknowns: actual dispatch sequence versus description; where in the turnaround the time is physically lost; whether rejections are plant-side or customer-side; how closely reported figures match typical days.
-Sentence 3: The logical conclusion, framed as an obvious observation, not a proposal. The owner should finish reading this thinking "yes, that makes sense."
-
-IMPORTANT: Secondary opportunities (${secondaryIssues.map(s => s.split(':')[0]).join(', ')}) should be mentioned briefly within the immediate or short-term sections where they fit naturally. Do not create a separate section for them.`
+Sentence 1: What this assessment has established.
+Sentence 2: What it cannot tell us yet. Name 2 specific unknowns.
+Sentence 3: The logical conclusion, framed as an obvious observation.`
 }
