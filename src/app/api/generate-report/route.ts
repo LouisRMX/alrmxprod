@@ -330,7 +330,8 @@ function buildExecutivePrompt(dx: ValidatedDiagnosis, answers: Answers, phase: s
 - All analysis is based on reported input data. Do not present conclusions as absolute facts.
 - Use observed_signals as confirmed facts. Use inferred_signals as interpretations: frame with "suggests", "indicates", "points to". Never present inferred signals as observed facts.
 - Do not present utilisation as an independent cause. It is always the consequence of turnaround and fleet size combined.
-- If TAT breakdown is absent: do not speculate on which component drives the turnaround excess.`
+- If TAT breakdown is absent: do not speculate on which component drives the turnaround excess.
+- Never use first person plural. Do not write "we". Write in third person or address the plant directly.`
 
   const performingWell = dx.total_loss === 0 && dx.actions.length === 0 && dx.data_quality !== 'insufficient'
 
@@ -428,7 +429,8 @@ function buildDiagnosisPrompt(dx: ValidatedDiagnosis, answers: Answers, phase: s
 - Do not present utilisation as an independent cause alongside turnaround. Utilisation is the output of turnaround and fleet size combined.
 - The calc_trace is provided so you can explain the mechanism quantitatively. Use the actual numbers to explain what is happening.
 - If data_quality is "directional" or flags are present, acknowledge the limitation in one sentence. Do not repeat each flag.
-- If TAT breakdown is absent: do not speculate on which component drives the turnaround excess.`
+- If TAT breakdown is absent: do not speculate on which component drives the turnaround excess.
+- Never use first person plural. Do not write "we". Write in third person or address the plant directly.`
 
   const performingWell = dx.total_loss === 0 && dx.actions.length === 0 && dx.data_quality !== 'insufficient'
 

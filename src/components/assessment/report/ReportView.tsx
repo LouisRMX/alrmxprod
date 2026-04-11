@@ -3090,8 +3090,10 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const dx = useMemo(() => buildValidatedDiagnosis(calcResult, answers, meta), [assessmentId, calcResult, answers, meta])
 
-  // dx.primary_constraint is the authoritative source; override old issue-based bottleneck
-  const financialBottleneck = dx.primary_constraint || _issueBn
+  // dx.primary_constraint is authoritative for on-site. In pre-assessment, constraint identification
+  // is unreliable because nominal mixCap flips fleet/production constraint (Calc Bible 9.3).
+  // Use _issueBn as fallback but don't trust either in pre-assessment — UI shows "To be confirmed".
+  const financialBottleneck = isPre ? (_issueBn || dx.primary_constraint) : (dx.primary_constraint || _issueBn)
 
   const bottleneckIssues = issues.filter(i => i.category === 'bottleneck' && i.loss > 0)
   const bottleneckLoss = bottleneckIssues.length > 0 ? Math.max(...bottleneckIssues.map(i => i.loss)) : 0

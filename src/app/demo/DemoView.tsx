@@ -574,7 +574,7 @@ export default function DemoView({ userRole = null, isOverridden = false }: Demo
             initialAnswers={demoPhase === 'workshop' ? WORKSHOP_ANSWERS : ONSITE_ANSWERS}
             phase={cfg.phase}
             season="summer"
-            country="UAE"
+            country="Saudi Arabia"
             plant="Al-Noor RMX"
             date="2025-06-15"
             assessmentId="demo"
