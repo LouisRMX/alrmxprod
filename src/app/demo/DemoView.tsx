@@ -87,6 +87,10 @@ const ONSITE_ANSWERS: Answers = {
   partial_load_size:  '6.5',
   site_wait_time:     '52',
   washout_time:       '10 to 20 minutes, standard',
+  ta_transit_min:     '38',
+  ta_site_wait_min:   '28',
+  ta_unload_min:      '18',
+  ta_washout_return_min: '14',
 
   // Production depth
   batch_cycle:        'Normal, 5 to 7 minutes',
@@ -335,7 +339,7 @@ export default function DemoView({ userRole = null, isOverridden = false }: Demo
   // Pre-assessment: only what 14 remote questions can support
   // On-site: full product after plant visit
   const allowedModes: AssessmentMode[] = demoPhase === 'workshop'
-    ? (userRole === 'operator' ? ['track'] : ['questions', 'decision'])
+    ? (userRole === 'operator' ? ['track'] : ['questions', 'report', 'decision'])
     : userRole === 'owner'
     ? ['report', 'decision', 'simulator', 'track']
     : userRole === 'operator'

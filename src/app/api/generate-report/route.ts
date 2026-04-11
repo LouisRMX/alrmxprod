@@ -194,6 +194,105 @@ Rejection , median: ${b.reject.p50}% · top quartile: ${b.reject.p25}%
 When this data is available, reference the plant's position relative to comparable operations. Use language like "comparable plants" or "similar operations in this segment". Do not call it an "industry average". Be direct: if the plant is below median on a key metric, state it.`
 }
 
+// ── Helper: TAT component breakdown (on-site only, validated) ──
+function buildTATBreakdown(ctx: Record<string, unknown>): string | null {
+  const transit = ctx.ta_transit_min as number | null
+  const siteWait = ctx.ta_site_wait_min as number | null
+  const unload = ctx.ta_unload_min as number | null
+  const washout = ctx.ta_washout_return_min as number | null
+
+  const components = [transit, siteWait, unload, washout]
+  const filled = components.filter(v => v !== null && v !== undefined)
+
+  // Require at least 3 of 4 components
+  if (filled.length < 3) return null
+
+  const reportedTotal = filled.reduce((a, b) => a + (b ?? 0), 0)
+  const actualTA = ctx.turnaround as number
+
+  // Sanity check: reject if component sum deviates >20% from dropdown-derived TAT
+  // Note: the dropdown is the less precise source (25-min range), components are more reliable
+  if (actualTA > 0 && Math.abs(reportedTotal - actualTA) / actualTA > 0.20) return null
+
+  const largest = [
+    { label: 'site wait', value: siteWait },
+    { label: 'transit', value: transit },
+    { label: 'unloading', value: unload },
+    { label: 'washout/weighbridge', value: washout },
+  ]
+    .filter(x => x.value !== null)
+    .sort((a, b) => (b.value ?? 0) - (a.value ?? 0))[0]
+
+  return `TAT breakdown (on-site measurement, more precise than the dropdown-derived total):
+  Transit (both ways): ${transit ?? 'not recorded'} min
+  Site wait: ${siteWait ?? 'not recorded'} min
+  Unloading: ${unload ?? 'not recorded'} min
+  Washout/weighbridge: ${washout ?? 'not recorded'} min
+  Component total: ${reportedTotal} min (dropdown TAT: ${actualTA} min)
+  Largest component: ${largest.label} (${largest.value} min)
+The TAT component breakdown is the more precise data source. The overall turnaround figure comes from a dropdown with a 25-minute range. If components sum within 20% of the dropdown value, trust the components. Name the dominant component directly and specifically.`
+}
+
+// ── Helper: Plant idle signal (on-site only) ──
+function buildIdleSignal(ctx: Record<string, unknown>): string {
+  const idle = ctx.plant_idle as string | null
+  if (!idle) return ''
+
+  // Options: 'Never, a truck is always available' | 'Occasionally, a few times per week' |
+  //          'Regularly, most busy periods' | 'Every day, always waiting for trucks'
+  const isNever = idle.toLowerCase().includes('never')
+  if (isNever) return `Plant idle signal: plant does not report waiting for trucks. This does not rule out fleet constraint but reduces its likelihood.`
+
+  const isRegular = idle.toLowerCase().includes('regularly') || idle.toLowerCase().includes('every day')
+  const isOccasional = idle.toLowerCase().includes('occasionally')
+
+  if (isRegular) return `Plant idle signal: plant reports sitting ready with no truck available — regularly (most busy periods) or every day. This confirms fleet is the binding constraint, not production capacity. Reference this directly when explaining the constraint mechanism.`
+  if (isOccasional) return `Plant idle signal: plant reports occasionally waiting for trucks (a few times per week). This suggests fleet may be the binding constraint during peak periods but is not yet a persistent system-wide limit.`
+
+  return ''
+}
+
+// ── Helper: biggest_pain free text (pre-assessment only, actions prompt only) ──
+function buildPainContext(ctx: Record<string, unknown>): string {
+  const pain = ctx.biggest_pain as string | null
+  if (!pain || pain.trim().length < 10) return ''
+
+  return `Plant manager's stated challenge (their own words): "${pain}"
+Note: This is self-reported and may describe a symptom rather than the root cause. Use it to make the actions section feel plant-specific — reference it where it aligns with the data. If it contradicts the diagnostic findings, do not suppress it: briefly acknowledge the tension (e.g. "the plant manager identifies X as the main issue — the data suggests Y is upstream of that"). Paraphrase the concern in the report. Do not repeat exact phrasing from the input.`
+}
+
+// ── Helper: Dispatch context (on-site only, executive + diagnosis) ──
+function buildDispatchContext(ctx: Record<string, unknown>): string {
+  const clustering = ctx.route_clustering as string | null
+  const notice = ctx.order_notice as string | null
+
+  if (!clustering && !notice) return ''
+
+  const lines = []
+  if (clustering) lines.push(`Route clustering: ${clustering}`)
+  if (notice) lines.push(`Customer order notice: ${notice}`)
+
+  lines.push(`Note: Use these to explain the structural cause of dispatch delays. If clustering is absent and notice is short, the dispatch system is reactive by design — trucks are dispatched in response to demand rather than pre-positioned. Name this specifically if the data supports it.`)
+
+  return lines.join('\n')
+}
+
+// ── Helper: Clustering signal for actions prompt ──
+function buildClusteringSignal(ctx: Record<string, unknown>): string {
+  const clustering = ctx.route_clustering as string | null
+  if (!clustering) return ''
+
+  // Options: 'Always, formal zone system' | 'Usually, informal grouping' |
+  //          'Sometimes, depends on the dispatcher' | 'Rarely or never'
+  const absent = clustering.toLowerCase().includes('sometimes') ||
+                 clustering.toLowerCase().includes('rarely')
+
+  if (!absent) return ''
+
+  return `Route clustering: ${clustering}.
+Note: Zone-based dispatch grouping is a zero-cost immediate action. Include it in the immediate actions section if dispatch is the primary constraint or a significant secondary issue. Frame it as a concrete protocol, not a general suggestion.`
+}
+
 function buildExecutivePrompt(ctx: Record<string, unknown>, benchmarks: BenchmarkContext | null = null) {
   const RULES = `RULES:
 - Plain text only. No markdown, no asterisks, no bold, no headings with #, no bullet dashes, no numbered lists.
@@ -202,7 +301,12 @@ function buildExecutivePrompt(ctx: Record<string, unknown>, benchmarks: Benchmar
 - No jargon. Banned: optimize, leverage, streamline, robust, synergy, utilize, actionable, deep dive.
 - Short sentences. One idea per sentence.
 - If this text could apply to any ready-mix plant, it is too generic. Rewrite until it is specific to this plant.
-- All analysis is based on reported input data. Do not present conclusions as absolute facts. Frame insights as data-consistent interpretations of the reported metrics.`
+- All analysis is based on reported input data. Do not present conclusions as absolute facts. Frame insights as data-consistent interpretations of the reported metrics.
+- If TAT breakdown is absent or failed validation: do not speculate on which component drives the turnaround excess. State only that the breakdown was not recorded.`
+
+  const tatBreakdown = buildTATBreakdown(ctx)
+  const idleSignal = buildIdleSignal(ctx)
+  const dispatchCtx = buildDispatchContext(ctx)
 
   if (ctx.performingWell) {
     return `${RULES}
@@ -234,12 +338,15 @@ PURPOSE: Explain WHY the primary bottleneck occurs and HOW it constrains the ope
 PLANT DATA:
 Primary bottleneck: ${ctx.bottleneck}
 Turnaround: ${ctx.turnaround} min (target: ${ctx.targetTA} min)
+${tatBreakdown ?? ''}
 Dispatch time: ${ctx.dispatchMin ?? '-'} min (target: 15 min)
+${dispatchCtx}
 Rejection rate: ${ctx.rejectPct ?? '-'}% (target: <3%)${ctx.rejectPlantFraction != null && (ctx.rejectPct as number) > 0 ? `
   → Plant-side: ~${ctx.rejectPlantFraction}% of rejections ($${ctx.rejectPlantSideLoss}/month), batch/dosing/mix quality
   → Customer-side: ~${100 - (ctx.rejectPlantFraction as number)}% of rejections ($${ctx.rejectCustomerSideLoss}/month), site unreadiness/pump delays/contractor` : ''}
 Utilisation: ${ctx.utilPct}% (target: 85%)
 Fleet: ${ctx.trucks} trucks
+${idleSignal}
 ${benchmarks ? buildMarketContext(benchmarks) : ''}
 WRITE EXACTLY THREE PARAGRAPHS. No headings. No bullets. No labels.
 
@@ -273,7 +380,12 @@ function buildDiagnosisPrompt(ctx: Record<string, unknown>, benchmarks: Benchmar
 - Short sentences. One idea per sentence.
 - Write for a plant owner who is intelligent and has no patience for consultants who talk around things.
 - All analysis is based on reported input data. Do not present conclusions as absolute facts. Frame insights as data-consistent interpretations of the reported metrics.
-- Limit cognitive load. Avoid combining multiple operational dimensions in the same paragraph unless strictly necessary.`
+- Limit cognitive load. Avoid combining multiple operational dimensions in the same paragraph unless strictly necessary.
+- If TAT breakdown is absent or failed validation: do not speculate on which component drives the turnaround excess. State only that the breakdown was not recorded.`
+
+  const tatBreakdown = buildTATBreakdown(ctx)
+  const idleSignal = buildIdleSignal(ctx)
+  const dispatchCtx = buildDispatchContext(ctx)
 
   if (ctx.performingWell) {
     return `${RULES}
@@ -325,12 +437,15 @@ Primary constraint: ${bottleneck}
 Bottleneck loss: up to $${ctx.bnLossMonthly}/month ($${ctx.bnDailyLoss}/day)
 Total recoverable (all areas): up to $${ctx.totalLossMonthly}/month
 Turnaround: ${ctx.turnaround} min (target: ${ctx.targetTA} min)
+${tatBreakdown ?? ''}
 Dispatch time: ${ctx.dispatchMin ?? '-'} min (target: 15 min)
+${dispatchCtx}
 Rejection rate: ${ctx.rejectPct ?? '-'}% (target: <3%)${ctx.rejectPlantFraction != null && (ctx.rejectPct as number) > 0 ? `
   → Plant-side: ~${ctx.rejectPlantFraction}% ($${ctx.rejectPlantSideLoss}/month), batch/dosing/mix quality
   → Customer-side: ~${100 - (ctx.rejectPlantFraction as number)}% ($${ctx.rejectCustomerSideLoss}/month), site/pump/contractor` : ''}
 Utilisation: ${ctx.utilPct}% (target: 85%)
 Fleet: ${ctx.trucks} trucks
+${idleSignal}
 Scores, constraint: ${bottleneck} ${scores?.[bottleneck.toLowerCase() as keyof typeof scores] ?? (bottleneck === 'Fleet' ? scores?.logistics : null) ?? '-'}/100 | secondary: ${secondaryDims}
 ${benchmarks ? buildMarketContext(benchmarks) : ''}
 WRITE 3–4 PARAGRAPHS. No headings. No bullet points. No findings. No metric listings.
@@ -429,7 +544,8 @@ ${immediateActions.join('\n')}
 
 SECONDARY OPPORTUNITIES (brief mention only):
 ${secondaryIssues.join('\n')}
-
+${buildPainContext(ctx)}
+${buildClusteringSignal(ctx)}
 WRITE EXACTLY FOUR SECTIONS:
 
 Section 1, heading "Immediate, this week" on its own line

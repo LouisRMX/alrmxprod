@@ -3167,6 +3167,17 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
       loss: i.loss, sev: i.sev, category: i.category, formula: i.formula, dimension: i.dimension,
     })),
     answers,
+    // TAT component breakdown (on-site, optional)
+    ta_transit_min: answers?.ta_transit_min ?? null,
+    ta_site_wait_min: answers?.ta_site_wait_min ?? null,
+    ta_unload_min: answers?.ta_unload_min ?? null,
+    ta_washout_return_min: answers?.ta_washout_return_min ?? null,
+    // Behavioural signals (on-site, optional)
+    plant_idle: answers?.plant_idle ?? null,
+    route_clustering: answers?.route_clustering ?? null,
+    order_notice: answers?.order_notice ?? null,
+    // Plant manager context (pre-assessment, optional)
+    biggest_pain: answers?.biggest_pain ?? null,
     // Segmentation buckets, used server-side for benchmark percentile lookup
     radiusBucket: calcResult.radius < 10 ? 'short' : calcResult.radius <= 20 ? 'medium' : 'long',
     fleetBucket:  calcResult.trucks <= 5 ? 'small' : calcResult.trucks <= 15 ? 'medium' : 'large',
