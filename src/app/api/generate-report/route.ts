@@ -57,32 +57,32 @@ export async function POST(req: NextRequest) {
   // Skip when demoOverride === true (user has changed inputs and wants a live generation)
   if (assessmentId === 'demo' && !demoOverride) {
     const DEMO_TEXTS: Record<string, string> = {
-      executive: `Turnaround time at an estimated 112 minutes is 28 minutes above the 84-minute target for suburban Saudi delivery zones. This excess compresses the number of trips each truck can complete per shift. At 20 trucks, even a 15-minute reduction in average cycle time would unlock measurably more deliveries per day without adding fleet capacity.
+      executive: `Turnaround time at an estimated 112 minutes is 28 minutes above the 84-minute target for suburban Saudi delivery zones. This excess compresses the number of trips each truck can complete per shift. At 20 trucks averaging 5.4 trips per day instead of the achievable 7.1, the fleet delivers roughly 500 m3/day against a capacity of over 620 m3/day.
 
-Order-to-dispatch at 25-40 minutes is well above the 15-minute benchmark. When dispatch is managed via spreadsheet and WhatsApp, each departure depends on manual coordination rather than a pre-planned sequence. This adds idle time at the plant gate before every trip, compounding across the full fleet over a shift.
+The plant manager identifies trucks stuck at construction sites during morning peak as the primary challenge. This is consistent with the turnaround data: when trucks arrive at sites without coordinated timing, site queuing extends every cycle. Dispatch is managed via spreadsheet and WhatsApp, meaning each departure depends on manual coordination rather than a pre-planned sequence. This is the mechanism that inflates turnaround, not a separate problem.
 
-The plant manager identifies trucks stuck at construction sites during morning peak as the primary operational challenge. This is consistent with the turnaround and dispatch data: if trucks depart late and arrive at sites without coordinated timing, site queuing extends every cycle. The combination of dispatch delay and site waiting likely accounts for the majority of the turnaround excess.`,
+The 28-minute turnaround excess is the single driver of the throughput gap. Rejection rate at 3.5% adds material cost but does not constrain how many trips the fleet completes. Utilisation at 67% is the mathematical result of a 112-minute cycle with this fleet size, not an independent cause. Reducing turnaround time is the lever that unlocks both more volume and higher utilisation simultaneously.`,
 
-      diagnosis: `The data points toward dispatch and fleet turnaround as the likely constraint area. Utilisation at 67% against an 85% target represents a significant gap. 67% utilisation is what a 112-minute turnaround produces with this fleet size. It is a symptom, not a separate cause. Reducing turnaround time increases trips per truck per day, which raises utilisation automatically.
+      diagnosis: `The data points toward fleet turnaround as the likely constraint. Each truck completes 5.4 trips per day against an achievable 7.1 at target turnaround. That difference, 1.7 trips per truck across 20 trucks, represents the core of the throughput gap. Utilisation at 67% is what a 112-minute cycle produces with this fleet. It is a consequence, not a separate problem.
 
-Rejection rate at 3.5% is above the 3% target but is unlikely to be the primary driver of the performance gap. Material cost from rejections adds to the total but does not constrain throughput in the same way that turnaround and dispatch do.
+Rejection rate at 3.5% is above the 3% target but does not constrain throughput. Material cost from rejections adds to operational leakage but fixing rejection alone would not increase the number of deliveries per day. The binding limit is how often each truck moves, not what happens to individual loads.
 
-The on-site assessment will determine: where in the turnaround cycle the time is physically lost (plant queue, travel, site wait, or a combination); whether the 25-40 minute dispatch figure reflects a consistent pattern or a peak-hour average; and whether the constraint is fleet-side (trucks not cycling fast enough) or production-side (batching capacity limiting output). These questions cannot be answered from reported data.`,
+The on-site assessment will determine: where in the 112-minute cycle the time is physically lost (plant queue, site wait, or uncoordinated dispatch timing); whether the turnaround excess is consistent across all shifts or concentrated in peak hours; and whether the fleet constraint is purely a turnaround issue or partly driven by truck availability. These questions require direct observation.`,
 
       actions: `Before the on-site visit
 
-1. Start logging order-to-dispatch time: Write the dispatch time on a whiteboard for every order, target 15 minutes, actual time, dispatcher initials. Review at end of shift. Do this daily for one full week before the visit.
+1. Log truck departure and return times for one full week: Note when each truck leaves the plant loaded and when it returns empty. This is the raw data needed to calculate actual turnaround per trip, not an average.
 
-2. Pull rejection records for the last 3 months: Gather any records of returned or rejected loads. Note the date, cause, and contractor. This data separates plant-side quality issues from customer-side site problems.
+2. Pull rejection records for the last 3 months: Gather any records of returned or rejected loads. Note the date, cause, and contractor. This separates plant-side quality issues from customer-site problems.
 
-3. Collect one week of delivery tickets: Keep copies of all delivery tickets from one typical working week. These show actual departure times, arrival times, and volumes per trip.
+3. Collect one week of delivery tickets: Keep copies of all delivery tickets from one typical working week. These show departure times, arrival times, and volumes per trip.
 
-4. Ask the dispatcher to note truck queue times: For one week, ask the dispatcher to log when each truck arrives at the plant and when it departs loaded. This reveals plant-side waiting time.
+4. Ask the dispatcher to note plant queue times: For one week, log when each truck arrives back at the plant and when it starts loading. This reveals how much of the cycle is spent waiting at the plant gate.
 
-5. Identify your 3 highest-volume delivery sites this month: These are the sites where cycle time improvements will have the most impact. Note their distance from the plant and any known access or queuing issues.
+5. Identify your 3 highest-volume delivery sites this month: These are the sites where cycle time improvements will have the most impact. Note their distance from the plant and any known queuing issues.
 
 Next Step
-This pre-assessment has established, based on reported data, that the plant has an estimated $59k-$111k per month in recoverable margin, concentrated in dispatch coordination and turnaround time. This figure is derived from the gap between actual fleet output and target output at the reported turnaround time, multiplied by the plant's $20/m3 contribution margin, with a 40-65% execution range applied. Current utilisation at 67% is what a 112-minute turnaround produces with this fleet size. It is a symptom, not a separate cause. What this assessment cannot confirm is where in the 112-minute turnaround the time is physically lost, or whether the dispatch figure reflects a consistent daily pattern or a peak-hour average. An on-site assessment of approximately 4 weeks at the plant will convert this preliminary view into a validated diagnosis with exact financial quantification, confirmed constraint identification, and a prioritized action plan with ownership assigned.`,
+This pre-assessment has established, based on reported data, that the plant has an estimated $59k-$111k per month in recoverable margin. This figure is derived from the gap between actual fleet output (5.4 trips/truck/day) and target output (7.1 trips/truck/day at 84-minute turnaround), multiplied by the plant's $20/m3 contribution margin, with a 40-65% execution range applied. Current utilisation at 67% is what a 112-minute turnaround produces with this fleet size. It is a symptom, not a separate cause. What this assessment cannot confirm is where in the 112-minute cycle the time is physically lost, or whether the excess is consistent across shifts or concentrated in peak hours. An on-site assessment of approximately 4 weeks will convert this preliminary view into a validated diagnosis with confirmed constraint identification and a prioritized action plan.`,
     }
     const text = DEMO_TEXTS[type]
     if (!text) return NextResponse.json({ error: 'Invalid report type' }, { status: 400 })
@@ -197,21 +197,21 @@ When this data is available, reference the plant's position relative to comparab
 
 const EXAMPLE_EXECUTIVE = `EXAMPLE OF TARGET QUALITY — match this tone, structure, and level of specificity. Do not copy content. Use it as a calibration standard only.
 
-"Turnaround time at an estimated 112 minutes is 28 minutes above the 84-minute target for suburban Saudi delivery zones. This excess compresses the number of trips each truck can complete per shift. At 20 trucks, even a 15-minute reduction in average cycle time would unlock measurably more deliveries per day without adding fleet capacity.
+"Turnaround time at an estimated 112 minutes is 28 minutes above the 84-minute target for suburban Saudi delivery zones. This excess compresses the number of trips each truck can complete per shift. At 20 trucks averaging 5.4 trips per day instead of the achievable 7.1, the fleet delivers roughly 500 m3/day against a capacity of over 620 m3/day.
 
-Order-to-dispatch at 25-40 minutes is well above the 15-minute benchmark. When dispatch is managed via spreadsheet and WhatsApp, each departure depends on manual coordination rather than a pre-planned sequence. This adds idle time at the plant gate before every trip, compounding across the full fleet over a shift.
+The plant manager identifies trucks stuck at construction sites during morning peak as the primary challenge. This is consistent with the turnaround data: when trucks arrive at sites without coordinated timing, site queuing extends every cycle. Dispatch coordination via spreadsheet and WhatsApp is the mechanism that inflates turnaround, not a separate problem.
 
-The plant manager identifies trucks stuck at construction sites during morning peak as the primary operational challenge. This is consistent with the turnaround and dispatch data: if trucks depart late and arrive at sites without coordinated timing, site queuing extends every cycle. The combination of dispatch delay and site waiting likely accounts for the majority of the turnaround excess."
+The 28-minute turnaround excess is the single driver of the throughput gap. Rejection rate at 3.5% adds material cost but does not constrain how many trips the fleet completes. Utilisation at 67% is the mathematical result of a 112-minute cycle with this fleet size, not an independent cause."
 
 END OF EXAMPLE`
 
 const EXAMPLE_DIAGNOSIS = `EXAMPLE OF TARGET QUALITY — match this tone, structure, and level of specificity. Do not copy content. Use it as a calibration standard only.
 
-"The data points toward dispatch and fleet turnaround as the likely constraint area. Utilisation at 67% against an 85% target represents a significant gap. 67% utilisation is what a 112-minute turnaround produces with this fleet size. It is a symptom, not a separate cause. Reducing turnaround time increases trips per truck per day, which raises utilisation automatically.
+"The data points toward fleet turnaround as the likely constraint. Each truck completes 5.4 trips per day against an achievable 7.1 at target turnaround. That difference, 1.7 trips per truck across 20 trucks, represents the core of the throughput gap. Utilisation at 67% is what a 112-minute cycle produces with this fleet. It is a consequence, not a separate problem.
 
-Rejection rate at 3.5% is above the 3% target but is unlikely to be the primary driver of the performance gap. Material cost from rejections adds to the total but does not constrain throughput in the same way that turnaround and dispatch do.
+Rejection rate at 3.5% does not constrain throughput. Material cost from rejections adds to operational leakage but fixing rejection alone would not increase deliveries per day. The binding limit is how often each truck moves.
 
-The on-site assessment will determine: where in the turnaround cycle the time is physically lost (plant queue, travel, site wait, or a combination); whether the 25-40 minute dispatch figure reflects a consistent pattern or a peak-hour average; and whether the constraint is fleet-side or production-side. These questions cannot be answered from reported data."
+The on-site assessment will determine: where in the 112-minute cycle the time is physically lost (plant queue, site wait, or uncoordinated dispatch timing); whether the excess is consistent across shifts or concentrated in peak hours; and whether the fleet constraint is purely turnaround or partly truck availability."
 
 END OF EXAMPLE`
 
@@ -219,18 +219,18 @@ const EXAMPLE_ACTIONS = `EXAMPLE OF TARGET QUALITY — match this tone, structur
 
 "Before the on-site visit
 
-1. Start logging order-to-dispatch time: Write the dispatch time on a whiteboard for every order, target 15 minutes, actual time, dispatcher initials. Review at end of shift. Do this daily for one full week before the visit.
+1. Log truck departure and return times for one full week: Note when each truck leaves loaded and returns empty. This is the raw data needed to calculate actual turnaround per trip.
 
-2. Pull rejection records for the last 3 months: Gather any records of returned or rejected loads. Note the date, cause, and contractor. This data separates plant-side quality issues from customer-side site problems.
+2. Pull rejection records for the last 3 months: Gather records of returned or rejected loads. Note date, cause, and contractor. This separates plant-side quality issues from customer-site problems.
 
-3. Collect one week of delivery tickets: Keep copies of all delivery tickets from one typical working week. These show actual departure times, arrival times, and volumes per trip.
+3. Collect one week of delivery tickets: Keep copies from one typical working week. These show departure times, arrival times, and volumes per trip.
 
-4. Ask the dispatcher to note truck queue times: For one week, log when each truck arrives at the plant and when it departs loaded. This reveals plant-side waiting time.
+4. Ask the dispatcher to note plant queue times: For one week, log when each truck arrives back at the plant and when it starts loading. This reveals plant-side waiting time.
 
-5. Identify your 3 highest-volume delivery sites this month: These are the sites where cycle time improvements will have the most impact.
+5. Identify your 3 highest-volume delivery sites this month: These are where cycle time improvements have the most impact.
 
 Next Step
-This pre-assessment has established, based on reported data, that the plant has an estimated $59k-$111k per month in recoverable margin, concentrated in dispatch coordination and turnaround time. This figure is derived from the gap between actual fleet output and target output, multiplied by the contribution margin, with a 40-65% execution range applied. What this assessment cannot confirm is where in the turnaround the time is physically lost, or whether the dispatch figure reflects a consistent daily pattern or a peak-hour average. An on-site assessment will convert this preliminary view into a validated diagnosis."
+This pre-assessment has established that the plant has an estimated $59k-$111k per month in recoverable margin. This figure is derived from the gap between actual fleet output (5.4 trips/truck/day) and target output (7.1 trips/truck/day), multiplied by $20/m3 contribution margin, with a 40-65% execution range. Current utilisation at 67% is what a 112-minute turnaround produces. It is a symptom, not a cause. An on-site assessment will convert this preliminary view into a validated diagnosis."
 
 END OF EXAMPLE`
 
@@ -353,7 +353,6 @@ Paragraph 3: What to monitor. One or two areas that could slip if not actively m
   if (phase === 'workshop') {
     const lo = dx.total_loss_range?.lo ?? Math.round(dx.total_loss * 0.7)
     const hi = dx.total_loss_range?.hi ?? Math.round(dx.total_loss * 1.3)
-    const dispatchGap = dx.performance_gaps['dispatch']
     return `${RULES}
 
 You are writing the initial analysis section of a Pre-Assessment Report for ${dx.plant_name} in ${dx.country}.
@@ -370,7 +369,7 @@ CRITICAL CONSTRAINTS FOR PRE-ASSESSMENT:
 
 PLANT DATA (self-reported, not verified):
 Turnaround: ${dx.tat_actual} min (target: ${dx.tat_target} min)
-Dispatch time: ${dispatchGap?.actual ?? '-'} min (target: ${dispatchGap?.target ?? 15} min)
+Dispatch coordination: managed via ${dx.performance_gaps['dispatch'] ? 'manual tools' : 'unknown method'} (dispatch is a mechanism that explains WHY turnaround is high, not a separate metric)
 Rejection rate: ${dx.reject_pct}% (target: <3%)
 Utilisation: ${dx.utilization_pct}% (target: 85%) — consequence of turnaround and fleet size, not an independent cause
 Fleet: ${dx.trucks_effective} effective trucks of ${dx.trucks_total} assigned
@@ -382,7 +381,6 @@ Paragraph 2: What cannot be determined remotely. Name 2-3 things the on-site ass
 
   // ── ON-SITE EXECUTIVE ──
   const tatSection = buildTATBreakdown(dx)
-  const dispatchGap = dx.performance_gaps['dispatch']
   return `${RULES}
 
 You are writing the Executive Explanation section of a Plant Intelligence Report for ${dx.plant_name} in ${dx.country}.
@@ -397,7 +395,7 @@ Claim basis: ${dx.claim_strength_basis}
 
 Turnaround: ${dx.tat_actual} min (target: ${dx.tat_target} min)
 ${tatSection}
-Dispatch gap: ${dispatchGap?.actual ?? '-'} min (target: ${dispatchGap?.target ?? 15} min)
+Dispatch coordination: mechanism that explains part of turnaround excess (not a standalone KPI)
 ${buildDispatchContext(answers)}
 Rejection: ${dx.reject_pct}% | Plant-side fraction: ${Math.round(dx.reject_plant_fraction * 100)}%
 Utilisation: ${dx.utilization_pct}% (target: 85%) — consequence of turnaround and fleet size, not an independent cause
@@ -473,7 +471,7 @@ PLANT DATA (self-reported, not verified):
 Likely constraint area: ${dx.primary_constraint} (to be confirmed on-site)
 Estimated recoverable range: $${Math.round(lo / 1000)}k-$${Math.round(hi / 1000)}k/month
 Turnaround: ${dx.tat_actual} min (target: ${dx.tat_target} min)
-Dispatch time: ${dispatchGap?.actual ?? '-'} min (target: ${dispatchGap?.target ?? 15} min)
+Dispatch coordination: managed via ${dx.performance_gaps['dispatch'] ? 'manual tools' : 'unknown method'} (dispatch is a mechanism that explains WHY turnaround is high, not a separate metric)
 Rejection rate: ${dx.reject_pct}% (target: <3%)
 Utilisation: ${dx.utilization_pct}% (target: 85%)
 Fleet: ${dx.trucks_effective} effective trucks of ${dx.trucks_total} assigned
@@ -520,7 +518,7 @@ ${Object.entries(dx.performance_gaps).map(([k, v]) => `  ${k}: ${v.actual} vs ta
 
 Turnaround: ${dx.tat_actual} min (target: ${dx.tat_target} min)
 ${tatSection}
-Dispatch: ${dispatchGap?.actual ?? '-'} min (target: ${dispatchGap?.target ?? 15} min)
+Dispatch coordination: mechanism within turnaround (not a standalone KPI)
 ${buildDispatchContext(answers)}
 Rejection: ${dx.reject_pct}% | Plant-side: ${Math.round(dx.reject_plant_fraction * 100)}%
 Utilisation: ${dx.utilization_pct}% — consequence of turnaround and fleet, not independent cause
@@ -586,7 +584,7 @@ Recovery basis: gap between actual and target fleet output x $${dx.margin_per_m3
 Note: Include one sentence in Next Step explaining where the recovery figure comes from. Derived from reported fleet output gap and contribution margin, not an external benchmark.
 Utilisation: ${dx.utilization_pct}% (target: 85%)
 Turnaround: ${dx.tat_actual} min (target: ${dx.tat_target} min)
-Dispatch time: ${dispatchGap?.actual ?? '-'} min (target: ${dispatchGap?.target ?? 15} min)
+Dispatch coordination: managed via ${dx.performance_gaps['dispatch'] ? 'manual tools' : 'unknown method'} (dispatch is a mechanism that explains WHY turnaround is high, not a separate metric)
 Rejection rate: ${dx.reject_pct}% (target: <3%)
 ${buildPainContext(dx)}
 WRITE EXACTLY TWO SECTIONS:
