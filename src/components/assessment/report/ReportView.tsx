@@ -3085,7 +3085,14 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
   const isPre = phase === 'workshop'
   const supabase = createClient()
   const issues = buildIssues(calcResult, answers, meta)
-  const financialBottleneck = getFinancialBottleneck(issues)
+  const _issueBn = getFinancialBottleneck(issues)
+
+  // Build ValidatedDiagnosis early: needed for authoritative constraint identification
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const dx = useMemo(() => buildValidatedDiagnosis(calcResult, answers, meta), [assessmentId, calcResult, answers, meta])
+
+  // dx.primary_constraint is the authoritative source; override old issue-based bottleneck
+  const financialBottleneck = dx.primary_constraint || _issueBn
 
   const bottleneckIssues = issues.filter(i => i.category === 'bottleneck' && i.loss > 0)
   const bottleneckLoss = bottleneckIssues.length > 0 ? Math.max(...bottleneckIssues.map(i => i.loss)) : 0
@@ -3141,12 +3148,6 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
 
   const hasAllSections = !!(texts.executive && texts.diagnosis && texts.actions)
   const hasAnySections = !!(texts.executive || texts.diagnosis || texts.actions)
-
-  // Build ValidatedDiagnosis (single source of truth for AI prompts)
-  const dx = useMemo(() =>
-    buildValidatedDiagnosis(calcResult, answers, meta),
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  [assessmentId, calcResult, answers, meta])
 
   // Context sent to API: dx + raw answers (for fields not yet on VD) + phase + benchmark buckets
   const aiContext = useMemo(() => ({

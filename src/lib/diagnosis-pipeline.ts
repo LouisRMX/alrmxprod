@@ -696,7 +696,7 @@ export function buildValidatedDiagnosis(
       ...(!r.taSiteWaitMin ? ['Site waiting time not measured per delivery'] : []),
       ...(!r.fuelPerDel ? ['Fuel cost per delivery not provided'] : []),
     ],
-    management_context: undefined,
+    management_context: (answers?.biggest_pain as string) || undefined,
 
     // Executive narrative: what, why, what it means
     executive_narrative: buildExecutiveNarrative(r, diagnosis, validation),
