@@ -134,31 +134,48 @@ const DEMO_FOCUS_ACTIONS = [
 // Report, only available after on-site visit
 const ONSITE_REPORT = {
   executive:
-`Dispatch coordination is the primary financial constraint at Al-Noor, with order-to-dispatch averaging 32 minutes, no zone routing, and uncoordinated site scheduling locking the 20-truck fleet into a 112-minute turnaround cycle that is 28 minutes above benchmark. Together, these cost an estimated $94,000 per month in lost delivery capacity and untapped plant utilisation. Rejection losses from summer heat add a further $21,000/month. Total recoverable margin is approximately $115,000 per month from operational changes alone, without capital investment.`,
+`Turnaround time at 112 minutes is 28 minutes above the 84-minute target for suburban Saudi delivery zones. Each of the 24 trucks completes 6.4 trips per day instead of an achievable 8.6. That difference, 2.2 fewer trips per truck, represents approximately 221 m3/day in undelivered volume across the fleet. The throughput gap is concentrated in the turnaround cycle, not in plant capacity or fleet size.
+
+The plant manager reports trucks waiting too long at construction sites, losing 2-3 hours of productive time every morning because sites are not ready when trucks arrive. On-site observation confirms this: site wait averages 28 minutes per cycle, the largest controllable component. Dispatch coordination via spreadsheet and WhatsApp means each departure depends on manual sequencing rather than pre-planned timing. This is the mechanism inflating turnaround, not a separate constraint.
+
+Rejection rate at 3% adds material cost ($28k/month) but does not limit how many trips the fleet completes. Utilisation at 72% is the mathematical result of a 112-minute cycle with this fleet size. Reducing turnaround is the single lever that increases both volume and utilisation simultaneously.`,
 
   diagnosis:
-`Dispatch (primary financial driver): Order-to-dispatch averaging 32 minutes against a 15-minute target. Deliveries are allocated ad hoc with no zone system, and the operation runs entirely on WhatsApp and spreadsheet with no real-time tracking. The 32-minute dispatch delay is the upstream cause of the 112-minute turnaround: trucks leave late, arrive late, and contractors have no visibility to prepare sites. Fixing dispatch is the highest-leverage single action available, estimated $94,000/month recovery from combined turnaround improvement and capacity release.
+`The fleet completes 6.4 trips per truck per day against an achievable 8.6 at target turnaround. Across 24 trucks, this gap accounts for approximately 221 m3/day in undelivered volume, or 4,862 m3/month at $33/m3 contribution margin.
 
-Fleet: Turnaround at 112 minutes is 28 minutes above the 84-minute benchmark for a 12–20 km suburban delivery radius. Site wait time of 52 minutes is the largest component, driven by uncoordinated site handover and no demurrage enforcement despite a clause existing in contracts. This is the direct downstream consequence of the dispatch problem, both must be addressed together.
+TAT breakdown from on-site measurement shows transit at 38 minutes (fixed), site wait at 28 minutes (largest controllable component), unloading at 18 minutes, and washout/weighbridge at 14 minutes. The 28-minute site wait is driven by uncoordinated arrival timing: trucks arrive before the pour crew is ready. Demurrage clause exists in contracts but is not enforced, removing any incentive for sites to prepare on time.
 
-Quality: A 3.5% rejection rate at $60/m³ with the plant absorbing 100% of write-off costs amounts to approximately $21,000/month. The dominant cause is heat-related slump loss during the extended 112-minute cycle, compounded by summer temperatures exceeding 40°C and the absence of a consistent retarder protocol. The rejection rate will partially improve as turnaround shortens.
+Rejection rate at 3% adds approximately $28k/month in material cost. This is additive leakage, not a throughput constraint. Each rejection costs material but does not block the next delivery cycle. Fixing turnaround recovers volume. Fixing rejection recovers material cost. Both matter, but turnaround unlocks the larger financial recovery.
 
-Production: Utilisation at 84% is constrained downstream by turnaround, the fleet cannot complete enough cycles to consistently load the plant. Four truck breakdowns last month on an informally maintained fleet indicates reactive rather than preventive maintenance.`,
+If turnaround reduces to the 84-minute target, fleet capacity increases from 773 m3/day to approximately 994 m3/day. No additional trucks or plant capacity required. The throughput is already latent in the existing fleet.`,
 
   actions:
-`1. Dispatch SOP, order-to-dispatch under 20 minutes (Week 1–2): Pre-load 3 trucks before first orders of the day. Assign a dedicated dispatcher with a fixed zone map for the 12–20 km delivery area, cluster morning and afternoon runs by quadrant. Target: under 20 minutes by Week 4. This is the single highest-leverage action.
+`Immediate, this week
 
-2. Demurrage enforcement (Week 1): Formalise the existing contract clause. A firm 45-minute site limit with a $25/15-min charge, communicated to the top 3 contractors, recovers 10–15 minutes of site wait within 30 days. No capital required.
+1. Turnaround audit: Time-stamp 10 full truck cycles across 2 consecutive days. Map where the 112 minutes goes: plant queue, loading, weighbridge, transit, site wait, pour, washout, return. The on-site measurement shows site wait at 28 minutes as the largest component. Confirm this holds across different sites and shifts.
 
-3. Turnaround audit (Week 1–2): Time-stamp 5 full truck cycles with the plant manager present. Map where the 112 minutes goes, site wait, transit, weighbridge queue, washout. Identify the top 2 recoverable components before committing to an action sequence.
+2. Demurrage enforcement: Formalise the existing contract clause. A firm 45-minute site limit with a $25/15-min charge, communicated to the top 3 contractors this week. No capital required. Site wait of 28 minutes should drop within 30 days once contractors know the clock is running.
 
-4. Retarder protocol for summer loads (Week 1): Flag all loads with expected site arrival after 10:00 AM during June–September. Batch plant operator confirms retarder addition before drum rotation starts. The 3.5% rejection rate is directly linked to heat-related slump failure, a documented protocol reduces this within 30 days.
+3. Site-readiness confirmation protocol: No truck dispatches until the site foreman sends a readiness message (WhatsApp, logged by time). The dispatcher holds the truck if no confirmation within 5 minutes of expected departure. This directly addresses the plant manager's stated issue of trucks arriving at unprepared sites.
 
-5. Zone-based routing (Week 3–4): Systematic area clustering reduces transit per cycle by an estimated 10–14 minutes for the suburban delivery pattern.
+4. Retarder protocol for summer loads: Flag all loads with expected site arrival after 10:00 AM during June-September. Batch operator confirms retarder addition before drum rotation starts. The 3% rejection rate is linked to heat exposure during the extended 112-minute cycle.
 
-6. Preventive maintenance schedule (Week 2): Create a 4-week rotating service schedule. Four breakdowns per month on a 20-truck fleet is above benchmark and keeps capacity off-road at peak demand hours.
+Short-term, weeks 2 to 4
 
-7. Activate 90-day tracking: Baselines set, turnaround 112 min, rejection rate 3.5%, dispatch time 32 min. Weekly logging takes 5 minutes and creates the before/after case study.`,
+1. Zone-based dispatch sequencing: Group consecutive orders by delivery area. Systematic area clustering reduces transit per cycle by an estimated 8-12 minutes for the suburban delivery pattern. The dispatcher should be able to describe the zone logic without prompting by week 4.
+
+2. Preventive maintenance schedule: Five breakdowns last month on a 24-truck fleet keeps capacity off-road at peak hours. Create a 4-week rotating service schedule. Posted and first two trucks through it by end of week 3.
+
+3. Weekly turnaround log: Record average turnaround per shift for one full week. Compare against the baseline 112 minutes. If the average has not moved below 100 minutes by week 4, site-readiness protocol is not being followed.
+
+Validation, months 1 to 3
+
+1. Turnaround target: 84 minutes average by week 8. Track one full week of timestamped cycles monthly. A 28-minute reduction is achievable through site-readiness and demurrage enforcement alone.
+
+2. 90-day tracking programme: Baselines set at turnaround 112 min, rejection rate 3%. Weekly logging creates the before-and-after evidence base. After 8 weeks, the data supports decisions about fleet optimisation or contract renegotiation.
+
+Next Step
+This on-site assessment has quantified $54k-$88k/month in recoverable margin, driven by a 28-minute turnaround excess across a 24-truck fleet. The constraint is fleet cycle time, not plant capacity or fleet size. Site wait at 28 minutes is the largest controllable component. The immediate actions (demurrage enforcement, site-readiness protocol, turnaround audit) require zero capital and can begin this week. Ownership should be assigned before this meeting ends.`,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -169,12 +186,12 @@ const DEMO_PLANTS: PlantCardData[] = [
   // ── Core 3 (always shown) ────────────────────────────────────────────────
   { id: 'dp-1',  name: 'Al-Noor Riyadh North', country: 'SA', assessmentHref: '/demo',
     assessment: { id: 'demo',   phase: 'onsite',   overall: 68, scores: { prod: 82, dispatch: 48, logistics: 71, fleet: 71, quality: 70 },
-      bottleneck: 'Fleet', constraintDetail: '32 min order-to-dispatch · target 15 min',
-      ebitda_monthly: 115000, report_released: true, trackingWeek: 7, recoveredMonthly: 60000,
+      bottleneck: 'Fleet', constraintDetail: 'TAT 112 min · target 84 min · 6.4 trips/truck vs 8.6 achievable',
+      ebitda_monthly: 88000, report_released: true, trackingWeek: 7, recoveredMonthly: 54000,
       primaryActionStatus: 'in_progress',
       topAction: 'Enforce 45-min site limit with demurrage charge, communicate to top 3 contractors this week',
       trackingImprovement: { turnaroundDelta: -12, dispatchDelta: -7, weekOf: 7, weekTotal: 12 },
-      kpi: { dispatchMin: 32, turnaroundMin: 112, rejectPct: 3.0, utilPct: 84 } } },
+      kpi: { turnaroundMin: 112, rejectPct: 3.0, utilPct: 72 } } },
   { id: 'dp-2',  name: 'Al-Noor Riyadh East',  country: 'SA', assessmentHref: '/demo',
     assessment: { id: 'demo-2', phase: 'onsite',   overall: 54, scores: { prod: 68, dispatch: 34, logistics: 52, fleet: 52, quality: 61 },
       bottleneck: 'Fleet',
