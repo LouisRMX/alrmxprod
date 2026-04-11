@@ -2628,16 +2628,16 @@ function ScoreGrid({ calcResult, financialBottleneck, issues, onSwitchToTracking
   const bnDetail: BnDetail | null = bnKey ? (() => {
     switch (bnKey) {
       case 'Dispatch': return {
-        rootCauseLabel: 'Order-to-dispatch time too high',
-        rootCauseMetric: calcResult.dispatchMin ? `${calcResult.dispatchMin} min vs 15 min target` : null,
+        rootCauseLabel: 'Dispatch coordination inflating turnaround',
+        rootCauseMetric: calcResult.ta ? `TAT ${calcResult.ta} min vs ${calcResult.TARGET_TA} min target` : null,
         startHere: [
-          'Measure order-to-dispatch time daily',
-          'Target: <15 min from order confirmation to dispatch',
+          'Log truck departure and return times for one week',
+          'Identify where in the cycle the time is lost',
           'Only release trucks when site confirms readiness',
         ],
         outcome: [
-          'Dispatch time reduced to <15 min',
-          `Recovery of up to ${fmtK(bnLoss)} / month`,
+          `Turnaround reduced toward ${calcResult.TARGET_TA} min`,
+          `Recovery of up to ${isPre ? `${fmtK(Math.round(bnLoss * 0.7))}-${fmtK(Math.round(bnLoss * 1.3))}` : fmtK(bnLoss)} / month`,
         ],
       }
       case 'Fleet': return {
@@ -2646,11 +2646,11 @@ function ScoreGrid({ calcResult, financialBottleneck, issues, onSwitchToTracking
         startHere: [
           'Time-stamp 3 full truck cycles to map delay sources',
           `Target: <${calcResult.TARGET_TA} min turnaround`,
-          'Enforce demurrage clause after 45 min on site',
+          isPre ? 'Identify where in the cycle the time is lost' : 'Enforce demurrage clause after 45 min on site',
         ],
         outcome: [
           `Turnaround reduced to ${calcResult.TARGET_TA} min`,
-          `Recovery of up to ${fmtK(bnLoss)} / month`,
+          `Recovery of up to ${isPre ? `${fmtK(Math.round(bnLoss * 0.7))}-${fmtK(Math.round(bnLoss * 1.3))}` : fmtK(bnLoss)} / month`,
         ],
       }
       case 'Quality': return {
@@ -2659,24 +2659,24 @@ function ScoreGrid({ calcResult, financialBottleneck, issues, onSwitchToTracking
         startHere: [
           'Log all rejections with reason codes for 30 days',
           'Identify top 3 rejection causes',
-          'Measure transit time on rejected loads',
+          isPre ? 'Pull rejection records for the last 3 months' : 'Measure transit time on rejected loads',
         ],
         outcome: [
           'Rejection rate reduced below 3%',
-          `Recovery of up to ${fmtK(bnLoss)} / month`,
+          `Recovery of up to ${isPre ? `${fmtK(Math.round(bnLoss * 0.7))}-${fmtK(Math.round(bnLoss * 1.3))}` : fmtK(bnLoss)} / month`,
         ],
       }
       case 'Production': return {
-        rootCauseLabel: 'Plant utilisation below target',
-        rootCauseMetric: calcResult.util ? `${Math.round(calcResult.util * 100)}% vs 92% target` : null,
+        rootCauseLabel: isPre ? 'Utilisation below target (likely driven by turnaround)' : 'Plant utilisation below target',
+        rootCauseMetric: calcResult.util ? `${Math.round(calcResult.util * 100)}% vs 85% target` : null,
         startHere: [
-          'Audit downstream constraints limiting throughput',
+          isPre ? 'Log truck departure and return times for one week' : 'Audit downstream constraints limiting throughput',
           'Align production schedule with fleet availability',
           'Review preventive maintenance schedule',
         ],
         outcome: [
-          'Utilisation increased to 92%+',
-          `Recovery of up to ${fmtK(bnLoss)} / month`,
+          'Utilisation increased to 85%+',
+          `Recovery of up to ${isPre ? `${fmtK(Math.round(bnLoss * 0.7))}-${fmtK(Math.round(bnLoss * 1.3))}` : fmtK(bnLoss)} / month`,
         ],
       }
       default: return null
@@ -2689,7 +2689,7 @@ function ScoreGrid({ calcResult, financialBottleneck, issues, onSwitchToTracking
       borderRadius: '12px', padding: isMobile ? '14px 16px' : '20px 24px', marginBottom: '16px',
     }}>
       <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.4px', textTransform: 'uppercase', color: '#b0b0b0', marginBottom: '16px' }}>
-        Performance scorecard
+        {isPre ? 'Preliminary assessment' : 'Operational assessment'}
       </div>
 
       {/* Bottleneck card, compact single card */}
@@ -2701,11 +2701,8 @@ function ScoreGrid({ calcResult, financialBottleneck, issues, onSwitchToTracking
           {/* Header row: score + label + dollar */}
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '10px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{ fontSize: '38px', fontWeight: 800, color: '#1a1a1a', lineHeight: 1, letterSpacing: '-2px' }}>
-                {Math.round(bottleneck.score)}
-              </div>
               <div>
-                <div style={{ fontSize: '16px', fontWeight: 700, color: '#1a1a1a', lineHeight: 1.2 }}>. {bottleneck.label}</div>
+                <div style={{ fontSize: '16px', fontWeight: 700, color: '#1a1a1a', lineHeight: 1.2 }}>{bottleneck.label === 'Dispatch' ? 'Fleet' : bottleneck.label}</div>
                 <div style={{ display: 'inline-block', fontSize: '9px', fontWeight: 700, letterSpacing: '.8px', textTransform: 'uppercase', color: isPre ? '#b8860b' : '#1a6644', background: isPre ? '#fff8e1' : '#e8f5ee', border: `1px solid ${isPre ? '#f5cba0' : '#b8dfc8'}`, borderRadius: '4px', padding: '2px 7px', marginTop: '5px' }}>
                   {isPre ? 'Likely constraint area' : 'Primary constraint'}
                 </div>
@@ -2738,7 +2735,7 @@ function ScoreGrid({ calcResult, financialBottleneck, issues, onSwitchToTracking
 
               {/* Next 7 days */}
               <div style={{ marginBottom: '14px' }}>
-                <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#aaa', marginBottom: '8px' }}>Next 7 days</div>
+                <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#aaa', marginBottom: '8px' }}>{isPre ? 'Before the on-site visit' : 'Next 7 days'}</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   {bnDetail.startHere.map((bullet, i) => (
                     <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
@@ -2774,13 +2771,16 @@ function ScoreGrid({ calcResult, financialBottleneck, issues, onSwitchToTracking
             const s = Math.round(d.score)
             const status = s >= 80 ? 'On track' : s >= 60 ? 'Needs attention' : 'At risk'
             const statusColor = s >= 80 ? '#2a9d6e' : s >= 60 ? '#c96a00' : '#cc3333'
+            const dotColor = s >= 80 ? '#2a9d6e' : s >= 60 ? '#e8a020' : '#cc3333'
             return (
               <div key={d.key} style={{
                 background: '#f9faf9', border: '1px solid #e8e8e6', borderRadius: '12px',
                 padding: '14px 12px', textAlign: 'center',
               }}>
-                <div style={{ fontSize: '28px', fontWeight: 700, color: '#888', lineHeight: 1, marginBottom: '2px' }}>{s}</div>
-                <div style={{ fontSize: '12px', color: '#aaa', fontWeight: 500, marginBottom: '4px' }}>{d.label}</div>
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: dotColor }} />
+                  <div style={{ fontSize: '13px', color: '#555', fontWeight: 600 }}>{d.label === 'Dispatch' ? 'Fleet' : d.label}</div>
+                </div>
                 <div style={{ fontSize: '10px', fontWeight: 600, color: statusColor }}>{status}</div>
               </div>
             )
