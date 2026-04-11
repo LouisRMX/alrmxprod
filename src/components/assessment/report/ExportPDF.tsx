@@ -28,9 +28,11 @@ interface ExportPDFProps {
   meta?: { country?: string; plant?: string; date?: string }
   report: { executive?: string; diagnosis?: string; actions?: string } | null
   recoveryRange?: { lo: number; hi: number } | null
+  phase?: string
 }
 
-export default function ExportPDF({ calcResult, answers, meta, report, recoveryRange }: ExportPDFProps) {
+export default function ExportPDF({ calcResult, answers, meta, report, recoveryRange, phase }: ExportPDFProps) {
+  const isPre = phase === 'workshop'
   const [exporting, setExporting] = useState(false)
   const printRef = useRef<HTMLDivElement>(null)
 
@@ -96,12 +98,12 @@ export default function ExportPDF({ calcResult, answers, meta, report, recoveryR
     setExporting(false)
   }, [meta])
 
+  // Dispatch is a mechanism within TAT, not a standalone KPI. Constraint uses recovery range label in pre-assessment.
   const kpis = [
-    { label: 'Utilization', value: calcResult.util ? `${Math.round(calcResult.util * 100)}%` : '-' },
-    { label: 'Dispatch', value: calcResult.dispatchMin ? `${calcResult.dispatchMin} min` : '-' },
+    { label: 'Utilisation', value: calcResult.util ? `${Math.round(calcResult.util * 100)}%` : '-' },
     { label: 'Turnaround', value: calcResult.ta ? `${Math.round(calcResult.ta)} min` : '-' },
     { label: 'Rejection', value: calcResult.rejectPct ? `${calcResult.rejectPct}%` : '-' },
-    { label: 'Constraint', value: calcResult.bottleneck || '-' },
+    { label: 'Constraint', value: isPre ? 'To be confirmed' : (calcResult.bottleneck || '-') },
   ]
 
   return (
@@ -242,7 +244,7 @@ export default function ExportPDF({ calcResult, answers, meta, report, recoveryR
                       color: issue.sev === 'red' ? '#C0392B' : '#B7950B',
                       whiteSpace: 'nowrap', marginLeft: '12px',
                     }}>
-                      {fmt(issue.loss)}/mo
+                      {isPre ? `${fmt(Math.round(issue.loss * 0.7))}-${fmt(Math.round(issue.loss * 1.3))}` : fmt(issue.loss)}/mo
                     </div>
                   )}
                 </div>

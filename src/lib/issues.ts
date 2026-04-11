@@ -149,8 +149,8 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
 
     issues.push({
       sev: 'red', pin: bn === 'Dispatch', category: 'bottleneck', dimension: 'Dispatch',
-      t: `Dispatch coordination is the primary constraint${r.dispatchMin ? ` (${r.dispatchMin} min order-to-truck)` : ''}`,
-      action: 'Measure order-to-dispatch time daily, target under 15 min',
+      t: `Dispatch coordination is inflating turnaround time`,
+      action: 'Log truck departure and return times daily to identify where cycle time is lost',
       rec: dispRec.replace(/Turnaround excess of \d+ min is included in the dollar estimate\./, 'See turnaround finding for financial impact.'),
       loss,
       formula: 'Dispatch is a mechanism. Financial loss is carried by the turnaround gap.',
@@ -173,9 +173,9 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
     if (r.ta > r.TARGET_TA && bn !== 'Fleet') {
       issues.push({
         sev: 'amber', pin: false, category: 'bottleneck', dimension: 'Fleet',
-        t: `Truck turnaround ${r.ta} min, ${Math.round((r.ta - r.TARGET_TA) / r.TARGET_TA * 100)}% above ${r.TARGET_TA}-min target (included in dispatch estimate)`,
-        action: 'Require site readiness confirmation before trucks depart',
-        rec: 'Trucks should only depart when the site confirms readiness. Fastest lever inside the dispatch bottleneck.',
+        t: `Truck turnaround ${r.ta} min, ${Math.round((r.ta - r.TARGET_TA) / r.TARGET_TA * 100)}% above ${r.TARGET_TA}-min target`,
+        action: 'Log full truck cycles for one week to identify where time is lost',
+        rec: 'Turnaround is the single cycle KPI. Reducing it increases trips per truck per day and raises utilisation automatically.',
         loss: 0,
       })
     }
