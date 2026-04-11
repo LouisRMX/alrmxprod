@@ -27,9 +27,10 @@ interface ExportPDFProps {
   answers: Answers
   meta?: { country?: string; plant?: string; date?: string }
   report: { executive?: string; diagnosis?: string; actions?: string } | null
+  recoveryRange?: { lo: number; hi: number } | null
 }
 
-export default function ExportPDF({ calcResult, answers, meta, report }: ExportPDFProps) {
+export default function ExportPDF({ calcResult, answers, meta, report, recoveryRange }: ExportPDFProps) {
   const [exporting, setExporting] = useState(false)
   const printRef = useRef<HTMLDivElement>(null)
 
@@ -167,33 +168,18 @@ export default function ExportPDF({ calcResult, answers, meta, report }: ExportP
         </div>
 
         {/* Opening hook */}
-        {totalLoss > 0 && (
-          <div style={{ background: '#FDE8E6', border: '1px solid #F5B7B1', borderRadius: '8px', padding: '14px 18px', marginBottom: '20px', textAlign: 'center' }}>
-            <div style={{ fontSize: '13px', fontWeight: 600, color: '#C0392B', lineHeight: 1.5 }}>
-              This plant has a potential <span style={{ fontFamily: "'DM Mono', monospace" }}>${Math.round(totalLoss / 22).toLocaleString()}</span> per working day to recover.
+        {/* Single recovery range from ValidatedDiagnosis pipeline */}
+        {recoveryRange && (recoveryRange.lo > 0 || recoveryRange.hi > 0) && (
+          <div style={{ background: '#E1F5EE', border: '1px solid #9FE1CB', borderRadius: '8px', padding: '18px 20px', marginBottom: '24px', textAlign: 'center' }}>
+            <div style={{ fontSize: '10px', color: '#0F6E56', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '6px' }}>Estimated recoverable margin</div>
+            <div style={{ fontSize: '26px', fontWeight: 700, fontFamily: "'DM Mono', monospace", color: '#0F6E56', marginBottom: '4px' }}>
+              {fmt(recoveryRange.lo)} – {fmt(recoveryRange.hi)} / month
             </div>
-            <div style={{ fontSize: '11px', color: '#6b6b6b', marginTop: '3px' }}>
-              ${totalLoss.toLocaleString()}/month · ${(totalLoss * 12).toLocaleString()}/year, contingent on order book
+            <div style={{ fontSize: '10px', color: '#6b6b6b', marginTop: '4px' }}>
+              Based on reported data · 40-65% execution range · Exact figure confirmed on-site
             </div>
           </div>
         )}
-
-        {/* Headline numbers */}
-        <div style={{ display: 'flex', gap: '10px', marginBottom: '24px' }}>
-          <div style={{ flex: 1, background: totalLoss > 0 ? '#FDE8E6' : '#f4f4f4', borderRadius: '8px', padding: '14px 16px', border: `1px solid ${totalLoss > 0 ? '#F5B7B1' : '#e0e0e0'}` }}>
-            <div style={{ fontSize: '10px', color: '#6b6b6b', fontWeight: 500, textTransform: 'uppercase' }}>Potential cost of inaction</div>
-            <div style={{ fontSize: '22px', fontWeight: 600, fontFamily: "'DM Mono', monospace", color: totalLoss > 0 ? '#C0392B' : '#6b6b6b', marginTop: '2px' }}>
-              {totalLoss > 0 ? fmt(totalLoss) + '/mo' : '-'}
-            </div>
-            <div style={{ fontSize: '9px', color: '#9b9b9b', marginTop: '3px' }}>assumes sufficient demand</div>
-          </div>
-          <div style={{ flex: 1, background: calcResult.hiddenRevMonthly > 0 ? '#E1F5EE' : '#f4f4f4', borderRadius: '8px', padding: '14px 16px', border: `1px solid ${calcResult.hiddenRevMonthly > 0 ? '#9FE1CB' : '#e0e0e0'}` }}>
-            <div style={{ fontSize: '10px', color: '#6b6b6b', fontWeight: 500, textTransform: 'uppercase' }}>Potential hidden revenue</div>
-            <div style={{ fontSize: '22px', fontWeight: 600, fontFamily: "'DM Mono', monospace", color: calcResult.hiddenRevMonthly > 0 ? '#0F6E56' : '#6b6b6b', marginTop: '2px' }}>
-              {calcResult.hiddenRevMonthly > 0 ? fmt(calcResult.hiddenRevMonthly) + '/mo' : '-'}
-            </div>
-          </div>
-        </div>
 
         {/* AI Report sections */}
         {report?.executive && (

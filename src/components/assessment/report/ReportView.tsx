@@ -1956,6 +1956,7 @@ interface FullReportDrawerProps {
   phase?: Phase
   financialBottleneck: string | null
   readOnly?: boolean
+  recoveryRange?: { lo: number; hi: number } | null
 }
 
 function FullReportDrawer({
@@ -1964,7 +1965,7 @@ function FullReportDrawer({
   calcResult, answers, meta, assessmentId,
   issues, primaryBottleneckLoss,
   logisticsText, gpsAvgTA,
-  totalLoss, isAdmin, phase, financialBottleneck, readOnly,
+  totalLoss, isAdmin, phase, financialBottleneck, readOnly, recoveryRange,
 }: FullReportDrawerProps) {
   const isMobile = useIsMobile()
   const isPre = phase === 'workshop'
@@ -2026,7 +2027,7 @@ function FullReportDrawer({
                 {generating ? 'Generating…' : hasAnySections ? 'Generate missing' : 'Generate report'}
               </button>
             )}
-            <ExportPDF calcResult={calcResult} answers={answers} meta={meta} report={texts} />
+            <ExportPDF calcResult={calcResult} answers={answers} meta={meta} report={texts} recoveryRange={recoveryRange} />
             <button
               type="button"
               onClick={onClose}
@@ -3461,6 +3462,7 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
         phase={phase}
         financialBottleneck={financialBottleneck}
         readOnly={!isAdmin}
+        recoveryRange={dx.combined_recovery_range}
       />
 
     </div>
