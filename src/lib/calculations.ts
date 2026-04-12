@@ -413,8 +413,12 @@ export function calc(answers: Answers, meta?: { season?: string }, overrides?: C
     'Over 125 minutes, critical bottleneck':   140,
   }
   const taRaw = a.turnaround as string
-  // Measured TAT from field logs takes precedence over dropdown estimate
-  const ta = overrides?.measuredTA ?? TURNAROUND_MAP[taRaw] ?? (+(taRaw ?? 0) || 0)
+  // TAT priority: 1) measured from field logs, 2) on-site breakdown sum, 3) dropdown estimate
+  const taDropdown = TURNAROUND_MAP[taRaw] ?? (+(taRaw ?? 0) || 0)
+  const taBreakdownInputSum = (+(a.ta_transit_min ?? 0) || 0) + (+(a.ta_site_wait_min ?? 0) || 0) + (+(a.ta_unload_min ?? 0) || 0) + (+(a.ta_washout_return_min ?? 0) || 0)
+  // Use breakdown sum when at least 3 components are entered and sum is reasonable (>40 min)
+  const taBreakdownValid = taBreakdownInputSum > 40 && [a.ta_transit_min, a.ta_site_wait_min, a.ta_unload_min, a.ta_washout_return_min].filter(v => +(v ?? 0) > 0).length >= 3
+  const ta = overrides?.measuredTA ?? (taBreakdownValid ? taBreakdownInputSum : taDropdown)
   const mixCap = +(a.mixer_capacity ?? 0) || 7
   const delDay = +(a.deliveries_day ?? 0) || 0
 
