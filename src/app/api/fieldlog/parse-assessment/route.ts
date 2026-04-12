@@ -86,10 +86,30 @@ export async function POST(req: NextRequest) {
       const jsonMatch = text.match(/\{[\s\S]*\}/)
       if (jsonMatch) parsed = JSON.parse(jsonMatch[0])
 
-    } else {
-      // CSV/Excel: read as text and send to Claude for mapping
+    } else if (ext === 'csv') {
+      // CSV: read as text and send to Claude
       const text = await file.text()
-      const preview = text.slice(0, 5000) // first 5000 chars should contain all data
+      const preview = text.slice(0, 5000)
+
+      const response = await anthropic.messages.create({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 2000,
+        messages: [{
+          role: 'user',
+          content: `Extract pre-assessment data from this CSV content:\n\n${preview}\n\n${FIELD_MAP}`,
+        }],
+      })
+
+      const respText = response.content[0].type === 'text' ? response.content[0].text : '{}'
+      const jsonMatch = respText.match(/\{[\s\S]*\}/)
+      if (jsonMatch) parsed = JSON.parse(jsonMatch[0])
+    } else {
+      // Excel (.xlsx/.xls): parse with xlsx library, convert to text, send to Claude
+      const XLSX = await import('xlsx')
+      const workbook = XLSX.read(Buffer.from(buffer), { type: 'buffer' })
+      const sheet = workbook.Sheets[workbook.SheetNames[0]]
+      const csvText = XLSX.utils.sheet_to_csv(sheet)
+      const preview = csvText.slice(0, 5000)
 
       const response = await anthropic.messages.create({
         model: 'claude-sonnet-4-20250514',
