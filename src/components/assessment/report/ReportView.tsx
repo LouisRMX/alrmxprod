@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import type { CalcResult, Answers, CalcOverrides } from '@/lib/calculations'
 import type { Phase } from '@/lib/questions'
 import { calcLossRange } from '@/lib/calculations'
-import { buildIssues, getFinancialBottleneck, type Issue } from '@/lib/issues'
+import { buildIssues, type Issue } from '@/lib/issues'
 import { buildValidatedDiagnosis, type ValidatedDiagnosis } from '@/lib/diagnosis-pipeline'
 import { benchmarkTag, liveBenchmarkTag, gcQuartile, type LiveBenchmarkData } from '@/lib/benchmarks'
 import { useBenchmarks } from '@/hooks/useBenchmarks'
@@ -3103,16 +3103,13 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
   const isPre = phase === 'workshop'
   const supabase = createClient()
   const issues = buildIssues(calcResult, answers, meta)
-  const _issueBn = getFinancialBottleneck(issues)
-
   // Build ValidatedDiagnosis early: needed for authoritative constraint identification
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const dx = useMemo(() => buildValidatedDiagnosis(calcResult, answers, meta, overrides ? { measuredTA: overrides.measuredTA, measuredTripCount: overrides.measuredTripCount } : undefined), [assessmentId, calcResult, answers, meta, overrides])
 
-  // dx.primary_constraint is authoritative for on-site. In pre-assessment, constraint identification
-  // is unreliable because nominal mixCap flips fleet/production constraint (Calc Bible 9.3).
-  // Use _issueBn as fallback but don't trust either in pre-assessment — UI shows "To be confirmed".
-  const financialBottleneck = isPre ? (_issueBn || dx.primary_constraint) : (dx.primary_constraint || _issueBn)
+  // Constraint is ALWAYS from calcResult.bottleneck via dx.primary_constraint.
+  // getFinancialBottleneck() is no longer used for constraint identification.
+  const financialBottleneck = dx.primary_constraint
 
   const bottleneckIssues = issues.filter(i => i.category === 'bottleneck' && i.loss > 0)
   const bottleneckLoss = bottleneckIssues.length > 0 ? Math.max(...bottleneckIssues.map(i => i.loss)) : 0

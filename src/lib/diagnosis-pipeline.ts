@@ -11,7 +11,7 @@
  */
 
 import type { CalcResult, Answers } from './calculations'
-import { buildIssues, getFinancialBottleneck, type Issue } from './issues'
+import { buildIssues, type Issue } from './issues'
 
 // ── Step 1: Structured Diagnosis ─────────────────────────────────────────────
 
