@@ -134,8 +134,9 @@ export default function PriorityMatrixView({ matrix, assessmentId, isAdmin }: Pr
                   <div style={{ fontSize: '12px', fontWeight: 500, color: '#1a1a1a', marginBottom: '3px', lineHeight: 1.3 }}>
                     {row.issue_title.length > 60 ? row.issue_title.slice(0, 57) + '...' : row.issue_title}
                   </div>
-                  <div style={{ display: 'flex', gap: '8px', fontSize: '10px', color: '#888', marginBottom: '4px' }}>
-                    <span>{fmtK(row.loss_addressed)}/mo</span>
+                  <div style={{ display: 'flex', gap: '8px', fontSize: '10px', color: '#888', marginBottom: '4px', flexWrap: 'wrap' }}>
+                    {row.loss_addressed > 0 && <span>{fmtK(row.loss_addressed)}/mo</span>}
+                    {row.constraint_note && <span style={{ color: '#0F6E56' }}>{row.constraint_note}</span>}
                     <span>{(row.impact_score * 100).toFixed(0)}% impact</span>
                     <span>C:{row.complexity_score}/10</span>
                     <span>{row.org_level}</span>

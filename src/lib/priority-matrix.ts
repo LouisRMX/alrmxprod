@@ -13,6 +13,7 @@ export interface PriorityMatrixRow {
   override_reason: string | null
   org_level: OrgLevel
   urgency: 'immediate' | 'first_month' | 'medium_term' | 'long_term'
+  constraint_note: string | null  // "Addresses primary constraint ($Xk/mo)" for bottleneck actions with $0 own loss
 }
 
 export interface PriorityMatrix {
@@ -55,27 +56,35 @@ function assignQuadrant(impactScore: number, complexityScore: number): Quadrant 
 export function buildPriorityMatrix(
   issues: Issue[],
   totalLoss: number,
+  mainDriver?: { dimension: string; amount: number } | null,
 ): PriorityMatrix {
   const safeTotalLoss = Math.max(totalLoss, 1) // prevent division by zero
 
   const rows: PriorityMatrixRow[] = issues
     .filter(i => i.complexity != null)
     .map(issue => {
-      const impactScore = totalLoss > 0 ? issue.loss / safeTotalLoss : 0
+      // Bottleneck actions with $0 own loss that address the primary constraint
+      // get boosted impact from main_driver amount
+      const isConstraintAction = issue.category === 'bottleneck' && issue.loss === 0 && mainDriver &&
+        (issue.dimension === mainDriver.dimension || issue.dimension === 'Dispatch' || issue.dimension === 'Fleet')
+      const effectiveLoss = isConstraintAction ? mainDriver!.amount : issue.loss
+      const impactScore = totalLoss > 0 ? effectiveLoss / safeTotalLoss : 0
       const complexityScore = calculateComplexity(issue.complexity!)
       const quadrant = assignQuadrant(impactScore, complexityScore)
+      const constraintNote = isConstraintAction ? `Addresses primary constraint (${Math.round(mainDriver!.amount / 1000)}k/mo)` : null
 
       return {
         issue_title: issue.t,
         issue_dimension: issue.dimension || 'Other',
         loss_addressed: issue.loss,
-        impact_score: Math.round(impactScore * 1000) / 1000, // 3 decimal places
+        impact_score: Math.round(impactScore * 1000) / 1000,
         complexity_score: complexityScore,
         quadrant,
         quadrant_source: 'model' as const,
         override_reason: null,
         org_level: issue.complexity!.org_level,
         urgency: deriveUrgency(quadrant, impactScore),
+        constraint_note: constraintNote,
       }
     })
     .sort((a, b) => b.impact_score - a.impact_score)

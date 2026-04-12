@@ -292,19 +292,26 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
         new TextRun({ text: '(Assessor-reported, not measured)', size: 16, color: AMBER, italics: true }),
       ]}))
       children.push(new Table({
-        width: { size: 9840, type: WidthType.DXA }, columnWidths: [4920, 2460, 2460],
+        width: { size: 9840, type: WidthType.DXA }, columnWidths: [3280, 1640, 1640, 1640, 1640],
         rows: [
           new TableRow({ children: [
-            cell('Component', { bold: true, bg: LIGHT, width: 4920 }),
-            cell('Reported', { bold: true, bg: LIGHT, width: 2460, align: AlignmentType.CENTER }),
-            cell('Benchmark', { bold: true, bg: LIGHT, width: 2460, align: AlignmentType.CENTER }),
+            cell('Component', { bold: true, bg: LIGHT, width: 3280 }),
+            cell('Reported', { bold: true, bg: LIGHT, width: 1640, align: AlignmentType.CENTER }),
+            cell('Benchmark', { bold: true, bg: LIGHT, width: 1640, align: AlignmentType.CENTER }),
+            cell('Category', { bold: true, bg: LIGHT, width: 1640, align: AlignmentType.CENTER }),
+            cell('Waste', { bold: true, bg: LIGHT, width: 1640, align: AlignmentType.CENTER }),
           ]}),
           ...dx.tat_breakdown.map(c => {
             const isWaste = c.label.toLowerCase().includes('wait') || c.label.toLowerCase().includes('queue')
+            const isVA = c.label.toLowerCase().includes('transit') || c.label.toLowerCase().includes('unload')
+            const category = isWaste ? 'Pure waste' : isVA ? 'Value-adding' : 'Necessary NVA'
+            const bg = isWaste ? RED_LIGHT : isVA ? GREEN_LIGHT : YELLOW_LIGHT
             return new TableRow({ children: [
-              cell(c.label, { width: 4920, bold: isWaste }),
-              cell(`${c.actual} min`, { width: 2460, align: AlignmentType.CENTER, color: isWaste ? 'CC6600' : DARK }),
-              cell(`${c.benchmark} min`, { width: 2460, align: AlignmentType.CENTER, color: GRAY }),
+              cell(c.label, { width: 3280, bold: isWaste, bg }),
+              cell(`${c.actual} min`, { width: 1640, align: AlignmentType.CENTER, color: isWaste ? 'CC6600' : DARK, bg }),
+              cell(`${c.benchmark} min`, { width: 1640, align: AlignmentType.CENTER, color: GRAY, bg }),
+              cell(category, { width: 1640, align: AlignmentType.CENTER, bg }),
+              cell(isWaste ? 'Waiting' : '-', { width: 1640, align: AlignmentType.CENTER, color: GRAY, bg }),
             ]})
           }),
         ],
@@ -403,7 +410,7 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
           const overrideNote = row.quadrant_source === 'consultant' && row.override_reason ? ` * ${row.override_reason}` : ''
           children.push(new Paragraph({ spacing: { after: 40 }, indent: { left: 360 }, children: [
             new TextRun({ text: `${row.issue_title.slice(0, 70)}`, bold: true, size: 18 }),
-            new TextRun({ text: ` - ${fmtK(row.loss_addressed)}/mo (${(row.impact_score * 100).toFixed(0)}% impact) - ${row.urgency} - ${row.org_level}${overrideNote}`, size: 16, color: GRAY }),
+            new TextRun({ text: ` - ${row.constraint_note || `${fmtK(row.loss_addressed)}/mo`} (${(row.impact_score * 100).toFixed(0)}% impact) - ${row.urgency} - ${row.org_level}${overrideNote}`, size: 16, color: GRAY }),
           ]}))
         }
       }
@@ -446,7 +453,7 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
         }
 
         children.push(new Paragraph({ spacing: { after: 80 }, children: [
-          new TextRun({ text: 'Each action requires a named owner and a confirmed start date before implementation begins.', size: 20, bold: true }),
+          new TextRun({ text: 'Each action requires a confirmed owner and start date assigned by plant management before implementation begins.', size: 20, bold: true }),
         ]}))
       }
     }

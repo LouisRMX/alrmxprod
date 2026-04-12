@@ -535,10 +535,25 @@ Data quality: ${dx.data_quality}${dx.data_warnings.length > 0 ? ' — ' + dx.dat
 ${benchmarks ? buildMarketContext(benchmarks) : ''}
 WRITE 3-4 PARAGRAPHS. No headings. No bullet points.
 
-Paragraph 1, System consequence: What happens to throughput and fleet utilisation as a result of the constraint. Use calc_trace numbers (trips per truck, m3/day gap). Max 3 sentences.
-Paragraph 2, Why other dimensions are secondary: For each underperforming dimension not the constraint, one sentence on why fixing it first would not unlock throughput. Use performance_gaps data.
-Paragraph 3, What resolving the constraint enables: Capacity, delivery cadence, fleet utilisation. No financial figures. Max 3 sentences.
-Paragraph 4 (only if data supports it): Next constraint if another dimension is close to becoming the binding limit.`
+For each finding (minimum 2, maximum 4), use this exact structure:
+
+FINDING: [title — one line]
+Observed: [facts only, no interpretation. What the data shows.]
+Direct cause: [first-order mechanism — what is physically happening]
+Root cause: [why the direct cause exists — one level deeper]
+Systemic cause: [why the root cause is not already fixed — incentive structure, system limitation, organizational gap]
+Financial impact: [$/month and % of total loss]
+
+Example of target structure:
+
+FINDING: Site waiting time 34 min, 20 min above benchmark
+Observed: Trucks arrive at sites before pour crews are ready. Average wait 34 min across 98 observed deliveries.
+Direct cause: No coordination between dispatch and site preparation. Trucks depart based on plant readiness, not site readiness.
+Root cause: Dispatcher has no visibility of site status. No communication protocol requires site confirmation before departure.
+Systemic cause: Demurrage clause exists but is not enforced. Sites have no financial incentive to be ready on time. The cost of waiting is absorbed entirely by the plant.
+Financial impact: Addresses primary constraint ($173k/month throughput loss).
+
+After the findings, add one paragraph: what resolving the primary constraint enables (capacity, delivery cadence). No financial figures in this paragraph.`
 }
 
 function buildActionsPrompt(dx: ValidatedDiagnosis, answers: Answers, phase: string) {
@@ -644,21 +659,20 @@ Business implication: ${dx.business_implication.summary}
 
 ${buildPainContext(dx)}
 ${buildClusteringSignal(answers)}
-WRITE EXACTLY FOUR SECTIONS:
+WRITE EXACTLY TWO SECTIONS:
 
-Section 1, heading "Immediate, this week" on its own line
-3 to 5 actions, numbered. Each: specific to this plant's data, measurable, zero capital.
-Format: [Number]. [Action title]: [One sentence on what to do and how to confirm done.]
+Section 1: For each action from the diagnosis, write a prose recommendation in this format:
+[Title] — [Urgency: immediate / within first month / medium-term] — [Org level]
+Basis: [the observation that motivates this action]
+Expected effect: [what will likely improve and by how much]
+Risk: [what could go wrong or prevent success]
 
-Section 2, heading "Short-term, weeks 2 to 4" on its own line
-3 actions. Build on immediate: SOPs, tracking systems, enforcement mechanisms.
+Do not write implementation protocols. Do not assign named owners. Do not set specific deadlines.
+Advise on direction, not method.
 
-Section 3, heading "Validation, months 1 to 3" on its own line
-2 to 3 actions. Confirm changes are holding and quantify improvement.
-
-Section 4, heading "Next Step" on its own line
+Section 2, heading "Next Step" on its own line
 Exactly 3 sentences:
 Sentence 1: What this assessment has established.
-Sentence 2: What it cannot tell us yet. Name 2 specific unknowns.
-Sentence 3: The logical conclusion, framed as an obvious observation.`
+Sentence 2: What remains to be measured as implementation progresses.
+Sentence 3: Each action requires a confirmed owner and start date assigned by plant management before implementation begins.`
 }

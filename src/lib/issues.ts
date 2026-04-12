@@ -483,7 +483,7 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
   if (r.demurrageOpportunity > 0 && a.demurrage_policy === 'Clause exists but rarely enforced') {
     issues.push({
       sev: 'amber', pin: false, category: 'independent', dimension: 'Other',
-      complexity: cx('commercial', { contract: true, external: true }),
+      complexity: cx('commercial', { external: true }),  // contract exists, just needs enforcement — not a contract change
       t: `Demurrage clause exists but not enforced, ${fmt(r.demurrageOpportunity)}/month unrecovered`,
       action: 'Start invoicing demurrage on all site delays over 40 minutes',
       rec: 'The clause is in your contracts. Enforcing it consistently recovers revenue and changes contractor behaviour.',

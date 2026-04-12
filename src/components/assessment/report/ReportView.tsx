@@ -2033,7 +2033,7 @@ function FullReportDrawer({
                 {generating ? 'Generating…' : hasAnySections ? 'Generate missing' : 'Generate report'}
               </button>
             )}
-            {dx && <ExportWord calcResult={calcResult} meta={meta} report={texts} dx={dx} issues={issues} matrix={issues.some(i => i.complexity) ? buildPriorityMatrix(issues, totalLoss) : undefined} fieldLogContext={fieldLogContext} phase={phase} />}
+            {dx && <ExportWord calcResult={calcResult} meta={meta} report={texts} dx={dx} issues={issues} matrix={issues.some(i => i.complexity) ? buildPriorityMatrix(issues, totalLoss, dx?.main_driver) : undefined} fieldLogContext={fieldLogContext} phase={phase} />}
             <button
               type="button"
               onClick={onClose}
@@ -2175,7 +2175,7 @@ function FullReportDrawer({
 
           {/* 4.5 PRIORITY MATRIX (on-site only, when issues have complexity) */}
           {!isPre && issues.some(i => i.complexity) && (() => {
-            const matrix = buildPriorityMatrix(issues, totalLoss)
+            const matrix = buildPriorityMatrix(issues, totalLoss, dx?.main_driver)
             return matrix.rows.length > 0 ? (
               <div style={{ marginBottom: '24px' }}>
                 <PriorityMatrixView matrix={matrix} assessmentId={assessmentId} isAdmin={isAdmin} />
