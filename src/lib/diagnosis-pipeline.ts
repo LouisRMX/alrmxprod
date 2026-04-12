@@ -528,12 +528,15 @@ export interface ValidatedDiagnosis {
   tat_actual: number
   tat_target: number
   tat_breakdown: { label: string; actual: number; benchmark: number }[] | null
+  tat_source: 'measured' | 'reported'
+  tat_trip_count: number
 }
 
 export function buildValidatedDiagnosis(
   r: CalcResult,
   answers: Answers,
-  meta?: { country?: string; plant?: string; date?: string }
+  meta?: { country?: string; plant?: string; date?: string },
+  overrides?: { measuredTA?: number; measuredTripCount?: number }
 ): ValidatedDiagnosis {
   // Step 1
   const diagnosis = buildStructuredDiagnosis(r, answers, meta)
@@ -701,13 +704,16 @@ export function buildValidatedDiagnosis(
     // Executive narrative: what, why, what it means
     executive_narrative: buildExecutiveNarrative(r, diagnosis, validation),
 
-    // Claim strength
-    ...buildClaimStrength(r, diagnosis),
+    // Claim strength: measured TAT upgrades to 'confirmed'
+    ...(overrides?.measuredTA != null && (overrides?.measuredTripCount ?? 0) >= 3
+      ? { claim_strength: 'confirmed' as const, claim_strength_basis: `Based on ${overrides.measuredTripCount} observed truck cycles with measured timestamps` }
+      : buildClaimStrength(r, diagnosis)),
 
     // Business implication
     business_implication: buildBusinessImplication(r, diagnosis, validation),
 
-    data_quality: r.dataQuality,
+    // Measured field log data upgrades data_quality to 'sufficient'
+    data_quality: overrides?.measuredTA != null ? 'sufficient' : r.dataQuality,
     data_warnings: r.warnings.filter(w => w.startsWith('INCONSISTENT:')),
 
     evidence_basis: diagnosis.evidence_basis,
@@ -715,6 +721,8 @@ export function buildValidatedDiagnosis(
     tat_actual: r.ta,
     tat_target: r.TARGET_TA,
     tat_breakdown: tatBreakdown,
+    tat_source: overrides?.measuredTA != null ? 'measured' : 'reported',
+    tat_trip_count: overrides?.measuredTripCount ?? 0,
   }
 }
 

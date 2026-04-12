@@ -1957,6 +1957,8 @@ interface FullReportDrawerProps {
   financialBottleneck: string | null
   readOnly?: boolean
   recoveryRange?: { lo: number; hi: number } | null
+  tatSource?: 'measured' | 'reported'
+  tatTripCount?: number
 }
 
 function FullReportDrawer({
@@ -1965,7 +1967,7 @@ function FullReportDrawer({
   calcResult, answers, meta, assessmentId,
   issues, primaryBottleneckLoss,
   logisticsText, gpsAvgTA,
-  totalLoss, isAdmin, phase, financialBottleneck, readOnly, recoveryRange,
+  totalLoss, isAdmin, phase, financialBottleneck, readOnly, recoveryRange, tatSource, tatTripCount,
 }: FullReportDrawerProps) {
   const isMobile = useIsMobile()
   const isPre = phase === 'workshop'
@@ -2079,6 +2081,16 @@ function FullReportDrawer({
                     <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.3px', textTransform: 'uppercase', color: '#7ab89a', marginBottom: '4px' }}>Turnaround</div>
                     <div style={{ fontSize: '36px', fontWeight: 800, color: calcResult.ta > calcResult.TARGET_TA ? '#cc6600' : '#1a6644', lineHeight: 1, letterSpacing: '-1px' }}>{calcResult.ta} min</div>
                     <div style={{ fontSize: '10px', color: '#9b9b9b', marginTop: '2px' }}>target: {calcResult.TARGET_TA} min</div>
+                    {tatSource === 'measured' && (tatTripCount ?? 0) > 0 && (
+                      <div style={{ display: 'inline-block', fontSize: '9px', fontWeight: 600, color: '#1a6644', background: '#e8f5ee', border: '1px solid #b8dfc8', borderRadius: '4px', padding: '1px 6px', marginTop: '4px' }}>
+                        Based on {tatTripCount} observed trips
+                      </div>
+                    )}
+                    {tatSource === 'reported' && !isPre && (
+                      <div style={{ display: 'inline-block', fontSize: '9px', fontWeight: 600, color: '#b8860b', background: '#fff8e1', border: '1px solid #f5cba0', borderRadius: '4px', padding: '1px 6px', marginTop: '4px' }}>
+                        Self-reported estimate
+                      </div>
+                    )}
                   </div>
                   <div style={{ padding: '16px 20px', background: '#fff5f5', borderRight: isMobile ? 'none' : '1px solid #e8e8e6', borderBottom: isMobile ? '1px solid #e8e8e6' : 'none' }}>
                     <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.3px', textTransform: 'uppercase', color: '#c0a0a0', marginBottom: '4px' }}>{isPre ? 'Estimated range' : 'Total recoverable'}</div>
@@ -3089,7 +3101,7 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
 
   // Build ValidatedDiagnosis early: needed for authoritative constraint identification
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const dx = useMemo(() => buildValidatedDiagnosis(calcResult, answers, meta), [assessmentId, calcResult, answers, meta])
+  const dx = useMemo(() => buildValidatedDiagnosis(calcResult, answers, meta, overrides ? { measuredTA: overrides.measuredTA, measuredTripCount: overrides.measuredTripCount } : undefined), [assessmentId, calcResult, answers, meta, overrides])
 
   // dx.primary_constraint is authoritative for on-site. In pre-assessment, constraint identification
   // is unreliable because nominal mixCap flips fleet/production constraint (Calc Bible 9.3).
@@ -3463,6 +3475,8 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
         financialBottleneck={financialBottleneck}
         readOnly={!isAdmin}
         recoveryRange={dx.combined_recovery_range}
+        tatSource={dx.tat_source}
+        tatTripCount={dx.tat_trip_count}
       />
 
     </div>

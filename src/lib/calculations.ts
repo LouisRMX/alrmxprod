@@ -181,6 +181,15 @@ export interface CalcOverrides {
   utilisationTarget?: number  // 0–100, default 85
   fleetUtilFactor?: number    // 0–100, default 85
   estimatedInputs?: boolean   // true for pre-diagnosis: use nominal mixCap, skip derivation
+  // Field log measured data (replaces dropdown estimates when available)
+  measuredTA?: number                    // avg TAT from field logs (minutes)
+  measuredTABreakdown?: {
+    transit?: number       // avg outbound + return transit
+    siteWait?: number      // avg site wait
+    unload?: number        // avg unload/pour time
+  }
+  measuredTripCount?: number             // number of observed trips (for confidence)
+  measuredRejectPct?: number             // observed reject rate from field logs
 }
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -396,7 +405,8 @@ export function calc(answers: Answers, meta?: { season?: string }, overrides?: C
     'Over 125 minutes, critical bottleneck':   140,
   }
   const taRaw = a.turnaround as string
-  const ta = TURNAROUND_MAP[taRaw] ?? (+(taRaw ?? 0) || 0) // legacy numeric answers still work
+  // Measured TAT from field logs takes precedence over dropdown estimate
+  const ta = overrides?.measuredTA ?? TURNAROUND_MAP[taRaw] ?? (+(taRaw ?? 0) || 0)
   const mixCap = +(a.mixer_capacity ?? 0) || 7
   const delDay = +(a.deliveries_day ?? 0) || 0
 
@@ -558,14 +568,15 @@ export function calc(answers: Answers, meta?: { season?: string }, overrides?: C
   const taExplained = siteWait + washoutMin + transitEst
   const taUnexplained = ta > 0 && taExplained > 0 ? Math.max(0, ta - taExplained) : 0
 
-  // Detailed breakdown from new questions (optional, all null if not answered)
-  const taTransitMin   = +(a.ta_transit_min ?? 0) || null
-  const taSiteWaitMin  = +(a.ta_site_wait_min ?? 0) || null
-  const taUnloadMin    = +(a.ta_unload_min ?? 0) || null
-  const taWashoutMin   = +(a.ta_washout_return_min ?? 0) || null
+  // Detailed breakdown: measured field log data takes precedence over answer-reported values
+  const mBreak = overrides?.measuredTABreakdown
+  const taTransitMin   = mBreak?.transit ?? (+(a.ta_transit_min ?? 0) || null)
+  const taSiteWaitMin  = mBreak?.siteWait ?? (+(a.ta_site_wait_min ?? 0) || null)
+  const taUnloadMin    = mBreak?.unload ?? (+(a.ta_unload_min ?? 0) || null)
+  const taWashoutMin   = +(a.ta_washout_return_min ?? 0) || null  // washout not separately measured in field logs
   // Sum of entered components, used to validate against reported turnaround
   const taBreakdownSum = (taTransitMin ?? 0) + (taSiteWaitMin ?? 0) + (taUnloadMin ?? 0) + (taWashoutMin ?? 0)
-  const taBreakdownEntered = taTransitMin !== null || taSiteWaitMin !== null || taUnloadMin !== null || taWashoutMin !== null
+  const taBreakdownEntered = (overrides?.measuredTA != null) || taTransitMin !== null || taSiteWaitMin !== null || taUnloadMin !== null || taWashoutMin !== null
   // Site wait benchmark: 35 min. Each minute over 35 on site = opportunity for demurrage recovery.
   const SITE_WAIT_BENCHMARK = 35
   const WASHOUT_BENCHMARK = 12
@@ -592,7 +603,8 @@ export function calc(answers: Answers, meta?: { season?: string }, overrides?: C
   // 1. Material loss: cement + aggregates + admixtures wasted on every rejected load (adjusted by liability)
   // 2. Opportunity cost: each rejected load is a wasted truck cycle, if demand is sufficient,
   //    that cycle could have generated contribution margin. Not applied when demand-constrained.
-  const rejectPct = Math.min(100, Math.max(0, +(a.reject_pct ?? 0) || 0))
+  // Measured reject rate from field logs takes precedence over self-reported
+  const rejectPct = Math.min(100, Math.max(0, overrides?.measuredRejectPct ?? (+(a.reject_pct ?? 0) || 0)))
   const liab = LIABILITY_MAP[a.return_liability as string] || { factor: 1, base: 'price' }
   // When base === 'materials', use actual material cost; fall back to contribSafe if not entered
   const rejectBase = liab.base === 'materials'

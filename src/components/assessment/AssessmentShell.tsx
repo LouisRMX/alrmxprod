@@ -15,6 +15,7 @@ import DecisionView from './decision/DecisionView'
 import { buildValidatedDiagnosis } from '@/lib/diagnosis-pipeline'
 import TrackingTab from './tracking/TrackingTab'
 import GpsUploadView from '@/components/gps-upload/GpsUploadView'
+import { createClient } from '@/lib/supabase/client'
 import FieldLogView from '@/components/fieldlog/FieldLogView'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { useSetChatContext } from '@/context/ChatContext'
@@ -99,6 +100,39 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
   const [overrides, setOverrides] = useState<CalcOverrides>({ estimatedInputs: isPreDiagnosis })
   const isMobile = useIsMobile()
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const supabaseClient = createClient()
+
+  // Fetch field log measured data and merge into overrides when sufficient trips exist
+  useEffect(() => {
+    if (assessmentId === 'demo' || isPreDiagnosis) return
+    supabaseClient
+      .from('daily_log_trips_computed')
+      .select('tat_minutes, outbound_transit_minutes, return_transit_minutes, site_wait_minutes, unload_minutes, rejected')
+      .eq('assessment_id', assessmentId)
+      .not('tat_minutes', 'is', null)
+      .then(({ data }) => {
+        if (!data || data.length < 3) return  // minimum 3 trips for statistical relevance
+        const tats = data.map(d => d.tat_minutes as number).filter(Boolean)
+        const siteWaits = data.map(d => d.site_wait_minutes as number).filter(Boolean)
+        const transits = data.map(d => ((d.outbound_transit_minutes as number) || 0) + ((d.return_transit_minutes as number) || 0)).filter(v => v > 0)
+        const unloads = data.map(d => d.unload_minutes as number).filter(Boolean)
+        const rejectCount = data.filter(d => d.rejected).length
+        const avg = (arr: number[]) => arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : 0
+
+        setOverrides(prev => ({
+          ...prev,
+          measuredTA: Math.round(avg(tats)),
+          measuredTABreakdown: {
+            transit: transits.length > 0 ? Math.round(avg(transits)) : undefined,
+            siteWait: siteWaits.length > 0 ? Math.round(avg(siteWaits)) : undefined,
+            unload: unloads.length > 0 ? Math.round(avg(unloads)) : undefined,
+          },
+          measuredTripCount: data.length,
+          measuredRejectPct: data.length > 0 ? Math.round(rejectCount / data.length * 1000) / 10 : undefined,
+        }))
+      })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assessmentId, isPreDiagnosis])
 
   // Role-based access control
   // owner    = view report + simulator + track (read-only)
@@ -192,7 +226,7 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
           avgLoadM3: result.effectiveMixCap > 0 ? Math.round(result.effectiveMixCap * 10) / 10 : null,
         } : undefined,
         validatedDiagnosis: result.overall !== null
-          ? buildValidatedDiagnosis(result, updatedAnswers, { country: country || '', plant: plant || '', date: date || '' }) as unknown as Record<string, unknown>
+          ? buildValidatedDiagnosis(result, updatedAnswers, { country: country || '', plant: plant || '', date: date || '' }, overrides ? { measuredTA: overrides.measuredTA, measuredTripCount: overrides.measuredTripCount } : undefined) as unknown as Record<string, unknown>
           : null,
       })
     }, 1000)
