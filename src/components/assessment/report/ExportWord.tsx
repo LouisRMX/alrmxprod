@@ -191,23 +191,30 @@ export default function ExportWord({ calcResult, meta, report, dx, phase }: Expo
 
     children.push(new Paragraph({ spacing: { after: 60 }, children: [] }))
 
+    // Helper: replace any recovery range in AI text with authoritative dx values
+    const loK = Math.round(lo / 1000)
+    const hiK = Math.round(hi / 1000)
+    const rangePattern = /\$\d{1,3}k\s*[-–]\s*\$\d{1,3}k\/month|\$\d{1,3}k\s*[-–]\s*\$\d{1,3}k\s*per month|\$[\d,]+\s*[-–]\s*\$[\d,]+\s*\/month|\$[\d,]+\s*[-–]\s*\$[\d,]+\s*per month/gi
+    const authoritativeRange = `$${loK}k-$${hiK}k/month`
+    const sanitize = (text: string) => text.replace(rangePattern, authoritativeRange)
+
     // Executive Summary
     if (report?.executive) {
       children.push(new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun(isPre ? 'What the Data Suggests' : 'Executive Summary')] }))
-      children.push(...textParas(report.executive))
+      children.push(...textParas(sanitize(report.executive)))
     }
 
     // Page break before diagnosis
     if (report?.diagnosis) {
       children.push(new Paragraph({ children: [new PageBreak()] }))
       children.push(new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun(isPre ? 'Preliminary Analysis' : 'Operational Diagnosis')] }))
-      children.push(...textParas(report.diagnosis))
+      children.push(...textParas(sanitize(report.diagnosis)))
     }
 
     // Action Plan
     if (report?.actions) {
       children.push(new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun(isPre ? 'Preparation & Next Steps' : 'Action Plan')] }))
-      children.push(...actionParas(report.actions))
+      children.push(...actionParas(sanitize(report.actions)))
     }
 
     // Findings from ValidatedDiagnosis
