@@ -570,11 +570,18 @@ export function buildValidatedDiagnosis(
     : null
 
   // TAT breakdown
+  // TAT breakdown: split plant-side into loading + queue when data available
+  const transitBenchmark = r.taTransitMin ? Math.min(r.taTransitMin, Math.round(r.TARGET_TA * 0.3)) : Math.round(r.TARGET_TA * 0.2)
+  const siteBenchmark = 35
+  const washoutBenchmark = 12
+  const plantSideBenchmark = Math.round(Math.max(0, r.TARGET_TA - transitBenchmark - siteBenchmark - washoutBenchmark))
+  const plantSideActual = Math.round(Math.max(0, r.ta - (r.taTransitMin || 0) - (r.taSiteWaitMin || 0) - (r.taWashoutMin || 0)))
+
   const tatBreakdown = r.taBreakdownEntered ? [
-    { label: 'Plant-side', actual: Math.max(0, r.ta - (r.taTransitMin || 0) - (r.taSiteWaitMin || 0) - (r.taWashoutMin || 0)), benchmark: Math.max(0, r.TARGET_TA - (r.taTransitMin ? Math.min(r.taTransitMin, r.TARGET_TA * 0.3) : r.TARGET_TA * 0.2) - 35 - 12) },
-    { label: 'Transit', actual: r.taTransitMin || Math.round(r.radius * 2 * 1.5) || 0, benchmark: r.taTransitMin || Math.round(r.radius * 2 * 1.5) || 0 },
-    { label: 'Site', actual: r.taSiteWaitMin || 0, benchmark: 35 },
-    { label: 'Washout', actual: r.taWashoutMin || 0, benchmark: 12 },
+    { label: 'Plant-side (loading + queue)', actual: plantSideActual, benchmark: plantSideBenchmark },
+    { label: 'Transit', actual: Math.round(r.taTransitMin || r.radius * 2 * 1.5 || 0), benchmark: transitBenchmark },
+    { label: 'Site wait', actual: Math.round(r.taSiteWaitMin || 0), benchmark: siteBenchmark },
+    { label: 'Washout/weighbridge', actual: Math.round(r.taWashoutMin || 0), benchmark: washoutBenchmark },
   ] : null
 
   return {

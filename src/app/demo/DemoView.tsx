@@ -147,7 +147,7 @@ TAT breakdown from on-site measurement shows transit at 38 minutes (fixed), site
 
 Rejection rate at 3% adds approximately $28k/month in material cost. This is additive leakage, not a throughput constraint. Each rejection costs material but does not block the next delivery cycle. Fixing turnaround recovers volume. Fixing rejection recovers material cost. Both matter, but turnaround unlocks the larger financial recovery.
 
-If turnaround reduces to the 84-minute target, fleet capacity increases from 773 m3/day to approximately 994 m3/day. No additional trucks or plant capacity required. The throughput is already latent in the existing fleet.`,
+If turnaround reduces to the 84-minute target, achievable output increases from 773 m3/day to approximately 994 m3/day, capped at plant capacity. No additional trucks or plant expansion required. The throughput is already latent in the existing fleet.`,
 
   actions:
 `Immediate, this week
@@ -175,7 +175,7 @@ Validation, months 1 to 3
 2. 90-day tracking programme: Baselines set at turnaround 112 min, rejection rate 3%. Weekly logging creates the before-and-after evidence base. After 8 weeks, the data supports decisions about fleet optimisation or contract renegotiation.
 
 Next Step
-This on-site assessment has quantified $54k-$88k/month in recoverable margin, driven by a 28-minute turnaround excess across a 24-truck fleet. The constraint is fleet cycle time, not plant capacity or fleet size. Site wait at 28 minutes is the largest controllable component. The immediate actions (demurrage enforcement, site-readiness protocol, turnaround audit) require zero capital and can begin this week. Ownership should be assigned before this meeting ends.`,
+This on-site assessment has quantified $54k-$88k/month in recoverable margin, driven by a 28-minute turnaround excess across a 24-truck fleet. The constraint is fleet cycle time, not plant capacity or fleet size. Site wait at 28 minutes is the largest controllable component. The immediate actions (demurrage enforcement, site-readiness protocol, turnaround audit) require zero capital and can begin this week. Each action requires a named owner and a confirmed start date before implementation begins.`,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

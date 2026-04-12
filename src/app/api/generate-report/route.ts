@@ -517,7 +517,7 @@ Calculation trace:
   Trips per truck: ${ct.trips_per_truck} actual vs ${ct.trips_per_truck_target} target
 
 Loss breakdown:
-${dx.loss_breakdown_detail.map(l => `  ${l.dimension}: $${l.amount}/month (${l.classification})`).join('\n')}
+${dx.loss_breakdown_detail.map(l => `  ${l.dimension}: $${l.amount}/month (${l.classification === 'overlapping' ? 'throughput loss' : l.classification === 'additive' ? 'additive leakage' : l.classification})`).join('\n')}
 
 Performance gaps:
 ${Object.entries(dx.performance_gaps).map(([k, v]) => `  ${k}: ${v.actual} vs target ${v.target}`).join('\n')}

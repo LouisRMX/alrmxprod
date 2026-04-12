@@ -225,7 +225,7 @@ export default function ExportWord({ calcResult, meta, report, dx, phase }: Expo
           ...dx.loss_breakdown_detail.map(l => new TableRow({ children: [
             cell(l.dimension, { width: 4920 }),
             cell(`${fmt(l.amount)}/month`, { width: 2460, align: AlignmentType.CENTER }),
-            cell(l.classification, { width: 2460, align: AlignmentType.CENTER, color: GRAY }),
+            cell(l.classification === 'overlapping' ? 'Throughput loss' : l.classification === 'additive' ? 'Additive leakage' : l.classification, { width: 2460, align: AlignmentType.CENTER, color: GRAY }),
           ]})),
         ],
       }))
