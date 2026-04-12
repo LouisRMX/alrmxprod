@@ -230,12 +230,7 @@ function generateHTML(
 </html>`
 }
 
-// Demo mock actions
-const DEMO_ACTIONS: ActionItem[] = [
-  { id: 'd1', text: 'Demurrage clause enforced with top 3 contractors', status: 'done', value: null, notes: 'All contracts updated, signed off by legal' },
-  { id: 'd2', text: 'Dispatch SOP implemented — dedicated dispatcher role', status: 'done', value: null, notes: null },
-  { id: 'd3', text: 'Zone routing implemented — 4 delivery quadrants', status: 'done', value: null, notes: null },
-]
+// Demo mock actions removed — demo uses same flow as real assessments
 
 export default function TrackSummaryButton({ assessmentId, config, entries, coeffDispatch, plant, country }: TrackSummaryProps) {
   const supabase = createClient()
@@ -244,9 +239,7 @@ export default function TrackSummaryButton({ assessmentId, config, entries, coef
     const latestEntry = [...entries].sort((a, b) => b.week_number - a.week_number)[0] ?? null
 
     let completedActions: ActionItem[] = []
-    if (assessmentId === 'demo') {
-      completedActions = DEMO_ACTIONS
-    } else {
+    if (assessmentId !== 'demo') {
       const { data } = await supabase
         .from('action_items')
         .select('id, text, status, value, notes')

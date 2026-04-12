@@ -3185,7 +3185,7 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
     }, { onConflict: 'assessment_id' })
   }, [assessmentId, supabase])
 
-  const generate = useCallback(async (section: string, demoOverride = false) => {
+  const generate = useCallback(async (section: string) => {
     setGenerating(section)
     setGenError(null)
     setTexts(prev => ({ ...prev, [section]: '' }))
@@ -3194,7 +3194,7 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
       const resp = await fetch('/api/generate-report', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ assessmentId, type: section, context: aiContext, ...(demoOverride && { demoOverride: true }) }),
+        body: JSON.stringify({ assessmentId, type: section, context: aiContext }),
       })
       if (!resp.ok) {
         let detail = ''
@@ -3223,9 +3223,9 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
     setGenerating(null)
   }, [assessmentId, aiContext])
 
-  const generateAll = useCallback(async (demoOverride = false) => {
+  const generateAll = useCallback(async () => {
     for (const section of ['executive', 'diagnosis', 'actions']) {
-      await generate(section, demoOverride)
+      await generate(section)
     }
   }, [generate])
 
@@ -3285,7 +3285,7 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
                 type="button"
                 disabled={generating !== null}
                 onClick={async () => {
-                  await generateAll(true)
+                  await generateAll()
                   demoBanner.onRegenerate()
                 }}
                 style={{

@@ -132,51 +132,7 @@ const DEMO_FOCUS_ACTIONS = [
 ]
 
 // Report, only available after on-site visit
-const ONSITE_REPORT = {
-  executive:
-`Turnaround time at 112 minutes is 28 minutes above the 84-minute target for suburban Saudi delivery zones. Each of the 24 trucks completes 6.4 trips per day instead of an achievable 8.6. That difference, 2.2 fewer trips per truck, represents approximately 221 m3/day in undelivered volume across the fleet. The throughput gap is concentrated in the turnaround cycle, not in plant capacity or fleet size.
-
-The plant manager reports trucks waiting too long at construction sites, losing 2-3 hours of productive time every morning because sites are not ready when trucks arrive. On-site observation confirms this: site wait averages 28 minutes per cycle, the largest controllable component. Dispatch coordination via spreadsheet and WhatsApp means each departure depends on manual sequencing rather than pre-planned timing. This is the mechanism inflating turnaround, not a separate constraint.
-
-Rejection rate at 3% adds material cost ($28k/month) but does not limit how many trips the fleet completes. Utilisation at 72% is the mathematical result of a 112-minute cycle with this fleet size. Reducing turnaround is the single lever that increases both volume and utilisation simultaneously.`,
-
-  diagnosis:
-`The fleet completes 6.4 trips per truck per day against an achievable 8.6 at target turnaround. Across 24 trucks, this gap accounts for approximately 221 m3/day in undelivered volume, or 4,862 m3/month at $33/m3 contribution margin.
-
-TAT breakdown from on-site measurement shows transit at 38 minutes (fixed), site wait at 28 minutes (largest controllable component), unloading at 18 minutes, and washout/weighbridge at 14 minutes. The 28-minute site wait is driven by uncoordinated arrival timing: trucks arrive before the pour crew is ready. Demurrage clause exists in contracts but is not enforced, removing any incentive for sites to prepare on time.
-
-Rejection rate at 3% adds approximately $28k/month in material cost. This is additive leakage, not a throughput constraint. Each rejection costs material but does not block the next delivery cycle. Fixing turnaround recovers volume. Fixing rejection recovers material cost. Both matter, but turnaround unlocks the larger financial recovery.
-
-If turnaround reduces to the 84-minute target, achievable output increases from 773 m3/day to approximately 994 m3/day, capped at plant capacity. No additional trucks or plant expansion required. The throughput is already latent in the existing fleet.`,
-
-  actions:
-`Immediate, this week
-
-1. Turnaround audit: Time-stamp 10 full truck cycles across 2 consecutive days. Map where the 112 minutes goes: plant queue, loading, weighbridge, transit, site wait, pour, washout, return. The on-site measurement shows site wait at 28 minutes as the largest component. Confirm this holds across different sites and shifts.
-
-2. Demurrage enforcement: Formalise the existing contract clause. A firm 45-minute site limit with a $25/15-min charge, communicated to the top 3 contractors this week. No capital required. Site wait of 28 minutes should drop within 30 days once contractors know the clock is running.
-
-3. Site-readiness confirmation protocol: No truck dispatches until the site foreman sends a readiness message (WhatsApp, logged by time). The dispatcher holds the truck if no confirmation within 5 minutes of expected departure. This directly addresses the plant manager's stated issue of trucks arriving at unprepared sites.
-
-4. Retarder protocol for summer loads: Flag all loads with expected site arrival after 10:00 AM during June-September. Batch operator confirms retarder addition before drum rotation starts. The 3% rejection rate is linked to heat exposure during the extended 112-minute cycle.
-
-Short-term, weeks 2 to 4
-
-1. Zone-based dispatch sequencing: Group consecutive orders by delivery area. Systematic area clustering reduces transit per cycle by an estimated 8-12 minutes for the suburban delivery pattern. The dispatcher should be able to describe the zone logic without prompting by week 4.
-
-2. Preventive maintenance schedule: Five breakdowns last month on a 24-truck fleet keeps capacity off-road at peak hours. Create a 4-week rotating service schedule. Posted and first two trucks through it by end of week 3.
-
-3. Weekly turnaround log: Record average turnaround per shift for one full week. Compare against the baseline 112 minutes. If the average has not moved below 100 minutes by week 4, site-readiness protocol is not being followed.
-
-Validation, months 1 to 3
-
-1. Turnaround target: 84 minutes average by week 8. Track one full week of timestamped cycles monthly. A 28-minute reduction is achievable through site-readiness and demurrage enforcement alone.
-
-2. 90-day tracking programme: Baselines set at turnaround 112 min, rejection rate 3%. Weekly logging creates the before-and-after evidence base. After 8 weeks, the data supports decisions about fleet optimisation or contract renegotiation.
-
-Next Step
-This on-site assessment has quantified $54k-$88k/month in recoverable margin, driven by a 28-minute turnaround excess across a 24-truck fleet. The constraint is fleet cycle time, not plant capacity or fleet size. Site wait at 28 minutes is the largest controllable component. The immediate actions (demurrage enforcement, site-readiness protocol, turnaround audit) require zero capital and can begin this week. Each action requires a named owner and a confirmed start date before implementation begins.`,
-}
+// ONSITE_REPORT removed — demo always uses live AI generation for consistency
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Demo plant fleet (also used by /demo/plants page)
@@ -594,7 +550,7 @@ export default function DemoView({ userRole = null, isOverridden = false }: Demo
             date="2025-06-15"
             assessmentId="demo"
             customerId="demo-customer"
-            report={demoPhase === 'onsite' ? ONSITE_REPORT : null}
+            report={null}
             reportReleased={demoPhase === 'onsite'}
             isAdmin={!userRole}
             userRole={userRole ?? undefined}
