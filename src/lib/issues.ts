@@ -35,6 +35,27 @@ export interface Diagnosis {
   modelLimits?: string
 }
 
+export type OrgLevel = 'dispatcher' | 'management' | 'commercial' | 'board'
+
+export interface ComplexityParams {
+  requires_contract_change: boolean
+  requires_capital: boolean
+  external_behavior_change: boolean   // requires customer/contractor behavior change
+  internal_behavior_change: boolean   // requires employee behavior change
+  org_level: OrgLevel
+}
+
+/** Shorthand for creating ComplexityParams inline at each issue.push() site */
+function cx(org: OrgLevel, flags: { contract?: boolean; capital?: boolean; external?: boolean; internal?: boolean } = {}): ComplexityParams {
+  return {
+    requires_contract_change: flags.contract ?? false,
+    requires_capital: flags.capital ?? false,
+    external_behavior_change: flags.external ?? false,
+    internal_behavior_change: flags.internal ?? false,
+    org_level: org,
+  }
+}
+
 export interface Issue {
   sev: 'red' | 'amber'
   pin: boolean
@@ -51,6 +72,8 @@ export interface Issue {
   dimension?: 'Production' | 'Dispatch' | 'Fleet' | 'Quality' | 'Other'
   /** Mechanism-based diagnosis (new structured format, optional for backward compat) */
   diagnosis?: Diagnosis
+  /** Complexity parameters for priority matrix (optional for backward compat) */
+  complexity?: ComplexityParams
 }
 
 /**
@@ -98,6 +121,7 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
     const taLossDeferred = r.taBreakdownEntered && r.siteWaitExcess > 0
     issues.push({
       sev: 'red', pin: true, category: 'bottleneck', dimension: 'Fleet',
+      complexity: cx('dispatcher', { external: true, internal: true }),
       t: `Truck turnaround ${r.ta} min, ${Math.round((r.ta - r.TARGET_TA) / r.TARGET_TA * 100)}% above ${r.TARGET_TA}-min target${taDemandNote}`,
       action: 'Require site readiness confirmation before trucks depart',
       rec: taLossDeferred
@@ -149,6 +173,7 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
 
     issues.push({
       sev: 'red', pin: bn === 'Dispatch', category: 'bottleneck', dimension: 'Dispatch',
+      complexity: cx('dispatcher', { internal: true }),
       t: `Dispatch coordination is inflating turnaround time`,
       action: 'Log truck departure and return times daily to identify where cycle time is lost',
       rec: dispRec.replace(/Turnaround excess of \d+ min is included in the dollar estimate\./, 'See turnaround finding for financial impact.'),
@@ -263,6 +288,7 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
     if (r.rejectPlantSideLoss > 0) {
       issues.push({
         sev: 'amber', pin: false, category: 'independent', dimension: 'Quality',
+        complexity: cx('management', { capital: true, internal: true }),
         t: `${Math.round(r.rejectPct)}% rejection, plant-side quality losses`,
         action: 'Calibrate water-cement ratio sensors and run slump test on every load before dispatch',
         rec: `Plant-side rejections (~${plantPct}% of total) are caused by batching, dosing, or mix quality failures. Each rejected load wastes $${Math.round(r.materialCostPerM3 || r.contribSafe)}/m³ in raw materials. Fix: monthly sensor calibration and mandatory slump testing at dispatch.`,
@@ -286,6 +312,7 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
     if (r.rejectCustomerSideLoss > 0) {
       issues.push({
         sev: 'amber', pin: false, category: 'independent', dimension: 'Quality',
+        complexity: cx('commercial', { contract: true, external: true }),
         t: `${Math.round(r.rejectPct)}% rejection, site and customer-side losses`,
         action: 'Implement pre-departure site readiness confirmation and enforce demurrage clause after 45 min on site',
         rec: `Customer-side rejections (~${customerPct}% of total) are caused by site unreadiness, pump delays, or contractor refusals. The fix is contract enforcement and dispatch protocol, not batch control. A pre-departure confirmation call and an enforced demurrage clause address this directly.`,
@@ -389,6 +416,7 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
     const wLoss = r.operativeTrucks > 0 && r.contrib > 0 ? Math.round((wMin - 15) / 60 * r.operativeTrucks * r.delDay / r.operativeTrucks * r.mixCap * r.contrib * (r.opD / 12)) : 0
     issues.push({
       sev: 'amber', pin: false, category: 'independent', dimension: 'Fleet',
+      complexity: cx('management', { capital: true }),
       t: `Washout takes ${(a.washout_time as string).split(', ')[0].toLowerCase()}, recoverable idle time`,
       action: 'Install dedicated washout bay with high-pressure water supply',
       rec: `Reducing washout to 10–15 min frees ${wMin - 15} min per truck per cycle.`,
@@ -413,6 +441,7 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
     // Dollar loss is carried by the demurrage policy issue below (if applicable), avoid double-counting
     issues.push({
       sev: 'amber', pin: false, category: 'independent', dimension: 'Other',
+      complexity: cx('commercial', { contract: true, external: true }),
       t: `Site wait time ${r.siteWait} min, trucks held ${r.siteWait - 40} min above 40-min target`,
       action: 'Require site readiness confirmation before dispatching, implement a pre-pour checklist',
       rec: 'Trucks should only depart when the site confirms pump crew and foreman are ready.',
@@ -430,6 +459,7 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
       : 0
     issues.push({
       sev: 'red', pin: true, category: 'bottleneck', dimension: 'Fleet',
+      complexity: cx('commercial', { contract: true, external: true }),
       t: `Site waiting time ${r.taSiteWaitMin} min, ${r.siteWaitExcess} min above 35-min benchmark`,
       action: 'Enforce demurrage charge and require site readiness confirmation before dispatch',
       rec: `Site waiting time is the single largest controllable component of your ${r.ta}-min turnaround. Reducing it by ${effectiveSiteWaitExcess} min recovers approximately ${fmt(siteWaitLoss)}/month, without adding a single truck.`,
@@ -453,6 +483,7 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
   if (r.demurrageOpportunity > 0 && a.demurrage_policy === 'Clause exists but rarely enforced') {
     issues.push({
       sev: 'amber', pin: false, category: 'independent', dimension: 'Other',
+      complexity: cx('commercial', { contract: true, external: true }),
       t: `Demurrage clause exists but not enforced, ${fmt(r.demurrageOpportunity)}/month unrecovered`,
       action: 'Start invoicing demurrage on all site delays over 40 minutes',
       rec: 'The clause is in your contracts. Enforcing it consistently recovers revenue and changes contractor behaviour.',
@@ -462,6 +493,7 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
   if (r.demurrageOpportunity > 0 && (a.demurrage_policy === 'No demurrage charge in contracts' || a.demurrage_policy === 'Not sure')) {
     issues.push({
       sev: 'amber', pin: false, category: 'independent', dimension: 'Other',
+      complexity: cx('commercial', { contract: true, external: true }),
       t: 'No demurrage policy, site delays absorbed entirely by plant',
       action: 'Add a demurrage clause to all new and renewed contracts',
       rec: `Estimated monthly exposure: ${fmt(r.demurrageOpportunity)}. $2/min beyond the agreed window is common in GCC.`,
@@ -672,6 +704,21 @@ export function buildIssues(r: CalcResult, a: Answers, meta?: { country?: string
       rec: 'In GCC summer conditions above 42°C, concrete without active cooling regularly exceeds 32°C at discharge.',
       loss: 0,
     })
+  }
+
+  // ── Assign default complexity to issues without explicit params ─────────
+  // Default is based on dimension. Explicit cx() at push site overrides.
+  const defaultComplexity: Record<string, ComplexityParams> = {
+    'Fleet':      cx('dispatcher', { external: true, internal: true }),
+    'Dispatch':   cx('dispatcher', { internal: true }),
+    'Production': cx('management', { internal: true }),
+    'Quality':    cx('management', { internal: true }),
+    'Other':      cx('management'),
+  }
+  for (const issue of issues) {
+    if (!issue.complexity) {
+      issue.complexity = defaultComplexity[issue.dimension || 'Other'] || cx('management')
+    }
   }
 
   // ── Sort: pinned first, then by dollar value descending ────────────────
