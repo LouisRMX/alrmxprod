@@ -353,6 +353,8 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
                       const result = calc(merged, meta, overrides)
                       triggerSave(merged, result)
                       onAnswersChange?.(merged)
+                      // Reload after save completes to ensure all question cards reflect new values
+                      setTimeout(() => window.location.reload(), 1500)
                     }} />
                   </div>
                 )}
