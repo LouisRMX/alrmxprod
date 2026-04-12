@@ -38,9 +38,13 @@ export default function UploadAssessmentData({ onDataParsed }: UploadAssessmentD
   }, [])
 
   const handleApply = useCallback(async () => {
-    setStatus('idle') // hide preview immediately
-    await onDataParsed(parsed)
-    // Don't clear parsed — page will reload from onDataParsed
+    console.log('handleApply called, parsed keys:', Object.keys(parsed).length, parsed)
+    try {
+      await onDataParsed(parsed)
+      console.log('onDataParsed completed')
+    } catch (err) {
+      console.error('onDataParsed failed:', err)
+    }
   }, [parsed, onDataParsed])
 
   const LABELS: Record<string, string> = {
