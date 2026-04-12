@@ -103,33 +103,23 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const supabaseClient = createClient()
 
-  // Fetch field log measured data and merge into overrides when sufficient trips exist
+  // Fetch field log measured data via SECURITY DEFINER function (bypasses RLS on views)
   useEffect(() => {
     if (assessmentId === 'demo' || isPreDiagnosis) return
     supabaseClient
-      .from('daily_log_trips_computed')
-      .select('tat_minutes, outbound_transit_minutes, return_transit_minutes, site_wait_minutes, unload_minutes, rejected')
-      .eq('assessment_id', assessmentId)
-      .not('tat_minutes', 'is', null)
+      .rpc('get_field_log_stats', { p_assessment_id: assessmentId })
       .then(({ data }) => {
-        if (!data || data.length < 3) return  // minimum 3 trips for statistical relevance
-        const tats = data.map(d => d.tat_minutes as number).filter(Boolean)
-        const siteWaits = data.map(d => d.site_wait_minutes as number).filter(Boolean)
-        const transits = data.map(d => ((d.outbound_transit_minutes as number) || 0) + ((d.return_transit_minutes as number) || 0)).filter(v => v > 0)
-        const unloads = data.map(d => d.unload_minutes as number).filter(Boolean)
-        const rejectCount = data.filter(d => d.rejected).length
-        const avg = (arr: number[]) => arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : 0
-
+        if (!data || data.trip_count < 3) return  // minimum 3 trips for statistical relevance
         setOverrides(prev => ({
           ...prev,
-          measuredTA: Math.round(avg(tats)),
+          measuredTA: data.avg_tat,
           measuredTABreakdown: {
-            transit: transits.length > 0 ? Math.round(avg(transits)) : undefined,
-            siteWait: siteWaits.length > 0 ? Math.round(avg(siteWaits)) : undefined,
-            unload: unloads.length > 0 ? Math.round(avg(unloads)) : undefined,
+            transit: data.avg_transit ?? undefined,
+            siteWait: data.avg_site_wait ?? undefined,
+            unload: data.avg_unload ?? undefined,
           },
-          measuredTripCount: data.length,
-          measuredRejectPct: data.length > 0 ? Math.round(rejectCount / data.length * 1000) / 10 : undefined,
+          measuredTripCount: data.trip_count,
+          measuredRejectPct: data.reject_pct ?? undefined,
         }))
       })
   // eslint-disable-next-line react-hooks/exhaustive-deps
