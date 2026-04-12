@@ -38,12 +38,16 @@ export default function UploadAssessmentData({ onDataParsed }: UploadAssessmentD
   }, [])
 
   const handleApply = useCallback(async () => {
-    console.log('handleApply called, parsed keys:', Object.keys(parsed).length, parsed)
+    const keys = Object.keys(parsed)
+    if (keys.length === 0) {
+      alert('No parsed data to apply')
+      return
+    }
+    alert(`Applying ${keys.length} fields: ${keys.slice(0, 5).join(', ')}...`)
     try {
       await onDataParsed(parsed)
-      console.log('onDataParsed completed')
     } catch (err) {
-      console.error('onDataParsed failed:', err)
+      alert('Apply failed: ' + (err instanceof Error ? err.message : String(err)))
     }
   }, [parsed, onDataParsed])
 
