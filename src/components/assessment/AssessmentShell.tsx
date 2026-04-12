@@ -345,11 +345,13 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
                 )}
 
                 {/* Upload plant data to prefill assessment */}
-                {assessmentId !== 'demo' && Object.keys(answers).length < 10 && (
+                {assessmentId !== 'demo' && Object.keys(answers).filter(k => answers[k] != null && answers[k] !== '').length < 10 && (
                   <div style={{ padding: '0 20px', marginBottom: '4px' }}>
                     <UploadAssessmentData onDataParsed={(data) => {
                       const merged = { ...answers, ...data }
                       setAnswers(merged)
+                      const result = calc(merged, meta, overrides)
+                      triggerSave(merged, result)
                       onAnswersChange?.(merged)
                     }} />
                   </div>
