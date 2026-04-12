@@ -140,7 +140,7 @@ export default function ExportWord({ calcResult, meta, report, dx, phase }: Expo
       { label: 'TURNAROUND', value: `${dx.tat_actual} min`, sub: `target: ${dx.tat_target} min` },
       { label: 'UTILISATION', value: `${dx.utilization_pct}%`, sub: 'target: 85%' },
       { label: 'REJECTION', value: `${dx.reject_pct}%`, sub: 'target: <3%' },
-      { label: 'CONSTRAINT', value: isPre ? 'To be confirmed' : dx.primary_constraint, sub: isPre ? `Likely: ${dx.primary_constraint}` : 'turnaround' },
+      { label: 'CONSTRAINT', value: isPre ? 'To be confirmed' : (dx.main_driver.dimension || dx.primary_constraint), sub: isPre ? `Likely: ${dx.main_driver.dimension || dx.primary_constraint}` : `$${Math.round(dx.main_driver.amount / 1000)}k/month` },
     ]
 
     children.push(new Table({
