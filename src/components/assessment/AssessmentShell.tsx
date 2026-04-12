@@ -348,19 +348,21 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
                 {assessmentId !== 'demo' && Object.keys(answers).filter(k => answers[k] != null && answers[k] !== '').length < 10 && (
                   <div style={{ padding: '0 20px', marginBottom: '4px' }}>
                     <UploadAssessmentData onDataParsed={async (data) => {
-                      const merged = { ...answers, ...data }
-                      // Save directly to database first, then update UI
-                      const sb = createClient()
-                      const { error: dbErr } = await sb
-                        .from('assessments')
-                        .update({ answers: merged })
-                        .eq('id', assessmentId)
-                      if (dbErr) {
-                        console.error('Direct save failed:', dbErr)
-                        return
+                      try {
+                        const resp = await fetch('/api/fieldlog/apply-assessment', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ assessmentId, answers: data }),
+                        })
+                        if (!resp.ok) {
+                          const body = await resp.json().catch(() => ({}))
+                          console.error('Apply failed:', body.error)
+                          return
+                        }
+                        window.location.reload()
+                      } catch (err) {
+                        console.error('Apply failed:', err)
                       }
-                      // Reload to pick up saved data
-                      window.location.reload()
                     }} />
                   </div>
                 )}
