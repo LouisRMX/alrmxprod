@@ -347,14 +347,20 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
                 {/* Upload plant data to prefill assessment */}
                 {assessmentId !== 'demo' && Object.keys(answers).filter(k => answers[k] != null && answers[k] !== '').length < 10 && (
                   <div style={{ padding: '0 20px', marginBottom: '4px' }}>
-                    <UploadAssessmentData onDataParsed={(data) => {
+                    <UploadAssessmentData onDataParsed={async (data) => {
                       const merged = { ...answers, ...data }
-                      setAnswers(merged)
-                      const result = calc(merged, meta, overrides)
-                      triggerSave(merged, result)
-                      onAnswersChange?.(merged)
-                      // Reload after save completes to ensure all question cards reflect new values
-                      setTimeout(() => window.location.reload(), 1500)
+                      // Save directly to database first, then update UI
+                      const sb = createClient()
+                      const { error: dbErr } = await sb
+                        .from('assessments')
+                        .update({ answers: merged })
+                        .eq('id', assessmentId)
+                      if (dbErr) {
+                        console.error('Direct save failed:', dbErr)
+                        return
+                      }
+                      // Reload to pick up saved data
+                      window.location.reload()
                     }} />
                   </div>
                 )}
