@@ -30,6 +30,10 @@ export default function ManualEntryForm({
   const [dischargeEnd, setDischargeEnd] = useState('')
   const [departureSite, setDepartureSite] = useState('')
   const [arrivalPlant, setArrivalPlant] = useState('')
+  const [loadingStart, setLoadingStart] = useState('')
+  const [loadingEnd, setLoadingEnd] = useState('')
+  const [washoutEnd, setWashoutEnd] = useState('')
+  const [slumpPass, setSlumpPass] = useState<string>('')
   const [loadM3, setLoadM3] = useState('')
   const [rejected, setRejected] = useState(false)
   const [rejectSide, setRejectSide] = useState('')
@@ -54,6 +58,10 @@ export default function ManualEntryForm({
     setDischargeEnd('')
     setDepartureSite('')
     setArrivalPlant('')
+    setLoadingStart('')
+    setLoadingEnd('')
+    setWashoutEnd('')
+    setSlumpPass('')
     setLoadM3('')
     setRejected(false)
     setRejectSide('')
@@ -84,6 +92,10 @@ export default function ManualEntryForm({
       discharge_end: timeToTimestamp(dischargeEnd),
       departure_site: timeToTimestamp(departureSite),
       arrival_plant: timeToTimestamp(arrivalPlant),
+      loading_start: timeToTimestamp(loadingStart),
+      loading_end: timeToTimestamp(loadingEnd),
+      washout_end: timeToTimestamp(washoutEnd),
+      slump_pass: slumpPass === 'pass' ? true : slumpPass === 'fail' ? false : null,
       load_m3: loadM3 ? parseFloat(loadM3) : null,
       rejected,
       reject_side: rejected && rejectSide ? rejectSide : null,
@@ -108,7 +120,7 @@ export default function ManualEntryForm({
     onSaved()
   }, [assessmentId, plantId, logDate, truckId, driverName, siteName, siteType,
       departureLoaded, arrivalSite, dischargeStart, dischargeEnd, departureSite,
-      arrivalPlant, loadM3, rejected, rejectSide, rejectCause, notes, supabase, onSaved])
+      arrivalPlant, loadingStart, loadingEnd, washoutEnd, slumpPass, loadM3, rejected, rejectSide, rejectCause, notes, supabase, onSaved])
 
   const inputStyle: React.CSSProperties = {
     width: '100%', padding: '8px 11px', border: '1px solid var(--gray-300, #d1d5db)',
@@ -197,6 +209,39 @@ export default function ManualEntryForm({
           <div>
             <label style={{ ...labelStyle, fontSize: '10px' }}>Arrival plant</label>
             <input type="time" value={arrivalPlant} onChange={e => setArrivalPlant(e.target.value)} style={timeStyle} />
+          </div>
+        </div>
+      </div>
+
+      {/* Plant internal (optional) */}
+      <div style={{ borderTop: '1px solid #eee', paddingTop: '14px', marginTop: '6px', ...rowStyle }}>
+        <label style={{ ...labelStyle, marginBottom: '10px', color: '#aaa' }}>Plant internal (optional)</label>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+          <div>
+            <label style={{ ...labelStyle, fontSize: '10px' }}>Loading start</label>
+            <input type="time" value={loadingStart} onChange={e => setLoadingStart(e.target.value)} style={timeStyle} />
+          </div>
+          <div>
+            <label style={{ ...labelStyle, fontSize: '10px' }}>Loading end</label>
+            <input type="time" value={loadingEnd} onChange={e => setLoadingEnd(e.target.value)} style={timeStyle} />
+          </div>
+          <div>
+            <label style={{ ...labelStyle, fontSize: '10px' }}>Washout end</label>
+            <input type="time" value={washoutEnd} onChange={e => setWashoutEnd(e.target.value)} style={timeStyle} />
+          </div>
+        </div>
+        <div style={{ marginTop: '8px' }}>
+          <label style={{ ...labelStyle, fontSize: '10px' }}>Slump test</label>
+          <div style={{ display: 'flex', gap: '6px' }}>
+            {[{ v: 'pass', l: 'Pass' }, { v: 'fail', l: 'Fail' }, { v: '', l: 'Not tested' }].map(o => (
+              <button key={o.v} type="button" onClick={() => setSlumpPass(o.v)}
+                style={{
+                  padding: '4px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 500, cursor: 'pointer',
+                  border: `1.5px solid ${slumpPass === o.v ? '#0F6E56' : '#d1d5db'}`,
+                  background: slumpPass === o.v ? '#e8f5ee' : '#fff',
+                  color: slumpPass === o.v ? '#0F6E56' : '#888',
+                }}>{o.l}</button>
+            ))}
           </div>
         </div>
       </div>

@@ -24,6 +24,10 @@ BEGIN
         'discharge_end', discharge_end,
         'departure_site', departure_site,
         'arrival_plant', arrival_plant,
+        'loading_start', loading_start,
+        'loading_end', loading_end,
+        'washout_end', washout_end,
+        'slump_pass', slump_pass,
         'load_m3', load_m3,
         'rejected', rejected,
         'reject_side', reject_side

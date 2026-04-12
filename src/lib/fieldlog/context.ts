@@ -12,6 +12,10 @@ export interface RawTrip {
   discharge_end: string | null
   departure_site: string | null
   arrival_plant: string | null
+  loading_start: string | null
+  loading_end: string | null
+  washout_end: string | null
+  slump_pass: boolean | null
   load_m3: number | null
   rejected: boolean
   reject_side: string | null

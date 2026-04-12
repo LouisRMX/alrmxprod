@@ -14,6 +14,11 @@ export interface DailyLogRow {
   discharge_end: string | null
   departure_site: string | null
   arrival_plant: string | null
+  // Plant-internal timing (optional)
+  loading_start: string | null
+  loading_end: string | null
+  washout_end: string | null
+  slump_pass: boolean | null
   load_m3: number | null
   rejected: boolean
   reject_side: 'plant_side' | 'customer_side' | null
@@ -31,6 +36,9 @@ export interface DailyLogTripComputed extends DailyLogRow {
   return_transit_minutes: number | null
   site_wait_minutes: number | null
   unload_minutes: number | null
+  // Plant-internal computed
+  loading_minutes: number | null
+  washout_minutes_measured: number | null
 }
 
 export interface ComputedSummary {
