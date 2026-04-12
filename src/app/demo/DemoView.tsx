@@ -91,10 +91,10 @@ const ONSITE_ANSWERS: Answers = {
   partial_load_size:  '6.2',      // pre: assumed 7 nominal, on-site: 6.2 actual avg
   site_wait_time:     '58',       // pre: not asked, on-site: worse than expected
   washout_time:       '10 to 20 minutes, standard',
-  ta_transit_min:     '42',       // pre: not available, on-site: 42 min measured (higher than 38 estimate)
-  ta_site_wait_min:   '34',       // pre: not available, on-site: 34 min measured (main problem, worse than expected)
-  ta_unload_min:      '16',       // pre: not available, on-site: 16 min measured
-  ta_washout_return_min: '12',    // pre: not available, on-site: 12 min measured
+  ta_transit_min:     '44',       // pre: not available, on-site: 44 min measured (higher than expected)
+  ta_site_wait_min:   '36',       // pre: not available, on-site: 36 min measured (main problem, worse than self-reported)
+  ta_unload_min:      '22',       // pre: not available, on-site: 22 min measured (longer pours than expected)
+  ta_washout_return_min: '14',    // pre: not available, on-site: 14 min measured
 
   // Production depth
   batch_cycle:        'Normal, 5 to 7 minutes',
