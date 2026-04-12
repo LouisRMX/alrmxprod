@@ -84,7 +84,9 @@ export function buildStructuredDiagnosis(
 ): StructuredDiagnosis {
   const issues = buildIssues(r, answers, meta)
   const withLoss = issues.filter(i => i.loss > 0)
-  const primaryDim = getFinancialBottleneck(issues) || r.bottleneck || 'Fleet'
+  // Constraint is ALWAYS from calcResult.bottleneck. Never from financial ranking.
+  // Demand > Fleet > Production. Quality and Dispatch are never constraints.
+  const primaryDim = r.bottleneck || 'Fleet'
 
   // Performance gaps
   const gaps: Record<string, PerformanceGap> = {}
