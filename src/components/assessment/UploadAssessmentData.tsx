@@ -3,7 +3,7 @@
 import { useState, useCallback } from 'react'
 
 interface UploadAssessmentDataProps {
-  onDataParsed: (answers: Record<string, string>) => void
+  onDataParsed: (answers: Record<string, string>) => void | Promise<void>
 }
 
 export default function UploadAssessmentData({ onDataParsed }: UploadAssessmentDataProps) {
@@ -37,11 +37,10 @@ export default function UploadAssessmentData({ onDataParsed }: UploadAssessmentD
     }
   }, [])
 
-  const handleApply = useCallback(() => {
-    onDataParsed(parsed)
-    setStatus('idle')
-    setParsed({})
-    setWarnings([])
+  const handleApply = useCallback(async () => {
+    setStatus('idle') // hide preview immediately
+    await onDataParsed(parsed)
+    // Don't clear parsed — page will reload from onDataParsed
   }, [parsed, onDataParsed])
 
   const LABELS: Record<string, string> = {
