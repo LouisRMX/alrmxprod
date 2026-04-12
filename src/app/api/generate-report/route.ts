@@ -270,6 +270,50 @@ Note: Zone-based dispatch grouping is a zero-cost immediate action. Include it i
 // PROMPT BUILDERS
 // ══════════════════════════════════════════════════════════════════════════
 
+// ══════════════════════════════════════════════════════════════════════════
+// SHARED ON-SITE RULES (applies to all on-site prompt variants)
+// ══════════════════════════════════════════════════════════════════════════
+
+const ONSITE_CONTEXT = `CONTEXT: This is a $50,000 on-site diagnostic engagement over 20-30 days.
+The consultant has observed, not intervened. Write accordingly.
+
+REPORT AUDIENCE:
+- Executive sections: CEO with no operational background. Financial language only.
+- Operations sections: Plant manager with operational background. No financial jargon.
+
+CONSULTANT ROLE:
+You are a senior lean and operations consultant.
+You observe, analyze, and advise. You do not implement.
+Write in the voice of someone who has seen this pattern many times
+and knows exactly what it means, and what it does not mean.
+
+RULES:
+- Always show the full value stream, not isolated metrics.
+- Always document variation alongside averages (std dev, range) when available.
+- Always state explicitly what is NOT the constraint and why.
+- Root cause analysis must reach systemic level (3rd why minimum).
+- Observations are facts. Interpretations are clearly marked as such.
+- Recommendations include expected effect AND implementation risk.
+- Never assign ownership to named individuals.
+- Never set specific deadlines. Use urgency levels: immediate / within first month / medium-term / long-term.
+- Never write implementation protocols. Advise on direction.
+- Optimizing non-constraints wastes resources. State explicitly what NOT to do until the constraint is resolved.
+- A consultant who only says what to do is not worth $50,000. Show that you understand what NOT to do and why.
+- Do not present utilisation as an independent cause. It is always the consequence of turnaround and fleet size.
+- Do not use first person plural. Do not write "we". Write in third person.
+- Do not suggest "an on-site visit" as next step. You are already on-site.
+- Do not hedge with "self-reported data" language when data is observed.
+
+// GCC DOMAIN KNOWLEDGE PLACEHOLDER
+// Replace this comment with Kurt's domain knowledge when available:
+// - Typical waste patterns in GCC ready-mix ranked by frequency
+// - Cultural factors affecting implementation in Saudi vs Europe
+// - Three most common misdiagnoses in GCC ready-mix
+// - Physical constraints specific to GCC plants VSM must account for
+// - Ramadan and summer scheduling factors
+// - Demurrage culture differences GCC vs Europe
+`
+
 function buildExecutivePrompt(dx: ValidatedDiagnosis, answers: Answers, phase: string, benchmarks: BenchmarkContext | null = null) {
   const RULES = `RULES:
 - Plain text only. No markdown, no asterisks, no bold, no headings with #, no bullet dashes, no numbered lists.
@@ -336,6 +380,8 @@ Paragraph 2: What cannot be determined remotely. Name 2-3 things the on-site ass
   // ── ON-SITE EXECUTIVE ──
   const tatSection = buildTATBreakdown(dx)
   return `${RULES}
+
+${ONSITE_CONTEXT}
 
 You are writing the Executive Explanation section of a Plant Intelligence Report for ${dx.plant_name} in ${dx.country}.
 PURPOSE: Explain WHY the primary constraint occurs and HOW it constrains the operation. Cause-effect logic only.
@@ -444,6 +490,8 @@ Paragraph 2: What the on-site assessment will determine. Name 2-3 operational qu
   const dispatchGap = dx.performance_gaps['dispatch']
 
   return `${RULES}
+
+${ONSITE_CONTEXT}
 
 You are writing the Constraint Analysis section of a Plant Intelligence Report for ${dx.plant_name} in ${dx.country}.
 The reader already knows the bottleneck mechanism. Start from its consequences for the system.
@@ -570,6 +618,8 @@ Sentence 3: The on-site assessment as the natural next step, framed as an observ
 - If approved_precision is "directional", frame all figures as directional estimates. If "range", use the lo-hi range. If "point_estimate", use the specific figure.`
 
   return `${RULES}
+
+${ONSITE_CONTEXT}
 
 You are writing the Actions section of a Plant Intelligence Report for ${dx.plant_name} in ${dx.country}.
 
