@@ -437,7 +437,33 @@ export const SECTIONS: Section[] = [
         info: {
           what: 'Typical one-way distance to active construction sites.',
           why: 'GCC best practice turnaround of 75–90 min assumes a 10–15 km radius. At 25 km, 90 min turnaround is excellent; at 5 km, it is a critical failure.',
-          calc: 'Radius sets the turnaround target: TARGET_TA = 60 + radius × 1.5 minutes, clamped 65–110 min.',
+          calc: 'Radius sets the turnaround target: TARGET_TA = 60 + radius × 1.5 minutes, clamped 65–110 min. Overridden by delivery_distance_km if provided.',
+        },
+      },
+      {
+        id: 'delivery_distance_km',
+        label: 'What is the average one-way distance from plant to delivery sites?',
+        hint: 'More precise than the delivery zone dropdown above. If you know this number, it produces a more accurate turnaround target.',
+        type: 'num',
+        unit: 'km',
+        req: false,
+        info: {
+          what: 'Average one-way distance from plant gate to active construction sites.',
+          why: 'The delivery zone dropdown maps to a midpoint (e.g. 12-20 km = 16 km). The actual average distance can be significantly different. This field overrides the dropdown for a more precise turnaround target.',
+          calc: 'TARGET_TA = 60 + delivery_distance_km × 1.5, clamped 65-110 min. Takes precedence over delivery_radius dropdown.',
+        },
+      },
+      {
+        id: 'avg_transit_min',
+        label: 'How long does it typically take a truck to drive from the plant to a delivery site? (one way)',
+        hint: 'Average driving time, not including loading, waiting, or pouring. Just the drive. If known, this replaces the distance-based estimate entirely.',
+        type: 'num',
+        unit: 'minutes one way',
+        req: false,
+        info: {
+          what: 'Average one-way driving time from plant to delivery site.',
+          why: 'Distance-based estimates assume a speed factor (1.5 min/km) which varies enormously in GCC cities. Rush hour traffic, highway vs urban, road quality. Direct transit time is more accurate.',
+          calc: 'When provided: TARGET_TA = avg_transit_min × 2 + 45 min (loading + pour + washout). Takes precedence over both delivery_radius and delivery_distance_km.',
         },
       },
       {
@@ -1185,7 +1211,7 @@ export const TOTAL_Q = SECTIONS.reduce((s, sec) => s + sec.qs.length, 0)
 export const PRE_ASSESSMENT_IDS = new Set([
   'price_m3', 'cement_cost', 'aggregate_cost', 'admix_cost',
   'plant_cap', 'actual_prod', 'op_hours', 'op_days',
-  'n_trucks', 'deliveries_day', 'turnaround', 'delivery_radius',
+  'n_trucks', 'deliveries_day', 'turnaround', 'delivery_radius', 'delivery_distance_km', 'avg_transit_min',
   'reject_pct',
   'dispatch_tool', 'order_to_dispatch',
   'prod_data_source',

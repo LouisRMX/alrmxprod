@@ -206,7 +206,15 @@ export function calcLossRange(totalLoss: number): { low: number; mid: number; hi
   }
 }
 
-export function calcTargetTA(radius: number): number {
+export function calcTargetTA(radius: number, avgTransitMin?: number | null, deliveryDistanceKm?: number | null): number {
+  // Priority: 1) direct transit time, 2) precise distance, 3) dropdown radius
+  if (avgTransitMin && avgTransitMin > 0) {
+    // transit × 2 (round trip) + 45 min (loading + pour + washout)
+    return Math.min(150, Math.max(65, Math.round(avgTransitMin * 2 + 45)))
+  }
+  if (deliveryDistanceKm && deliveryDistanceKm > 0) {
+    return Math.min(110, Math.max(65, Math.round(60 + deliveryDistanceKm * 1.5)))
+  }
   return radius > 0 ? Math.min(110, Math.max(65, Math.round(60 + radius * 1.5))) : 80
 }
 
@@ -433,7 +441,9 @@ export function calc(answers: Answers, meta?: { season?: string }, overrides?: C
   }
   const radiusRaw = a.delivery_radius as string
   const radius = DELIVERY_RADIUS_MAP[radiusRaw] ?? (+(radiusRaw ?? 0) || 0) // fallback for legacy numeric
-  const TARGET_TA = calcTargetTA(radius)
+  const deliveryDistanceKm = +(a.delivery_distance_km ?? 0) || null
+  const avgTransitMin = +(a.avg_transit_min ?? 0) || null
+  const TARGET_TA = calcTargetTA(radius, avgTransitMin, deliveryDistanceKm)
 
   const truckAvail = +(a.truck_availability ?? 0) || 0
   const availRate = truckAvail > 0 && trucks > 0 ? Math.min(1, truckAvail / trucks) : 1
