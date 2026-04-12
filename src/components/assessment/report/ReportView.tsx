@@ -13,6 +13,8 @@ import { useIsMobile } from '@/hooks/useIsMobile'
 import { stripMarkdown } from '@/lib/stripMarkdown'
 import FindingCard from './FindingCard'
 import ExportWord from './ExportWord'
+import PriorityMatrixView from './PriorityMatrixView'
+import { buildPriorityMatrix } from '@/lib/priority-matrix'
 import ActionBoard from './ActionBoard'
 import type { DemoBannerProps } from '@/components/assessment/AssessmentShell'
 
@@ -2169,6 +2171,17 @@ function FullReportDrawer({
           />
 
           <Divider />
+
+          {/* 4.5 PRIORITY MATRIX (on-site only, when issues have complexity) */}
+          {!isPre && issues.some(i => i.complexity) && (() => {
+            const matrix = buildPriorityMatrix(issues, totalLoss)
+            return matrix.rows.length > 0 ? (
+              <div style={{ marginBottom: '24px' }}>
+                <PriorityMatrixView matrix={matrix} assessmentId={assessmentId} isAdmin={isAdmin} />
+                <Divider />
+              </div>
+            ) : null
+          })()}
 
           {/* 5. SUPPORTING FINDINGS, evidence, not introduction */}
           {issues.filter(i => i.loss > 0 || i.category === 'bottleneck').length > 0 && (
