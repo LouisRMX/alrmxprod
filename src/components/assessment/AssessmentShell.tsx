@@ -105,7 +105,7 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
 
   // Fetch field log measured data via SECURITY DEFINER function (bypasses RLS on views)
   useEffect(() => {
-    if (assessmentId === 'demo' || isPreDiagnosis) return
+    if (assessmentId === 'demo') return
     supabaseClient
       .rpc('get_field_log_stats', { p_assessment_id: assessmentId })
       .then(({ data }) => {
