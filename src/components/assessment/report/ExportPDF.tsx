@@ -1,3 +1,6 @@
+// TODO: This file is deprecated. Replaced by ExportWord.tsx.
+// Still imported by OwnerReportView.tsx for SummaryPDFButton.
+// Safe to delete once OwnerReportView is migrated to ExportWord.
 'use client'
 
 import { useState, useRef, useCallback } from 'react'
