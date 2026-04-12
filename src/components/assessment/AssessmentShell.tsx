@@ -17,6 +17,7 @@ import TrackingTab from './tracking/TrackingTab'
 import GpsUploadView from '@/components/gps-upload/GpsUploadView'
 import { createClient } from '@/lib/supabase/client'
 import FieldLogView from '@/components/fieldlog/FieldLogView'
+import UploadAssessmentData from './UploadAssessmentData'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { useSetChatContext } from '@/context/ChatContext'
 
@@ -340,6 +341,17 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
                     }}>
                       ⚡ Primary constraint: {calcResult.bottleneck}
                     </div>
+                  </div>
+                )}
+
+                {/* Upload plant data to prefill assessment */}
+                {assessmentId !== 'demo' && Object.keys(answers).length < 10 && (
+                  <div style={{ padding: '0 20px', marginBottom: '4px' }}>
+                    <UploadAssessmentData onDataParsed={(data) => {
+                      const merged = { ...answers, ...data }
+                      setAnswers(merged)
+                      onAnswersChange?.(merged)
+                    }} />
                   </div>
                 )}
 
