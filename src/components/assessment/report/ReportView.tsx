@@ -1957,7 +1957,7 @@ interface FullReportDrawerProps {
   financialBottleneck: string | null
   readOnly?: boolean
   recoveryRange?: { lo: number; hi: number } | null
-  tatSource?: 'measured' | 'reported'
+  tatSource?: 'measured' | 'validated' | 'reported'
   tatTripCount?: number
   dx?: ValidatedDiagnosis
 }
@@ -2087,7 +2087,12 @@ function FullReportDrawer({
                         Based on {tatTripCount} observed trips
                       </div>
                     )}
-                    {tatSource === 'reported' && !isPre && (
+                    {tatSource === 'reported' && !isPre && calcResult.taBreakdownEntered && (
+                      <div style={{ display: 'inline-block', fontSize: '9px', fontWeight: 600, color: '#1a6644', background: '#e8f5ee', border: '1px solid #b8dfc8', borderRadius: '4px', padding: '1px 6px', marginTop: '4px' }}>
+                        On-site validated
+                      </div>
+                    )}
+                    {tatSource === 'reported' && !isPre && !calcResult.taBreakdownEntered && (
                       <div style={{ display: 'inline-block', fontSize: '9px', fontWeight: 600, color: '#b8860b', background: '#fff8e1', border: '1px solid #f5cba0', borderRadius: '4px', padding: '1px 6px', marginTop: '4px' }}>
                         Self-reported estimate
                       </div>

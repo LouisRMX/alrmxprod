@@ -528,7 +528,7 @@ export interface ValidatedDiagnosis {
   tat_actual: number
   tat_target: number
   tat_breakdown: { label: string; actual: number; benchmark: number }[] | null
-  tat_source: 'measured' | 'reported'
+  tat_source: 'measured' | 'validated' | 'reported'
   tat_trip_count: number
 }
 
@@ -728,7 +728,7 @@ export function buildValidatedDiagnosis(
     tat_actual: r.ta,
     tat_target: r.TARGET_TA,
     tat_breakdown: tatBreakdown,
-    tat_source: overrides?.measuredTA != null ? 'measured' : 'reported',
+    tat_source: overrides?.measuredTA != null ? 'measured' : r.taBreakdownEntered ? 'validated' : 'reported',
     tat_trip_count: overrides?.measuredTripCount ?? 0,
   }
 }

@@ -122,6 +122,8 @@ export default function ExportWord({ calcResult, meta, report, dx, phase }: Expo
             new Paragraph({ spacing: { before: 40 }, children: [
               new TextRun({ text: dx.tat_source === 'measured'
                 ? `Based on ${dx.tat_trip_count} observed truck cycles. 40-65% execution range.`
+                : dx.tat_source === 'validated'
+                ? 'On-site validated data. 40-65% execution range.'
                 : 'Based on reported data. 40-65% execution range. Exact figure confirmed on-site.',
                 size: 16, color: GRAY }),
             ]}),
@@ -160,6 +162,10 @@ export default function ExportWord({ calcResult, meta, report, dx, phase }: Expo
     if (dx.tat_source === 'measured' && dx.tat_trip_count > 0) {
       children.push(new Paragraph({ spacing: { before: 60 }, children: [
         new TextRun({ text: `Based on ${dx.tat_trip_count} observed truck cycles`, size: 16, color: GREEN, italics: true }),
+      ]}))
+    } else if (dx.tat_source === 'validated') {
+      children.push(new Paragraph({ spacing: { before: 60 }, children: [
+        new TextRun({ text: 'On-site validated data', size: 16, color: GREEN, italics: true }),
       ]}))
     }
 

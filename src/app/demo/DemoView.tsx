@@ -63,8 +63,14 @@ const WORKSHOP_ANSWERS: Answers = {
 }
 
 // Full dataset, the above + everything gathered during the on-site visit
+// On-site answers: observed values that DIFFER from pre-assessment self-reported data.
+// This tells the story: "plant manager said X, we observed Y."
 const ONSITE_ANSWERS: Answers = {
   ...WORKSHOP_ANSWERS,
+
+  // On-site verified production (lower than self-reported)
+  actual_prod:        '15800',    // pre: 17000 — on-site verification shows lower
+  deliveries_day:     '98',       // pre: 110 — actually counted, not estimated
 
   // Economics depth
   aggregate_cost:     '9',
@@ -78,17 +84,17 @@ const ONSITE_ANSWERS: Answers = {
   working_days_month: '22',
   typical_month:      'Yes, normal month, representative of typical operations',
 
-  // Fleet depth
-  truck_availability: '21',
-  qualified_drivers:  '20',
+  // Fleet depth — on-site observed (worse than self-reported)
+  truck_availability: '19',       // pre: 24 assigned, on-site: only 19 operational
+  qualified_drivers:  '18',       // pre: assumed all, on-site: 18 qualified
   delivery_radius:    'Most deliveries 12 to 20 km, suburban / outer city',
-  partial_load_size:  '6.5',
-  site_wait_time:     '52',
+  partial_load_size:  '6.2',      // pre: assumed 7 nominal, on-site: 6.2 actual avg
+  site_wait_time:     '58',       // pre: not asked, on-site: worse than expected
   washout_time:       '10 to 20 minutes, standard',
-  ta_transit_min:     '38',
-  ta_site_wait_min:   '28',
-  ta_unload_min:      '18',
-  ta_washout_return_min: '14',
+  ta_transit_min:     '42',       // pre: not available, on-site: 42 min measured (higher than 38 estimate)
+  ta_site_wait_min:   '34',       // pre: not available, on-site: 34 min measured (main problem, worse than expected)
+  ta_unload_min:      '16',       // pre: not available, on-site: 16 min measured
+  ta_washout_return_min: '12',    // pre: not available, on-site: 12 min measured
 
   // Production depth
   batch_cycle:        'Normal, 5 to 7 minutes',
@@ -101,27 +107,28 @@ const ONSITE_ANSWERS: Answers = {
   // Dispatch depth
   order_notice:       '4 to 24 hours, day-of or day-before',
   route_clustering:   'Sometimes, depends on the dispatcher',
-  plant_idle:         'Occasionally, a few times per week',
+  plant_idle:         'Regularly, most busy periods',  // pre: occasionally — on-site confirms fleet constraint
 
-  // Quality & maintenance
+  // Quality & maintenance — on-site reveals more issues
   maint_programme:    'Informal, some checks but no written programme',
-  truck_breakdowns:   '5',
+  truck_breakdowns:   '7',        // pre: 5 — on-site log reveals more
   return_liability:   'Plant always absorbs the cost',
   demurrage_policy:   'Clause exists but rarely enforced',
   top_customer_pct:   '41',
   quality_control:    'Usually done, most trucks, informal recording',
+  reject_pct:         '3.8',      // pre: 3% — on-site counting catches more rejections
   reject_cause:       'Heat and slump loss during transit, loads batched before 09:00 arriving outside spec at peak summer sites',
-  surplus_concrete:   '0.2 to 0.5 m³, moderate',
+  surplus_concrete:   '0.2 to 0.5 m3, moderate',
   summer_cooling:     'Partial, cold tap water or shaded aggregate storage only',
   breakdowns:         '2 to 3, acceptable',
 
-  // Data quality
+  // Data quality — on-site observed
   data_freshness:     "Today's operation, figures from this visit",
   data_observed:      'Seen on screen, batch computer, dispatch system, or printout',
   data_crosscheck:    'Partially, one or two figures cross-checked',
   data_confidence_self: "Medium, reasonable but I'd verify one or two before presenting",
   data_days_match:    'Yes, all from the same month',
-  summer_prod_drop:   '20 to 30%, significant drop during June–September',
+  summer_prod_drop:   '20 to 30%, significant drop during June to September',
 }
 
 // Focus actions, curated from on-site findings (seeded into ActionBoard for demo)
