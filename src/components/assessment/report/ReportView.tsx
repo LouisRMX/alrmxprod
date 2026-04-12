@@ -6,13 +6,13 @@ import type { CalcResult, Answers, CalcOverrides } from '@/lib/calculations'
 import type { Phase } from '@/lib/questions'
 import { calcLossRange } from '@/lib/calculations'
 import { buildIssues, getFinancialBottleneck, type Issue } from '@/lib/issues'
-import { buildValidatedDiagnosis } from '@/lib/diagnosis-pipeline'
+import { buildValidatedDiagnosis, type ValidatedDiagnosis } from '@/lib/diagnosis-pipeline'
 import { benchmarkTag, liveBenchmarkTag, gcQuartile, type LiveBenchmarkData } from '@/lib/benchmarks'
 import { useBenchmarks } from '@/hooks/useBenchmarks'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { stripMarkdown } from '@/lib/stripMarkdown'
 import FindingCard from './FindingCard'
-import ExportPDF from './ExportPDF'
+import ExportWord from './ExportWord'
 import ActionBoard from './ActionBoard'
 import type { DemoBannerProps } from '@/components/assessment/AssessmentShell'
 
@@ -1959,6 +1959,7 @@ interface FullReportDrawerProps {
   recoveryRange?: { lo: number; hi: number } | null
   tatSource?: 'measured' | 'reported'
   tatTripCount?: number
+  dx?: ValidatedDiagnosis
 }
 
 function FullReportDrawer({
@@ -1967,7 +1968,7 @@ function FullReportDrawer({
   calcResult, answers, meta, assessmentId,
   issues, primaryBottleneckLoss,
   logisticsText, gpsAvgTA,
-  totalLoss, isAdmin, phase, financialBottleneck, readOnly, recoveryRange, tatSource, tatTripCount,
+  totalLoss, isAdmin, phase, financialBottleneck, readOnly, recoveryRange, tatSource, tatTripCount, dx,
 }: FullReportDrawerProps) {
   const isMobile = useIsMobile()
   const isPre = phase === 'workshop'
@@ -2029,7 +2030,7 @@ function FullReportDrawer({
                 {generating ? 'Generating…' : hasAnySections ? 'Generate missing' : 'Generate report'}
               </button>
             )}
-            <ExportPDF calcResult={calcResult} answers={answers} meta={meta} report={texts} recoveryRange={recoveryRange} phase={phase} />
+            {dx && <ExportWord calcResult={calcResult} meta={meta} report={texts} dx={dx} phase={phase} />}
             <button
               type="button"
               onClick={onClose}
@@ -3477,6 +3478,7 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
         recoveryRange={dx.combined_recovery_range}
         tatSource={dx.tat_source}
         tatTripCount={dx.tat_trip_count}
+        dx={dx}
       />
 
     </div>
