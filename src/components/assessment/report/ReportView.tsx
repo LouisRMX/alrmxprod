@@ -1962,6 +1962,7 @@ interface FullReportDrawerProps {
   tatSource?: 'measured' | 'validated' | 'reported'
   tatTripCount?: number
   dx?: ValidatedDiagnosis
+  fieldLogContext?: import('@/lib/fieldlog/context').FieldLogContext | null
 }
 
 function FullReportDrawer({
@@ -1970,7 +1971,7 @@ function FullReportDrawer({
   calcResult, answers, meta, assessmentId,
   issues, primaryBottleneckLoss,
   logisticsText, gpsAvgTA,
-  totalLoss, isAdmin, phase, financialBottleneck, readOnly, recoveryRange, tatSource, tatTripCount, dx,
+  totalLoss, isAdmin, phase, financialBottleneck, readOnly, recoveryRange, tatSource, tatTripCount, dx, fieldLogContext,
 }: FullReportDrawerProps) {
   const isMobile = useIsMobile()
   const isPre = phase === 'workshop'
@@ -2032,7 +2033,7 @@ function FullReportDrawer({
                 {generating ? 'Generating…' : hasAnySections ? 'Generate missing' : 'Generate report'}
               </button>
             )}
-            {dx && <ExportWord calcResult={calcResult} meta={meta} report={texts} dx={dx} issues={issues} matrix={issues.some(i => i.complexity) ? buildPriorityMatrix(issues, totalLoss) : undefined} phase={phase} />}
+            {dx && <ExportWord calcResult={calcResult} meta={meta} report={texts} dx={dx} issues={issues} matrix={issues.some(i => i.complexity) ? buildPriorityMatrix(issues, totalLoss) : undefined} fieldLogContext={fieldLogContext} phase={phase} />}
             <button
               type="button"
               onClick={onClose}
@@ -3109,9 +3110,10 @@ interface ReportViewProps {
   userRole?: 'owner' | 'manager' | 'operator' | null
   focusActions?: string[] | null
   baselineData?: { answers: Answers; calcResult: CalcResult; date: string }
+  fieldLogContext?: import('@/lib/fieldlog/context').FieldLogContext | null
 }
 
-export default function ReportView({ calcResult, answers, meta, report, assessmentId, customerId, reportReleased, isAdmin, overrides, onOverrideChange, phase, onSwitchToTracking, demoBanner, userRole, focusActions }: ReportViewProps) {
+export default function ReportView({ calcResult, answers, meta, report, assessmentId, customerId, reportReleased, isAdmin, overrides, onOverrideChange, phase, onSwitchToTracking, demoBanner, userRole, focusActions, fieldLogContext }: ReportViewProps) {
   const isMobile = useIsMobile()
   const isPre = phase === 'workshop'
   const supabase = createClient()
@@ -3494,6 +3496,7 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
         tatSource={dx.tat_source}
         tatTripCount={dx.tat_trip_count}
         dx={dx}
+        fieldLogContext={fieldLogContext}
       />
 
     </div>

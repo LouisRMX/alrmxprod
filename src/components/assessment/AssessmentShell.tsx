@@ -433,6 +433,7 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
           userRole={userRole}
           focusActions={focusActions}
           baselineData={baselineData && baselineCalcResult ? { ...baselineData, calcResult: baselineCalcResult } : undefined}
+          fieldLogContext={fieldLogContext}
         />
       )}
 
