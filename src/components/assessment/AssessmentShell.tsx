@@ -112,6 +112,8 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
         if (!data || data.trip_count < 3) return  // minimum 3 trips for statistical relevance
         setOverrides(prev => ({
           ...prev,
+          // When measured data exists, disable estimatedInputs so calc uses derived mixCap
+          estimatedInputs: false,
           measuredTA: data.avg_tat,
           measuredTABreakdown: {
             transit: data.avg_transit ?? undefined,
@@ -119,7 +121,9 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
             unload: data.avg_unload ?? undefined,
           },
           measuredTripCount: data.trip_count,
-          measuredRejectPct: data.reject_pct ?? undefined,
+          // Only override reject rate when we have enough trips (20+) for statistical relevance
+          // 3 trips with 0 rejections doesn't mean reject rate is 0%
+          measuredRejectPct: data.trip_count >= 20 ? (data.reject_pct ?? undefined) : undefined,
         }))
       })
   // eslint-disable-next-line react-hooks/exhaustive-deps
