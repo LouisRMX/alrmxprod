@@ -2032,7 +2032,7 @@ function FullReportDrawer({
                 {generating ? 'Generating…' : hasAnySections ? 'Generate missing' : 'Generate report'}
               </button>
             )}
-            {dx && <ExportWord calcResult={calcResult} meta={meta} report={texts} dx={dx} issues={issues} phase={phase} />}
+            {dx && <ExportWord calcResult={calcResult} meta={meta} report={texts} dx={dx} issues={issues} matrix={issues.some(i => i.complexity) ? buildPriorityMatrix(issues, totalLoss) : undefined} phase={phase} />}
             <button
               type="button"
               onClick={onClose}
