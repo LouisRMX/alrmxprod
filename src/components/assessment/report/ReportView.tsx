@@ -2093,8 +2093,8 @@ function FullReportDrawer({
                     )}
                   </div>
                   <div style={{ padding: '16px 20px', background: '#fff5f5', borderRight: isMobile ? 'none' : '1px solid #e8e8e6', borderBottom: isMobile ? '1px solid #e8e8e6' : 'none' }}>
-                    <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.3px', textTransform: 'uppercase', color: '#c0a0a0', marginBottom: '4px' }}>{isPre ? 'Estimated range' : 'Total recoverable'}</div>
-                    <div style={{ fontSize: '28px', fontWeight: 800, color: '#cc3333', lineHeight: 1, letterSpacing: '-1px' }}>{isPre ? `${fmtK(Math.round(totalLoss * 0.7))}-${fmtK(Math.round(totalLoss * 1.3))}` : fmtK(totalLoss)}</div>
+                    <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.3px', textTransform: 'uppercase', color: '#c0a0a0', marginBottom: '4px' }}>{isPre ? 'Estimated range' : 'Recovery range'}</div>
+                    <div style={{ fontSize: '28px', fontWeight: 800, color: '#cc3333', lineHeight: 1, letterSpacing: '-1px' }}>{recoveryRange ? `${fmtK(recoveryRange.lo)}-${fmtK(recoveryRange.hi)}` : fmtK(totalLoss)}</div>
                     <div style={{ fontSize: '10px', color: '#c09090', marginTop: '2px' }}>per month{isPre ? ' (directional)' : ''}</div>
                   </div>
                   <div style={{ padding: '16px 20px', background: '#fafafa' }}>
