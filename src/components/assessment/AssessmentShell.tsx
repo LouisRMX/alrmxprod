@@ -15,6 +15,7 @@ import DecisionView from './decision/DecisionView'
 import { buildValidatedDiagnosis } from '@/lib/diagnosis-pipeline'
 import TrackingTab from './tracking/TrackingTab'
 import GpsUploadView from '@/components/gps-upload/GpsUploadView'
+import FieldLogView from '@/components/fieldlog/FieldLogView'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { useSetChatContext } from '@/context/ChatContext'
 
@@ -80,9 +81,11 @@ interface AssessmentShellProps {
   baselineData?: { answers: Answers; date: string }
   // Saved diagnosis snapshot from database (if available)
   savedDiagnosis?: Record<string, unknown> | null
+  // Plant ID for field log (daily_logs table requires it)
+  plantId?: string
 }
 
-export default function AssessmentShell({ initialAnswers, phase, season, country, plant, date, assessmentId, customerId, report, reportReleased, isAdmin, userRole, onSave, baseline, requestMode, onAnswersChange, demoBanner, extraTab, hideModeTabs, focusActions, customSections, baselineData, savedDiagnosis }: AssessmentShellProps) {
+export default function AssessmentShell({ initialAnswers, phase, season, country, plant, date, assessmentId, customerId, report, reportReleased, isAdmin, userRole, onSave, baseline, requestMode, onAnswersChange, demoBanner, extraTab, hideModeTabs, focusActions, customSections, baselineData, savedDiagnosis, plantId }: AssessmentShellProps) {
   const [answers, setAnswers] = useState<Answers>(initialAnswers)
   const [currentSection, setCurrentSection] = useState(0)
   // Owner starts on report (they have no questions tab)
@@ -105,7 +108,7 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
   const allowedModes = useMemo((): AssessmentMode[] => {
     if (userRole === 'owner')    return ['report', 'decision', 'simulator', 'track']
     if (userRole === 'operator') return ['questions', 'track']
-    return ['questions', 'report', 'decision', 'simulator', 'track', 'gps']
+    return ['questions', 'report', 'decision', 'simulator', 'track', 'gps', 'fieldlog']
   }, [userRole])
 
   const canEdit = !userRole || userRole === 'manager' || userRole === 'operator'
@@ -441,6 +444,14 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
           />
         )
       })()}
+
+      {mode === 'fieldlog' && (
+        <FieldLogView
+          assessmentId={assessmentId}
+          plantId={plantId ?? ''}
+          isAdmin={isAdmin}
+        />
+      )}
 
     </div>
   )

@@ -10,6 +10,7 @@ import { useIsMobile } from '@/hooks/useIsMobile'
 
 interface Assessment {
   id: string
+  plant_id: string
   phase: string
   plant: { name: string; country: string; customer_id?: string; customer?: { name: string } }
   analyst: { full_name: string }
@@ -382,6 +383,7 @@ export default function AssessmentTool({
           focusActions={assessment.focus_actions}
           baselineData={baselineAssessment ? { answers: baselineAssessment.answers as Answers, date: baselineAssessment.date } : undefined}
           savedDiagnosis={assessment.validated_diagnosis}
+          plantId={assessment.plant_id}
         />
       )}
 
