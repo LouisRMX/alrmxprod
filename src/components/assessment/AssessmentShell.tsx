@@ -129,6 +129,20 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assessmentId, isPreDiagnosis])
 
+  // Fetch full field log context for report generation (variation, VSM, site/truck matrix)
+  const [fieldLogContext, setFieldLogContext] = useState<import('@/lib/fieldlog/context').FieldLogContext | null>(null)
+  useEffect(() => {
+    if (assessmentId === 'demo') return
+    supabaseClient
+      .rpc('get_field_log_context', { p_assessment_id: assessmentId })
+      .then(({ data, error }) => {
+        if (error || !data?.trips || data.trips.length < 3) return
+        const { buildFieldLogContext } = require('@/lib/fieldlog/context')
+        setFieldLogContext(buildFieldLogContext(data.trips, data.interventions || []))
+      })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assessmentId])
+
   // Role-based access control
   // owner    = view report + simulator + track (read-only)
   // manager  = full access (all tabs + editing)
