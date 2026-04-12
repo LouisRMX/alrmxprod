@@ -104,6 +104,12 @@ export interface CapacityAnalysis {
   gap_monthly_m3: number
 }
 
+export interface MeasuredSupplements {
+  batch_cycle_min: number | null
+  order_to_dispatch_min: number | null
+  washout_min: number | null
+}
+
 export interface FieldLogContext {
   total_trips_observed: number
   days_observed: number
@@ -119,6 +125,7 @@ export interface FieldLogContext {
   baseline_current: BaselineCurrentComparison | null
   interventions: InterventionEffect[]
   capacity_analysis: CapacityAnalysis | null
+  measured_supplements: MeasuredSupplements | null
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────
@@ -151,6 +158,7 @@ export function buildFieldLogContext(
   trips: RawTrip[],
   interventions: RawIntervention[] = [],
   calcTrace?: { target_daily_m3: number; working_days_month: number } | null,
+  answers?: Record<string, string | number | undefined> | null,
 ): FieldLogContext | null {
   if (!trips || trips.length < 3) return null
 
@@ -192,11 +200,11 @@ export function buildFieldLogContext(
   const avgUnload = unloads.length > 0 ? avg(unloads) : null
   const avgReturn = returns.length > 0 ? avg(returns) : null
 
-  // VA = transit outbound + unload + transit return
-  const va = (avgOutbound ?? 0) + (avgUnload ?? 0) + (avgReturn ?? 0)
+  // VA = unloading/pour only (the only step that adds value to the customer)
+  const va = avgUnload ?? 0
   // NVA (pure waste) = site wait
   const nva = avgSiteWait ?? 0
-  // Necessary NVA = total cycle - VA - NVA (loading, washout, weighbridge)
+  // Necessary NVA = transit + loading + washout (required but not value-adding)
   const necessaryNva = Math.max(0, avgTAT - va - nva)
 
   const totalVSM = va + nva + necessaryNva
@@ -353,6 +361,13 @@ export function buildFieldLogContext(
     gap_monthly_m3: Math.round(Math.max(0, achievable - avgDailyM3) * (calcTrace?.working_days_month ?? 22)),
   } : null
 
+  // Measured supplements from assessment answers (on-site observed, not dropdown)
+  const measured_supplements: MeasuredSupplements | null = answers ? {
+    batch_cycle_min: answers.batch_cycle_min ? Number(answers.batch_cycle_min) : null,
+    order_to_dispatch_min: answers.order_to_dispatch_min ? Number(answers.order_to_dispatch_min) : null,
+    washout_min: answers.washout_min ? Number(answers.washout_min) : null,
+  } : null
+
   return {
     total_trips_observed: trips.length,
     days_observed: distinctDates.length,
@@ -364,5 +379,6 @@ export function buildFieldLogContext(
     baseline_current,
     interventions: interventionEffects,
     capacity_analysis,
+    measured_supplements,
   }
 }

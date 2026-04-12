@@ -607,6 +607,7 @@ Turnaround: ${dx.tat_actual} min (target: ${dx.tat_target} min)
 Dispatch coordination: managed via ${dx.performance_gaps['dispatch'] ? 'manual tools' : 'unknown method'} (dispatch is a mechanism that explains WHY turnaround is high, not a separate metric)
 Rejection rate: ${dx.reject_pct}% (target: <3%)
 ${buildPainContext(dx)}
+${buildClusteringSignal(answers)}
 WRITE EXACTLY TWO SECTIONS:
 
 Section 1, heading "Before the on-site visit" on its own line

@@ -138,7 +138,7 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
       .then(({ data, error }) => {
         if (error || !data?.trips || data.trips.length < 3) return
         const { buildFieldLogContext } = require('@/lib/fieldlog/context')
-        setFieldLogContext(buildFieldLogContext(data.trips, data.interventions || []))
+        setFieldLogContext(buildFieldLogContext(data.trips, data.interventions || [], null, answers))
       })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assessmentId])

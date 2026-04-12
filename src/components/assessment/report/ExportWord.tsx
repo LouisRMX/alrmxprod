@@ -256,10 +256,10 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
     if (vs) {
       const vsmRows: [string, string, string, string, string][] = [
         ['Loading + plant queue', `${vs.loading_queue_avg ?? '-'} min`, 'Necessary NVA', 'Waiting', YELLOW_LIGHT],
-        ['Outbound transit', `${vs.transit_outbound_avg ?? '-'} min`, 'Value-adding', '-', GREEN_LIGHT],
+        ['Outbound transit', `${vs.transit_outbound_avg ?? '-'} min`, 'Necessary NVA', 'Transportation', YELLOW_LIGHT],
         ['Site wait', `${vs.site_wait_avg ?? '-'} min`, 'Pure waste', 'Waiting', RED_LIGHT],
         ['Unloading / pour', `${vs.unload_avg ?? '-'} min`, 'Value-adding', '-', GREEN_LIGHT],
-        ['Return transit', `${vs.transit_return_avg ?? '-'} min`, 'Necessary NVA', '-', YELLOW_LIGHT],
+        ['Return transit', `${vs.transit_return_avg ?? '-'} min`, 'Necessary NVA', 'Transportation', YELLOW_LIGHT],
         ['TOTAL CYCLE', `${vs.total_cycle_avg} min`, '-', '-', LIGHT],
       ]
       children.push(new Table({
@@ -303,7 +303,7 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
           ]}),
           ...dx.tat_breakdown.map(c => {
             const isWaste = c.label.toLowerCase().includes('wait') || c.label.toLowerCase().includes('queue')
-            const isVA = c.label.toLowerCase().includes('transit') || c.label.toLowerCase().includes('unload')
+            const isVA = c.label.toLowerCase().includes('unload') || c.label.toLowerCase().includes('pour')
             const category = isWaste ? 'Pure waste' : isVA ? 'Value-adding' : 'Necessary NVA'
             const bg = isWaste ? RED_LIGHT : isVA ? GREEN_LIGHT : YELLOW_LIGHT
             return new TableRow({ children: [
