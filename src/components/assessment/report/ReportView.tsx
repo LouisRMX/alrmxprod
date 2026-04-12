@@ -2030,7 +2030,7 @@ function FullReportDrawer({
                 {generating ? 'Generating…' : hasAnySections ? 'Generate missing' : 'Generate report'}
               </button>
             )}
-            {dx && <ExportWord calcResult={calcResult} meta={meta} report={texts} dx={dx} phase={phase} />}
+            {dx && <ExportWord calcResult={calcResult} meta={meta} report={texts} dx={dx} issues={issues} phase={phase} />}
             <button
               type="button"
               onClick={onClose}
