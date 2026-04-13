@@ -687,56 +687,90 @@ Next Step, heading on its own line: Exactly 3 sentences (confirmed, what on-site
   if (phase === 'workshop') {
     const lo = dx.total_loss_range?.lo ?? Math.round(dx.total_loss * 0.7)
     const hi = dx.total_loss_range?.hi ?? Math.round(dx.total_loss * 1.3)
-    const dispatchGap = dx.performance_gaps['dispatch']
-
+    const loR = Math.round(lo / 1000) * 1000
+    const hiR = Math.round(hi / 1000) * 1000
     const ct = dx.calc_trace
     const tatExcess = dx.tat_actual - dx.tat_target
+    const monthlyGap = Math.round(ct.gap_monthly_m3 * ct.margin_per_m3 / 1000) * 1000
+
+    // Constraint label and primary signal for prompt context
+    const tatExcessPct = dx.tat_target > 0 ? tatExcess / dx.tat_target : 0
+    const hasConflicting = tatExcessPct > 0.2 && ct.plant_daily_m3 < ct.fleet_target_daily_m3
+    const constraintLabel = hasConflicting ? 'Conflicting signals (fleet coordination + production capacity)' : tatExcessPct > 0.2 ? 'Fleet coordination' : dx.primary_constraint
+    const mgmtCtx = (dx.management_context || '').toLowerCase()
+    const primarySignal = /wait|queue|site|ready|morning|idle|stuck/.test(mgmtCtx)
+      ? 'site readiness / dispatch timing' : 'turnaround excess'
 
     return `RULES:
 - Use markdown for structure: **bold** for key terms, ## for section headings, numbered lists for actions.
-- Never invent data. Use only the figures provided.
+- Never invent data. Use only the figures provided in PLANT DATA.
 - All financial figures are POTENTIAL RANGES, not confirmed.
 - No jargon. Banned: optimize, leverage, streamline, robust, synergy, utilize, actionable.
 - Short sentences. Do not use sales pitch language.
 - Do NOT recommend specific operational fixes (retarder protocols, demurrage enforcement, maintenance schedules). These require on-site verification.
 - All actions must be preparation or measurement actions.
-- If utilisation is below target, do not present it as an independent problem. Explain it as the mathematical consequence of the turnaround and fleet combination. ${dx.utilization_pct}% utilisation is what a ${dx.tat_actual}-minute turnaround produces with this fleet size. It is a symptom, not a separate cause.
+- Use "I will" not "we will" in the measurement section. This is a personal commitment from the assessor.
 - DATA SOURCE DISCIPLINE: Never present the plant's own qualitative descriptions as confirmed findings. Frame all qualitative inputs as hypotheses to be tested during data collection.
   WRONG: "The plant reports losing 2-3 productive hours each morning due to sites not being ready for delivery."
   RIGHT: "Drivers should record actual site arrival time and discharge start time for every morning delivery. This will verify whether delays are concentrated in early hours or distributed across the day, and whether specific sites are responsible."
 
-You are writing the Preparation section of a Pre-Assessment Report for ${dx.plant_name} in ${dx.country}. Based on self-reported data. No on-site visit done.
+You are writing the Preparation and Measurement section of a Pre-Assessment Report for ${dx.plant_name} in ${dx.country}. Based on self-reported data. No on-site visit done.
 
 ${EXAMPLE_ACTIONS}
 
-CONTEXT:
-Likely constraint area: ${dx.primary_constraint} (to be confirmed)
-Estimated recoverable range: $${Math.round(lo / 1000)}k-$${Math.round(hi / 1000)}k/month
-Recovery basis: gap between actual and target fleet output x $${dx.margin_per_m3}/m3 contribution margin x 40-65% execution range
-Note: Include one sentence in Next Step explaining where the recovery figure comes from. Derived from reported fleet output gap and contribution margin, not an external benchmark.
-Utilisation: ${dx.utilization_pct}% (target: 85%)
-Turnaround: ${dx.tat_actual} min (target: ${dx.tat_target} min), excess: ${tatExcess} min
+PLANT DATA (use these exact figures in every preparation and measurement item):
+Turnaround: ${dx.tat_actual} min (target: ${dx.tat_target} min)
+Excess: ${tatExcess} min per cycle
 Trips per truck: ${ct.trips_per_truck} actual vs ${ct.trips_per_truck_target} target
-Fleet: ${dx.trucks_effective} effective trucks
-Dispatch coordination: managed via ${dx.performance_gaps['dispatch'] ? 'manual tools' : 'unknown method'} (dispatch is a mechanism that explains WHY turnaround is high, not a separate metric)
+Fleet: ${dx.trucks_effective} effective trucks of ${dx.trucks_total} assigned
+Monthly gap: $${monthlyGap.toLocaleString('en-US')}/month
+Recovery range: $${loR.toLocaleString('en-US')}-$${hiR.toLocaleString('en-US')}/month (40-65% execution range)
+Contribution margin: $${ct.margin_per_m3}/m3
+Constraint: ${constraintLabel}
+Primary signal: ${primarySignal}
 Rejection rate: ${dx.reject_pct}% (target: <3%)
-${buildPainContext(dx)}
+Utilisation: ${dx.utilization_pct}% (target: 85%) — consequence of TAT and fleet size, not independent cause
+${dx.management_context ? `Plant manager's stated challenge: "${dx.management_context}"\nNote: This is self-reported. Frame as a pattern to verify, never as a confirmed finding.` : ''}
 ${buildClusteringSignal(answers)}
+
 WRITE EXACTLY THREE SECTIONS:
 
-## Before the on-site visit
-3 to 5 numbered actions. Each: measurement or data-gathering (not operational fix), zero cost, specific enough to confirm done.
+## Before the visit
+Exactly 5 numbered preparation items. Each item MUST have all three parts:
 
-## What the on-site visit will determine
-Exactly three specific, concrete observations. Use the plant's actual numbers. Structure:
+**Part 1 — WHAT AND HOW:** A precise instruction specifying who does it, what they record, in what format (paper, Excel, WhatsApp), and for how long. Must be executable by a plant manager or operations supervisor with no external help. Must reference the plant's actual figures (${dx.tat_actual}-min TAT, ${tatExcess}-min excess, ${dx.trucks_effective} trucks, ${ct.trips_per_truck}/${ct.trips_per_truck_target} trips).
 
-1. **Truck cycle breakdown**: We will time consecutive truck cycles and break down each component: loading queue, loading, transit, site wait, discharge, return. This will show exactly where the ${tatExcess}-minute excess per cycle is physically lost.
+**Part 2 — WHY THIS DATA:** One sentence explaining what this data enables during the on-site visit. Must connect directly to the constraint signal (${primarySignal}).
 
-2. **Dispatch pattern analysis**: We will observe dispatch decisions across peak-hour periods and map whether trucks are dispatched in clusters or distributed. This will confirm or rule out dispatch timing as the primary driver of the ${dx.tat_actual}-minute turnaround.
+**Part 3 — CONSEQUENCE OF NOT HAVING IT:** One sentence explaining what cannot be diagnosed without this data. Must feel like a real cost, not a generic disclaimer. Reference the $${loR.toLocaleString('en-US')}-$${hiR.toLocaleString('en-US')}/month recovery potential.
 
-3. **Delay cost attribution**: We will calculate the dollar value of each delay component so the plant knows which single change delivers the fastest return on the $${Math.round(lo / 1000)}k-$${Math.round(hi / 1000)}k monthly gap.
+EXAMPLE of required quality (adapt using actual plant values, do not copy verbatim):
+"1. **Dispatch timestamps for one week.** Ask the dispatcher to log four timestamps for every truck, every day for one full week: (1) time truck leaves plant loaded, (2) time truck arrives at site, (3) time discharge begins, (4) time truck returns empty. Paper, Excel, or WhatsApp messages are all acceptable.
 
-Use the actual numbers from the assessment. Never use placeholder values.
+Without this data, the on-site visit cannot separate where in the ${dx.tat_actual}-minute cycle the ${tatExcess}-minute excess occurs — whether it is at the plant, on the road, or at the construction site. That separation determines which fix delivers the fastest return on the $${loR.toLocaleString('en-US')}-$${hiR.toLocaleString('en-US')}/month recovery potential."
+
+Prioritise the 5 items so the 3 most critical come first (a busy plant manager may only complete 3).
+
+## What I will measure on-site
+Exactly 3 measurement items. Use "I will" throughout, never "we will". Each item MUST have all three parts:
+
+**Part 1 — THE MEASUREMENT:** Name the specific thing being measured. Must sound precise and methodological.
+
+**Part 2 — WHY INTERNAL CANNOT DO THIS:** 1-2 sentences explaining what specialist skill, independence, or methodology is required that an internal person cannot provide. This is the most important part. It must answer the unspoken question: "Why can't my operations manager do this with a stopwatch?"
+
+**Part 3 — WHAT IT ENABLES:** One sentence connecting this measurement to a specific financial decision. Must reference the $${monthlyGap.toLocaleString('en-US')}/month gap or $${loR.toLocaleString('en-US')}-$${hiR.toLocaleString('en-US')}/month recovery range.
+
+The three items must cover:
+1. **Cycle time breakdown** — timing and categorising every minute of 50+ consecutive truck cycles across the full operating day, not averages but the full distribution
+2. **Dispatch pattern analysis** — mapping the timing gap between consecutive truck departures to reveal cluster-dispatching patterns that internal observation misses
+3. **Delay cost attribution** — converting each delay component into a dollar value per minute so the plant knows which single intervention returns the most within 30 days
+
+EXAMPLE of required quality (adapt using actual plant values, do not copy verbatim):
+"1. **Full-cycle time study.** I will time and categorise every minute of 50 consecutive truck cycles across the full operating day — not averages, but the complete distribution showing where variation concentrates.
+
+Drivers behave differently when observed by someone they report to. An internal measurement captures what people do when they know they are being watched, not the actual pattern that produces the current ${dx.tat_actual}-minute average. I will observe without advance notice to individual drivers, which is the only way to capture the real cycle.
+
+The output is a precise breakdown of the $${monthlyGap.toLocaleString('en-US')}/month gap by cause — showing which single intervention returns the most within 30 days and which changes require longer implementation."
 
 ## Next Step
 One short paragraph: What this pre-assessment has established (recovery range and basis), what it cannot confirm remotely (2 specific unknowns), and the on-site assessment as the logical next step. Not a sales pitch.`
