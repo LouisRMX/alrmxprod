@@ -366,7 +366,7 @@ CRITICAL CONSTRAINTS FOR PRE-ASSESSMENT:
 PLANT DATA (self-reported, not verified):
 Turnaround: ${dx.tat_actual} min (target: ${dx.tat_target} min)
 ${dx.management_context ? `Plant manager's stated challenge: "${dx.management_context}"
-Note: Reference this in paragraph 1 to anchor the opening in what the plant already observes. Paraphrase, do not quote verbatim.` : ''}
+Note: This is self-reported by the plant, not independently observed. Frame as "The plant reports..." or "Plant management identifies..." Never present it as an assessment finding or external observation. Use it to provide context, not as evidence. Paraphrase, do not quote verbatim.` : ''}
 Dispatch coordination: managed via ${dx.performance_gaps['dispatch'] ? 'manual tools' : 'unknown method'} (dispatch is a mechanism that explains WHY turnaround is high, not a separate metric)
 Rejection rate: ${dx.reject_pct}% (target: <3%)
 Utilisation: ${dx.utilization_pct}% (target: 85%) — consequence of turnaround and fleet size, not an independent cause
@@ -410,7 +410,7 @@ Fleet: ${dx.trucks_effective} effective trucks of ${dx.trucks_total} assigned
 Observed signals: ${dx.observed_signals.join(' · ') || 'none'}
 Inferred signals: ${dx.inferred_signals.join(' · ') || 'none'}
 ${dx.management_context ? `Plant manager's stated challenge: "${dx.management_context}"
-Note: Reference this in paragraph 1 to anchor the opening in what the plant already observes. Paraphrase, do not quote verbatim.` : ''}
+Note: This is self-reported by the plant, not independently observed. Frame as "The plant reports..." or "Plant management identifies..." Never present it as an assessment finding or external observation. Use it to provide context, not as evidence. Paraphrase, do not quote verbatim.` : ''}
 ${buildIdleSignal(answers)}
 ${benchmarks ? buildMarketContext(benchmarks) : ''}
 WRITE EXACTLY THREE PARAGRAPHS. No headings. No bullets. No labels.
