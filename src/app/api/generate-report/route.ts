@@ -701,7 +701,9 @@ Next Step, heading on its own line: Exactly 3 sentences (confirmed, what on-site
 - Do NOT recommend specific operational fixes (retarder protocols, demurrage enforcement, maintenance schedules). These require on-site verification.
 - All actions must be preparation or measurement actions.
 - If utilisation is below target, do not present it as an independent problem. Explain it as the mathematical consequence of the turnaround and fleet combination. ${dx.utilization_pct}% utilisation is what a ${dx.tat_actual}-minute turnaround produces with this fleet size. It is a symptom, not a separate cause.
-- DATA SOURCE DISCIPLINE: Never present the plant's own qualitative descriptions as confirmed findings. Frame all qualitative inputs as hypotheses to be tested during data collection. Instead of "The plant reports losing X hours", write "Drivers should record [specific measurement] to verify whether [the reported pattern] is consistent across sites or concentrated at specific customers."
+- DATA SOURCE DISCIPLINE: Never present the plant's own qualitative descriptions as confirmed findings. Frame all qualitative inputs as hypotheses to be tested during data collection.
+  WRONG: "The plant reports losing 2-3 productive hours each morning due to sites not being ready for delivery."
+  RIGHT: "Drivers should record actual site arrival time and discharge start time for every morning delivery. This will verify whether delays are concentrated in early hours or distributed across the day, and whether specific sites are responsible."
 
 You are writing the Preparation section of a Pre-Assessment Report for ${dx.plant_name} in ${dx.country}. Based on self-reported data. No on-site visit done.
 
