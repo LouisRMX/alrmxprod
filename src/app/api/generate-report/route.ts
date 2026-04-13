@@ -570,6 +570,9 @@ Paragraph 1: Go deeper than the executive summary. Explain the mechanism: why do
 
 ${dx.primary_constraint === 'Fleet' || dx.primary_constraint === 'Logistics' ? `Paragraph 2: Present three ranked cause hypotheses. Use **bold** labels.
 RULE: Never include "loading bay constraints" or "batching cycle misalignment" as hypotheses unless the plant data specifically references production stops or loading delays. Generic RMX problems with no connection to the plant's reported data must not appear.
+RULE: Never cite the plant's own quantified claims (e.g. "2-3 hours", "every morning") as evidence in a hypothesis. Describe the mechanism, not the plant's words.
+  WRONG: "Most likely: Site readiness delays drive morning productivity loss, as the plant reports losing 2-3 hours when construction sites are unprepared."
+  RIGHT: "Most likely: Site readiness delays appear to drive morning productivity loss. Trucks arriving before construction sites are prepared for delivery, particularly during peak morning hours. Whether this pattern is consistent across all sites or concentrated at specific customers requires on-site verification."
 
 ${hasBothQueueAndIdle ? `The plant reports both site queuing AND idle periods.
 

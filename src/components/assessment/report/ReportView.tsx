@@ -2096,6 +2096,8 @@ function FullReportDrawer({
               bullets.push({ label: 'Turnaround', value: `${calcResult.ta} min vs ${calcResult.TARGET_TA} min target \u2193` })
             if (calcResult.rejectPct > 3)
               bullets.push({ label: 'Reject rate', value: `${Math.round(calcResult.rejectPct * 10) / 10}% \u2193` })
+            else if (calcResult.rejectPct > 0)
+              bullets.push({ label: 'Reject rate', value: `${Math.round(calcResult.rejectPct * 10) / 10}% \u2713` })
             if (Math.round(calcResult.util * 100) < 80)
               bullets.push({ label: 'Utilisation', value: `${Math.round(calcResult.util * 100)}% vs ${calcResult.utilisationTarget}% target \u2193` })
             return (
