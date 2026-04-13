@@ -47,8 +47,8 @@ function cell(text: string, opts: { bold?: boolean; color?: string; bg?: string;
   })
 }
 
-function fmt(n: number): string { return '$' + n.toLocaleString() }
-function fmtK(n: number): string { return n >= 1000 ? `$${Math.round(n / 1000)}k` : `$${n}` }
+function fmt(n: number): string { return '$' + n.toLocaleString('en-US') }
+function fmtK(n: number): string { return n >= 1000 ? `$${Math.round(n / 1000).toLocaleString('en-US')}k` : `$${n.toLocaleString('en-US')}` }
 
 function textParas(text: string): Paragraph[] {
   return text.split('\n\n').filter(Boolean).map(p =>
@@ -113,7 +113,8 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
     const hi = dx.combined_recovery_range.hi
     const loK = Math.round(lo / 1000)
     const hiK = Math.round(hi / 1000)
-    const rangePattern = /\$\d{1,3}k\s*[-–]\s*\$\d{1,3}k\/month|\$\d{1,3}k\s*[-–]\s*\$\d{1,3}k\s*per month|\$[\d,]+\s*[-–]\s*\$[\d,]+\s*\/month|\$[\d,]+\s*[-–]\s*\$[\d,]+\s*per month/gi
+    // Catches: $54k-$88k/month, $54,361-$88,336/month, $111k–$160k monthly range, $54k to $88k per month
+    const rangePattern = /\$[\d,.]+k?\s*[-–]\s*\$[\d,.]+k?\s*(?:\/month|per month|monthly\s*\w*)/gi
     const authoritativeRange = `$${loK}k-$${hiK}k/month`
     const sanitize = (text: string) => text.replace(rangePattern, authoritativeRange)
     const ct = dx.calc_trace
@@ -174,7 +175,7 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
       { label: 'TURNAROUND', value: `${dx.tat_actual} min`, sub: `target: ${dx.tat_target} min` },
       { label: 'UTILISATION', value: `${dx.utilization_pct}%`, sub: 'target: 85%' },
       { label: 'REJECTION', value: `${dx.reject_pct}%`, sub: 'target: <3%' },
-      { label: 'CONSTRAINT', value: constraint, sub: isPre ? `Likely: ${constraint}` : `${fmtK(dx.main_driver.amount)}/month` },
+      { label: 'CONSTRAINT', value: isPre ? 'To be confirmed' : constraint, sub: isPre ? `Likely: ${dx.main_driver.dimension || 'Fleet turnaround'}` : `${fmtK(dx.main_driver.amount)}/month` },
     ]
     children.push(new Table({
       width: { size: 9840, type: WidthType.DXA }, columnWidths: [2460, 2460, 2460, 2460],
@@ -241,7 +242,7 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
     }))
 
     children.push(new Paragraph({ spacing: { before: 80, after: 60 }, children: [
-      new TextRun({ text: 'No additional trucks or plant investment required to achieve this output.', size: 18, color: GRAY, italics: true }),
+      new TextRun({ text: `Contribution margin: $${ct.margin_per_m3}/m\u00B3. No additional trucks or plant investment required to achieve this output.`, size: 18, color: GRAY, italics: true }),
     ]}))
 
     // Trips per truck
@@ -369,6 +370,12 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
           ]})),
         ],
       }))
+
+      // Explain what each classification means
+      const lossTotal = dx.loss_breakdown_detail.reduce((s, l) => s + l.amount, 0)
+      children.push(new Paragraph({ spacing: { before: 60, after: 40 }, children: [
+        new TextRun({ text: `Throughput loss: volume that cannot be delivered due to the active constraint. Additive leakage: costs that stack independently (material waste, breakdowns). Total identified: ${fmt(lossTotal)}/month.`, size: 16, color: GRAY }),
+      ]}))
     }
 
     // ════════════════════════════════════════════════════════════════════

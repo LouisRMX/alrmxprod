@@ -372,6 +372,12 @@ Rejection rate: ${dx.reject_pct}% (target: <3%)
 Utilisation: ${dx.utilization_pct}% (target: 85%) — consequence of turnaround and fleet size, not an independent cause
 Fleet: ${dx.trucks_effective} effective trucks of ${dx.trucks_total} assigned
 
+AUTHORITATIVE FINANCIAL FIGURES (use ONLY these, do not calculate your own):
+Contribution margin: $${dx.calc_trace.margin_per_m3}/m3
+Monthly gap: ${dx.calc_trace.gap_monthly_m3} m3/month = $${Math.round(dx.calc_trace.gap_monthly_m3 * dx.calc_trace.margin_per_m3).toLocaleString('en-US')}/month
+Recovery range (40-65%): $${Math.round(dx.combined_recovery_range.lo / 1000).toLocaleString('en-US')}k-$${Math.round(dx.combined_recovery_range.hi / 1000).toLocaleString('en-US')}k/month
+Do NOT invent alternative ranges or revenue figures. Use only the recovery range above.
+
 WRITE EXACTLY TWO PARAGRAPHS. No headings. No bullets.
 Paragraph 1: What the reported data suggests about where margin is being lost. Name the likely area but frame as directional. Use actual numbers vs targets. If the plant manager's stated challenge is available, anchor the opening in it.
 Paragraph 2: What cannot be determined remotely. Name 2-3 things the on-site assessment will clarify. End with one sentence framing the on-site visit as the logical next step.`
@@ -479,8 +485,10 @@ Rejection rate: ${dx.reject_pct}% (target: <3%)
 Utilisation: ${dx.utilization_pct}% (target: 85%)
 Fleet: ${dx.trucks_effective} effective trucks of ${dx.trucks_total} assigned
 
+IMPORTANT: The reader has already read the executive summary. Do not repeat the same observations or restate metrics they have already seen. Add new analytical depth, not a second summary.
+
 WRITE EXACTLY TWO PARAGRAPHS. No headings. No bullets.
-Paragraph 1: What the numbers suggest about performance. Name the 1-2 dimensions furthest from target. Use actual numbers.
+Paragraph 1: Go deeper than the executive summary. Explain the mechanism: why does this gap exist? What systemic factor connects the metrics? Do not re-list TAT vs target or utilisation vs target — the reader already knows.
 Paragraph 2: What the on-site assessment will determine. Name 2-3 operational questions that can only be answered by observing the plant.`
   }
 
