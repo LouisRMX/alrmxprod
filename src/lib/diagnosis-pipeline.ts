@@ -458,6 +458,7 @@ export interface ValidatedDiagnosis {
   // Calculation trace (single source of truth, all downstream must reference these)
   calc_trace: {
     fleet_daily_m3: number
+    fleet_target_daily_m3: number // fleet capacity at target TAT (before plant cap)
     plant_daily_m3: number
     actual_daily_m3: number
     target_daily_m3: number       // min(fleet@target, plant) - the achievable ceiling
@@ -612,6 +613,7 @@ export function buildValidatedDiagnosis(
       gap_monthly_m3: gapMonthlyM3,
       margin_per_m3: r.contribSafe,
       throughput_loss_usd: Math.round(gapMonthlyM3 * r.contribSafe),
+      fleet_target_daily_m3: targetFleetM3,
       trips_per_truck: tripsPerTruck,
       trips_per_truck_target: tripsTarget,
     }

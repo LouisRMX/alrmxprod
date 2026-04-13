@@ -525,6 +525,9 @@ Paragraph 3: What to monitor. One or two dimensions most likely to slip first.`
     const hasSiteWaitSignal = /wait|queue|site|ready|morning|idle|stuck/.test(mgmtCtx)
     const hasIdleSignal = /regularly|every day/.test(idleSignal)
     const hasBothQueueAndIdle = hasSiteWaitSignal && hasIdleSignal
+    // Conflicting constraints: TAT excess AND plant can't keep up at target TAT
+    const tatExcessPct = dx.tat_target > 0 ? tatExcess / dx.tat_target : 0
+    const hasConflictingConstraints = tatExcessPct > 0.2 && ct.plant_daily_m3 < ct.fleet_target_daily_m3
 
     return `${RULES}
 
@@ -554,6 +557,8 @@ Fleet: ${dx.trucks_effective} effective trucks of ${dx.trucks_total} assigned
 ${dx.management_context ? `Plant manager's stated challenge: "${dx.management_context}"` : ''}
 ${buildIdleSignal(answers)}
 ${buildDispatchContext(answers)}
+
+${hasConflictingConstraints ? `CONFLICTING CONSTRAINTS DETECTED: Remote data shows both a TAT excess of ${tatExcess} minutes AND a production capacity (${ct.plant_daily_m3} m3/day) that cannot fully meet fleet demand at target TAT (${ct.fleet_target_daily_m3} m3/day). The on-site assessment will determine which constraint delivers the greater return when addressed first. Acknowledge both signals in the analysis.` : ''}
 
 IMPORTANT: The reader has already read the executive summary. Do not repeat the same observations or restate metrics they have already seen. Add new analytical depth, not a second summary.
 

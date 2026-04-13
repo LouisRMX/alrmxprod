@@ -250,11 +250,10 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
     children.push(...sectionHeader(isPre ? 'What the Data Suggests' : 'Executive Summary', 'Executive Section'))
 
     // Key metrics table
-    // For pre-assessment: if TAT excess > 20%, always show "Fleet coordination"
-    // regardless of which dimension the calc engine identifies as primary loss driver
     const tatExcessPct = dx.tat_target > 0 ? (dx.tat_actual - dx.tat_target) / dx.tat_target : 0
+    const hasConflictingConstraints = isPre && tatExcessPct > 0.2 && ct.plant_daily_m3 < ct.fleet_target_daily_m3
     const constraintLabel = isPre
-      ? (tatExcessPct > 0.2 ? 'Fleet coordination' : (dx.main_driver.dimension === 'Fleet' ? 'Fleet coordination' : dx.main_driver.dimension || 'Fleet turnaround'))
+      ? (hasConflictingConstraints ? 'Conflicting signals \u2014 to confirm' : tatExcessPct > 0.2 ? 'Fleet coordination' : (dx.main_driver.dimension === 'Fleet' ? 'Fleet coordination' : dx.main_driver.dimension || 'Fleet turnaround'))
       : (dx.main_driver.dimension || dx.primary_constraint)
     const metricsRow = [
       { label: 'TURNAROUND', value: `${dx.tat_actual} min`, sub: `target: ${dx.tat_target} min` },
