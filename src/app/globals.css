@@ -75,6 +75,19 @@ body {
   }
 }
 
+/* AI report prose — rendered with react-markdown */
+.ai-prose p { margin: 0 0 0.8em 0; }
+.ai-prose p:last-child { margin-bottom: 0; }
+.ai-prose h2, .ai-prose h3 { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; color: var(--gray-900); margin: 1.2em 0 0.4em 0; }
+.ai-prose h2:first-child, .ai-prose h3:first-child { margin-top: 0; }
+.ai-prose strong { font-weight: 600; color: var(--gray-900); }
+.ai-prose ol, .ai-prose ul { margin: 0.4em 0 0.8em 1.4em; padding: 0; }
+.ai-prose li { margin-bottom: 0.3em; }
+.ai-prose li p { margin: 0; display: inline; }
+.ai-prose table { border-collapse: collapse; width: 100%; margin: 0.6em 0; font-size: 12px; }
+.ai-prose th, .ai-prose td { border: 1px solid var(--gray-300); padding: 6px 10px; text-align: left; }
+.ai-prose th { background: var(--gray-100); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; }
+
 @media print {
   nav, header, .mode-tabs, .score-live-panel,
   [data-hide-print], button { display: none !important; }

@@ -10,7 +10,7 @@ import { buildValidatedDiagnosis, type ValidatedDiagnosis } from '@/lib/diagnosi
 import { benchmarkTag, liveBenchmarkTag, gcQuartile, type LiveBenchmarkData } from '@/lib/benchmarks'
 import { useBenchmarks } from '@/hooks/useBenchmarks'
 import { useIsMobile } from '@/hooks/useIsMobile'
-import { stripMarkdown } from '@/lib/stripMarkdown'
+import ReactMarkdown from 'react-markdown'
 import FindingCard from './FindingCard'
 import ExportWord from './ExportWord'
 import PriorityMatrixView from './PriorityMatrixView'
@@ -148,12 +148,13 @@ function AISection({
           }}
         />
       ) : generating ? (
-        <div style={{ fontSize: '13px', color: 'var(--gray-700)', lineHeight: 1.8, whiteSpace: 'pre-wrap', minHeight: `${minHeight}px` }}>
-          {text}<span style={{ animation: 'blink 1s infinite', color: 'var(--green)' }}>▊</span>
+        <div className="ai-prose" style={{ fontSize: '13px', color: 'var(--gray-700)', lineHeight: 1.8, minHeight: `${minHeight}px` }}>
+          <ReactMarkdown>{text}</ReactMarkdown>
+          <span style={{ animation: 'blink 1s infinite', color: 'var(--green)' }}>▊</span>
         </div>
       ) : text ? (
-        <div style={{ fontSize: '13px', color: 'var(--gray-700)', lineHeight: 1.8, whiteSpace: 'pre-wrap' }}>
-          {text}
+        <div className="ai-prose" style={{ fontSize: '13px', color: 'var(--gray-700)', lineHeight: 1.8 }}>
+          <ReactMarkdown>{text}</ReactMarkdown>
         </div>
       ) : (
         <div style={{
@@ -3145,9 +3146,9 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
 
   // ── AI section state ─────────────────────────────────────────────────────
   const [texts, setTexts] = useState({
-    executive: stripMarkdown(report?.executive || ''),
-    diagnosis: stripMarkdown(report?.diagnosis || ''),
-    actions:   stripMarkdown(report?.actions || ''),
+    executive: report?.executive || '',
+    diagnosis: report?.diagnosis || '',
+    actions:   report?.actions || '',
   })
   const [generating, setGenerating] = useState<string | null>(null)
   const [genError, setGenError] = useState<string | null>(null)
@@ -3192,11 +3193,10 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
   }), [dx, answers, phase, calcResult])
 
   const saveSection = useCallback(async (section: string, text: string) => {
-    const clean = stripMarkdown(text)
-    setTexts(prev => ({ ...prev, [section]: clean }))
+    setTexts(prev => ({ ...prev, [section]: text }))
     await supabase.from('reports').upsert({
       assessment_id: assessmentId,
-      [section]: clean,
+      [section]: text,
       edited: true,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'assessment_id' })
@@ -3228,7 +3228,7 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
         const { done, value } = await reader.read()
         if (done) break
         accumulated += decoder.decode(value, { stream: true })
-        setTexts(prev => ({ ...prev, [section]: stripMarkdown(accumulated) }))
+        setTexts(prev => ({ ...prev, [section]: accumulated }))
       }
 
       if (!accumulated.trim()) throw new Error('Empty response, AI returned no content')

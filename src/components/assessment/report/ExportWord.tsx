@@ -50,35 +50,111 @@ function cell(text: string, opts: { bold?: boolean; color?: string; bg?: string;
 function fmt(n: number): string { return '$' + n.toLocaleString('en-US') }
 function fmtK(n: number): string { return n >= 1000 ? `$${Math.round(n / 1000).toLocaleString('en-US')}k` : `$${n.toLocaleString('en-US')}` }
 
-function textParas(text: string): Paragraph[] {
-  return text.split('\n\n').filter(Boolean).map(p =>
-    new Paragraph({ spacing: { after: 120 }, children: [new TextRun({ text: p.trim(), size: 20, color: DARK })] })
-  )
-}
-
-function actionParas(text: string): Paragraph[] {
-  const lines = text.split('\n').filter(l => l.trim())
-  const result: Paragraph[] = []
-  for (const line of lines) {
-    const numbered = line.match(/^(\d+)\.\s*(.+)$/)
-    if (numbered) {
-      const boldMatch = numbered[2].match(/^([^:]+):\s*(.+)$/)
-      if (boldMatch) {
-        result.push(new Paragraph({ spacing: { after: 80 }, indent: { left: 360 }, children: [
-          new TextRun({ text: `${numbered[1]}. ${boldMatch[1]}: `, bold: true, size: 20 }),
-          new TextRun({ text: boldMatch[2], size: 20 }),
-        ]}))
-      } else {
-        result.push(new Paragraph({ spacing: { after: 80 }, indent: { left: 360 }, children: [new TextRun({ text: `${numbered[1]}. ${numbered[2]}`, size: 20 })] }))
-      }
-    } else if (line.match(/^(Immediate|Short-term|Validation|Next Step|Before|Sequencing|Critical|What to|Warning)/)) {
-      result.push(new Paragraph({ heading: HeadingLevel.HEADING_2, children: [new TextRun(line.trim())] }))
-    } else {
-      result.push(new Paragraph({ spacing: { after: 100 }, children: [new TextRun({ text: line.trim(), size: 20 })] }))
+// Parse inline markdown (bold, italic) into TextRun children
+function inlineRuns(text: string, baseOpts: { size?: number; color?: string } = {}): TextRun[] {
+  const runs: TextRun[] = []
+  const size = baseOpts.size || 20
+  const color = baseOpts.color || DARK
+  // Split on **bold** and *italic* markers
+  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/)
+  for (const part of parts) {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      runs.push(new TextRun({ text: part.slice(2, -2), bold: true, size, color, font: 'Calibri' }))
+    } else if (part.startsWith('*') && part.endsWith('*')) {
+      runs.push(new TextRun({ text: part.slice(1, -1), italics: true, size, color, font: 'Calibri' }))
+    } else if (part) {
+      runs.push(new TextRun({ text: part, size, color, font: 'Calibri' }))
     }
   }
+  return runs
+}
+
+// Convert markdown text to Word paragraphs and tables
+function markdownToParas(text: string): (Paragraph | Table)[] {
+  const result: (Paragraph | Table)[] = []
+  const blocks = text.split(/\n{2,}/)
+
+  for (const block of blocks) {
+    const trimmed = block.trim()
+    if (!trimmed) continue
+
+    // Heading: ## or ###
+    const headingMatch = trimmed.match(/^(#{2,3})\s+(.+)$/)
+    if (headingMatch) {
+      const level = headingMatch[1].length === 2 ? HeadingLevel.HEADING_2 : HeadingLevel.HEADING_3
+      result.push(new Paragraph({ heading: level, spacing: { before: 200 }, children: [new TextRun(headingMatch[2])] }))
+      continue
+    }
+
+    // Markdown table
+    if (trimmed.includes('|') && trimmed.split('\n').length >= 2) {
+      const rows = trimmed.split('\n').filter(r => r.trim() && !r.trim().match(/^\|[-:| ]+\|$/))
+      if (rows.length >= 2 && rows[0].includes('|')) {
+        const parseRow = (r: string) => r.split('|').map(c => c.trim()).filter(Boolean)
+        const headerCells = parseRow(rows[0])
+        const tableRows: TableRow[] = []
+        tableRows.push(new TableRow({
+          children: headerCells.map(h => cell(h, { bold: true, bg: LIGHT, size: 18 })),
+        }))
+        for (let i = 1; i < rows.length; i++) {
+          const cells = parseRow(rows[i])
+          tableRows.push(new TableRow({
+            children: cells.map(c => {
+              const runs = inlineRuns(c, { size: 18 })
+              return new TableCell({
+                borders,
+                margins: { top: 40, bottom: 40, left: 80, right: 80 },
+                children: [new Paragraph({ children: runs })],
+              })
+            }),
+          }))
+        }
+        result.push(new Table({ rows: tableRows, width: { size: 9000, type: WidthType.DXA } }))
+        result.push(new Paragraph({ spacing: { after: 80 }, children: [] }))
+        continue
+      }
+    }
+
+    // Numbered list items (may span multiple lines in one block)
+    const lines = trimmed.split('\n')
+    if (lines[0].match(/^\d+\.\s/)) {
+      for (const line of lines) {
+        const numbered = line.match(/^\d+\.\s*(.+)$/)
+        if (numbered) {
+          result.push(new Paragraph({
+            spacing: { after: 80 }, indent: { left: 360 },
+            children: inlineRuns(numbered[1]),
+          }))
+        }
+      }
+      continue
+    }
+
+    // Bullet list items
+    if (lines[0].match(/^[-*]\s/)) {
+      for (const line of lines) {
+        const bullet = line.match(/^[-*]\s+(.+)$/)
+        if (bullet) {
+          result.push(new Paragraph({
+            spacing: { after: 60 }, indent: { left: 360 },
+            children: [new TextRun({ text: '  \u2022  ', size: 20 }), ...inlineRuns(bullet[1])],
+          }))
+        }
+      }
+      continue
+    }
+
+    // Regular paragraph
+    const paraText = lines.join(' ').trim()
+    result.push(new Paragraph({ spacing: { after: 120 }, children: inlineRuns(paraText) }))
+  }
+
   return result
 }
+
+// Legacy aliases
+function textParas(text: string): (Paragraph | Table)[] { return markdownToParas(text) }
+function actionParas(text: string): (Paragraph | Table)[] { return markdownToParas(text) }
 
 function sectionHeader(text: string, audience: string): Paragraph[] {
   return [

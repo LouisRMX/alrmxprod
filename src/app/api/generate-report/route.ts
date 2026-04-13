@@ -1,7 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
 import { checkRateLimit, checkSpendCap, trackSpend } from '@/lib/rate-limit'
-import { stripMarkdown } from '@/lib/stripMarkdown'
 import { NextRequest, NextResponse } from 'next/server'
 import type { ValidatedDiagnosis } from '@/lib/diagnosis-pipeline'
 import type { Answers } from '@/lib/calculations'
@@ -120,7 +119,7 @@ export async function POST(req: NextRequest) {
           trackSpend(user.id)
 
           if (assessmentId !== 'demo') {
-            const fullText = stripMarkdown(await response.finalText())
+            const fullText = (await response.finalText()).trim()
             await supabase.from('reports').upsert({
               assessment_id: assessmentId,
               [type]: fullText,
@@ -345,7 +344,7 @@ RULES:
 
 function buildExecutivePrompt(dx: ValidatedDiagnosis, answers: Answers, phase: string, benchmarks: BenchmarkContext | null = null) {
   const RULES = `RULES:
-- Plain text only. No markdown, no asterisks, no bold, no headings with #, no bullet dashes, no numbered lists.
+- Use markdown for structure: **bold** for key figures, ## for section headings, numbered lists where appropriate. Use tables (markdown format) for comparisons.
 - Never invent data. Use only the figures provided.
 - Do NOT repeat revenue figures or bullet metrics, those are already shown above this text in the UI.
 - No jargon. Banned: optimize, leverage, streamline, robust, synergy, utilize, actionable, deep dive.
@@ -378,6 +377,17 @@ Paragraph 3: What to monitor. One or two areas that could slip if not actively m
   if (phase === 'workshop') {
     const lo = dx.total_loss_range?.lo ?? Math.round(dx.total_loss * 0.7)
     const hi = dx.total_loss_range?.hi ?? Math.round(dx.total_loss * 1.3)
+    const ct = dx.calc_trace
+    // Truck-days reframe: how many trucks could deliver the same output at target TAT
+    const trucksNeeded = ct.trips_per_truck_target > 0
+      ? Math.round(dx.trucks_effective * ct.trips_per_truck / ct.trips_per_truck_target * 10) / 10
+      : 0
+    // Lost trips = (target - actual) * trucks → equivalent parked trucks
+    const lostTripsPerDay = Math.round((ct.trips_per_truck_target - ct.trips_per_truck) * dx.trucks_effective * 10) / 10
+    const parkedEquivalent = ct.trips_per_truck_target > 0
+      ? Math.round(lostTripsPerDay / ct.trips_per_truck_target * 10) / 10
+      : 0
+
     return `${RULES}
 
 You are writing the initial analysis section of a Pre-Assessment Report for ${dx.plant_name} in ${dx.country}.
@@ -402,14 +412,29 @@ Utilisation: ${dx.utilization_pct}% (target: 85%) — consequence of turnaround 
 Fleet: ${dx.trucks_effective} effective trucks of ${dx.trucks_total} assigned
 
 AUTHORITATIVE FINANCIAL FIGURES (use ONLY these, do not calculate your own):
-Contribution margin: $${dx.calc_trace.margin_per_m3}/m3
-Monthly gap: ${dx.calc_trace.gap_monthly_m3} m3/month = $${Math.round(dx.calc_trace.gap_monthly_m3 * dx.calc_trace.margin_per_m3).toLocaleString('en-US')}/month
+Contribution margin: $${ct.margin_per_m3}/m3
+Monthly gap: ${ct.gap_monthly_m3} m3/month = $${Math.round(ct.gap_monthly_m3 * ct.margin_per_m3).toLocaleString('en-US')}/month
 Recovery range (40-65%): $${Math.round(dx.combined_recovery_range.lo / 1000).toLocaleString('en-US')}k-$${Math.round(dx.combined_recovery_range.hi / 1000).toLocaleString('en-US')}k/month
 Do NOT invent alternative ranges or revenue figures. Use only the recovery range above.
 
-WRITE EXACTLY TWO PARAGRAPHS. No headings. No bullets.
-Paragraph 1: What the reported data suggests about where margin is being lost. Name the likely area but frame as directional. Use actual numbers vs targets. If the plant manager's stated challenge is available, anchor the opening in it.
-Paragraph 2: What cannot be determined remotely. Name 2-3 things the on-site assessment will clarify. End with one sentence framing the on-site visit as the logical next step.`
+OPERATIONAL REFRAME (use these exact numbers):
+Trips per truck per day: ${ct.trips_per_truck} actual vs ${ct.trips_per_truck_target} target
+Daily output: ${ct.actual_daily_m3} m3/day actual vs ${ct.target_daily_m3} m3/day target
+Lost trips per day (fleet-wide): ${lostTripsPerDay}
+Equivalent parked trucks: ${parkedEquivalent} (i.e. ${trucksNeeded} trucks at target coordination would deliver what ${dx.trucks_effective} deliver today)
+
+STRUCTURE:
+Paragraph 1: What the reported data suggests about where margin is being lost. Name the likely area but frame as directional. Use actual numbers vs targets. If the plant manager's stated challenge is available, anchor the opening in it. After stating the dollar range, translate the loss into truck-days: "That is the equivalent of parking X trucks every day." Then reframe: "Y trucks at target coordination would deliver the same output Z trucks deliver today."
+
+Paragraph 2: Include a before/after comparison table (markdown table format):
+| Metric | Current | Target |
+|--------|---------|--------|
+| Trips per truck per day | ${ct.trips_per_truck} | ${ct.trips_per_truck_target} |
+| Daily output (m3) | ${ct.actual_daily_m3} | ${ct.target_daily_m3} |
+| Monthly recovery range | - | $${Math.round(dx.combined_recovery_range.lo / 1000)}k-$${Math.round(dx.combined_recovery_range.hi / 1000)}k |
+| Trucks needed at target TAT | ${trucksNeeded} | ${dx.trucks_effective} assigned |
+
+Follow the table with 1-2 sentences on what cannot be determined remotely, and end by framing the on-site visit as the logical next step.`
   }
 
   // ── ON-SITE EXECUTIVE ──
@@ -455,7 +480,7 @@ Paragraph 3: Why this is the binding constraint over the others. One sentence pe
 
 function buildDiagnosisPrompt(dx: ValidatedDiagnosis, answers: Answers, phase: string, benchmarks: BenchmarkContext | null = null) {
   const RULES = `RULES:
-- Plain text only. No markdown, no asterisks, no bold, no headings with #, no bullet dashes.
+- Use markdown for structure: **bold** for key figures and cause labels, ## for section headings where appropriate.
 - Never invent data. Use only the figures provided.
 - All financial figures are POTENTIAL, frame as "up to $X" or "recoverable", never as confirmed losses.
 - No jargon. Banned: optimize, leverage, streamline, robust, synergy, utilize, actionable, deep dive.
@@ -515,10 +540,24 @@ Utilisation: ${dx.utilization_pct}% (target: 85%)
 Fleet: ${dx.trucks_effective} effective trucks of ${dx.trucks_total} assigned
 
 IMPORTANT: The reader has already read the executive summary. Do not repeat the same observations or restate metrics they have already seen. Add new analytical depth, not a second summary.
+${buildIdleSignal(answers)}
+${buildDispatchContext(answers)}
 
-WRITE EXACTLY TWO PARAGRAPHS. No headings. No bullets.
-Paragraph 1: Go deeper than the executive summary. Explain the mechanism: why does this gap exist? What systemic factor connects the metrics? Do not re-list TAT vs target or utilisation vs target — the reader already knows.
-Paragraph 2: What the on-site assessment will determine. Name 2-3 operational questions that can only be answered by observing the plant.`
+STRUCTURE:
+Paragraph 1: Go deeper than the executive summary. Explain the mechanism: why does this gap exist? What systemic factor connects the metrics? Do not re-list TAT vs target or utilisation vs target. The reader already knows.
+
+${dx.primary_constraint === 'Fleet' || dx.primary_constraint === 'Logistics' ? `Paragraph 2: Present three ranked cause hypotheses. Use **bold** labels. Structure:
+
+**Most likely: Dispatch timing.** Trucks dispatched in clusters creating peak bunching and idle periods on the same day. Explain the mechanism in one sentence using the plant's data.
+
+**Second likely: Site readiness.** Trucks arriving before sites are ready, extending the site wait component of turnaround. Explain in one sentence.
+
+**Requires on-site verification: Loading efficiency.** Batch cycle time and queue management at the plant cannot be measured remotely.
+
+If the plant reports both queuing AND idle periods on the same day, elevate dispatch timing from hypothesis to confirmed primary cause.
+Adjust the ranking if the plant data contradicts the defaults.` : `Paragraph 2: Present two or three hypotheses for what is driving the identified constraint area. Use **bold** labels: "Most likely:", "Second likely:", "Requires on-site verification:". Each hypothesis gets one sentence explaining the mechanism.`}
+
+Paragraph 3: What the on-site assessment will determine. Name 2-3 operational questions that can only be answered by observing the plant.`
   }
 
   // ── ON-SITE DIAGNOSIS ──
@@ -620,8 +659,11 @@ Next Step, heading on its own line: Exactly 3 sentences (confirmed, what on-site
     const hi = dx.total_loss_range?.hi ?? Math.round(dx.total_loss * 1.3)
     const dispatchGap = dx.performance_gaps['dispatch']
 
+    const ct = dx.calc_trace
+    const tatExcess = dx.tat_actual - dx.tat_target
+
     return `RULES:
-- Plain text only. No markdown, no asterisks, no bold, no headings with #, no bullet dashes.
+- Use markdown for structure: **bold** for key terms, ## for section headings, numbered lists for actions.
 - Never invent data. Use only the figures provided.
 - All financial figures are POTENTIAL RANGES, not confirmed.
 - No jargon. Banned: optimize, leverage, streamline, robust, synergy, utilize, actionable.
@@ -640,26 +682,36 @@ Estimated recoverable range: $${Math.round(lo / 1000)}k-$${Math.round(hi / 1000)
 Recovery basis: gap between actual and target fleet output x $${dx.margin_per_m3}/m3 contribution margin x 40-65% execution range
 Note: Include one sentence in Next Step explaining where the recovery figure comes from. Derived from reported fleet output gap and contribution margin, not an external benchmark.
 Utilisation: ${dx.utilization_pct}% (target: 85%)
-Turnaround: ${dx.tat_actual} min (target: ${dx.tat_target} min)
+Turnaround: ${dx.tat_actual} min (target: ${dx.tat_target} min), excess: ${tatExcess} min
+Trips per truck: ${ct.trips_per_truck} actual vs ${ct.trips_per_truck_target} target
+Fleet: ${dx.trucks_effective} effective trucks
 Dispatch coordination: managed via ${dx.performance_gaps['dispatch'] ? 'manual tools' : 'unknown method'} (dispatch is a mechanism that explains WHY turnaround is high, not a separate metric)
 Rejection rate: ${dx.reject_pct}% (target: <3%)
 ${buildPainContext(dx)}
 ${buildClusteringSignal(answers)}
-WRITE EXACTLY TWO SECTIONS:
+WRITE EXACTLY THREE SECTIONS:
 
-Section 1, heading "Before the on-site visit" on its own line
+## Before the on-site visit
 3 to 5 numbered actions. Each: measurement or data-gathering (not operational fix), zero cost, specific enough to confirm done.
 
-Section 2, heading "Next Step" on its own line
-Exactly 3 sentences:
-Sentence 1: What this pre-assessment has established, the estimated financial range at stake.
-Sentence 2: What it cannot confirm yet. Name 2 specific unknowns requiring on-site observation.
-Sentence 3: The on-site assessment as the natural next step, framed as an observation, not a sales pitch.`
+## What the on-site visit will determine
+Exactly three specific, concrete observations. Use the plant's actual numbers. Structure:
+
+1. **Truck cycle breakdown**: We will time consecutive truck cycles and break down each component: loading queue, loading, transit, site wait, discharge, return. This will show exactly where the ${tatExcess}-minute excess per cycle is physically lost.
+
+2. **Dispatch pattern analysis**: We will observe dispatch decisions across peak-hour periods and map whether trucks are dispatched in clusters or distributed. This will confirm or rule out dispatch timing as the primary driver of the ${dx.tat_actual}-minute turnaround.
+
+3. **Delay cost attribution**: We will calculate the dollar value of each delay component so the plant knows which single change delivers the fastest return on the $${Math.round(lo / 1000)}k-$${Math.round(hi / 1000)}k monthly gap.
+
+Use the actual numbers from the assessment. Never use placeholder values.
+
+## Next Step
+One short paragraph: What this pre-assessment has established (recovery range and basis), what it cannot confirm remotely (2 specific unknowns), and the on-site assessment as the logical next step. Not a sales pitch.`
   }
 
   // ── ON-SITE ACTIONS ──
   const RULES = `RULES:
-- Plain text only. No markdown, no asterisks, no bold, no headings with #, no bullet dashes.
+- Use markdown for structure: **bold** for action titles and urgency labels, ## for section headings, numbered lists for actions.
 - Never invent data. Use only the figures provided.
 - All financial figures are POTENTIAL, frame as "up to $X" or "recoverable", never as confirmed losses.
 - No jargon. Banned: optimize, leverage, streamline, robust, synergy, utilize, actionable.
