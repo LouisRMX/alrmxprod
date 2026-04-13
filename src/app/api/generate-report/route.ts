@@ -82,14 +82,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'ValidatedDiagnosis missing from context' }, { status: 400 })
   }
 
-  const prompts: Record<string, string> = {
-    executive: buildExecutivePrompt(dx, answers, phase, benchmarks),
-    diagnosis: buildDiagnosisPrompt(dx, answers, phase, benchmarks),
-    actions: buildActionsPrompt(dx, answers, phase),
+  let prompt: string
+  try {
+    const prompts: Record<string, string> = {
+      executive: buildExecutivePrompt(dx, answers, phase, benchmarks),
+      diagnosis: buildDiagnosisPrompt(dx, answers, phase, benchmarks),
+      actions: buildActionsPrompt(dx, answers, phase),
+    }
+    prompt = prompts[type]
+    if (!prompt) return NextResponse.json({ error: 'Invalid report type' }, { status: 400 })
+  } catch (err) {
+    console.error('Prompt build error:', err instanceof Error ? err.message : err)
+    return NextResponse.json({ error: `Prompt build failed: ${err instanceof Error ? err.message : 'unknown'}` }, { status: 500 })
   }
-
-  const prompt = prompts[type]
-  if (!prompt) return NextResponse.json({ error: 'Invalid report type' }, { status: 400 })
 
   // Stream the response
   const encoder = new TextEncoder()
@@ -122,6 +127,7 @@ export async function POST(req: NextRequest) {
 
         controller.close()
       } catch (err) {
+        console.error('Report generation error:', err instanceof Error ? err.message : err)
         controller.error(err)
       }
     }
