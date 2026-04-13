@@ -253,12 +253,19 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
     const tatExcessPct = dx.tat_target > 0 ? (dx.tat_actual - dx.tat_target) / dx.tat_target : 0
     const hasConflictingConstraints = isPre && tatExcessPct > 0.2 && ct.plant_daily_m3 < ct.fleet_target_daily_m3
     const constraintLabel = isPre
-      ? (hasConflictingConstraints ? 'Conflicting signals \u2014 to confirm' : tatExcessPct > 0.2 ? 'Fleet coordination' : (dx.main_driver.dimension === 'Fleet' ? 'Fleet coordination' : dx.main_driver.dimension || 'Fleet turnaround'))
+      ? (hasConflictingConstraints ? 'Fleet & capacity \u2014 verify on-site' : tatExcessPct > 0.2 ? 'Fleet coordination' : (dx.main_driver.dimension === 'Fleet' ? 'Fleet coordination' : dx.main_driver.dimension || 'Fleet turnaround'))
       : (dx.main_driver.dimension || dx.primary_constraint)
+    // Opening line for pre-assessment
+    if (isPre) {
+      children.push(new Paragraph({ spacing: { after: 120 }, children: [
+        new TextRun({ text: `Based on your reported data, here is where ${plantName} stands today.`, size: 20, color: DARK }),
+      ]}))
+    }
+
     const metricsRow = [
-      { label: 'TURNAROUND', value: `${dx.tat_actual} min`, sub: `target: ${dx.tat_target} min` },
-      { label: 'UTILISATION', value: `${dx.utilization_pct}%`, sub: 'target: 85%' },
-      { label: 'REJECTION', value: `${dx.reject_pct}%`, sub: 'target: <3%' },
+      { label: 'TURNAROUND', value: `${dx.tat_actual} min`, sub: `target: ${dx.tat_target} min${isPre && dx.tat_actual > dx.tat_target ? ' \u2193' : ''}` },
+      { label: 'UTILISATION', value: `${dx.utilization_pct}%`, sub: `target: 85%${isPre && dx.utilization_pct < 85 ? ' \u2193' : ''}` },
+      { label: 'REJECTION', value: `${dx.reject_pct}%`, sub: `target: <3%${isPre && dx.reject_pct > 3 ? ' \u2193' : ''}` },
       { label: 'CONSTRAINT', value: isPre ? 'To be confirmed' : constraintLabel, sub: isPre ? `Likely: ${constraintLabel}` : `${fmtK(dx.main_driver.amount)}/month` },
     ]
     children.push(new Table({
@@ -313,7 +320,7 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
           cell(`${fmt(ct.target_daily_m3 * ct.working_days_month * ct.margin_per_m3)}/mo`, { width: 3280, align: AlignmentType.CENTER, color: GREEN }),
         ]}),
         new TableRow({ children: [
-          cell('Monthly gap', { bold: true, width: 3280 }),
+          cell('Monthly revenue gap', { bold: true, width: 3280 }),
           cell('-', { width: 3280, align: AlignmentType.CENTER }),
           cell(`+${fmt(ct.gap_monthly_m3 * ct.margin_per_m3)}/month`, { width: 3280, align: AlignmentType.CENTER, bold: true, color: GREEN }),
         ]}),
@@ -453,7 +460,7 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
           ...dx.loss_breakdown_detail.map(l => new TableRow({ children: [
             cell(l.dimension, { width: 4920 }),
             cell(`${fmt(l.amount)}/month`, { width: 2460, align: AlignmentType.CENTER }),
-            cell(l.classification === 'overlapping' ? 'Throughput loss' : l.classification === 'additive' ? 'Additive leakage' : l.classification, { width: 2460, align: AlignmentType.CENTER, color: GRAY }),
+            cell(l.classification === 'overlapping' ? 'Trips you cannot complete' : l.classification === 'additive' ? 'Material cost with no delivery' : l.classification, { width: 2460, align: AlignmentType.CENTER, color: GRAY }),
           ]})),
         ],
       }))
@@ -461,7 +468,7 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
       // Explain what each classification means
       const lossTotal = dx.loss_breakdown_detail.reduce((s, l) => s + l.amount, 0)
       children.push(new Paragraph({ spacing: { before: 60, after: 40 }, children: [
-        new TextRun({ text: `Throughput loss: volume that cannot be delivered due to the active constraint. Additive leakage: costs that stack independently (material waste, breakdowns). Total identified: ${fmt(lossTotal)}/month.`, size: 16, color: GRAY }),
+        new TextRun({ text: `"Trips you cannot complete": deliveries lost because the constraint prevents them. "Material cost with no delivery": waste costs that add up independently (rejected loads, material loss). Total identified: ${fmt(lossTotal)}/month. Figures rounded to nearest $1,000.`, size: 16, color: GRAY }),
       ]}))
     }
 
@@ -527,6 +534,13 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
     } else if (!matrix || matrix.rows.length === 0) {
       children.push(new Paragraph({ spacing: { after: 60 }, children: [
         new TextRun({ text: 'Report not yet generated. Click "Generate report" in the platform before exporting.', size: 18, color: AMBER, italics: true }),
+      ]}))
+    }
+
+    // Fixed closing line (not AI-generated)
+    if (isPre) {
+      children.push(new Paragraph({ spacing: { before: 200, after: 60 }, border: { top: { style: BorderStyle.SINGLE, size: 1, color: 'D4EDDA', space: 8 } }, children: [
+        new TextRun({ text: 'The on-site assessment typically takes 3-5 days. If you would like to proceed, I can have a scope and timeline to you within 48 hours.', size: 20, color: GREEN, italics: true }),
       ]}))
     }
 

@@ -415,8 +415,11 @@ AUTHORITATIVE FINANCIAL FIGURES (use ONLY these, do not calculate your own):
 Contribution margin: $${ct.margin_per_m3}/m3
 Monthly gap: $${(Math.round(ct.gap_monthly_m3 * ct.margin_per_m3 / 1000) * 1000).toLocaleString('en-US')}/month
 Recovery range (40-65%): $${(Math.round(dx.combined_recovery_range.lo / 1000) * 1).toLocaleString('en-US')}k-$${(Math.round(dx.combined_recovery_range.hi / 1000) * 1).toLocaleString('en-US')}k/month
-Do NOT invent alternative ranges or revenue figures. Use only the recovery range above.
-Never introduce any financial figure, range, or dollar amount that is not listed in this AUTHORITATIVE FINANCIAL FIGURES block. If a figure is not here, do not include it in the narrative.
+Do NOT invent alternative ranges or revenue figures. Use only the figures above.
+AUTHORITATIVE FINANCIAL FIGURES ONLY: The only acceptable monthly figures are the monthly gap and recovery range listed above. Any other range is a hallucination.
+  WRONG: "This coordination gap appears to cost between $111,000 and $160,000 per month"
+  RIGHT: "This coordination gap drives a $${(Math.round(ct.gap_monthly_m3 * ct.margin_per_m3 / 1000) * 1000).toLocaleString('en-US')} monthly output gap, with $${(Math.round(dx.combined_recovery_range.lo / 1000) * 1).toLocaleString('en-US')}k-$${(Math.round(dx.combined_recovery_range.hi / 1000) * 1).toLocaleString('en-US')}k recoverable through operational changes"
+If you find yourself writing a dollar range that is not one of the two figures above, stop and delete it.
 
 OPERATIONAL REFRAME (use these exact numbers):
 Trips per truck per day: ${ct.trips_per_truck} actual vs ${ct.trips_per_truck_target} target
@@ -568,23 +571,27 @@ Paragraph 1: Go deeper than the executive summary. Explain the mechanism: why do
 ${dx.primary_constraint === 'Fleet' || dx.primary_constraint === 'Logistics' ? `Paragraph 2: Present three ranked cause hypotheses. Use **bold** labels.
 RULE: Never include "loading bay constraints" or "batching cycle misalignment" as hypotheses unless the plant data specifically references production stops or loading delays. Generic RMX problems with no connection to the plant's reported data must not appear.
 
-${hasBothQueueAndIdle ? `The plant reports both site queuing AND idle periods. This confirms dispatch timing as the primary cause, not a hypothesis.
+${hasBothQueueAndIdle ? `The plant reports both site queuing AND idle periods.
 
-**Confirmed primary cause: Site readiness and dispatch timing.** Trucks are dispatched without real-time knowledge of site readiness, particularly during morning peak when sites are systematically not ready. This creates a predictable daily pattern of wasted truck cycles concentrated in the first operating hours. The plant reports both trucks waiting at sites and periods with no trucks available. This is the signature of cluster dispatching: trucks leave in groups, creating simultaneous site congestion followed by plant idle time. With ${ct.trips_per_truck} trips per truck against a target of ${ct.trips_per_truck_target}, each wasted cycle compounds across ${dx.trucks_effective} trucks.
+RANKING RULE: "Most likely" and "Second likely" must be site coordination and dispatch timing. Production capacity belongs ONLY in "Requires on-site verification". Never place production batching, loading efficiency, or capacity constraints in Most likely or Second likely when site readiness or dispatch signals are present.
+
+**Confirmed primary cause: Site coordination failures.** Trucks are dispatched without real-time knowledge of site readiness, particularly during morning peak when sites are systematically not ready. The plant reports both trucks waiting at sites and periods with no trucks available. This is the signature of cluster dispatching: trucks leave in groups, creating simultaneous site congestion followed by plant idle time. With ${ct.trips_per_truck} trips per truck against a target of ${ct.trips_per_truck_target}, each wasted cycle compounds across ${dx.trucks_effective} trucks.
 
 **Second likely: Dispatch bunching.** Trucks are dispatched in clusters to the same sites rather than staggered, creating bunching where multiple trucks queue at the same location simultaneously while the plant sits idle waiting for returns.
 
-**Requires on-site verification:** Whether the ${tatExcess}-minute TAT excess is consistent across all sites or concentrated at specific high-volume customers, and whether internal loading sequence contributes to the pattern.` : hasSiteWaitSignal ? `The plant reports challenges related to site waiting or morning delays.
+**Requires on-site verification:** Whether production capacity becomes the binding constraint if TAT improves. At target TAT the fleet would demand ${ct.fleet_target_daily_m3} m3/day but plant capacity is ${ct.plant_daily_m3} m3/day.${hasConflictingConstraints ? ' Both constraints are present in the data. The on-site assessment will determine which delivers the greater return when addressed first.' : ''}` : hasSiteWaitSignal ? `The plant reports challenges related to site waiting or morning delays.
 
-**Most likely: Site readiness.** Trucks are dispatched without real-time knowledge of site readiness, particularly during morning peak when sites are systematically not ready. This creates a predictable daily pattern of wasted truck cycles concentrated in the first operating hours. With a ${tatExcess}-minute turnaround excess across ${dx.trucks_effective} trucks, uncoordinated dispatch amplifies this into the full throughput gap.
+RANKING RULE: "Most likely" and "Second likely" must be site coordination and dispatch timing. Production capacity belongs ONLY in "Requires on-site verification". Never place production batching, loading efficiency, or capacity constraints in Most likely or Second likely when site readiness or dispatch signals are present.
+
+**Most likely: Site coordination failures.** Trucks arriving before sites are ready, particularly during morning peak. This creates a predictable daily pattern of wasted truck cycles concentrated in the first operating hours. With a ${tatExcess}-minute turnaround excess across ${dx.trucks_effective} trucks, uncoordinated dispatch amplifies this into the full throughput gap.
 
 **Second likely: Dispatch bunching.** Trucks dispatched in clusters to the same sites rather than staggered, creating bunching where multiple trucks queue at the same location simultaneously while the plant sits idle waiting for returns.
 
-**Requires on-site verification:** Whether the ${tatExcess}-minute TAT excess is consistent across all sites or concentrated at specific high-volume customers, and whether internal loading sequence contributes to the pattern.` : `**Most likely: Dispatch timing.** Trucks dispatched in clusters creating peak bunching and idle periods on the same day. With a ${tatExcess}-minute turnaround excess across ${dx.trucks_effective} trucks, uncoordinated dispatch is the most common amplifier in GCC ready-mix operations.
+**Requires on-site verification:** Whether production capacity becomes the binding constraint if TAT improves. At target TAT the fleet would demand ${ct.fleet_target_daily_m3} m3/day but plant capacity is ${ct.plant_daily_m3} m3/day.${hasConflictingConstraints ? ' Both constraints are present in the data. The on-site assessment will determine which delivers the greater return when addressed first.' : ''}` : `**Most likely: Dispatch timing.** Trucks dispatched in clusters creating peak bunching and idle periods on the same day. With a ${tatExcess}-minute turnaround excess across ${dx.trucks_effective} trucks, uncoordinated dispatch is the most common amplifier in GCC ready-mix operations.
 
 **Second likely: Site readiness.** Trucks arriving before sites are ready, extending the site wait component of turnaround. Without real-time site status, dispatch decisions are based on assumptions rather than actual readiness.
 
-**Requires on-site verification:** Whether the ${tatExcess}-minute TAT excess is consistent across all sites or concentrated at specific high-volume customers, and whether internal loading sequence contributes to the pattern.`}` : `Paragraph 2: Present two or three hypotheses for what is driving the identified constraint area. Use **bold** labels: "Most likely:", "Second likely:", "Requires on-site verification:". Each hypothesis gets one sentence explaining the mechanism. Never include generic RMX problems (loading bay constraints, batching misalignment) unless the plant data specifically references them. ${dx.management_context ? `Use the plant's reported challenge ("${dx.management_context}") to inform the ranking.` : ''}`}
+**Requires on-site verification:** Whether the ${tatExcess}-minute TAT excess is consistent across all sites or concentrated at specific high-volume customers.${hasConflictingConstraints ? ` Also: whether production capacity (${ct.plant_daily_m3} m3/day) becomes the binding constraint if TAT improves to target (fleet would demand ${ct.fleet_target_daily_m3} m3/day).` : ''}`}` : `Paragraph 2: Present two or three hypotheses for what is driving the identified constraint area. Use **bold** labels: "Most likely:", "Second likely:", "Requires on-site verification:". Each hypothesis gets one sentence explaining the mechanism. Never include generic RMX problems (loading bay constraints, batching misalignment) unless the plant data specifically references them. ${dx.management_context ? `Use the plant's reported challenge ("${dx.management_context}") to inform the ranking.` : ''}`}
 
 Paragraph 3: What the on-site assessment will determine. Name 2-3 operational questions that can only be answered by observing the plant.`
   }
@@ -773,7 +780,10 @@ Drivers behave differently when observed by someone they report to. An internal 
 The output is a precise breakdown of the $${monthlyGap.toLocaleString('en-US')}/month gap by cause — showing which single intervention returns the most within 30 days and which changes require longer implementation."
 
 ## Next Step
-One short paragraph: What this pre-assessment has established (recovery range and basis), what it cannot confirm remotely (2 specific unknowns), and the on-site assessment as the logical next step. Not a sales pitch.`
+One short paragraph: What this pre-assessment has established (recovery range and basis), what it cannot confirm remotely (2 specific unknowns), and the on-site assessment as the logical next step. Not a sales pitch.
+DATA SOURCE DISCIPLINE applies here too. Never present qualitative plant input as a confirmed finding.
+  WRONG: "the reported morning productivity loss of 2-3 hours represents a systematic pattern"
+  RIGHT: "whether the pattern of morning delays the plant describes is consistent across all sites or concentrated at specific customers"`
   }
 
   // ── ON-SITE ACTIONS ──

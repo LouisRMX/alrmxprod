@@ -2068,6 +2068,13 @@ function FullReportDrawer({
             </div>
           )}
 
+          {/* Opening line for pre-assessment */}
+          {isPre && meta?.plant && (
+            <p style={{ fontSize: '13px', color: 'var(--gray-700)', marginBottom: '16px', lineHeight: 1.6 }}>
+              Based on your reported data, here is where {meta.plant} stands today.
+            </p>
+          )}
+
           {/* Executive Snapshot, static key figures */}
           {calcResult.overall !== null && (() => {
             const bnLossDrawer = financialBottleneck
@@ -2081,16 +2088,16 @@ function FullReportDrawer({
               ? (hasConflictingConstraints ? 'Conflicting' : tatExcessPct > 0.2 ? 'Fleet' : financialBottleneck)
               : financialBottleneck
             const bottleneckLabel = effectiveConstraint === 'Conflicting'
-              ? 'Conflicting signals \u2014 to confirm'
+              ? 'Fleet & capacity \u2014 verify on-site'
               : effectiveConstraint === 'Fleet' ? 'Fleet coordination' : (effectiveConstraint ?? '-')
             const bullets: { label: string; value: string }[] = []
             // Dispatch is a mechanism (explains WHY TAT is high), not a standalone metric
             if (calcResult.ta > 0 && calcResult.TARGET_TA > 0 && calcResult.ta > calcResult.TARGET_TA)
-              bullets.push({ label: 'Turnaround', value: `${calcResult.ta} min vs ${calcResult.TARGET_TA} min target` })
+              bullets.push({ label: 'Turnaround', value: `${calcResult.ta} min vs ${calcResult.TARGET_TA} min target \u2193` })
             if (calcResult.rejectPct > 3)
-              bullets.push({ label: 'Reject rate', value: `${Math.round(calcResult.rejectPct * 10) / 10}%` })
+              bullets.push({ label: 'Reject rate', value: `${Math.round(calcResult.rejectPct * 10) / 10}% \u2193` })
             if (Math.round(calcResult.util * 100) < 80)
-              bullets.push({ label: 'Utilisation', value: `${Math.round(calcResult.util * 100)}% vs ${calcResult.utilisationTarget}% target` })
+              bullets.push({ label: 'Utilisation', value: `${Math.round(calcResult.util * 100)}% vs ${calcResult.utilisationTarget}% target \u2193` })
             return (
               <div style={{ marginBottom: '24px' }}>
                 {/* 3-col header */}
@@ -2103,6 +2110,7 @@ function FullReportDrawer({
                     <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.3px', textTransform: 'uppercase', color: '#7ab89a', marginBottom: '4px' }}>Turnaround</div>
                     <div style={{ fontSize: '36px', fontWeight: 800, color: calcResult.ta > calcResult.TARGET_TA ? '#cc6600' : '#1a6644', lineHeight: 1, letterSpacing: '-1px' }}>{calcResult.ta} min</div>
                     <div style={{ fontSize: '10px', color: '#9b9b9b', marginTop: '2px' }}>target: {calcResult.TARGET_TA} min</div>
+                    {isPre && <div style={{ fontSize: '9px', fontWeight: 600, color: calcResult.ta > calcResult.TARGET_TA ? '#cc6600' : '#1a6644', marginTop: '2px' }}>{calcResult.ta > calcResult.TARGET_TA ? '\u2193 Below target' : '\u2713 On target'}</div>}
                     {tatSource === 'measured' && (tatTripCount ?? 0) > 0 && (
                       <div style={{ display: 'inline-block', fontSize: '9px', fontWeight: 600, color: '#1a6644', background: '#e8f5ee', border: '1px solid #b8dfc8', borderRadius: '4px', padding: '1px 6px', marginTop: '4px' }}>
                         Based on {tatTripCount} observed trips
