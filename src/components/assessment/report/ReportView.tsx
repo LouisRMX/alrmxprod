@@ -3202,7 +3202,7 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
     }, { onConflict: 'assessment_id' })
   }, [assessmentId, supabase])
 
-  const generate = useCallback(async (section: string) => {
+  const generate = useCallback(async (section: string): Promise<boolean> => {
     setGenerating(section)
     setGenError(null)
     setTexts(prev => ({ ...prev, [section]: '' }))
@@ -3232,6 +3232,8 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
       }
 
       if (!accumulated.trim()) throw new Error('Empty response, AI returned no content')
+      setGenerating(null)
+      return true
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error'
       if (msg.startsWith('HTTP 5')) {
@@ -3239,16 +3241,25 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
       } else {
         setGenError(`Failed to generate ${section}: ${msg}`)
       }
+      setGenerating(null)
+      return false
     }
-
-    setGenerating(null)
   }, [assessmentId, aiContext])
 
   const generateAll = useCallback(async () => {
+    setGenError(null)
+    const failed: string[] = []
+    const sectionLabels: Record<string, string> = { executive: 'Executive', diagnosis: 'Analysis', actions: 'Actions' }
     for (const section of ['executive', 'diagnosis', 'actions']) {
-      await generate(section)
+      // Skip sections that already have content ("Generate missing")
+      if (texts[section as keyof typeof texts]?.trim()) continue
+      const ok = await generate(section)
+      if (!ok) failed.push(sectionLabels[section] || section)
     }
-  }, [generate])
+    if (failed.length > 0) {
+      setGenError(`Report generation is temporarily unavailable. Please try again in a few minutes. If the issue persists, contact support.`)
+    }
+  }, [generate, texts])
 
   const hasSliders = !!(
     getSliderConfig(calcResult, 'Fleet') ||
