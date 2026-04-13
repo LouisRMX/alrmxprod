@@ -96,39 +96,62 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `Prompt build failed: ${err instanceof Error ? err.message : 'unknown'}` }, { status: 500 })
   }
 
-  // Stream the response
+  // Stream the response with retry on overload (no model fallback)
+  const MAX_RETRIES = 3
+  const RETRY_DELAYS = [2000, 4000, 8000]
+
   const encoder = new TextEncoder()
   const stream = new ReadableStream({
     async start(controller) {
-      try {
-        const response = await anthropic.messages.stream({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 1500,
-          messages: [{ role: 'user', content: prompt }],
-        })
+      for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+        try {
+          const response = await anthropic.messages.stream({
+            model: 'claude-sonnet-4-20250514',
+            max_tokens: 1500,
+            messages: [{ role: 'user', content: prompt }],
+          })
 
-        for await (const chunk of response) {
-          if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') {
-            controller.enqueue(encoder.encode(chunk.delta.text))
+          for await (const chunk of response) {
+            if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') {
+              controller.enqueue(encoder.encode(chunk.delta.text))
+            }
           }
+
+          trackSpend(user.id)
+
+          if (assessmentId !== 'demo') {
+            const fullText = stripMarkdown(await response.finalText())
+            await supabase.from('reports').upsert({
+              assessment_id: assessmentId,
+              [type]: fullText,
+              updated_at: new Date().toISOString(),
+            }, { onConflict: 'assessment_id' })
+          }
+
+          controller.close()
+          return
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err)
+          const isRetryable = msg.includes('overloaded') || msg.includes('Overloaded') || msg.includes('529') || msg.includes('rate_limit') || msg.includes('429')
+
+          if (isRetryable && attempt < MAX_RETRIES - 1) {
+            console.warn(`Report gen attempt ${attempt + 1} failed (${msg.slice(0, 50)}), retrying in ${RETRY_DELAYS[attempt]}ms...`)
+            await new Promise(r => setTimeout(r, RETRY_DELAYS[attempt]))
+            continue
+          }
+
+          if (isRetryable) {
+            // All retries exhausted
+            console.error('Report generation: all retries exhausted', msg)
+            controller.error(new Error('Report generation is temporarily unavailable. Please try again in a few minutes. If the issue persists, contact support.'))
+            return
+          }
+
+          // Non-retryable error
+          console.error('Report generation error:', msg)
+          controller.error(err)
+          return
         }
-
-        trackSpend(user.id)
-
-        // Save to database when complete, skipped for demo override (no persistent record)
-        if (assessmentId !== 'demo') {
-          const fullText = stripMarkdown(await response.finalText())
-          await supabase.from('reports').upsert({
-            assessment_id: assessmentId,
-            [type]: fullText,
-            updated_at: new Date().toISOString(),
-          }, { onConflict: 'assessment_id' })
-        }
-
-        controller.close()
-      } catch (err) {
-        console.error('Report generation error:', err instanceof Error ? err.message : err)
-        controller.error(err)
       }
     }
   })
