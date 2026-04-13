@@ -47,7 +47,11 @@ function cell(text: string, opts: { bold?: boolean; color?: string; bg?: string;
   })
 }
 
-function fmt(n: number): string { return '$' + n.toLocaleString('en-US') }
+function fmt(n: number): string {
+  // Round to nearest $1,000 for values >= $10k (avoids false precision from estimated inputs)
+  const display = n >= 10000 ? Math.round(n / 1000) * 1000 : Math.round(n)
+  return '$' + display.toLocaleString('en-US')
+}
 function fmtK(n: number): string { return n >= 1000 ? `$${Math.round(n / 1000).toLocaleString('en-US')}k` : `$${n.toLocaleString('en-US')}` }
 
 // Parse inline markdown (bold, italic) into TextRun children
@@ -317,8 +321,11 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
       ],
     }))
 
-    children.push(new Paragraph({ spacing: { before: 80, after: 60 }, children: [
+    children.push(new Paragraph({ spacing: { before: 80, after: 20 }, children: [
       new TextRun({ text: `Contribution margin: $${ct.margin_per_m3}/m\u00B3. No additional trucks or plant investment required to achieve this output.`, size: 18, color: GRAY, italics: true }),
+    ]}))
+    children.push(new Paragraph({ spacing: { after: 60 }, children: [
+      new TextRun({ text: 'Figures rounded to nearest $1,000. Totals may vary by $1,000 due to rounding.', size: 16, color: GRAY, italics: true }),
     ]}))
 
     // Trips per truck

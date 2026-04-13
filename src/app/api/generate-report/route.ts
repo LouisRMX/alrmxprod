@@ -491,7 +491,8 @@ function buildDiagnosisPrompt(dx: ValidatedDiagnosis, answers: Answers, phase: s
 - The calc_trace is provided so you can explain the mechanism quantitatively. Use the actual numbers to explain what is happening.
 - If data_quality is "directional" or flags are present, acknowledge the limitation in one sentence. Do not repeat each flag.
 - If TAT breakdown is absent: do not speculate on which component drives the turnaround excess.
-- Never use first person plural. Do not write "we". Write in third person or address the plant directly.`
+- Never use first person plural. Do not write "we". Write in third person or address the plant directly.
+- DATA SOURCE DISCIPLINE: Qualitative inputs from the plant (text fields, operational descriptions, manager observations) must never be presented as confirmed findings or independent evidence. Frame as reported patterns requiring verification. WRONG: "The plant manager's observation indicates this is not random variation." RIGHT: "The plant reports morning productivity loss. Whether this reflects a consistent pattern or site-specific variation will be confirmed during the on-site visit." Apply this discipline to every qualitative reference.`
 
   const performingWell = dx.total_loss === 0 && dx.actions.length === 0 && dx.data_quality !== 'insufficient'
 

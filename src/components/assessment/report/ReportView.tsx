@@ -2073,11 +2073,13 @@ function FullReportDrawer({
             const bnLossDrawer = financialBottleneck
               ? issues.filter(i => i.dimension === financialBottleneck).reduce((s, i) => s + (i.loss ?? 0), 0)
               : 0
-            // For pre-assessment: if TAT excess is significant and TAT-driven loss is the largest,
-            // show "Fleet coordination" even if calculations say "Production" (TAT excess drives the narrative)
+            // For pre-assessment: if TAT excess > 20%, show "Fleet coordination"
+            // regardless of which constraint the calc engine identifies.
+            // Reason: turnaroundLeakMonthly can be 0 when plant is the active constraint
+            // (isFleetConstrained=false), but TAT excess is still the dominant operational problem.
+            // Also check qualitative signals from management context.
             const tatExcessPct = calcResult.TARGET_TA > 0 ? (calcResult.ta - calcResult.TARGET_TA) / calcResult.TARGET_TA : 0
-            const tatDrivesLoss = tatExcessPct > 0.2 && calcResult.turnaroundLeakMonthly >= (calcResult.capLeakMonthly || 0)
-            const effectiveConstraint = (isPre && financialBottleneck === 'Production' && tatDrivesLoss) ? 'Fleet' : financialBottleneck
+            const effectiveConstraint = (isPre && tatExcessPct > 0.2) ? 'Fleet' : financialBottleneck
             const bottleneckLabel = effectiveConstraint === 'Fleet' ? 'Fleet coordination' : (effectiveConstraint ?? '-')
             const bullets: { label: string; value: string }[] = []
             // Dispatch is a mechanism (explains WHY TAT is high), not a standalone metric
