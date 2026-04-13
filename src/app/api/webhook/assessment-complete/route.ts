@@ -61,8 +61,7 @@ export async function POST(req: NextRequest) {
       console.error('Failed to send assessment-complete notification email:', e)
     }
   } else {
-    // Log to console so it's visible in Vercel logs when email is not configured
-    console.log(`[Al-RMX] Pre-assessment submitted: ${plantName} (${country}), assessment ${assessmentId}`)
+    // Email not configured, skip notification silently
   }
 
   return NextResponse.json({ success: true })

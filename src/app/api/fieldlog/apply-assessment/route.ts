@@ -12,11 +12,16 @@ export async function POST(req: NextRequest) {
   }
 
   // Fetch current answers and merge (don't overwrite existing)
+  // Uses user client so RLS enforces ownership. If user doesn't have access, query returns null.
   const { data: current } = await supabase
     .from('assessments')
     .select('answers')
     .eq('id', assessmentId)
     .single()
+
+  if (!current) {
+    return NextResponse.json({ error: 'Assessment not found or access denied' }, { status: 403 })
+  }
 
   const merged = { ...(current?.answers as Record<string, unknown> || {}), ...answers }
 

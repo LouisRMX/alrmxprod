@@ -16,6 +16,22 @@ async function getAuthenticatedUser() {
   return user
 }
 
+// Verify the user is a member of the customer org (or system_admin)
+async function verifyCustomerAccess(userId: string, customerId: string): Promise<boolean> {
+  const admin = getAdminClient()
+  // System admins bypass
+  const { data: profile } = await admin.from('profiles').select('role').eq('id', userId).single()
+  if (profile?.role === 'system_admin') return true
+  // Check membership
+  const { data: member } = await admin
+    .from('customer_members')
+    .select('id')
+    .eq('customer_id', customerId)
+    .eq('user_id', userId)
+    .single()
+  return !!member
+}
+
 // GET /api/action-items?assessmentId=xxx&customerId=xxx
 export async function GET(req: NextRequest) {
   const user = await getAuthenticatedUser()
@@ -25,6 +41,10 @@ export async function GET(req: NextRequest) {
   const assessmentId = searchParams.get('assessmentId')
   const customerId = searchParams.get('customerId')
   if (!assessmentId || !customerId) return NextResponse.json({ error: 'Missing params' }, { status: 400 })
+
+  if (!(await verifyCustomerAccess(user.id, customerId))) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
 
   const admin = getAdminClient()
   const [{ data: items }, { data: membersRaw }] = await Promise.all([
@@ -48,6 +68,18 @@ export async function POST(req: NextRequest) {
   const body = await req.json()
   const admin = getAdminClient()
 
+  // Verify ownership: look up assessment -> plant -> customer, then check membership
+  const assessmentId = Array.isArray(body.items) ? body.items[0]?.assessment_id : body.assessment_id
+  if (assessmentId) {
+    const { data: assess } = await admin.from('assessments').select('plant_id').eq('id', assessmentId).single()
+    if (assess?.plant_id) {
+      const { data: plant } = await admin.from('plants').select('customer_id').eq('id', assess.plant_id).single()
+      if (plant?.customer_id && !(await verifyCustomerAccess(user.id, plant.customer_id))) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
+    }
+  }
+
   if (Array.isArray(body.items)) {
     // Bulk insert (auto-population)
     const { data, error } = await admin.from('action_items').insert(body.items).select('*')
@@ -61,6 +93,18 @@ export async function POST(req: NextRequest) {
   }
 }
 
+// Verify user has access to the action item's customer org
+async function verifyActionItemAccess(userId: string, actionItemId: string): Promise<boolean> {
+  const admin = getAdminClient()
+  const { data: item } = await admin.from('action_items').select('assessment_id').eq('id', actionItemId).single()
+  if (!item?.assessment_id) return false
+  const { data: assess } = await admin.from('assessments').select('plant_id').eq('id', item.assessment_id).single()
+  if (!assess?.plant_id) return false
+  const { data: plant } = await admin.from('plants').select('customer_id').eq('id', assess.plant_id).single()
+  if (!plant?.customer_id) return false
+  return verifyCustomerAccess(userId, plant.customer_id)
+}
+
 // PATCH /api/action-items  — update one item
 export async function PATCH(req: NextRequest) {
   const user = await getAuthenticatedUser()
@@ -68,6 +112,10 @@ export async function PATCH(req: NextRequest) {
 
   const { id, ...updates } = await req.json()
   if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
+
+  if (!(await verifyActionItemAccess(user.id, id))) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
 
   const admin = getAdminClient()
   const { data, error } = await admin.from('action_items').update(updates).eq('id', id).select('*').single()
@@ -82,6 +130,10 @@ export async function DELETE(req: NextRequest) {
 
   const { id } = await req.json()
   if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
+
+  if (!(await verifyActionItemAccess(user.id, id))) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
 
   const admin = getAdminClient()
   const { error } = await admin.from('action_items').delete().eq('id', id)
