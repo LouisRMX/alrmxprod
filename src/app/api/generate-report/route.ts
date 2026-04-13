@@ -251,10 +251,31 @@ function buildIdleSignal(answers: Answers): string {
   return ''
 }
 
+// ── Sanitize management context: remove specific quantifications the AI might cite as evidence ──
+function sanitizeManagementContext(text: string | undefined): string {
+  if (!text || text.trim().length < 10) return ''
+  return text
+    // Remove numeric time durations: "2-3 hours", "45 minutes", "several hours"
+    .replace(/\d+[-–]\d+\s*hours?/gi, 'extended periods')
+    .replace(/\d+\s*hours?/gi, 'extended periods')
+    .replace(/\d+\s*minutes?/gi, 'extended periods')
+    .replace(/several\s+hours?/gi, 'extended periods')
+    .replace(/a\s+few\s+hours?/gi, 'extended periods')
+    // Remove percentage claims: "30%", "X percent"
+    .replace(/\d+\s*%/g, 'significant')
+    .replace(/\d+\s*percent/gi, 'significant')
+    // Remove specific frequency claims used as plant-reported fact
+    .replace(/every\s+morning/gi, 'during peak periods')
+    .replace(/each\s+(morning|day)/gi, 'during peak periods')
+    // Clean up doubled spaces
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+}
+
 // ── Pain context: reads from ValidatedDiagnosis.management_context ──
 function buildPainContext(dx: ValidatedDiagnosis): string {
-  const pain = dx.management_context
-  if (!pain || pain.trim().length < 10) return ''
+  const pain = sanitizeManagementContext(dx.management_context)
+  if (!pain) return ''
 
   return `Plant manager's stated challenge: "${pain}"
 Note: This is self-reported and may describe a symptom rather than the root cause. Use it to make the actions section feel plant-specific. If it contradicts the diagnostic findings, briefly acknowledge the tension. Paraphrase the concern in the report. Do not repeat exact phrasing from the input.`
@@ -404,7 +425,7 @@ CRITICAL CONSTRAINTS FOR PRE-ASSESSMENT:
 
 PLANT DATA (self-reported, not verified):
 Turnaround: ${dx.tat_actual} min (target: ${dx.tat_target} min)
-${dx.management_context ? `Plant manager's stated challenge: "${dx.management_context}"
+${sanitizeManagementContext(dx.management_context) ? `Plant manager's stated challenge: "${sanitizeManagementContext(dx.management_context)}"
 Note: This is self-reported by the plant, not independently observed. Frame as "The plant reports..." or "Plant management identifies..." Never present it as an assessment finding or external observation. Use it to provide context, not as evidence. Paraphrase, do not quote verbatim.` : ''}
 Dispatch coordination: managed via ${dx.performance_gaps['dispatch'] ? 'manual tools' : 'unknown method'} (dispatch is a mechanism that explains WHY turnaround is high, not a separate metric)
 Rejection rate: ${dx.reject_pct}% (target: <3%)
@@ -467,7 +488,7 @@ Fleet: ${dx.trucks_effective} effective trucks of ${dx.trucks_total} assigned
 
 Observed signals: ${dx.observed_signals.join(' · ') || 'none'}
 Inferred signals: ${dx.inferred_signals.join(' · ') || 'none'}
-${dx.management_context ? `Plant manager's stated challenge: "${dx.management_context}"
+${sanitizeManagementContext(dx.management_context) ? `Plant manager's stated challenge: "${sanitizeManagementContext(dx.management_context)}"
 Note: This is self-reported by the plant, not independently observed. Frame as "The plant reports..." or "Plant management identifies..." Never present it as an assessment finding or external observation. Use it to provide context, not as evidence. Paraphrase, do not quote verbatim.` : ''}
 ${buildIdleSignal(answers)}
 ${benchmarks ? buildMarketContext(benchmarks) : ''}
@@ -557,7 +578,7 @@ Dispatch coordination: managed via ${dx.performance_gaps['dispatch'] ? 'manual t
 Rejection rate: ${dx.reject_pct}% (target: <3%)
 Utilisation: ${dx.utilization_pct}% (target: 85%)
 Fleet: ${dx.trucks_effective} effective trucks of ${dx.trucks_total} assigned
-${dx.management_context ? `Plant manager's stated challenge: "${dx.management_context}"` : ''}
+${sanitizeManagementContext(dx.management_context) ? `Plant manager's stated challenge: "${sanitizeManagementContext(dx.management_context)}"` : ''}
 ${buildIdleSignal(answers)}
 ${buildDispatchContext(answers)}
 
@@ -740,7 +761,7 @@ Constraint: ${constraintLabel}
 Primary signal: ${primarySignal}
 Rejection rate: ${dx.reject_pct}% (target: <3%)
 Utilisation: ${dx.utilization_pct}% (target: 85%) — consequence of TAT and fleet size, not independent cause
-${dx.management_context ? `Plant manager's stated challenge: "${dx.management_context}"\nNote: This is self-reported. Frame as a pattern to verify, never as a confirmed finding.` : ''}
+${sanitizeManagementContext(dx.management_context) ? `Plant manager's stated challenge: "${sanitizeManagementContext(dx.management_context)}"\nNote: This is self-reported. Frame as a pattern to verify, never as a confirmed finding.` : ''}
 ${buildClusteringSignal(answers)}
 
 WRITE EXACTLY THREE SECTIONS:
