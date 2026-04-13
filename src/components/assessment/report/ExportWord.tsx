@@ -250,12 +250,17 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
     children.push(...sectionHeader(isPre ? 'What the Data Suggests' : 'Executive Summary', 'Executive Section'))
 
     // Key metrics table
-    const constraint = isPre ? 'To be confirmed' : (dx.main_driver.dimension || dx.primary_constraint)
+    // For pre-assessment: if TAT excess > 20%, always show "Fleet coordination"
+    // regardless of which dimension the calc engine identifies as primary loss driver
+    const tatExcessPct = dx.tat_target > 0 ? (dx.tat_actual - dx.tat_target) / dx.tat_target : 0
+    const constraintLabel = isPre
+      ? (tatExcessPct > 0.2 ? 'Fleet coordination' : (dx.main_driver.dimension === 'Fleet' ? 'Fleet coordination' : dx.main_driver.dimension || 'Fleet turnaround'))
+      : (dx.main_driver.dimension || dx.primary_constraint)
     const metricsRow = [
       { label: 'TURNAROUND', value: `${dx.tat_actual} min`, sub: `target: ${dx.tat_target} min` },
       { label: 'UTILISATION', value: `${dx.utilization_pct}%`, sub: 'target: 85%' },
       { label: 'REJECTION', value: `${dx.reject_pct}%`, sub: 'target: <3%' },
-      { label: 'CONSTRAINT', value: isPre ? 'To be confirmed' : constraint, sub: isPre ? `Likely: ${dx.main_driver.dimension || 'Fleet turnaround'}` : `${fmtK(dx.main_driver.amount)}/month` },
+      { label: 'CONSTRAINT', value: isPre ? 'To be confirmed' : constraintLabel, sub: isPre ? `Likely: ${constraintLabel}` : `${fmtK(dx.main_driver.amount)}/month` },
     ]
     children.push(new Table({
       width: { size: 9840, type: WidthType.DXA }, columnWidths: [2460, 2460, 2460, 2460],
