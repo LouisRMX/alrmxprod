@@ -413,9 +413,10 @@ Fleet: ${dx.trucks_effective} effective trucks of ${dx.trucks_total} assigned
 
 AUTHORITATIVE FINANCIAL FIGURES (use ONLY these, do not calculate your own):
 Contribution margin: $${ct.margin_per_m3}/m3
-Monthly gap: ${ct.gap_monthly_m3} m3/month = $${Math.round(ct.gap_monthly_m3 * ct.margin_per_m3).toLocaleString('en-US')}/month
-Recovery range (40-65%): $${Math.round(dx.combined_recovery_range.lo / 1000).toLocaleString('en-US')}k-$${Math.round(dx.combined_recovery_range.hi / 1000).toLocaleString('en-US')}k/month
+Monthly gap: $${(Math.round(ct.gap_monthly_m3 * ct.margin_per_m3 / 1000) * 1000).toLocaleString('en-US')}/month
+Recovery range (40-65%): $${(Math.round(dx.combined_recovery_range.lo / 1000) * 1).toLocaleString('en-US')}k-$${(Math.round(dx.combined_recovery_range.hi / 1000) * 1).toLocaleString('en-US')}k/month
 Do NOT invent alternative ranges or revenue figures. Use only the recovery range above.
+Never introduce any financial figure, range, or dollar amount that is not listed in this AUTHORITATIVE FINANCIAL FIGURES block. If a figure is not here, do not include it in the narrative.
 
 OPERATIONAL REFRAME (use these exact numbers):
 Trips per truck per day: ${ct.trips_per_truck} actual vs ${ct.trips_per_truck_target} target
@@ -559,19 +560,25 @@ STRUCTURE:
 Paragraph 1: Go deeper than the executive summary. Explain the mechanism: why does this gap exist? What systemic factor connects the metrics? Do not re-list TAT vs target or utilisation vs target. The reader already knows.
 
 ${dx.primary_constraint === 'Fleet' || dx.primary_constraint === 'Logistics' ? `Paragraph 2: Present three ranked cause hypotheses. Use **bold** labels.
-${hasBothQueueAndIdle ? `The plant reports both site queuing AND idle periods. This confirms dispatch timing as the primary cause, not a hypothesis. Present it as confirmed:
+RULE: Never include "loading bay constraints" or "batching cycle misalignment" as hypotheses unless the plant data specifically references production stops or loading delays. Generic RMX problems with no connection to the plant's reported data must not appear.
 
-**Confirmed primary cause: Dispatch timing.** The plant reports both trucks waiting at sites and periods with no trucks available. This pattern is the signature of cluster dispatching: trucks leave in groups, creating simultaneous site congestion followed by plant idle time. With ${ct.trips_per_truck} trips per truck against a target of ${ct.trips_per_truck_target}, each wasted cycle compounds across ${dx.trucks_effective} trucks.` : hasSiteWaitSignal ? `The plant reports challenges related to site waiting or queuing. This elevates site readiness and dispatch timing:
+${hasBothQueueAndIdle ? `The plant reports both site queuing AND idle periods. This confirms dispatch timing as the primary cause, not a hypothesis.
 
-**Most likely: Dispatch timing.** The plant's reported challenge points to trucks arriving at sites without coordination. With a ${tatExcess}-minute turnaround excess across ${dx.trucks_effective} trucks, uncoordinated dispatch timing is the most likely amplifier.
+**Confirmed primary cause: Site readiness and dispatch timing.** Trucks are dispatched without real-time knowledge of site readiness, particularly during morning peak when sites are systematically not ready. This creates a predictable daily pattern of wasted truck cycles concentrated in the first operating hours. The plant reports both trucks waiting at sites and periods with no trucks available. This is the signature of cluster dispatching: trucks leave in groups, creating simultaneous site congestion followed by plant idle time. With ${ct.trips_per_truck} trips per truck against a target of ${ct.trips_per_truck_target}, each wasted cycle compounds across ${dx.trucks_effective} trucks.
 
-**Second likely: Site readiness.** Trucks arriving before sites are ready, extending the site wait component. The plant's own description suggests this is a contributing factor.
+**Second likely: Dispatch bunching.** Trucks are dispatched in clusters to the same sites rather than staggered, creating bunching where multiple trucks queue at the same location simultaneously while the plant sits idle waiting for returns.
 
-**Requires on-site verification: Loading efficiency.** Batch cycle time and queue management at the plant cannot be measured remotely.` : `**Most likely: Dispatch timing.** Trucks dispatched in clusters creating peak bunching and idle periods on the same day. With a ${tatExcess}-minute turnaround excess, uncoordinated dispatch is the most common amplifier.
+**Requires on-site verification:** Whether the ${tatExcess}-minute TAT excess is consistent across all sites or concentrated at specific high-volume customers, and whether internal loading sequence contributes to the pattern.` : hasSiteWaitSignal ? `The plant reports challenges related to site waiting or morning delays.
 
-**Second likely: Site readiness.** Trucks arriving before sites are ready, extending site wait. One sentence on what data supports or weakens this.
+**Most likely: Site readiness.** Trucks are dispatched without real-time knowledge of site readiness, particularly during morning peak when sites are systematically not ready. This creates a predictable daily pattern of wasted truck cycles concentrated in the first operating hours. With a ${tatExcess}-minute turnaround excess across ${dx.trucks_effective} trucks, uncoordinated dispatch amplifies this into the full throughput gap.
 
-**Requires on-site verification: Loading efficiency.** Batch cycle time and queue management at the plant cannot be measured remotely.`}` : `Paragraph 2: Present two or three hypotheses for what is driving the identified constraint area. Use **bold** labels: "Most likely:", "Second likely:", "Requires on-site verification:". Each hypothesis gets one sentence explaining the mechanism. ${dx.management_context ? `Use the plant's reported challenge ("${dx.management_context}") to inform the ranking.` : ''}`}
+**Second likely: Dispatch bunching.** Trucks dispatched in clusters to the same sites rather than staggered, creating bunching where multiple trucks queue at the same location simultaneously while the plant sits idle waiting for returns.
+
+**Requires on-site verification:** Whether the ${tatExcess}-minute TAT excess is consistent across all sites or concentrated at specific high-volume customers, and whether internal loading sequence contributes to the pattern.` : `**Most likely: Dispatch timing.** Trucks dispatched in clusters creating peak bunching and idle periods on the same day. With a ${tatExcess}-minute turnaround excess across ${dx.trucks_effective} trucks, uncoordinated dispatch is the most common amplifier in GCC ready-mix operations.
+
+**Second likely: Site readiness.** Trucks arriving before sites are ready, extending the site wait component of turnaround. Without real-time site status, dispatch decisions are based on assumptions rather than actual readiness.
+
+**Requires on-site verification:** Whether the ${tatExcess}-minute TAT excess is consistent across all sites or concentrated at specific high-volume customers, and whether internal loading sequence contributes to the pattern.`}` : `Paragraph 2: Present two or three hypotheses for what is driving the identified constraint area. Use **bold** labels: "Most likely:", "Second likely:", "Requires on-site verification:". Each hypothesis gets one sentence explaining the mechanism. Never include generic RMX problems (loading bay constraints, batching misalignment) unless the plant data specifically references them. ${dx.management_context ? `Use the plant's reported challenge ("${dx.management_context}") to inform the ranking.` : ''}`}
 
 Paragraph 3: What the on-site assessment will determine. Name 2-3 operational questions that can only be answered by observing the plant.`
   }
@@ -595,8 +602,8 @@ Primary constraint: ${dx.primary_constraint}
 Verdict cause: ${dx.verdict_cause}
 Mechanism: ${dx.mechanism_detail}
 
-Bottleneck loss: up to $${dx.main_driver.amount}/month
-Recovery range: $${dx.combined_recovery_range.lo}-$${dx.combined_recovery_range.hi}/month
+Bottleneck loss: up to $${(Math.round(dx.main_driver.amount / 1000) * 1000).toLocaleString('en-US')}/month
+Recovery range: $${(Math.round(dx.combined_recovery_range.lo / 1000) * 1000).toLocaleString('en-US')}-$${(Math.round(dx.combined_recovery_range.hi / 1000) * 1000).toLocaleString('en-US')}/month
 
 Calculation trace:
   Fleet daily output: ${ct.fleet_daily_m3} m3/day
@@ -608,7 +615,8 @@ Calculation trace:
   Trips per truck: ${ct.trips_per_truck} actual vs ${ct.trips_per_truck_target} target
 
 Loss breakdown:
-${dx.loss_breakdown_detail.map(l => `  ${l.dimension}: $${l.amount}/month (${l.classification === 'overlapping' ? 'throughput loss' : l.classification === 'additive' ? 'additive leakage' : l.classification})`).join('\n')}
+${dx.loss_breakdown_detail.map(l => `  ${l.dimension}: $${(Math.round(l.amount / 1000) * 1000).toLocaleString('en-US')}/month (${l.classification === 'overlapping' ? 'throughput loss' : l.classification === 'additive' ? 'additive leakage' : l.classification})`).join('\n')}
+Note: Figures rounded to nearest $1,000. Totals may vary by rounding.
 
 Performance gaps:
 ${Object.entries(dx.performance_gaps).map(([k, v]) => `  ${k}: ${v.actual} vs target ${v.target}`).join('\n')}
@@ -687,6 +695,7 @@ Next Step, heading on its own line: Exactly 3 sentences (confirmed, what on-site
 - Do NOT recommend specific operational fixes (retarder protocols, demurrage enforcement, maintenance schedules). These require on-site verification.
 - All actions must be preparation or measurement actions.
 - If utilisation is below target, do not present it as an independent problem. Explain it as the mathematical consequence of the turnaround and fleet combination. ${dx.utilization_pct}% utilisation is what a ${dx.tat_actual}-minute turnaround produces with this fleet size. It is a symptom, not a separate cause.
+- DATA SOURCE DISCIPLINE: Never present the plant's own qualitative descriptions as confirmed findings. Frame all qualitative inputs as hypotheses to be tested during data collection. Instead of "The plant reports losing X hours", write "Drivers should record [specific measurement] to verify whether [the reported pattern] is consistent across sites or concentrated at specific customers."
 
 You are writing the Preparation section of a Pre-Assessment Report for ${dx.plant_name} in ${dx.country}. Based on self-reported data. No on-site visit done.
 
@@ -748,8 +757,8 @@ ${EXAMPLE_ACTIONS}
 
 CONTEXT:
 Primary constraint: ${dx.primary_constraint}
-Bottleneck loss: up to $${dx.main_driver.amount}/month
-Recovery range: $${dx.combined_recovery_range.lo}-$${dx.combined_recovery_range.hi}/month
+Bottleneck loss: up to $${(Math.round(dx.main_driver.amount / 1000) * 1000).toLocaleString('en-US')}/month
+Recovery range: $${(Math.round(dx.combined_recovery_range.lo / 1000) * 1000).toLocaleString('en-US')}-$${(Math.round(dx.combined_recovery_range.hi / 1000) * 1000).toLocaleString('en-US')}/month
 Recovery basis: gap between actual and target fleet output x $${dx.margin_per_m3}/m3 contribution margin x 40-65% execution range
 Approved precision: ${dx.approved_precision}
 

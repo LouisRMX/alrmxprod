@@ -19,12 +19,20 @@ import ActionBoard from './ActionBoard'
 import type { DemoBannerProps } from '@/components/assessment/AssessmentShell'
 
 function fmt(n: number): string {
-  return '$' + n.toLocaleString('en-US')
+  // Round to nearest $1,000 for values >= $10k (avoids false precision from estimated inputs)
+  const display = n >= 10000 ? Math.round(n / 1000) * 1000 : Math.round(n)
+  return '$' + display.toLocaleString('en-US')
 }
 function fmtK(n: number): string {
-  if (n >= 10000) return `$${Math.round(n / 1000)}k`
+  if (n >= 10000) return `$${Math.round(n / 1000).toLocaleString('en-US')}k`
   if (n >= 1000) return `$${(n / 1000).toFixed(1)}k`
   return `$${n}`
+}
+
+// Round to nearest $1,000 for display (pre-assessment credibility)
+function fmtR(n: number): string {
+  const rounded = Math.round(n / 1000) * 1000
+  return '$' + rounded.toLocaleString('en-US')
 }
 
 // ── Inline info tooltip ────────────────────────────────────────────────────
@@ -2136,6 +2144,11 @@ function FullReportDrawer({
                     ))}
                   </div>
                 )}
+              {isPre && (
+                <div style={{ fontSize: '9px', color: '#bbb', marginTop: '6px', fontStyle: 'italic' }}>
+                  Figures rounded to nearest $1,000. Totals may vary by rounding.
+                </div>
+              )}
               </div>
             )
           })()}
