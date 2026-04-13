@@ -192,6 +192,10 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
     if (report?.executive) {
       children.push(new Paragraph({ spacing: { after: 60 }, children: [] }))
       children.push(...textParas(sanitize(report.executive)))
+    } else {
+      children.push(new Paragraph({ spacing: { after: 60 }, children: [
+        new TextRun({ text: 'Report not yet generated. Click "Generate report" in the platform before exporting.', size: 18, color: AMBER, italics: true }),
+      ]}))
     }
 
     // ════════════════════════════════════════════════════════════════════
@@ -246,13 +250,14 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
     ]}))
 
     // ════════════════════════════════════════════════════════════════════
-    // SECTION 3: VALUE STREAM ANALYSIS
+    // SECTION 3: VALUE STREAM ANALYSIS (skip if no data available)
     // ════════════════════════════════════════════════════════════════════
+    const vs = flc?.value_stream
+    const hasVSMData = vs || (dx.tat_breakdown && dx.tat_breakdown.length > 0)
+
+    if (hasVSMData) {
     children.push(new Paragraph({ children: [new PageBreak()] }))
     children.push(...sectionHeader('Value Stream Analysis', 'Operations Section'))
-
-    // VSM table — use field log context if available, else TAT breakdown
-    const vs = flc?.value_stream
     if (vs) {
       const vsmRows: [string, string, string, string, string][] = [
         ['Loading + plant queue', `${vs.loading_queue_avg ?? '-'} min`, 'Necessary NVA', 'Waiting', YELLOW_LIGHT],
@@ -330,6 +335,7 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
         ]}))
       }
     }
+    } // end if (hasVSMData)
 
     // ════════════════════════════════════════════════════════════════════
     // SECTION 4: ROOT CAUSE ANALYSIS
@@ -339,6 +345,10 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
 
     if (report?.diagnosis) {
       children.push(...textParas(sanitize(report.diagnosis)))
+    } else {
+      children.push(new Paragraph({ spacing: { after: 60 }, children: [
+        new TextRun({ text: 'Report not yet generated. Click "Generate report" in the platform before exporting.', size: 18, color: AMBER, italics: true }),
+      ]}))
     }
 
     // Loss breakdown table
@@ -420,6 +430,10 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
     // AI-generated action plan
     if (report?.actions) {
       children.push(...actionParas(sanitize(report.actions)))
+    } else if (!matrix || matrix.rows.length === 0) {
+      children.push(new Paragraph({ spacing: { after: 60 }, children: [
+        new TextRun({ text: 'Report not yet generated. Click "Generate report" in the platform before exporting.', size: 18, color: AMBER, italics: true }),
+      ]}))
     }
 
     // ════════════════════════════════════════════════════════════════════
@@ -630,18 +644,21 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
     setExporting(false)
   }
 
+  const hasReport = !!(report?.executive || report?.diagnosis || report?.actions)
+
   return (
     <button
       onClick={handleExport}
       disabled={exporting}
+      title={hasReport ? '' : 'Generate report first'}
       style={{
-        padding: '8px 16px', background: GREEN, color: '#fff',
+        padding: '8px 16px', background: hasReport ? GREEN : '#999', color: '#fff',
         border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 500,
         cursor: exporting ? 'not-allowed' : 'pointer', fontFamily: 'var(--font)',
         opacity: exporting ? 0.7 : 1,
       }}
     >
-      {exporting ? 'Generating...' : 'Export Word'}
+      {exporting ? 'Generating...' : hasReport ? 'Export Word' : 'Export Word (generate report first)'}
     </button>
   )
 }
