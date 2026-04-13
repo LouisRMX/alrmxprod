@@ -3234,7 +3234,11 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
       if (!accumulated.trim()) throw new Error('Empty response, AI returned no content')
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error'
-      setGenError(`Failed to generate ${section}: ${msg}`)
+      if (msg.startsWith('HTTP 5')) {
+        setGenError('Report generation is temporarily unavailable. Please try again in a few minutes. If the issue persists, contact support.')
+      } else {
+        setGenError(`Failed to generate ${section}: ${msg}`)
+      }
     }
 
     setGenerating(null)
