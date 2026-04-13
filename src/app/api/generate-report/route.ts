@@ -514,7 +514,15 @@ Paragraph 3: What to monitor. One or two dimensions most likely to slip first.`
   if (phase === 'workshop') {
     const lo = dx.total_loss_range?.lo ?? Math.round(dx.total_loss * 0.7)
     const hi = dx.total_loss_range?.hi ?? Math.round(dx.total_loss * 1.3)
-    const dispatchGap = dx.performance_gaps['dispatch']
+    const ct = dx.calc_trace
+    const tatExcess = dx.tat_actual - dx.tat_target
+
+    // Determine hypothesis ranking based on qualitative signals
+    const mgmtCtx = (dx.management_context || '').toLowerCase()
+    const idleSignal = ((answers?.plant_idle as string) || '').toLowerCase()
+    const hasSiteWaitSignal = /wait|queue|site|ready|morning|idle|stuck/.test(mgmtCtx)
+    const hasIdleSignal = /regularly|every day/.test(idleSignal)
+    const hasBothQueueAndIdle = hasSiteWaitSignal && hasIdleSignal
 
     return `${RULES}
 
@@ -528,34 +536,42 @@ CRITICAL CONSTRAINTS:
 - Do NOT name a definitive constraint. Use "likely" or "appears to be".
 - Use ranges: "$${Math.round(lo / 1000)}k-$${Math.round(hi / 1000)}k/month".
 - Frame all analysis as preliminary.
+- Use only the trip and TAT figures provided in PLANT DATA. Never derive or approximate these figures independently. If a figure is not in PLANT DATA, do not include it.
 - Rejection rate is ALWAYS additive leakage, never a throughput constraint. It adds material cost but does not limit how many trips the fleet completes. Never open a paragraph with rejection as the primary finding. Never frame rejection as "the likely constraint." Turnaround time is the throughput driver. Rejection is a cost driver. They are not interchangeable.
 
-PLANT DATA (self-reported, not verified):
+PLANT DATA (self-reported, not verified — use ONLY these figures):
 Likely constraint area: ${dx.primary_constraint} (to be confirmed on-site)
 Estimated recoverable range: $${Math.round(lo / 1000)}k-$${Math.round(hi / 1000)}k/month
-Turnaround: ${dx.tat_actual} min (target: ${dx.tat_target} min)
+Turnaround: ${dx.tat_actual} min (target: ${dx.tat_target} min), excess: ${tatExcess} min
+Trips per truck per day: ${ct.trips_per_truck} actual vs ${ct.trips_per_truck_target} target
+Daily output: ${ct.actual_daily_m3} m3/day actual vs ${ct.target_daily_m3} m3/day target
 Dispatch coordination: managed via ${dx.performance_gaps['dispatch'] ? 'manual tools' : 'unknown method'} (dispatch is a mechanism that explains WHY turnaround is high, not a separate metric)
 Rejection rate: ${dx.reject_pct}% (target: <3%)
 Utilisation: ${dx.utilization_pct}% (target: 85%)
 Fleet: ${dx.trucks_effective} effective trucks of ${dx.trucks_total} assigned
-
-IMPORTANT: The reader has already read the executive summary. Do not repeat the same observations or restate metrics they have already seen. Add new analytical depth, not a second summary.
+${dx.management_context ? `Plant manager's stated challenge: "${dx.management_context}"` : ''}
 ${buildIdleSignal(answers)}
 ${buildDispatchContext(answers)}
+
+IMPORTANT: The reader has already read the executive summary. Do not repeat the same observations or restate metrics they have already seen. Add new analytical depth, not a second summary.
 
 STRUCTURE:
 Paragraph 1: Go deeper than the executive summary. Explain the mechanism: why does this gap exist? What systemic factor connects the metrics? Do not re-list TAT vs target or utilisation vs target. The reader already knows.
 
-${dx.primary_constraint === 'Fleet' || dx.primary_constraint === 'Logistics' ? `Paragraph 2: Present three ranked cause hypotheses. Use **bold** labels. Structure:
+${dx.primary_constraint === 'Fleet' || dx.primary_constraint === 'Logistics' ? `Paragraph 2: Present three ranked cause hypotheses. Use **bold** labels.
+${hasBothQueueAndIdle ? `The plant reports both site queuing AND idle periods. This confirms dispatch timing as the primary cause, not a hypothesis. Present it as confirmed:
 
-**Most likely: Dispatch timing.** Trucks dispatched in clusters creating peak bunching and idle periods on the same day. Explain the mechanism in one sentence using the plant's data.
+**Confirmed primary cause: Dispatch timing.** The plant reports both trucks waiting at sites and periods with no trucks available. This pattern is the signature of cluster dispatching: trucks leave in groups, creating simultaneous site congestion followed by plant idle time. With ${ct.trips_per_truck} trips per truck against a target of ${ct.trips_per_truck_target}, each wasted cycle compounds across ${dx.trucks_effective} trucks.` : hasSiteWaitSignal ? `The plant reports challenges related to site waiting or queuing. This elevates site readiness and dispatch timing:
 
-**Second likely: Site readiness.** Trucks arriving before sites are ready, extending the site wait component of turnaround. Explain in one sentence.
+**Most likely: Dispatch timing.** The plant's reported challenge points to trucks arriving at sites without coordination. With a ${tatExcess}-minute turnaround excess across ${dx.trucks_effective} trucks, uncoordinated dispatch timing is the most likely amplifier.
 
-**Requires on-site verification: Loading efficiency.** Batch cycle time and queue management at the plant cannot be measured remotely.
+**Second likely: Site readiness.** Trucks arriving before sites are ready, extending the site wait component. The plant's own description suggests this is a contributing factor.
 
-If the plant reports both queuing AND idle periods on the same day, elevate dispatch timing from hypothesis to confirmed primary cause.
-Adjust the ranking if the plant data contradicts the defaults.` : `Paragraph 2: Present two or three hypotheses for what is driving the identified constraint area. Use **bold** labels: "Most likely:", "Second likely:", "Requires on-site verification:". Each hypothesis gets one sentence explaining the mechanism.`}
+**Requires on-site verification: Loading efficiency.** Batch cycle time and queue management at the plant cannot be measured remotely.` : `**Most likely: Dispatch timing.** Trucks dispatched in clusters creating peak bunching and idle periods on the same day. With a ${tatExcess}-minute turnaround excess, uncoordinated dispatch is the most common amplifier.
+
+**Second likely: Site readiness.** Trucks arriving before sites are ready, extending site wait. One sentence on what data supports or weakens this.
+
+**Requires on-site verification: Loading efficiency.** Batch cycle time and queue management at the plant cannot be measured remotely.`}` : `Paragraph 2: Present two or three hypotheses for what is driving the identified constraint area. Use **bold** labels: "Most likely:", "Second likely:", "Requires on-site verification:". Each hypothesis gets one sentence explaining the mechanism. ${dx.management_context ? `Use the plant's reported challenge ("${dx.management_context}") to inform the ranking.` : ''}`}
 
 Paragraph 3: What the on-site assessment will determine. Name 2-3 operational questions that can only be answered by observing the plant.`
   }

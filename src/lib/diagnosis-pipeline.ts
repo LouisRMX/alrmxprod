@@ -586,6 +586,37 @@ export function buildValidatedDiagnosis(
     { label: 'Washout/weighbridge', actual: Math.round(r.taWashoutMin || 0), benchmark: washoutBenchmark },
   ] : null
 
+  // Calculation trace: single source of truth (extracted so loss_breakdown can reference it)
+  const calcTrace = (() => {
+    const fleetDailyM3 = r.ta > 0 && r.effectiveUnits > 0
+      ? Math.round(r.effectiveUnits * ((r.opH * 60) / r.ta) * r.effectiveMixCap)
+      : 0
+    const plantDailyM3 = Math.round(r.cap * 0.92 * r.opH)
+    const actualDailyM3 = Math.round(r.actual * r.opH)
+    const targetFleetM3 = r.TARGET_TA > 0 && r.effectiveUnits > 0
+      ? Math.round(r.effectiveUnits * ((r.opH * 60) / r.TARGET_TA) * r.effectiveMixCap * 0.85)
+      : 0
+    const targetDailyM3 = Math.min(targetFleetM3, plantDailyM3)
+    const gapDailyM3 = Math.max(0, targetDailyM3 - actualDailyM3)
+    const workingDays = Math.round(r.opD / 12)
+    const gapMonthlyM3 = gapDailyM3 * workingDays
+    const tripsPerTruck = r.ta > 0 ? Math.round(((r.opH * 60) / r.ta) * 10) / 10 : 0
+    const tripsTarget = r.TARGET_TA > 0 ? Math.round(((r.opH * 60) / r.TARGET_TA) * 10) / 10 : 0
+    return {
+      fleet_daily_m3: fleetDailyM3,
+      plant_daily_m3: plantDailyM3,
+      actual_daily_m3: actualDailyM3,
+      target_daily_m3: targetDailyM3,
+      gap_daily_m3: gapDailyM3,
+      working_days_month: workingDays,
+      gap_monthly_m3: gapMonthlyM3,
+      margin_per_m3: r.contribSafe,
+      throughput_loss_usd: Math.round(gapMonthlyM3 * r.contribSafe),
+      trips_per_truck: tripsPerTruck,
+      trips_per_truck_target: tripsTarget,
+    }
+  })()
+
   return {
     // Plant context
     plant_name: meta?.plant,
@@ -626,36 +657,7 @@ export function buildValidatedDiagnosis(
       return `~${days} days of production stopped due to material shortage in the last quarter (~${monthlyDays} days/month). This is already included in the reported production figure and does not add to the total loss.`
     })(),
 
-    // Calculation trace: single source of truth
-    calc_trace: (() => {
-      const fleetDailyM3 = r.ta > 0 && r.effectiveUnits > 0
-        ? Math.round(r.effectiveUnits * ((r.opH * 60) / r.ta) * r.effectiveMixCap)
-        : 0
-      const plantDailyM3 = Math.round(r.cap * 0.92 * r.opH)
-      const actualDailyM3 = Math.round(r.actual * r.opH)
-      const targetFleetM3 = r.TARGET_TA > 0 && r.effectiveUnits > 0
-        ? Math.round(r.effectiveUnits * ((r.opH * 60) / r.TARGET_TA) * r.effectiveMixCap * 0.85)
-        : 0
-      const targetDailyM3 = Math.min(targetFleetM3, plantDailyM3)
-      const gapDailyM3 = Math.max(0, targetDailyM3 - actualDailyM3)
-      const workingDays = Math.round(r.opD / 12)
-      const gapMonthlyM3 = gapDailyM3 * workingDays
-      const tripsPerTruck = r.ta > 0 ? Math.round(((r.opH * 60) / r.ta) * 10) / 10 : 0
-      const tripsTarget = r.TARGET_TA > 0 ? Math.round(((r.opH * 60) / r.TARGET_TA) * 10) / 10 : 0
-      return {
-        fleet_daily_m3: fleetDailyM3,
-        plant_daily_m3: plantDailyM3,
-        actual_daily_m3: actualDailyM3,
-        target_daily_m3: targetDailyM3,
-        gap_daily_m3: gapDailyM3,
-        working_days_month: workingDays,
-        gap_monthly_m3: gapMonthlyM3,
-        margin_per_m3: r.contribSafe,
-        throughput_loss_usd: Math.round(gapMonthlyM3 * r.contribSafe),
-        trips_per_truck: tripsPerTruck,
-        trips_per_truck_target: tripsTarget,
-      }
-    })(),
+    calc_trace: calcTrace,
 
     total_loss: validation.corrected_total_loss,
     total_loss_range: lossRange,
@@ -674,11 +676,25 @@ export function buildValidatedDiagnosis(
       ? { dimension: mainDriver.dimension, amount: mainDriver.amount }
       : { dimension: diagnosis.primary_constraint, amount: diagnosis.monthly_loss_total },
     other_losses: otherLoss,
-    loss_breakdown_detail: diagnosis.loss_breakdown.map(l => ({
-      dimension: l.dimension,
-      amount: l.amount,
-      classification: l.classification,
-    })),
+    loss_breakdown_detail: (() => {
+      const rows = diagnosis.loss_breakdown.map(l => ({
+        dimension: l.dimension,
+        amount: l.amount,
+        classification: l.classification as LossClassification,
+      }))
+      // Ensure breakdown sums to the calc_trace throughput gap
+      // If there's an unattributed remainder > $1k, add a coordination row
+      const breakdownSum = rows.reduce((s, l) => s + l.amount, 0)
+      const remainder = calcTrace.throughput_loss_usd - breakdownSum
+      if (remainder > 1000) {
+        rows.push({
+          dimension: 'Dispatch coordination',
+          amount: remainder,
+          classification: 'overlapping' as LossClassification,
+        })
+      }
+      return rows
+    })(),
     lost_volume_m3: diagnosis.lost_volume_m3_monthly,
     margin_per_m3: diagnosis.margin_per_m3,
 
