@@ -5,6 +5,24 @@ import { NextRequest, NextResponse } from 'next/server'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
 const RATE_LIMIT = { maxRequests: 10, windowSeconds: 60 }
+const MAX_RETRIES = 3
+const BACKOFF_MS = [2000, 4000, 8000]
+
+async function callWithRetry(params: Anthropic.MessageCreateParamsNonStreaming): Promise<Anthropic.Message> {
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      return await anthropic.messages.create(params)
+    } catch (err: unknown) {
+      const isRetryable = err instanceof Anthropic.APIError && (err.status === 429 || err.status === 529 || err.status === 503)
+      if (isRetryable && attempt < MAX_RETRIES) {
+        await new Promise(r => setTimeout(r, BACKOFF_MS[attempt]))
+        continue
+      }
+      throw err
+    }
+  }
+  throw new Error('Exhausted retries')
+}
 
 const FIELD_MAP = `Map the data to these exact field IDs and return a JSON object:
 {
@@ -70,7 +88,7 @@ export async function POST(req: NextRequest) {
         ? { type: 'document' as const, source: { type: 'base64' as const, media_type: 'application/pdf' as const, data: base64 } }
         : { type: 'image' as const, source: { type: 'base64' as const, media_type: (ext === 'png' ? 'image/png' : 'image/jpeg') as 'image/png' | 'image/jpeg', data: base64 } }
 
-      const response = await anthropic.messages.create({
+      const response = await callWithRetry({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 2000,
         messages: [{
@@ -91,7 +109,7 @@ export async function POST(req: NextRequest) {
       const text = await file.text()
       const preview = text.slice(0, 5000)
 
-      const response = await anthropic.messages.create({
+      const response = await callWithRetry({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 2000,
         messages: [{
@@ -111,7 +129,7 @@ export async function POST(req: NextRequest) {
       const csvText = XLSX.utils.sheet_to_csv(sheet)
       const preview = csvText.slice(0, 5000)
 
-      const response = await anthropic.messages.create({
+      const response = await callWithRetry({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 2000,
         messages: [{
@@ -156,6 +174,11 @@ export async function POST(req: NextRequest) {
 
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Parse failed'
-    return NextResponse.json({ error: msg }, { status: 500 })
+    const isOverloaded = msg.includes('overloaded') || msg.includes('Overloaded') || msg.includes('529')
+    return NextResponse.json({
+      error: isOverloaded
+        ? 'AI service is temporarily busy. Please try again in a few minutes.'
+        : msg
+    }, { status: isOverloaded ? 503 : 500 })
   }
 }
