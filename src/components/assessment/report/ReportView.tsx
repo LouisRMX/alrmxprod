@@ -19,8 +19,8 @@ import ActionBoard from './ActionBoard'
 import type { DemoBannerProps } from '@/components/assessment/AssessmentShell'
 
 function fmt(n: number): string {
-  // Round to nearest $1,000 for values >= $10k (avoids false precision from estimated inputs)
-  const display = n >= 10000 ? Math.round(n / 1000) * 1000 : Math.round(n)
+  // Round to nearest $1,000 for all values >= $1k (avoids false precision from estimated inputs)
+  const display = n >= 1000 ? Math.round(n / 1000) * 1000 : Math.round(n)
   return '$' + display.toLocaleString('en-US')
 }
 function fmtK(n: number): string {

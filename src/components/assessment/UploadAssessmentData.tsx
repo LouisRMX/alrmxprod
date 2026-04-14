@@ -65,6 +65,7 @@ export default function UploadAssessmentData({ onDataParsed }: UploadAssessmentD
     deliveries_day: 'Deliveries/day',
     turnaround: 'Turnaround time',
     reject_pct: 'Rejection rate',
+    delivery_distance_km: 'Delivery distance (km)',
     delivery_radius: 'Delivery radius',
     dispatch_tool: 'Dispatch tool',
     order_to_dispatch: 'Order-to-dispatch',
