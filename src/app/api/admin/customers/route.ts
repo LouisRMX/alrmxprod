@@ -41,3 +41,43 @@ export async function POST(req: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ customer: data })
 }
+
+export async function DELETE(req: NextRequest) {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  if (!await isSystemAdmin(user.id)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  const { id } = await req.json()
+  if (!id) return NextResponse.json({ error: 'Missing customer id' }, { status: 400 })
+
+  const admin = getAdminClient()
+
+  // Delete in dependency order (no CASCADE on plants → assessments chain)
+  const { data: plants } = await admin.from('plants').select('id').eq('customer_id', id)
+  const plantIds = (plants || []).map((p: { id: string }) => p.id)
+
+  for (const pid of plantIds) {
+    const { data: assessments } = await admin.from('assessments').select('id').eq('plant_id', pid)
+    const aIds = (assessments || []).map((a: { id: string }) => a.id)
+    for (const aid of aIds) {
+      await admin.from('action_items').delete().eq('assessment_id', aid)
+      await admin.from('reports').delete().eq('assessment_id', aid)
+      await admin.from('priority_matrix_overrides').delete().eq('assessment_id', aid)
+    }
+    if (aIds.length > 0) {
+      await admin.from('assessments').delete().in('id', aIds)
+    }
+  }
+  if (plantIds.length > 0) {
+    await admin.from('plants').delete().in('id', plantIds)
+  }
+
+  const { error } = await admin.from('customers').delete().eq('id', id)
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  return NextResponse.json({ ok: true })
+}
