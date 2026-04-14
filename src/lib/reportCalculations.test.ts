@@ -259,6 +259,41 @@ describe('calculateReport', () => {
 
   })
 
+  describe('Scenario B — external constraint detection', () => {
+    it('has_external_constraint = true for movement ban', () => {
+      const input = { ...PLANT_A, biggest_operational_challenge: 'Trucks movement Ban in riyadh which is 7 Hours per day' }
+      const r = calculateReport(input)
+      expect(r.has_external_constraint).toBe(true)
+      expect(r.scenario_b).not.toBeNull()
+      expect(r.scenario_b!.recovery_low_usd).toBeGreaterThan(0)
+      expect(r.scenario_b!.recovery_high_usd).toBeGreaterThan(r.scenario_b!.recovery_low_usd)
+    })
+
+    it('has_external_constraint = false for Plant A (site waiting)', () => {
+      const r = calculateReport(PLANT_A)
+      expect(r.has_external_constraint).toBe(false)
+      expect(r.scenario_b).toBeNull()
+    })
+
+    it('has_external_constraint = false for Plant C (site access, no ban)', () => {
+      const r = calculateReport(PLANT_C)
+      expect(r.has_external_constraint).toBe(false)
+      expect(r.scenario_b).toBeNull()
+    })
+
+    it('Scenario B calculations are internally consistent', () => {
+      const input = { ...PLANT_A, biggest_operational_challenge: 'Trucks movement Ban in riyadh which is 7 Hours per day' }
+      const r = calculateReport(input)
+      const sb = r.scenario_b!
+      expect(sb.recovery_low_usd).toBe(Math.round(sb.monthly_gap_usd * 0.4 / 1000) * 1000)
+      expect(sb.recovery_high_usd).toBe(Math.round(sb.monthly_gap_usd * 0.65 / 1000) * 1000)
+      expect(sb.quarterly_gap_low).toBe(Math.round(sb.recovery_low_usd * 3 / 1000) * 1000)
+      expect(sb.quarterly_gap_high).toBe(Math.round(sb.recovery_high_usd * 3 / 1000) * 1000)
+      expect(sb.annual_gap_low).toBe(Math.round(sb.recovery_low_usd * 12 / 1000) * 1000)
+      expect(sb.annual_gap_high).toBe(Math.round(sb.recovery_high_usd * 12 / 1000) * 1000)
+    })
+  })
+
   describe('replaceNarrativeTokens', () => {
     it('replaces all 15 tokens', () => {
       const rc = calculateReport(PLANT_A)

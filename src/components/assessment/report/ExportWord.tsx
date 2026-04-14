@@ -11,7 +11,7 @@ import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
   ShadingType, HeadingLevel, PageNumber, PageBreak } from 'docx'
 
 import type { ReportCalculations, ReportInput } from '@/lib/reportCalculations'
-import { assembleBoldSummaryLine } from '@/lib/reportAssembly'
+import { assembleBoldSummaryLine, assembleScenarioBBoldLine } from '@/lib/reportAssembly'
 
 interface ExportWordProps {
   calcResult: CalcResult
@@ -327,6 +327,13 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
         : (dx.main_driver.dimension === 'Fleet' ? 'Fleet coordination' : dx.main_driver.dimension || 'To be confirmed'))
       : (dx.main_driver.dimension || dx.primary_constraint)
 
+    // Scenario A label (only when external constraint triggers Scenario B)
+    if (isPre && rc?.has_external_constraint) {
+      children.push(new Paragraph({ spacing: { before: SP_BEFORE_SECTION, after: SP_AFTER_SECTION }, children: [
+        new TextRun({ text: 'Scenario A: Current conditions (with movement restrictions)', bold: true, size: SZ_SUBSECTION, font: FONT, color: DARK }),
+      ]}))
+    }
+
     // 1. KPI header table
     const RED = 'CC3333'
     const KPI_GREEN = '1A6644'
@@ -482,6 +489,118 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
       const lossTotal = rc?.monthly_gap_usd ?? lbRows.reduce((s, r) => s + r.amount, 0)
       children.push(new Paragraph({ spacing: { before: 60, after: 40 }, children: [
         new TextRun({ text: `"Cycle time exceeds target": trips not completed due to turnaround exceeding benchmark. "Material cost with no delivery": waste costs that add up independently. Total identified: ${fmt(lossTotal)}/month. Figures rounded to nearest $1,000.`, size: SZ_SMALL, font: FONT, color: GRAY }),
+      ]}))
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // SCENARIO B (only when external constraint detected)
+    // ════════════════════════════════════════════════════════════════════
+    if (isPre && rc?.has_external_constraint && rc.scenario_b && reportInput) {
+      const sb = rc.scenario_b
+      const BLUE_LIGHT = 'EBF5FB'
+      const BLUE_BORDER = 'AED6F1'
+
+      // Visual divider
+      children.push(new Paragraph({ spacing: { before: 400 }, border: { top: { style: BorderStyle.SINGLE, size: 2, color: 'CCCCCC', space: 10 } }, children: [] }))
+
+      // Header
+      children.push(new Paragraph({ spacing: { after: SP_AFTER_SECTION }, children: [
+        new TextRun({ text: sb.label, bold: true, size: SZ_SECTION, font: FONT, color: DARK }),
+      ]}))
+      children.push(new Paragraph({ spacing: { after: 120 }, children: [
+        new TextRun({ text: 'The following projections assume regulatory movement restrictions are removed or no longer apply. All other operational parameters are unchanged. This scenario establishes the upper bound of recovery potential for this location.', size: SZ_SMALL, font: FONT, color: GRAY, italics: true }),
+      ]}))
+
+      // Scenario B recovery banner (light blue)
+      children.push(new Table({
+        width: { size: 9840, type: WidthType.DXA }, columnWidths: [9840],
+        rows: [new TableRow({ children: [new TableCell({
+          borders: { top: { style: BorderStyle.SINGLE, size: 1, color: BLUE_BORDER }, bottom: { style: BorderStyle.SINGLE, size: 1, color: BLUE_BORDER }, left: { style: BorderStyle.SINGLE, size: 6, color: '2471A3' }, right: { style: BorderStyle.SINGLE, size: 1, color: BLUE_BORDER } },
+          shading: { fill: BLUE_LIGHT, type: ShadingType.CLEAR },
+          margins: { top: 100, bottom: 100, left: 140, right: 140 },
+          width: { size: 9840, type: WidthType.DXA },
+          children: [
+            new Paragraph({ children: [
+              new TextRun({ text: 'Under normal conditions, recovery potential rises to ', size: SZ_BODY, font: FONT }),
+              new TextRun({ text: `${fmt(sb.recovery_low_usd)} - ${fmt(sb.recovery_high_usd)}`, bold: true, size: SZ_RECOVERY, font: FONT, color: '2471A3' }),
+              new TextRun({ text: ' per month.', size: SZ_BODY, font: FONT }),
+            ]}),
+            new Paragraph({ spacing: { before: 40 }, children: [
+              new TextRun({ text: sb.basis, size: SZ_SMALL, font: FONT, color: GRAY }),
+            ]}),
+          ],
+        })] })],
+      }))
+      children.push(new Paragraph({ spacing: { after: 60 }, children: [] }))
+
+      // Scenario B KPI table
+      const bConstraint = 'Operational \u2014 addressable'
+      const bMetrics = [
+        { label: 'TURNAROUND', value: `${reportInput.avg_turnaround_min} min`, sub: `target: ~${sb.target_tat_min} min`, valueColor: reportInput.avg_turnaround_min > sb.target_tat_min ? RED : KPI_GREEN },
+        { label: 'UTILISATION', value: `${rc.utilisation_actual_pct}%`, sub: 'target: ~85%', valueColor: rc.utilisation_actual_pct < 85 ? RED : KPI_GREEN },
+        { label: 'REJECTION', value: `${reportInput.rejection_rate_pct}%`, sub: 'target: <3%', valueColor: reportInput.rejection_rate_pct <= 3 ? KPI_GREEN : RED },
+        { label: 'CONSTRAINT', value: bConstraint, sub: 'Assumes restrictions removed', valueColor: DARK },
+      ]
+      children.push(new Table({
+        width: { size: 9840, type: WidthType.DXA }, columnWidths: [2460, 2460, 2460, 2460],
+        rows: [
+          new TableRow({ children: bMetrics.map(m => cell(m.label, { bold: true, color: GRAY, size: SZ_KPI_LABEL, bg: LIGHT, width: 2460, align: AlignmentType.CENTER })) }),
+          new TableRow({ children: bMetrics.map(m =>
+            new TableCell({ borders, width: { size: 2460, type: WidthType.DXA }, margins: CELL_MARGINS, children: [
+              new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: m.value, bold: true, size: SZ_KPI_VALUE, font: FONT, color: m.valueColor })] }),
+              new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: m.sub, size: SZ_KPI_TARGET, font: FONT, color: GRAY })] }),
+            ]})
+          ) }),
+        ],
+      }))
+
+      // Scenario B bold line
+      children.push(new Paragraph({ spacing: { before: 160, after: 160 }, children: [
+        new TextRun({ text: assembleScenarioBBoldLine(sb, reportInput), bold: true, size: SZ_BODY, font: FONT }),
+      ]}))
+
+      // Scenario B capacity table
+      const bTargetMonthly = sb.target_monthly_output_m3
+      children.push(new Paragraph({ spacing: { before: SP_BEFORE_SECTION, after: SP_AFTER_SECTION }, children: [
+        new TextRun({ text: 'Capacity Detail (Scenario B)', bold: true, size: SZ_SUBSECTION, font: FONT, color: DARK }),
+      ]}))
+      children.push(new Table({
+        width: { size: 9840, type: WidthType.DXA }, columnWidths: [3280, 3280, 3280],
+        rows: [
+          new TableRow({ children: [
+            cell('', { bg: LIGHT, width: 3280 }),
+            cell('CURRENT', { bold: true, bg: LIGHT, width: 3280, align: AlignmentType.CENTER }),
+            cell('AT TARGET TAT', { bold: true, bg: LIGHT, width: 3280, align: AlignmentType.CENTER }),
+          ]}),
+          new TableRow({ children: [
+            cell('Daily output (m\u00B3)', { width: 3280 }),
+            cell(`${rc.actual_daily_output_m3} m\u00B3`, { width: 3280, align: AlignmentType.CENTER }),
+            cell(`${sb.target_daily_output_m3} m\u00B3`, { width: 3280, align: AlignmentType.CENTER, color: GREEN }),
+          ]}),
+          new TableRow({ children: [
+            cell('Monthly output (m\u00B3)', { width: 3280 }),
+            cell(`${rc.actual_daily_output_m3 * rc.op_days_per_month} m\u00B3`, { width: 3280, align: AlignmentType.CENTER }),
+            cell(`${bTargetMonthly} m\u00B3`, { width: 3280, align: AlignmentType.CENTER, color: GREEN }),
+          ]}),
+          new TableRow({ children: [
+            cell('Contribution margin', { width: 3280 }),
+            cell(`${fmt(rc.actual_daily_output_m3 * rc.op_days_per_month * rc.contribution_margin_per_m3)}/mo`, { width: 3280, align: AlignmentType.CENTER }),
+            cell(`${fmt(sb.monthly_margin_target)}/mo`, { width: 3280, align: AlignmentType.CENTER, color: GREEN }),
+          ]}),
+          new TableRow({ children: [
+            cell('Monthly revenue gap', { bold: true, width: 3280 }),
+            cell('-', { width: 3280, align: AlignmentType.CENTER }),
+            cell(`+${fmt(sb.monthly_gap_usd)}/month`, { width: 3280, align: AlignmentType.CENTER, bold: true, color: GREEN }),
+          ]}),
+          new TableRow({ children: [
+            cell('Recovery (40-65%)', { bold: true, width: 3280 }),
+            cell('-', { width: 3280, align: AlignmentType.CENTER }),
+            cell(`${fmt(sb.recovery_low_usd)}-${fmt(sb.recovery_high_usd)}/month`, { width: 3280, align: AlignmentType.CENTER, bold: true, color: GREEN }),
+          ]}),
+        ],
+      }))
+      children.push(new Paragraph({ spacing: { before: 80, after: 60 }, children: [
+        new TextRun({ text: `Scenario B assumes no active movement restrictions. Target TAT: ${sb.target_tat_min} min. Recovery range: 40-65% execution.`, size: SZ_SMALL, font: FONT, color: GRAY, italics: true }),
       ]}))
     }
 

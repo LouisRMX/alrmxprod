@@ -48,6 +48,25 @@ export interface ReportCalculations {
   quarterly_gap_high: number
   annual_gap_low: number
   annual_gap_high: number
+  has_external_constraint: boolean
+  scenario_b: ScenarioBCalculations | null
+}
+
+export interface ScenarioBCalculations {
+  label: string
+  basis: string
+  target_tat_min: number
+  target_trips_per_truck: number
+  target_daily_output_m3: number
+  target_monthly_output_m3: number
+  monthly_gap_usd: number
+  recovery_low_usd: number
+  recovery_high_usd: number
+  monthly_margin_target: number
+  quarterly_gap_low: number
+  quarterly_gap_high: number
+  annual_gap_low: number
+  annual_gap_high: number
 }
 
 const RADIUS_MAP: Record<string, number> = {
@@ -212,6 +231,45 @@ export function calculateReport(input: ReportInput): ReportCalculations {
   const annual_gap_low = Math.round(recovery_low_usd * 12 / 1000) * 1000
   const annual_gap_high = Math.round(recovery_high_usd * 12 / 1000) * 1000
 
+  // ── External constraint detection (Scenario B trigger) ──
+  const has_external_constraint =
+    constraint === 'Likely: External \u2014 verify on-site' ||
+    /movement ban|movement restriction|truck ban|traffic police|road block|road closure|traffic restriction|\bban\b/.test(bocLower) ||
+    (/traffic/.test(bocLower) && /hours?/.test(bocLower))
+
+  // ── Scenario B: normal operations without external constraint ──
+  let scenario_b: ScenarioBCalculations | null = null
+  if (has_external_constraint) {
+    // Scenario B uses TARGET_TAT without 0.85 factor (theoretical max under normal conditions)
+    const bTripsPerTruck = target_tat_min > 0
+      ? Math.round(((operating_hours_per_day * 60) / target_tat_min) * 100) / 100
+      : 0
+    const bDailyOutput = Math.round(bTripsPerTruck * trucks_assigned * avg_load_m3)
+    const bTargetMonthly = bDailyOutput * op_days_per_month
+    const bGapM3 = Math.max(0, bDailyOutput - actual_daily_output_m3) * op_days_per_month
+    const bGapUsd = Math.round(bGapM3 * contribution_margin_per_m3 / 1000) * 1000
+    const bRecLo = Math.round(bGapUsd * 0.4 / 1000) * 1000
+    const bRecHi = Math.round(bGapUsd * 0.65 / 1000) * 1000
+    const bMarginTarget = Math.round(bTargetMonthly * contribution_margin_per_m3 / 1000) * 1000
+
+    scenario_b = {
+      label: 'Scenario B: Normal operating conditions',
+      basis: `Assumes no regulatory movement restrictions. Based on target TAT of ${target_tat_min} min for this delivery zone. Actual performance data unchanged.`,
+      target_tat_min,
+      target_trips_per_truck: bTripsPerTruck,
+      target_daily_output_m3: bDailyOutput,
+      target_monthly_output_m3: bTargetMonthly,
+      monthly_gap_usd: bGapUsd,
+      recovery_low_usd: bRecLo,
+      recovery_high_usd: bRecHi,
+      monthly_margin_target: bMarginTarget,
+      quarterly_gap_low: Math.round(bRecLo * 3 / 1000) * 1000,
+      quarterly_gap_high: Math.round(bRecHi * 3 / 1000) * 1000,
+      annual_gap_low: Math.round(bRecLo * 12 / 1000) * 1000,
+      annual_gap_high: Math.round(bRecHi * 12 / 1000) * 1000,
+    }
+  }
+
   return {
     contribution_margin_per_m3,
     op_days_per_month,
@@ -237,6 +295,8 @@ export function calculateReport(input: ReportInput): ReportCalculations {
     quarterly_gap_high,
     annual_gap_low,
     annual_gap_high,
+    has_external_constraint,
+    scenario_b,
   }
 }
 
