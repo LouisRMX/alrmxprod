@@ -4,66 +4,10 @@ import { checkRateLimit, checkSpendCap, trackSpend } from '@/lib/rate-limit'
 import { NextRequest, NextResponse } from 'next/server'
 import type { ValidatedDiagnosis } from '@/lib/diagnosis-pipeline'
 import type { Answers } from '@/lib/calculations'
-import { calculateReport, type ReportInput, type ReportCalculations } from '@/lib/reportCalculations'
+import { calculateReport, mapToReportInput, type ReportInput, type ReportCalculations } from '@/lib/reportCalculations'
 import { replaceNarrativeTokens, assembleBoldSummaryLine } from '@/lib/reportAssembly'
 
-// ── Map platform context (dx + answers) to ReportInput ──
-// FIELD MAPPING DOCUMENTATION:
-//   ReportInput.selling_price_per_m3      ← answers.price_m3 (string → number)
-//   ReportInput.material_cost_per_m3      ← answers.material_cost OR (cement_cost + aggregate_cost + admix_cost)
-//   ReportInput.plant_capacity_m3_per_hour ← answers.plant_cap
-//   ReportInput.operating_hours_per_day   ← answers.op_hours
-//   ReportInput.operating_days_per_year   ← answers.op_days
-//   ReportInput.actual_production_last_month_m3 ← answers.actual_prod
-//   ReportInput.trucks_assigned           ← answers.n_trucks
-//   ReportInput.total_trips_last_month    ← answers.deliveries_day × (op_days / 12) [DERIVED: platform stores daily, not monthly]
-//   ReportInput.avg_turnaround_min        ← dx.tat_actual (parsed from turnaround dropdown/number)
-//   ReportInput.rejection_rate_pct        ← dx.reject_pct
-//   ReportInput.avg_delivery_radius       ← answers.delivery_radius → mapped to enum
-//   ReportInput.dispatch_tool             ← answers.dispatch_tool
-//   ReportInput.data_sources              ← answers.prod_data_source
-//   ReportInput.biggest_operational_challenge ← dx.management_context (from answers.biggest_pain)
-//   ReportInput.demand_vs_capacity        ← answers.demand_sufficient
-//   ReportInput.queuing_and_idle          ← answers.plant_idle
-//   ReportInput.dispatch_timing           ← answers.dispatch_peak
-function mapToReportInput(dx: ValidatedDiagnosis, answers: Answers): ReportInput {
-  const matCost = +(answers.material_cost ?? 0) || 0
-  const cement = +(answers.cement_cost ?? 0) || 0
-  const agg = +(answers.aggregate_cost ?? 0) || 0
-  const admix = +(answers.admix_cost ?? 0) || 0
-  const materialCost = matCost > 0 ? matCost : (cement + agg + admix)
-
-  const opDays = +(answers.op_days ?? 0) || 300
-  const workingDaysMonth = Math.round(opDays / 12)
-  const deliveriesDay = +(answers.deliveries_day ?? 0) || 0
-  const totalTripsMonth = Math.round(deliveriesDay * workingDaysMonth)
-
-  // Radius: map platform dropdown to ReportInput enum
-  const radiusRaw = (answers.delivery_radius as string || '').toLowerCase()
-  let radiusEnum: 'under_10km' | '10_to_20km' | 'over_20km' = '10_to_20km'
-  if (/under 5|under 10|dense urban/.test(radiusRaw)) radiusEnum = 'under_10km'
-  else if (/over 20|regional/.test(radiusRaw)) radiusEnum = 'over_20km'
-
-  return {
-    selling_price_per_m3: +(answers.price_m3 ?? 0) || 0,
-    material_cost_per_m3: materialCost,
-    plant_capacity_m3_per_hour: +(answers.plant_cap ?? 0) || 0,
-    operating_hours_per_day: +(answers.op_hours ?? 0) || 10,
-    operating_days_per_year: opDays,
-    actual_production_last_month_m3: +(answers.actual_prod ?? 0) || 0,
-    trucks_assigned: +(answers.n_trucks ?? 0) || 0,
-    total_trips_last_month: totalTripsMonth,
-    avg_turnaround_min: dx.tat_actual,
-    rejection_rate_pct: dx.reject_pct,
-    avg_delivery_radius: radiusEnum,
-    dispatch_tool: (answers.dispatch_tool as string) || '',
-    data_sources: (answers.prod_data_source as string) || '',
-    biggest_operational_challenge: dx.management_context || (answers.biggest_pain as string) || '',
-    demand_vs_capacity: (answers.demand_sufficient as string) || '',
-    queuing_and_idle: (answers.plant_idle as string) || '',
-    dispatch_timing: (answers.dispatch_peak as string) || '',
-  }
-}
+// mapToReportInput is now in @/lib/reportCalculations.ts (shared between route + frontend)
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,

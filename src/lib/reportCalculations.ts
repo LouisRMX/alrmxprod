@@ -199,6 +199,51 @@ export function calculateReport(input: ReportInput): ReportCalculations {
   }
 }
 
+/**
+ * Map platform answers + diagnosis to ReportInput.
+ * Accepts generic Record types to avoid importing platform-specific types.
+ */
+export function mapToReportInput(
+  dx: { tat_actual: number; reject_pct: number; management_context?: string },
+  answers: Record<string, unknown>
+): ReportInput {
+  const matCost = +(answers.material_cost ?? 0) || 0
+  const cement = +(answers.cement_cost ?? 0) || 0
+  const agg = +(answers.aggregate_cost ?? 0) || 0
+  const admix = +(answers.admix_cost ?? 0) || 0
+  const materialCost = matCost > 0 ? matCost : (cement + agg + admix)
+
+  const opDays = +(answers.op_days ?? 0) || 300
+  const workingDaysMonth = Math.round(opDays / 12)
+  const deliveriesDay = +(answers.deliveries_day ?? 0) || 0
+  const totalTripsMonth = Math.round(deliveriesDay * workingDaysMonth)
+
+  const radiusRaw = (String(answers.delivery_radius ?? '')).toLowerCase()
+  let radiusEnum: 'under_10km' | '10_to_20km' | 'over_20km' = '10_to_20km'
+  if (/under 5|under 10|dense urban/.test(radiusRaw)) radiusEnum = 'under_10km'
+  else if (/over 20|regional/.test(radiusRaw)) radiusEnum = 'over_20km'
+
+  return {
+    selling_price_per_m3: +(answers.price_m3 ?? 0) || 0,
+    material_cost_per_m3: materialCost,
+    plant_capacity_m3_per_hour: +(answers.plant_cap ?? 0) || 0,
+    operating_hours_per_day: +(answers.op_hours ?? 0) || 10,
+    operating_days_per_year: opDays,
+    actual_production_last_month_m3: +(answers.actual_prod ?? 0) || 0,
+    trucks_assigned: +(answers.n_trucks ?? 0) || 0,
+    total_trips_last_month: totalTripsMonth,
+    avg_turnaround_min: dx.tat_actual,
+    rejection_rate_pct: dx.reject_pct,
+    avg_delivery_radius: radiusEnum,
+    dispatch_tool: String(answers.dispatch_tool ?? ''),
+    data_sources: String(answers.prod_data_source ?? ''),
+    biggest_operational_challenge: dx.management_context || String(answers.biggest_pain ?? ''),
+    demand_vs_capacity: String(answers.demand_sufficient ?? ''),
+    queuing_and_idle: String(answers.plant_idle ?? ''),
+    dispatch_timing: String(answers.dispatch_peak ?? ''),
+  }
+}
+
 // Helper: raw utilisation percentage before rounding
 function utilisation_pct_raw(input: ReportInput): number {
   const opDaysMonth = Math.round(input.operating_days_per_year / 12)

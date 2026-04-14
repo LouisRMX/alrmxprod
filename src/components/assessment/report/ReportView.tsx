@@ -11,6 +11,7 @@ import { benchmarkTag, liveBenchmarkTag, gcQuartile, type LiveBenchmarkData } fr
 import { useBenchmarks } from '@/hooks/useBenchmarks'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import ReactMarkdown from 'react-markdown'
+import { calculateReport, mapToReportInput } from '@/lib/reportCalculations'
 import FindingCard from './FindingCard'
 import ExportWord from './ExportWord'
 import PriorityMatrixView from './PriorityMatrixView'
@@ -1972,6 +1973,8 @@ interface FullReportDrawerProps {
   tatTripCount?: number
   dx?: ValidatedDiagnosis
   fieldLogContext?: import('@/lib/fieldlog/context').FieldLogContext | null
+  rc?: import('@/lib/reportCalculations').ReportCalculations
+  reportInput?: import('@/lib/reportCalculations').ReportInput
 }
 
 function FullReportDrawer({
@@ -1980,7 +1983,7 @@ function FullReportDrawer({
   calcResult, answers, meta, assessmentId,
   issues, primaryBottleneckLoss,
   logisticsText, gpsAvgTA,
-  totalLoss, isAdmin, phase, financialBottleneck, readOnly, recoveryRange, tatSource, tatTripCount, dx, fieldLogContext,
+  totalLoss, isAdmin, phase, financialBottleneck, readOnly, recoveryRange, tatSource, tatTripCount, dx, fieldLogContext, rc, reportInput,
 }: FullReportDrawerProps) {
   const isMobile = useIsMobile()
   const isPre = phase === 'workshop'
@@ -2042,7 +2045,7 @@ function FullReportDrawer({
                 {generating ? 'Generating…' : hasAnySections ? 'Generate missing' : 'Generate report'}
               </button>
             )}
-            {dx && <ExportWord calcResult={calcResult} meta={meta} report={texts} dx={dx} issues={issues} matrix={issues.some(i => i.complexity) ? buildPriorityMatrix(issues, totalLoss, dx?.main_driver) : undefined} fieldLogContext={fieldLogContext} phase={phase} />}
+            {dx && <ExportWord calcResult={calcResult} meta={meta} report={texts} dx={dx} issues={issues} matrix={issues.some(i => i.complexity) ? buildPriorityMatrix(issues, totalLoss, dx?.main_driver) : undefined} fieldLogContext={fieldLogContext} phase={phase} rc={rc} reportInput={reportInput} />}
             <button
               type="button"
               onClick={onClose}
@@ -3158,6 +3161,10 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const dx = useMemo(() => buildValidatedDiagnosis(calcResult, answers, meta, overrides ? { measuredTA: overrides.measuredTA, measuredTripCount: overrides.measuredTripCount } : undefined), [assessmentId, calcResult, answers, meta, overrides])
 
+  // Pure calculation system (rc) — parallel to dx.calc_trace, used by ExportWord
+  const reportInput = useMemo(() => dx ? mapToReportInput(dx, answers) : undefined, [dx, answers])
+  const rc = useMemo(() => reportInput ? calculateReport(reportInput) : undefined, [reportInput])
+
   // Constraint is ALWAYS from calcResult.bottleneck via dx.primary_constraint.
   // getFinancialBottleneck() is no longer used for constraint identification.
   const financialBottleneck = dx.primary_constraint
@@ -3549,6 +3556,8 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
         tatTripCount={dx.tat_trip_count}
         dx={dx}
         fieldLogContext={fieldLogContext}
+        rc={rc}
+        reportInput={reportInput}
       />
 
     </div>
