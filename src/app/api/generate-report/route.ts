@@ -457,12 +457,12 @@ CRITICAL CONSTRAINTS FOR PRE-ASSESSMENT:
 - Frame all findings as preliminary.
 
 PLANT DATA (self-reported, not verified):
-Turnaround: ${dx.tat_actual} min (target: ${dx.tat_target} min)
+Turnaround: ${dx.tat_actual} min (target: ${dx.tat_target} min)${dx.tat_actual <= dx.tat_target * 1.05 ? '\nTAT STATUS: AT TARGET. Turnaround is not the constraint. Do not mention turnaround excess. Focus on utilisation gap and dispatch signals.' : `\nTAT excess: ${dx.tat_actual - dx.tat_target} min per cycle`}
 ${sanitizeManagementContext(dx.management_context) ? `Plant manager's stated challenge: "${sanitizeManagementContext(dx.management_context)}"
 Note: This is self-reported by the plant, not independently observed. Frame as "The plant reports..." or "Plant management identifies..." Never present it as an assessment finding or external observation. Use it to provide context, not as evidence. Paraphrase, do not quote verbatim.` : ''}
-Dispatch coordination: managed via ${dx.performance_gaps['dispatch'] ? 'manual tools' : 'unknown method'} (dispatch is a mechanism that explains WHY turnaround is high, not a separate metric)
+Dispatch coordination: managed via ${dx.performance_gaps['dispatch'] ? 'manual tools' : 'unknown method'}${dx.tat_actual <= dx.tat_target * 1.05 ? ' — when TAT is at target but utilisation is low, dispatch timing and fleet coordination are the likely drivers' : ' (dispatch is a mechanism that explains WHY turnaround is high, not a separate metric)'}
 Rejection rate: ${dx.reject_pct}% (target: <3%)
-Utilisation: ${dx.utilization_pct}% (target: 85%) — consequence of turnaround and fleet size, not an independent cause
+Utilisation: ${dx.utilization_pct}% (target: 85%)${dx.tat_actual <= dx.tat_target * 1.05 ? ' — with TAT at target, the utilisation gap points to dispatch coordination or fleet availability issues, not turnaround' : ' — consequence of turnaround and fleet size, not an independent cause'}
 Fleet: ${dx.trucks_effective} effective trucks of ${dx.trucks_total} assigned
 
 AUTHORITATIVE FINANCIAL FIGURES (use ONLY these, do not calculate your own):
@@ -613,10 +613,11 @@ CRITICAL CONSTRAINTS:
 PLANT DATA (self-reported, not verified — use ONLY these figures):
 Likely constraint area: ${dx.primary_constraint} (to be confirmed on-site)
 Estimated recoverable range: $${Math.round(lo / 1000)}k-$${Math.round(hi / 1000)}k/month
-Turnaround: ${dx.tat_actual} min (target: ${dx.tat_target} min), excess: ${tatExcess} min
+Turnaround: ${dx.tat_actual} min (target: ${dx.tat_target} min)${tatExcess > 0 ? `, excess: ${tatExcess} min` : ' — AT TARGET, not the constraint'}
 Trips per truck per day: ${ct.trips_per_truck} actual vs ${ct.trips_per_truck_target} target
 Daily output: ${ct.actual_daily_m3} m3/day actual vs ${ct.target_daily_m3} m3/day target
-Dispatch coordination: managed via ${dx.performance_gaps['dispatch'] ? 'manual tools' : 'unknown method'} (dispatch is a mechanism that explains WHY turnaround is high, not a separate metric)
+${tatExcess <= 0 ? 'TAT STATUS: AT TARGET. Do not mention turnaround excess. The utilisation gap comes from dispatch coordination or fleet availability, not cycle time.' : ''}
+Dispatch coordination: managed via ${dx.performance_gaps['dispatch'] ? 'manual tools' : 'unknown method'}${tatExcess <= 0 ? ' — with TAT at target, dispatch timing is the primary investigation area' : ''}
 Rejection rate: ${dx.reject_pct}% (target: <3%)
 Utilisation: ${dx.utilization_pct}% (target: 85%)
 Fleet: ${dx.trucks_effective} effective trucks of ${dx.trucks_total} assigned
@@ -795,8 +796,7 @@ You are writing the Preparation and Measurement section of a Pre-Assessment Repo
 ${EXAMPLE_ACTIONS}
 
 PLANT DATA (use these exact figures in every preparation and measurement item):
-Turnaround: ${dx.tat_actual} min (target: ${dx.tat_target} min)
-Excess: ${tatExcess} min per cycle
+Turnaround: ${dx.tat_actual} min (target: ${dx.tat_target} min)${tatExcess > 0 ? `\nExcess: ${tatExcess} min per cycle` : '\nTAT STATUS: AT TARGET. Do not reference turnaround excess. Focus on utilisation gap and dispatch coordination.'}
 Trips per truck: ${ct.trips_per_truck} actual vs ${ct.trips_per_truck_target} target
 Fleet: ${dx.trucks_effective} effective trucks of ${dx.trucks_total} assigned
 Monthly gap: $${monthlyGap.toLocaleString('en-US')}/month

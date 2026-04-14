@@ -2082,14 +2082,20 @@ function FullReportDrawer({
               : 0
             const tatExcessPct = calcResult.TARGET_TA > 0 ? (calcResult.ta - calcResult.TARGET_TA) / calcResult.TARGET_TA : 0
             const ct = dx?.calc_trace
-            // Both constraints present: TAT excess AND plant can't keep up with fleet at target TAT
             const hasConflictingConstraints = isPre && tatExcessPct > 0.2 && ct != null && ct.plant_daily_m3 < ct.fleet_target_daily_m3
+            const tatAtTarget = tatExcessPct <= 0.05
+            const hasDispatchSignals = Math.round(calcResult.util * 100) < 75
             const effectiveConstraint = isPre
-              ? (hasConflictingConstraints ? 'Conflicting' : tatExcessPct > 0.2 ? 'Fleet' : financialBottleneck)
+              ? (hasConflictingConstraints ? 'Conflicting'
+                : tatExcessPct > 0.2 ? 'Fleet'
+                : tatAtTarget && hasDispatchSignals ? 'Dispatch'
+                : financialBottleneck)
               : financialBottleneck
             const bottleneckLabel = effectiveConstraint === 'Conflicting'
               ? 'Fleet & capacity \u2014 verify on-site'
-              : effectiveConstraint === 'Fleet' ? 'Fleet coordination' : (effectiveConstraint ?? '-')
+              : effectiveConstraint === 'Fleet' ? 'Fleet coordination'
+              : effectiveConstraint === 'Dispatch' ? 'Dispatch timing'
+              : (effectiveConstraint ?? '-')
             const bullets: { label: string; value: string }[] = []
             // Dispatch is a mechanism (explains WHY TAT is high), not a standalone metric
             if (calcResult.ta > 0 && calcResult.TARGET_TA > 0 && calcResult.ta > calcResult.TARGET_TA)

@@ -601,8 +601,12 @@ export function buildValidatedDiagnosis(
     const gapDailyM3 = Math.max(0, targetDailyM3 - actualDailyM3)
     const workingDays = Math.round(r.opD / 12)
     const gapMonthlyM3 = gapDailyM3 * workingDays
-    const tripsPerTruck = r.ta > 0 ? Math.round(((r.opH * 60) / r.ta) * 10) / 10 : 0
-    const tripsTarget = r.TARGET_TA > 0 ? Math.round(((r.opH * 60) / r.TARGET_TA) * 10) / 10 : 0
+    // trips_actual = measured deliveries / trucks (not theoretical max from TAT)
+    // trips_target = theoretical max at TARGET_TA × 0.85 utilisation factor
+    const tripsPerTruck = r.effectiveUnits > 0 && r.delDay > 0
+      ? Math.round((r.delDay / r.effectiveUnits) * 100) / 100
+      : (r.ta > 0 ? Math.round(((r.opH * 60) / r.ta) * 10) / 10 : 0)
+    const tripsTarget = r.TARGET_TA > 0 ? Math.round(((r.opH * 60) / r.TARGET_TA) * 0.85 * 10) / 10 : 0
     return {
       fleet_daily_m3: fleetDailyM3,
       plant_daily_m3: plantDailyM3,

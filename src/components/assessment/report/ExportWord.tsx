@@ -296,8 +296,14 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
 
     const tatExcessPct = dx.tat_target > 0 ? (dx.tat_actual - dx.tat_target) / dx.tat_target : 0
     const hasConflictingConstraints = isPre && tatExcessPct > 0.2 && ct.plant_daily_m3 < ct.fleet_target_daily_m3
+    // TAT at target but utilisation gap: dispatch timing is likely constraint
+    const tatAtTarget = tatExcessPct <= 0.05
+    const hasDispatchSignals = dx.utilization_pct < 75  // significant util gap with TAT on target
     const constraintLabel = isPre
-      ? (hasConflictingConstraints ? 'Fleet & capacity \u2014 verify on-site' : tatExcessPct > 0.2 ? 'Fleet coordination' : (dx.main_driver.dimension === 'Fleet' ? 'Fleet coordination' : dx.main_driver.dimension || 'Fleet turnaround'))
+      ? (hasConflictingConstraints ? 'Fleet & capacity \u2014 verify on-site'
+        : tatExcessPct > 0.2 ? 'Fleet coordination'
+        : tatAtTarget && hasDispatchSignals ? 'Likely: Dispatch timing'
+        : (dx.main_driver.dimension === 'Fleet' ? 'Fleet coordination' : dx.main_driver.dimension || 'To be confirmed'))
       : (dx.main_driver.dimension || dx.primary_constraint)
 
     // 1. KPI header table (first thing the plant owner sees)
@@ -330,11 +336,15 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
     }
 
     // 3. Fleet reframe statement (programmatic)
-    if (isPre && ct.trips_per_truck_target > 0) {
-      if (!inserted.has('fleet-reframe')) {
-        inserted.add('fleet-reframe')
-        const trucksNeeded = Math.round(dx.trucks_effective * ct.trips_per_truck / ct.trips_per_truck_target * 10) / 10
-        const hasConflicting = ct.plant_daily_m3 < ct.fleet_target_daily_m3
+    if (isPre && ct.trips_per_truck_target > 0 && !inserted.has('fleet-reframe')) {
+      inserted.add('fleet-reframe')
+      const tatExcessPctLocal = dx.tat_target > 0 ? (dx.tat_actual - dx.tat_target) / dx.tat_target : 0
+      const trucksNeeded = ct.trips_per_truck_target > 0
+        ? Math.round(dx.trucks_effective * ct.trips_per_truck / ct.trips_per_truck_target * 10) / 10 : 0
+      const hasConflicting = ct.plant_daily_m3 < ct.fleet_target_daily_m3
+
+      if (tatExcessPctLocal > 0.05 && trucksNeeded < dx.trucks_effective * 0.95) {
+        // TAT-driven gap: show trucks reframe
         const runs: TextRun[] = [
           new TextRun({ text: `At target coordination, ${trucksNeeded} trucks would deliver what your current ${dx.trucks_effective}-truck fleet delivers today. No additional fleet investment required.`, bold: true, size: SZ_BODY, font: FONT }),
         ]
@@ -342,6 +352,11 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
           runs.push(new TextRun({ text: ' Production capacity will be verified on-site.', italics: true, size: SZ_BODY, font: FONT }))
         }
         children.push(new Paragraph({ spacing: { before: 160, after: 160 }, children: runs }))
+      } else {
+        // TAT at target: show utilisation-based statement
+        children.push(new Paragraph({ spacing: { before: 160, after: 160 }, children: [
+          new TextRun({ text: `At 85% fleet utilisation, ${dx.trucks_effective} trucks should complete ${ct.trips_per_truck_target} trips per truck per day. Current performance at ${ct.trips_per_truck} trips suggests coordination gaps reduce effective fleet availability.`, bold: true, size: SZ_BODY, font: FONT }),
+        ]}))
       }
     }
 
@@ -420,7 +435,7 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
           ...dx.loss_breakdown_detail.map(l => new TableRow({ children: [
             cell(l.dimension, { width: 4920 }),
             cell(`${fmt(l.amount)}/month`, { width: 2460, align: AlignmentType.CENTER }),
-            cell(l.classification === 'overlapping' ? 'Trips you cannot complete' : l.classification === 'additive' ? 'Material cost with no delivery' : l.classification, { width: 2460, align: AlignmentType.CENTER, color: GRAY }),
+            cell(l.dimension === 'Quality' ? 'Material cost with no delivery' : 'Trips you cannot complete', { width: 2460, align: AlignmentType.CENTER, color: GRAY }),
           ]})),
         ],
       }))
