@@ -318,7 +318,9 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
 
     if (report?.executive) {
       children.push(new Paragraph({ spacing: { after: 60 }, children: [] }))
-      children.push(...textParas(sanitize(report.executive)))
+      // Strip leading heading that duplicates the section header
+      const execText = sanitize(report.executive).replace(/^#{1,3}\s*(What the Data Suggests|Executive Summary|Executive Explanation)\s*\n+/i, '')
+      children.push(...textParas(execText))
     } else {
       children.push(new Paragraph({ spacing: { after: 60 }, children: [
         new TextRun({ text: 'Report not yet generated. Click "Generate report" in the platform before exporting.', size: SZ_SMALL, font: FONT, color: AMBER, italics: true }),
@@ -474,7 +476,9 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
     children.push(...sectionHeader(isPre ? 'Preliminary Analysis' : 'Root Cause Analysis', 'Operations Section'))
 
     if (report?.diagnosis) {
-      children.push(...textParas(sanitize(report.diagnosis)))
+      // Strip leading heading that duplicates the section header (AI sometimes generates "## Preliminary Analysis")
+      const diagText = sanitize(report.diagnosis).replace(/^#{1,3}\s*(Preliminary Analysis|Root Cause Analysis|Constraint Analysis)\s*\n+/i, '')
+      children.push(...textParas(diagText))
     } else {
       children.push(new Paragraph({ spacing: { after: 60 }, children: [
         new TextRun({ text: 'Report not yet generated. Click "Generate report" in the platform before exporting.', size: SZ_SMALL, font: FONT, color: AMBER, italics: true }),
@@ -483,7 +487,7 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
 
     // Loss breakdown table
     if (dx.loss_breakdown_detail.length > 0) {
-      children.push(new Paragraph({ spacing: { before: 120 }, heading: HeadingLevel.HEADING_2, children: [new TextRun('Loss Breakdown')] }))
+      children.push(new Paragraph({ spacing: { before: SP_BEFORE_SECTION, after: SP_AFTER_SECTION }, children: [new TextRun({ text: 'Loss Breakdown', bold: true, size: SZ_SUBSECTION, font: FONT, color: DARK })] }))
       children.push(new Table({
         width: { size: 9840, type: WidthType.DXA }, columnWidths: [4920, 2460, 2460],
         rows: [
@@ -538,11 +542,11 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
     // SECTION 6: RECOMMENDATIONS (with priority matrix)
     // ════════════════════════════════════════════════════════════════════
     children.push(new Paragraph({ children: [new PageBreak()] }))
-    children.push(...sectionHeader(isPre ? 'Preparation & Next Steps' : 'Recommendations', 'Operations Section'))
+    children.push(...sectionHeader(isPre ? 'On-Site Preparation' : 'Recommendations', 'Operations Section'))
 
     // Priority matrix table (on-site only, when matrix available)
     if (!isPre && matrix && matrix.rows.length > 0) {
-      children.push(new Paragraph({ heading: HeadingLevel.HEADING_2, children: [new TextRun('Priority Matrix')] }))
+      children.push(new Paragraph({ spacing: { before: SP_BEFORE_SECTION, after: SP_AFTER_SECTION }, children: [new TextRun({ text: 'Priority Matrix', bold: true, size: SZ_SUBSECTION, font: FONT, color: DARK })] }))
 
       for (const q of ['DO_FIRST', 'PLAN_CAREFULLY', 'QUICK_WIN', 'DONT_DO'] as Quadrant[]) {
         const qRows = matrix.rows.filter(r => r.quadrant === q)
