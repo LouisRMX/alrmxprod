@@ -2083,12 +2083,12 @@ function FullReportDrawer({
             const tatExcessPct = calcResult.TARGET_TA > 0 ? (calcResult.ta - calcResult.TARGET_TA) / calcResult.TARGET_TA : 0
             const ct = dx?.calc_trace
             const hasConflictingConstraints = isPre && tatExcessPct > 0.2 && ct != null && ct.plant_daily_m3 < ct.fleet_target_daily_m3
-            const tatAtTarget = tatExcessPct <= 0.05
-            const hasDispatchSignals = Math.round(calcResult.util * 100) < 75
+            const hasDispatchSignals = Math.round(calcResult.util * 100) < 80
+            const isDispatchScenario = tatExcessPct <= 0.2 && hasDispatchSignals
             const effectiveConstraint = isPre
               ? (hasConflictingConstraints ? 'Conflicting'
                 : tatExcessPct > 0.2 ? 'Fleet'
-                : tatAtTarget && hasDispatchSignals ? 'Dispatch'
+                : isDispatchScenario ? 'Dispatch'
                 : financialBottleneck)
               : financialBottleneck
             const bottleneckLabel = effectiveConstraint === 'Conflicting'

@@ -296,13 +296,13 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
 
     const tatExcessPct = dx.tat_target > 0 ? (dx.tat_actual - dx.tat_target) / dx.tat_target : 0
     const hasConflictingConstraints = isPre && tatExcessPct > 0.2 && ct.plant_daily_m3 < ct.fleet_target_daily_m3
-    // TAT at target but utilisation gap: dispatch timing is likely constraint
-    const tatAtTarget = tatExcessPct <= 0.05
-    const hasDispatchSignals = dx.utilization_pct < 75  // significant util gap with TAT on target
+    // Scenario classification: > 20% = Fleet, <= 20% with dispatch signals = Dispatch, else main_driver
+    const hasDispatchSignals = dx.utilization_pct < 80
+    const isDispatchScenario = tatExcessPct <= 0.2 && hasDispatchSignals
     const constraintLabel = isPre
       ? (hasConflictingConstraints ? 'Fleet & capacity \u2014 verify on-site'
         : tatExcessPct > 0.2 ? 'Fleet coordination'
-        : tatAtTarget && hasDispatchSignals ? 'Dispatch timing'
+        : isDispatchScenario ? 'Dispatch timing'
         : (dx.main_driver.dimension === 'Fleet' ? 'Fleet coordination' : dx.main_driver.dimension || 'To be confirmed'))
       : (dx.main_driver.dimension || dx.primary_constraint)
 
@@ -343,8 +343,9 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
         ? Math.round(dx.trucks_effective * ct.trips_per_truck / ct.trips_per_truck_target * 10) / 10 : 0
       const hasConflicting = ct.plant_daily_m3 < ct.fleet_target_daily_m3
 
-      if (tatExcessPctLocal > 0.05 && trucksNeeded < dx.trucks_effective * 0.95) {
-        // TAT-driven gap: show trucks reframe
+      const isDispatchLocal = tatExcessPctLocal <= 0.2 && dx.utilization_pct < 80
+      if (tatExcessPctLocal > 0.2 && trucksNeeded < dx.trucks_effective * 0.95) {
+        // Scenario A: TAT excess > 20%, show trucks reframe
         const runs: TextRun[] = [
           new TextRun({ text: `At target coordination, ${trucksNeeded} trucks would deliver what your current ${dx.trucks_effective}-truck fleet delivers today. No additional fleet investment required.`, bold: true, size: SZ_BODY, font: FONT }),
         ]
