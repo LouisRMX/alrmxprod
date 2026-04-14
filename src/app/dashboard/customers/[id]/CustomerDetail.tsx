@@ -102,15 +102,42 @@ export default function CustomerDetail({ customer, plants, members: initialMembe
     if (deleteTyped.toLowerCase() !== customer.name.toLowerCase()) return
     setDeleting(true)
     setDeleteError('')
-    const { error } = await supabase.from('customers').delete().eq('id', customer.id)
-    if (error) {
-      console.error('Delete error:', error)
+    try {
+      // Delete in dependency order to avoid foreign key violations
+      // 1. Get all plant IDs for this customer
+      const { data: customerPlants } = await supabase.from('plants').select('id').eq('customer_id', customer.id)
+      const plantIds = (customerPlants || []).map(p => p.id)
+
+      // 2. Delete assessments, reports, action_items for each plant
+      for (const pid of plantIds) {
+        const { data: assessments } = await supabase.from('assessments').select('id').eq('plant_id', pid)
+        const assessmentIds = (assessments || []).map(a => a.id)
+        for (const aid of assessmentIds) {
+          await supabase.from('action_items').delete().eq('assessment_id', aid)
+          await supabase.from('reports').delete().eq('assessment_id', aid)
+          await supabase.from('priority_matrix_overrides').delete().eq('assessment_id', aid)
+        }
+        if (assessmentIds.length > 0) {
+          await supabase.from('assessments').delete().in('id', assessmentIds)
+        }
+      }
+
+      // 3. Delete plants
+      if (plantIds.length > 0) {
+        await supabase.from('plants').delete().in('id', plantIds)
+      }
+
+      // 4. Delete customer (customer_members cascade automatically)
+      const { error } = await supabase.from('customers').delete().eq('id', customer.id)
+      if (error) throw error
+
+      router.push('/dashboard/customers')
+      router.refresh()
+    } catch (err) {
+      console.error('Delete error:', err)
       setDeleteError('Failed to delete, please try again.')
       setDeleting(false)
-      return
     }
-    router.push('/dashboard/customers')
-    router.refresh()
   }
 
   async function handleInvite() {
