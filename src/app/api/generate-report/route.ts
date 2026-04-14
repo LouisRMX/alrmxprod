@@ -4,6 +4,65 @@ import { checkRateLimit, checkSpendCap, trackSpend } from '@/lib/rate-limit'
 import { NextRequest, NextResponse } from 'next/server'
 import type { ValidatedDiagnosis } from '@/lib/diagnosis-pipeline'
 import type { Answers } from '@/lib/calculations'
+import { calculateReport, type ReportInput, type ReportCalculations } from '@/lib/reportCalculations'
+
+// ── Map platform context (dx + answers) to ReportInput ──
+// FIELD MAPPING DOCUMENTATION:
+//   ReportInput.selling_price_per_m3      ← answers.price_m3 (string → number)
+//   ReportInput.material_cost_per_m3      ← answers.material_cost OR (cement_cost + aggregate_cost + admix_cost)
+//   ReportInput.plant_capacity_m3_per_hour ← answers.plant_cap
+//   ReportInput.operating_hours_per_day   ← answers.op_hours
+//   ReportInput.operating_days_per_year   ← answers.op_days
+//   ReportInput.actual_production_last_month_m3 ← answers.actual_prod
+//   ReportInput.trucks_assigned           ← answers.n_trucks
+//   ReportInput.total_trips_last_month    ← answers.deliveries_day × (op_days / 12) [DERIVED: platform stores daily, not monthly]
+//   ReportInput.avg_turnaround_min        ← dx.tat_actual (parsed from turnaround dropdown/number)
+//   ReportInput.rejection_rate_pct        ← dx.reject_pct
+//   ReportInput.avg_delivery_radius       ← answers.delivery_radius → mapped to enum
+//   ReportInput.dispatch_tool             ← answers.dispatch_tool
+//   ReportInput.data_sources              ← answers.prod_data_source
+//   ReportInput.biggest_operational_challenge ← dx.management_context (from answers.biggest_pain)
+//   ReportInput.demand_vs_capacity        ← answers.demand_sufficient
+//   ReportInput.queuing_and_idle          ← answers.plant_idle
+//   ReportInput.dispatch_timing           ← answers.dispatch_peak
+function mapToReportInput(dx: ValidatedDiagnosis, answers: Answers): ReportInput {
+  const matCost = +(answers.material_cost ?? 0) || 0
+  const cement = +(answers.cement_cost ?? 0) || 0
+  const agg = +(answers.aggregate_cost ?? 0) || 0
+  const admix = +(answers.admix_cost ?? 0) || 0
+  const materialCost = matCost > 0 ? matCost : (cement + agg + admix)
+
+  const opDays = +(answers.op_days ?? 0) || 300
+  const workingDaysMonth = Math.round(opDays / 12)
+  const deliveriesDay = +(answers.deliveries_day ?? 0) || 0
+  const totalTripsMonth = Math.round(deliveriesDay * workingDaysMonth)
+
+  // Radius: map platform dropdown to ReportInput enum
+  const radiusRaw = (answers.delivery_radius as string || '').toLowerCase()
+  let radiusEnum: 'under_10km' | '10_to_20km' | 'over_20km' = '10_to_20km'
+  if (/under 5|under 10|dense urban/.test(radiusRaw)) radiusEnum = 'under_10km'
+  else if (/over 20|regional/.test(radiusRaw)) radiusEnum = 'over_20km'
+
+  return {
+    selling_price_per_m3: +(answers.price_m3 ?? 0) || 0,
+    material_cost_per_m3: materialCost,
+    plant_capacity_m3_per_hour: +(answers.plant_cap ?? 0) || 0,
+    operating_hours_per_day: +(answers.op_hours ?? 0) || 10,
+    operating_days_per_year: opDays,
+    actual_production_last_month_m3: +(answers.actual_prod ?? 0) || 0,
+    trucks_assigned: +(answers.n_trucks ?? 0) || 0,
+    total_trips_last_month: totalTripsMonth,
+    avg_turnaround_min: dx.tat_actual,
+    rejection_rate_pct: dx.reject_pct,
+    avg_delivery_radius: radiusEnum,
+    dispatch_tool: (answers.dispatch_tool as string) || '',
+    data_sources: (answers.prod_data_source as string) || '',
+    biggest_operational_challenge: dx.management_context || (answers.biggest_pain as string) || '',
+    demand_vs_capacity: (answers.demand_sufficient as string) || '',
+    queuing_and_idle: (answers.plant_idle as string) || '',
+    dispatch_timing: (answers.dispatch_peak as string) || '',
+  }
+}
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
@@ -81,12 +140,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'ValidatedDiagnosis missing from context' }, { status: 400 })
   }
 
+  // ── Pure calculation (new system, parallel to dx.calc_trace) ──
+  const reportInput = mapToReportInput(dx, answers)
+  const rc = calculateReport(reportInput)
+
   let prompt: string
   try {
     const prompts: Record<string, string> = {
-      executive: buildExecutivePrompt(dx, answers, phase, benchmarks),
-      diagnosis: buildDiagnosisPrompt(dx, answers, phase, benchmarks),
-      actions: buildActionsPrompt(dx, answers, phase),
+      executive: buildExecutivePrompt(dx, answers, phase, benchmarks, rc),
+      diagnosis: buildDiagnosisPrompt(dx, answers, phase, benchmarks, rc),
+      actions: buildActionsPrompt(dx, answers, phase, rc),
     }
     prompt = prompts[type]
     if (!prompt) return NextResponse.json({ error: 'Invalid report type' }, { status: 400 })
@@ -387,7 +450,7 @@ RIGHT (Tier 1 correct): "The reported turnaround time is 112 minutes."
 
 The report's credibility depends on this distinction. A plant owner who finds one overstated conclusion will distrust all findings.`
 
-function buildExecutivePrompt(dx: ValidatedDiagnosis, answers: Answers, phase: string, benchmarks: BenchmarkContext | null = null) {
+function buildExecutivePrompt(dx: ValidatedDiagnosis, answers: Answers, phase: string, benchmarks: BenchmarkContext | null = null, rc?: ReportCalculations) {
   const RULES = `RULES:
 - Use markdown for structure: **bold** for key figures, ## for section headings, numbered lists where appropriate. Use tables (markdown format) for comparisons.
 - Never invent data. Use only the figures provided.
@@ -466,22 +529,21 @@ Utilisation: ${dx.utilization_pct}% (target: 85%)${dx.tat_actual <= dx.tat_targe
 Fleet: ${dx.trucks_effective} effective trucks of ${dx.trucks_total} assigned
 
 AUTHORITATIVE FINANCIAL FIGURES (use ONLY these, do not calculate your own):
-Contribution margin: $${ct.margin_per_m3}/m3
-Monthly gap: $${(Math.round(ct.gap_monthly_m3 * ct.margin_per_m3 / 1000) * 1000).toLocaleString('en-US')}/month
-Recovery range (40-65%): $${(Math.round(dx.combined_recovery_range.lo / 1000) * 1).toLocaleString('en-US')}k-$${(Math.round(dx.combined_recovery_range.hi / 1000) * 1).toLocaleString('en-US')}k/month
-Quarterly: $${quarterlyLo.toLocaleString('en-US')}-$${quarterlyHi.toLocaleString('en-US')}
-Annual: $${annualLo.toLocaleString('en-US')}-$${annualHi.toLocaleString('en-US')}
+Contribution margin: $${rc?.contribution_margin_per_m3 ?? ct.margin_per_m3}/m3
+Monthly gap: $${(rc?.monthly_gap_usd ?? Math.round(ct.gap_monthly_m3 * ct.margin_per_m3 / 1000) * 1000).toLocaleString('en-US')}/month
+Recovery range (40-65%): $${(rc?.recovery_low_usd ?? rLo).toLocaleString('en-US')}-$${(rc?.recovery_high_usd ?? rHi).toLocaleString('en-US')}/month
+Quarterly: $${(rc?.quarterly_gap_low ?? quarterlyLo).toLocaleString('en-US')}-$${(rc?.quarterly_gap_high ?? quarterlyHi).toLocaleString('en-US')}
+Annual: $${(rc?.annual_gap_low ?? annualLo).toLocaleString('en-US')}-$${(rc?.annual_gap_high ?? annualHi).toLocaleString('en-US')}
+Constraint: ${rc?.constraint ?? 'To be confirmed'}
 Do NOT invent alternative ranges or revenue figures. Use only the figures above.
 AUTHORITATIVE FINANCIAL FIGURES ONLY: The only acceptable monthly figures are the monthly gap and recovery range listed above. Any other range is a hallucination.
-  WRONG: "This coordination gap appears to cost between $111,000 and $160,000 per month"
-  RIGHT: "This coordination gap drives a $${(Math.round(ct.gap_monthly_m3 * ct.margin_per_m3 / 1000) * 1000).toLocaleString('en-US')} monthly output gap, with $${(Math.round(dx.combined_recovery_range.lo / 1000) * 1).toLocaleString('en-US')}k-$${(Math.round(dx.combined_recovery_range.hi / 1000) * 1).toLocaleString('en-US')}k recoverable through operational changes"
 If you find yourself writing a dollar range that is not one of the two figures above, stop and delete it.
 
 OPERATIONAL REFRAME (use these exact numbers):
-Trips per truck per day: ${ct.trips_per_truck} actual vs ${ct.trips_per_truck_target} target
-Daily output: ${ct.actual_daily_m3} m3/day actual vs ${ct.target_daily_m3} m3/day target
+Trips per truck per day: ${rc?.actual_trips_per_truck_per_day ?? ct.trips_per_truck} actual vs ${rc?.target_trips_per_truck_per_day ?? ct.trips_per_truck_target} target
+Daily output: ${rc?.actual_daily_output_m3 ?? ct.actual_daily_m3} m3/day actual vs ${rc?.target_daily_output_m3 ?? ct.target_daily_m3} m3/day target
 Lost trips per day (fleet-wide): ${lostTripsPerDay}
-Equivalent parked trucks: ${parkedEquivalent}
+Equivalent parked trucks: ${rc?.parked_trucks_equivalent ?? parkedEquivalent}
 
 STRUCTURE:
 Paragraph 1: What the reported data suggests about where margin is being lost. Name the likely area but frame as directional. Use actual numbers vs targets. If the plant manager's stated challenge is available, anchor the opening in it. After stating the dollar range, translate the loss into truck-days: "That is the equivalent of parking ${parkedEquivalent} trucks every day." End the paragraph with the cost of delay timeline: "At this recovery range, the unaddressed gap compounds to $${quarterlyLo.toLocaleString('en-US')}-$${quarterlyHi.toLocaleString('en-US')} over a quarter and $${annualLo.toLocaleString('en-US')}-$${annualHi.toLocaleString('en-US')} over a year." This is Tier 1 (direct calculation from confirmed recovery range), use declarative language. Do NOT write anything about how many trucks would be needed at target coordination — that statement is inserted separately by the report formatter.
@@ -542,7 +604,7 @@ Paragraph 2: State the downstream consequence for the system. Use calc_trace num
 Paragraph 3: Why this is the binding constraint over the others. One sentence per secondary dimension. End confirming why the primary constraint unlocks the most recovery.`
 }
 
-function buildDiagnosisPrompt(dx: ValidatedDiagnosis, answers: Answers, phase: string, benchmarks: BenchmarkContext | null = null) {
+function buildDiagnosisPrompt(dx: ValidatedDiagnosis, answers: Answers, phase: string, benchmarks: BenchmarkContext | null = null, rc?: ReportCalculations) {
   const RULES = `RULES:
 - Use markdown for structure: **bold** for key figures and cause labels, ## for section headings where appropriate.
 - Never invent data. Use only the figures provided.
@@ -743,7 +805,7 @@ Financial impact: Addresses primary constraint ($173k/month throughput loss).
 After the findings, add one paragraph: what resolving the primary constraint enables (capacity, delivery cadence). No financial figures in this paragraph.`
 }
 
-function buildActionsPrompt(dx: ValidatedDiagnosis, answers: Answers, phase: string) {
+function buildActionsPrompt(dx: ValidatedDiagnosis, answers: Answers, phase: string, rc?: ReportCalculations) {
   const performingWell = dx.total_loss === 0 && dx.actions.length === 0 && dx.data_quality !== 'insufficient'
 
   if (performingWell) {
