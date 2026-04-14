@@ -184,7 +184,8 @@ export async function POST(req: NextRequest) {
         parsed.delivery_radius = dropdown
       }
     }
-    delete parsed.delivery_radius_raw
+    // Preserve raw radius for parseRadius() in reportCalculations (never loses precision)
+    parsed.delivery_radius_raw = parsed.delivery_radius_raw || parsed.delivery_radius
 
     // Convert all values to strings (assessment answers are stored as strings)
     const answers: Record<string, string> = {}

@@ -14,7 +14,7 @@ export interface ReportInput {
   total_trips_last_month: number
   avg_turnaround_min: number
   rejection_rate_pct: number
-  avg_delivery_radius: 'under_10km' | '10_to_20km' | 'over_20km'
+  avg_delivery_radius: string  // Raw customer input, enum, or range string — parsed by parseRadius()
   dispatch_tool: string
   data_sources: string
   biggest_operational_challenge: string
@@ -257,10 +257,8 @@ export function mapToReportInput(
   const deliveriesDay = +(answers.deliveries_day ?? 0) || 0
   const totalTripsMonth = Math.round(deliveriesDay * workingDaysMonth)
 
-  const radiusRaw = (String(answers.delivery_radius ?? '')).toLowerCase()
-  let radiusEnum: 'under_10km' | '10_to_20km' | 'over_20km' = '10_to_20km'
-  if (/under 5|under 10|dense urban/.test(radiusRaw)) radiusEnum = 'under_10km'
-  else if (/over 20|regional/.test(radiusRaw)) radiusEnum = 'over_20km'
+  // Pass raw radius value to parseRadius — never pre-convert to dropdown
+  const radiusRaw = String(answers.delivery_radius_raw ?? answers.delivery_radius ?? '')
 
   return {
     selling_price_per_m3: +(answers.price_m3 ?? 0) || 0,
@@ -273,7 +271,7 @@ export function mapToReportInput(
     total_trips_last_month: totalTripsMonth,
     avg_turnaround_min: dx.tat_actual,
     rejection_rate_pct: dx.reject_pct,
-    avg_delivery_radius: radiusEnum,
+    avg_delivery_radius: radiusRaw,
     dispatch_tool: String(answers.dispatch_tool ?? ''),
     data_sources: String(answers.prod_data_source ?? ''),
     biggest_operational_challenge: dx.management_context || String(answers.biggest_pain ?? ''),
