@@ -334,7 +334,7 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
       { label: 'TURNAROUND', value: `${kpiTatActual} min`, sub: `target: ~${kpiTatTarget} min`, valueColor: kpiTatActual > kpiTatTarget ? RED : KPI_GREEN },
       { label: 'UTILISATION', value: `${rc?.utilisation_actual_pct ?? dx.utilization_pct}%`, sub: 'target: ~85%', valueColor: (rc?.utilisation_actual_pct ?? dx.utilization_pct) < 85 ? RED : KPI_GREEN },
       { label: 'REJECTION', value: `${dx.reject_pct}%`, sub: 'target: <3%', valueColor: dx.reject_pct <= 3 ? KPI_GREEN : RED },
-      { label: 'CONSTRAINT', value: isPre ? `Likely: ${constraintLabel}` : constraintLabel, sub: isPre ? 'To be confirmed on-site' : `${fmtK(dx.main_driver.amount)}/month`, valueColor: DARK },
+      { label: 'CONSTRAINT', value: isPre ? (constraintLabel.startsWith('Likely:') ? constraintLabel : `Likely: ${constraintLabel}`) : constraintLabel, sub: isPre ? 'To be confirmed on-site' : `${fmtK(dx.main_driver.amount)}/month`, valueColor: DARK },
     ]
     children.push(new Table({
       width: { size: 9840, type: WidthType.DXA }, columnWidths: [2460, 2460, 2460, 2460],
