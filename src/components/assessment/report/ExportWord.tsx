@@ -556,23 +556,22 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
     } // end if (hasVSMData)
 
     // ════════════════════════════════════════════════════════════════════
-    // SECTION 4: ROOT CAUSE ANALYSIS
+    // SECTION 4: ROOT CAUSE ANALYSIS (on-site only, removed from pre-assessment)
     // ════════════════════════════════════════════════════════════════════
+    if (!isPre) {
     children.push(new Paragraph({ children: [new PageBreak()] }))
-    children.push(...sectionHeader(isPre ? 'Preliminary Analysis' : 'Root Cause Analysis', 'Operations Section'))
+    children.push(...sectionHeader('Root Cause Analysis', 'Operations Section'))
 
     if (report?.diagnosis) {
-      // Strip leading heading that duplicates the section header (AI sometimes generates "## Preliminary Analysis")
       let diagText = sanitize(report.diagnosis).replace(/^#{1,3}\s*(Preliminary Analysis|Root Cause Analysis|Constraint Analysis)\s*\n+/i, '')
-      diagText = stripUnauthorizedHeadings(diagText, isPre ? [] : ['Loss Breakdown'])
+      diagText = stripUnauthorizedHeadings(diagText, ['Loss Breakdown'])
       children.push(...textParas(diagText))
     } else {
       children.push(new Paragraph({ spacing: { after: 60 }, children: [
         new TextRun({ text: 'Report not yet generated. Click "Generate report" in the platform before exporting.', size: SZ_SMALL, font: FONT, color: AMBER, italics: true }),
       ]}))
     }
-
-    // Loss breakdown moved to Executive section ("Where the gap sits")
+    } // end !isPre for Root Cause Analysis
 
     // ════════════════════════════════════════════════════════════════════
     // SECTION 5: WHAT WE DID NOT FIND
@@ -602,13 +601,14 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
     }
 
     // ════════════════════════════════════════════════════════════════════
-    // SECTION 6: RECOMMENDATIONS (with priority matrix)
+    // SECTION 6: RECOMMENDATIONS (on-site only, removed from pre-assessment)
     // ════════════════════════════════════════════════════════════════════
+    if (!isPre) {
     children.push(new Paragraph({ children: [new PageBreak()] }))
-    children.push(...sectionHeader(isPre ? 'On-Site Preparation' : 'Recommendations', 'Operations Section'))
+    children.push(...sectionHeader('Recommendations', 'Operations Section'))
 
     // Priority matrix table (on-site only, when matrix available)
-    if (!isPre && matrix && matrix.rows.length > 0) {
+    if (matrix && matrix.rows.length > 0) {
       children.push(new Paragraph({ spacing: { before: SP_BEFORE_SECTION, after: SP_AFTER_SECTION }, children: [new TextRun({ text: 'Priority Matrix', bold: true, size: SZ_SUBSECTION, font: FONT, color: DARK })] }))
 
       for (const q of ['DO_FIRST', 'PLAN_CAREFULLY', 'QUICK_WIN', 'DONT_DO'] as Quadrant[]) {
@@ -637,6 +637,28 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
       children.push(new Paragraph({ spacing: { after: 60 }, children: [
         new TextRun({ text: 'Report not yet generated. Click "Generate report" in the platform before exporting.', size: SZ_SMALL, font: FONT, color: AMBER, italics: true }),
       ]}))
+    }
+    } // end !isPre for Recommendations
+
+    // ════════════════════════════════════════════════════════════════════
+    // NEXT STEP (pre-assessment: extract from AI actions text)
+    // ════════════════════════════════════════════════════════════════════
+    if (isPre && report?.actions) {
+      children.push(new Paragraph({ spacing: { before: SP_BEFORE_SECTION, after: SP_AFTER_SECTION }, children: [
+        new TextRun({ text: 'Next Step', bold: true, size: SZ_SUBSECTION, font: FONT, color: DARK }),
+      ]}))
+      // Extract the Next Step portion from AI actions text (everything after "## Next Step" heading)
+      const actionsText = sanitize(report.actions)
+      const nextStepMatch = actionsText.match(/##\s*Next\s*Step\s*\n+([\s\S]*?)(?=##|$)/i)
+      if (nextStepMatch) {
+        children.push(...textParas(nextStepMatch[1].trim()))
+      } else {
+        // Fallback: use the last paragraph of the actions text
+        const paras = actionsText.split(/\n{2,}/).filter(p => p.trim())
+        if (paras.length > 0) {
+          children.push(...textParas(paras[paras.length - 1].trim()))
+        }
+      }
     }
 
     // Fixed closing line (not AI-generated)
