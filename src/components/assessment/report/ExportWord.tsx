@@ -288,8 +288,9 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
           width: { size: 9840, type: WidthType.DXA },
           children: [
             new Paragraph({ children: [
-              new TextRun({ text: 'Estimated recoverable margin: ', size: SZ_BODY, font: FONT }),
-              new TextRun({ text: `${fmt(lo)} - ${fmt(hi)} per month`, bold: true, size: SZ_RECOVERY, font: FONT, color: GREEN }),
+              new TextRun({ text: 'You are leaving estimated ', size: SZ_BODY, font: FONT }),
+              new TextRun({ text: `${fmt(lo)} - ${fmt(hi)}`, bold: true, size: SZ_RECOVERY, font: FONT, color: GREEN }),
+              new TextRun({ text: ' in recoverable margin every month.', size: SZ_BODY, font: FONT }),
             ]}),
             new Paragraph({ spacing: { before: 40 }, children: [
               new TextRun({ text: `${dx.tat_source === 'measured' ? `Based on ${dx.tat_trip_count} observed cycles` : dx.tat_source === 'validated' ? 'On-site validated' : 'Based on reported data'}. 40-65% execution range.`, size: SZ_SMALL, font: FONT, color: GRAY }),
@@ -324,7 +325,7 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
       { label: 'TURNAROUND', value: `${dx.tat_actual} min`, sub: `target: ~${dx.tat_target} min`, valueColor: dx.tat_actual > dx.tat_target ? RED : KPI_GREEN },
       { label: 'UTILISATION', value: `${dx.utilization_pct}%`, sub: 'target: ~85%', valueColor: dx.utilization_pct < 85 ? RED : KPI_GREEN },
       { label: 'REJECTION', value: `${dx.reject_pct}%`, sub: 'target: <3%', valueColor: dx.reject_pct <= 3 ? KPI_GREEN : RED },
-      { label: 'CONSTRAINT', value: isPre ? 'To be confirmed' : constraintLabel, sub: isPre ? `Likely: ${constraintLabel}` : `${fmtK(dx.main_driver.amount)}/month`, valueColor: DARK },
+      { label: 'CONSTRAINT', value: isPre ? `Likely: ${constraintLabel}` : constraintLabel, sub: isPre ? 'To be confirmed on-site' : `${fmtK(dx.main_driver.amount)}/month`, valueColor: DARK },
     ]
     children.push(new Table({
       width: { size: 9840, type: WidthType.DXA }, columnWidths: [2460, 2460, 2460, 2460],

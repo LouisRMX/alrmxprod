@@ -2138,9 +2138,9 @@ function FullReportDrawer({
                     <div style={{ fontSize: '10px', color: '#c09090', marginTop: '2px' }}>per month{isPre ? ' (directional)' : ''}</div>
                   </div>
                   <div style={{ padding: '16px 20px', background: '#fafafa' }}>
-                    <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.3px', textTransform: 'uppercase', color: '#aaa', marginBottom: '4px' }}>{isPre ? 'Likely constraint area' : 'Primary constraint'}</div>
-                    <div style={{ fontSize: '22px', fontWeight: 800, color: '#111', lineHeight: 1.1, letterSpacing: '-0.3px' }}>{isPre ? 'To be confirmed' : bottleneckLabel}</div>
-                    <div style={{ fontSize: '10px', color: '#aaa', marginTop: '2px' }}>{isPre ? `Likely: ${bottleneckLabel}` : `${fmtK(bnLossDrawer)} / month`}</div>
+                    <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.3px', textTransform: 'uppercase', color: '#aaa', marginBottom: '4px' }}>{isPre ? 'Likely constraint' : 'Primary constraint'}</div>
+                    <div style={{ fontSize: '22px', fontWeight: 800, color: '#111', lineHeight: 1.1, letterSpacing: '-0.3px' }}>{isPre ? bottleneckLabel : bottleneckLabel}</div>
+                    <div style={{ fontSize: '10px', color: '#aaa', marginTop: '2px' }}>{isPre ? 'To be confirmed on-site' : `${fmtK(bnLossDrawer)} / month`}</div>
                   </div>
                 </div>
                 {/* Snapshot bullets */}
