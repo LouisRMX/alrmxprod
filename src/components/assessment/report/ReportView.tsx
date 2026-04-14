@@ -3214,7 +3214,7 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
       })
   }, [assessmentId, supabase])
 
-  const hasAllSections = !!(texts.executive && texts.diagnosis && texts.actions)
+  const hasAllSections = isPre ? !!texts.executive : !!(texts.executive && texts.diagnosis && texts.actions)
   const hasAnySections = !!(texts.executive || texts.diagnosis || texts.actions)
 
   // Context sent to API: dx + raw answers (for fields not yet on VD) + phase + benchmark buckets
@@ -3285,7 +3285,9 @@ export default function ReportView({ calcResult, answers, meta, report, assessme
     setGenError(null)
     const failed: string[] = []
     const sectionLabels: Record<string, string> = { executive: 'Executive', diagnosis: 'Analysis', actions: 'Actions' }
-    for (const section of ['executive', 'diagnosis', 'actions']) {
+    // Pre-assessment: only executive is AI-generated. Diagnosis and actions sections removed from Word export.
+    const sections = phase === 'workshop' ? ['executive'] : ['executive', 'diagnosis', 'actions']
+    for (const section of sections) {
       // Skip sections that already have content ("Generate missing")
       if (texts[section as keyof typeof texts]?.trim()) continue
       const ok = await generate(section)

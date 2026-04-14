@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import type { ValidatedDiagnosis } from '@/lib/diagnosis-pipeline'
 import type { Answers } from '@/lib/calculations'
 import { calculateReport, type ReportInput, type ReportCalculations } from '@/lib/reportCalculations'
+import { replaceNarrativeTokens, assembleBoldSummaryLine } from '@/lib/reportAssembly'
 
 // ── Map platform context (dx + answers) to ReportInput ──
 // FIELD MAPPING DOCUMENTATION:
@@ -163,6 +164,9 @@ export async function POST(req: NextRequest) {
   const RETRY_DELAYS = [2000, 4000, 8000]
 
   const encoder = new TextEncoder()
+  // For pre-assessment executive: buffer AI response, replace tokens, then send
+  const needsTokenReplacement = phase === 'workshop' && type === 'executive' && rc
+
   const stream = new ReadableStream({
     async start(controller) {
       for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
@@ -173,16 +177,31 @@ export async function POST(req: NextRequest) {
             messages: [{ role: 'user', content: prompt }],
           })
 
-          for await (const chunk of response) {
-            if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') {
-              controller.enqueue(encoder.encode(chunk.delta.text))
+          if (needsTokenReplacement) {
+            // Buffer entire response, replace tokens, then send
+            let rawText = ''
+            for await (const chunk of response) {
+              if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') {
+                rawText += chunk.delta.text
+              }
+            }
+            const processed = replaceNarrativeTokens(rawText.trim(), rc, reportInput)
+            controller.enqueue(encoder.encode(processed))
+          } else {
+            // Stream directly for on-site reports
+            for await (const chunk of response) {
+              if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') {
+                controller.enqueue(encoder.encode(chunk.delta.text))
+              }
             }
           }
 
           trackSpend(user.id)
 
           if (assessmentId !== 'demo') {
-            const fullText = (await response.finalText()).trim()
+            const fullText = needsTokenReplacement
+              ? replaceNarrativeTokens((await response.finalText()).trim(), rc, reportInput)
+              : (await response.finalText()).trim()
             await supabase.from('reports').upsert({
               assessment_id: assessmentId,
               [type]: fullText,
@@ -510,57 +529,47 @@ ${PRE_ASSESSMENT_EPISTEMIC}
 You are writing the initial analysis section of a Pre-Assessment Report for ${dx.plant_name} in ${dx.country}.
 This is based on self-reported data collected remotely. No on-site verification.
 
-${EXAMPLE_EXECUTIVE}
+PLACEHOLDER TOKEN RULES (MANDATORY):
+1. Every number in your response MUST use a placeholder token from the list below. Never write a raw number.
+2. Do not use "approximately", "roughly", "around", or "about" before any token. Tokens are exact values.
+3. The constraint is {{CONSTRAINT}}. Every causal explanation must be consistent with this label.
+4. Do not write the bold summary line. It is injected separately by the report formatter.
+5. Do not mention rejection rate unless constraint is quality-related.
+6. Do not invent operational details not present in the input data.
 
-CRITICAL CONSTRAINTS FOR PRE-ASSESSMENT:
-- All figures are directional estimates, not confirmed values.
-- Do NOT name a definitive constraint. Say "the data points toward [area] as the likely driver, to be confirmed on-site."
-- Do NOT reference TAT component breakdown (site wait, transit split).
-- Use ranges: "between $${Math.round(lo / 1000)}k and $${Math.round(hi / 1000)}k per month".
-- Frame all findings as preliminary.
+AVAILABLE TOKENS:
+{{RECOVERY_LOW}} — recovery range low bound
+{{RECOVERY_HIGH}} — recovery range high bound
+{{MONTHLY_GAP}} — total monthly output gap
+{{TAT_ACTUAL}} — actual turnaround time in minutes
+{{TAT_TARGET}} — target turnaround time in minutes
+{{TAT_EXCESS}} — turnaround excess in minutes (0 if at target)
+{{TRIPS_ACTUAL}} — actual trips per truck per day
+{{TRIPS_TARGET}} — target trips per truck per day
+{{PARKED_TRUCKS}} — equivalent parked trucks
+{{QUARTERLY_LOW}} — quarterly recovery range low
+{{QUARTERLY_HIGH}} — quarterly recovery range high
+{{ANNUAL_LOW}} — annual recovery range low
+{{ANNUAL_HIGH}} — annual recovery range high
+{{TRUCKS}} — number of trucks assigned
+{{CONSTRAINT}} — the likely constraint label
 
-PLANT DATA (self-reported, not verified):
-Turnaround: ${dx.tat_actual} min (target: ${dx.tat_target} min)${dx.tat_actual <= dx.tat_target * 1.05 ? '\nTAT STATUS: AT TARGET. Turnaround is not the constraint. Do not mention turnaround excess. Focus on utilisation gap and dispatch signals.' : `\nTAT excess: ${dx.tat_actual - dx.tat_target} min per cycle`}
+PLANT CONTEXT (self-reported, not verified):
+Turnaround: {{TAT_ACTUAL}} min (target: {{TAT_TARGET}} min)${rc && rc.gap_driver !== 'tat' ? '\nTAT is at or near target. Do not mention turnaround excess. Focus on utilisation gap and dispatch signals.' : ''}
 ${sanitizeManagementContext(dx.management_context) ? `Plant manager's stated challenge: "${sanitizeManagementContext(dx.management_context)}"
-Note: This is self-reported by the plant, not independently observed. Frame as "The plant reports..." or "Plant management identifies..." Never present it as an assessment finding or external observation. Use it to provide context, not as evidence. Paraphrase, do not quote verbatim.` : ''}
-Dispatch coordination: managed via ${dx.performance_gaps['dispatch'] ? 'manual tools' : 'unknown method'}${dx.tat_actual <= dx.tat_target * 1.05 ? ' — when TAT is at target but utilisation is low, dispatch timing and fleet coordination are the likely drivers' : ' (dispatch is a mechanism that explains WHY turnaround is high, not a separate metric)'}
+Note: Self-reported. Frame as "The plant reports..." Never as an independent finding.` : ''}
+Dispatch coordination: managed via ${dx.performance_gaps['dispatch'] ? 'manual tools' : 'unknown method'}
 Rejection rate: ${dx.reject_pct}% (target: <3%)
-Utilisation: ${dx.utilization_pct}% (target: 85%)${dx.tat_actual <= dx.tat_target * 1.05 ? ' — with TAT at target, the utilisation gap points to dispatch coordination or fleet availability issues, not turnaround' : ' — consequence of turnaround and fleet size, not an independent cause'}
-Fleet: ${dx.trucks_effective} effective trucks of ${dx.trucks_total} assigned
+Utilisation: ${dx.utilization_pct}% (target: 85%)
+Fleet: {{TRUCKS}} trucks assigned
 
-AUTHORITATIVE FINANCIAL FIGURES (use ONLY these, do not calculate your own):
-Contribution margin: $${rc?.contribution_margin_per_m3 ?? ct.margin_per_m3}/m3
-Monthly gap: $${(rc?.monthly_gap_usd ?? Math.round(ct.gap_monthly_m3 * ct.margin_per_m3 / 1000) * 1000).toLocaleString('en-US')}/month
-Recovery range (40-65%): $${(rc?.recovery_low_usd ?? rLo).toLocaleString('en-US')}-$${(rc?.recovery_high_usd ?? rHi).toLocaleString('en-US')}/month
-Quarterly: $${(rc?.quarterly_gap_low ?? quarterlyLo).toLocaleString('en-US')}-$${(rc?.quarterly_gap_high ?? quarterlyHi).toLocaleString('en-US')}
-Annual: $${(rc?.annual_gap_low ?? annualLo).toLocaleString('en-US')}-$${(rc?.annual_gap_high ?? annualHi).toLocaleString('en-US')}
-Constraint: ${rc?.constraint ?? 'To be confirmed'}
-Do NOT invent alternative ranges or revenue figures. Use only the figures above.
-AUTHORITATIVE FINANCIAL FIGURES ONLY: The only acceptable monthly figures are the monthly gap and recovery range listed above. Any other range is a hallucination.
-If you find yourself writing a dollar range that is not one of the two figures above, stop and delete it.
+STRUCTURE — write exactly three paragraphs, maximum 120 words total:
 
-OPERATIONAL REFRAME (use these exact numbers):
-Trips per truck per day: ${rc?.actual_trips_per_truck_per_day ?? ct.trips_per_truck} actual vs ${rc?.target_trips_per_truck_per_day ?? ct.trips_per_truck_target} target
-Daily output: ${rc?.actual_daily_output_m3 ?? ct.actual_daily_m3} m3/day actual vs ${rc?.target_daily_output_m3 ?? ct.target_daily_m3} m3/day target
-Lost trips per day (fleet-wide): ${lostTripsPerDay}
-Equivalent parked trucks: ${rc?.parked_trucks_equivalent ?? parkedEquivalent}
+Paragraph 1: The mechanism behind {{CONSTRAINT}}, grounded in the qualitative inputs above. Use {{MONTHLY_GAP}} for the gap. Use {{RECOVERY_LOW}} to {{RECOVERY_HIGH}} for the recovery range. End with: "At this recovery range, the unaddressed gap compounds to {{QUARTERLY_LOW}}-{{QUARTERLY_HIGH}} over a quarter and {{ANNUAL_LOW}}-{{ANNUAL_HIGH}} over a year."
 
-STRUCTURE:
-Paragraph 1: What the reported data suggests about where margin is being lost. Name the likely area but frame as directional. Use actual numbers vs targets. If the plant manager's stated challenge is available, anchor the opening in it. After stating the dollar range, translate the loss into truck-days: "That is the equivalent of parking ${parkedEquivalent} trucks every day." End the paragraph with the cost of delay timeline: "At this recovery range, the unaddressed gap compounds to $${quarterlyLo.toLocaleString('en-US')}-$${quarterlyHi.toLocaleString('en-US')} over a quarter and $${annualLo.toLocaleString('en-US')}-$${annualHi.toLocaleString('en-US')} over a year." This is Tier 1 (direct calculation from confirmed recovery range), use declarative language. Do NOT write anything about how many trucks would be needed at target coordination — that statement is inserted separately by the report formatter.
+Paragraph 2: What cannot be determined remotely and why. Reference specific unknowns.
 
-Paragraph 2: Include a before/after comparison table (markdown table format):
-| Metric | Current | Target |
-|--------|---------|--------|
-| Trips per truck per day | ${ct.trips_per_truck} | ${ct.trips_per_truck_target} |
-| Daily output (m3) | ${ct.actual_daily_m3} | ${ct.target_daily_m3} |
-| Monthly recovery range | - | $${Math.round(dx.combined_recovery_range.lo / 1000)}k-$${Math.round(dx.combined_recovery_range.hi / 1000)}k |
-
-Do NOT include any statement about trucks needed at target coordination or "no additional fleet investment". That statement is inserted programmatically by the report formatter. Including it in the narrative creates a duplicate.
-
-After the table, include this exact sentence (Tier 1, methodological statement):
-"The recovery range reflects a 40-65% execution probability. Operational changes rarely capture the full theoretical gap due to structural constraints, customer dependencies, and implementation time."
-
-Follow with 1-2 sentences on what cannot be determined remotely, and end by framing the on-site visit as the logical next step.`
+Paragraph 3: What the on-site assessment will resolve. Be specific to this plant's signals.`
   }
 
   // ── ON-SITE EXECUTIVE ──

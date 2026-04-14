@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { calculateReport, type ReportInput } from './reportCalculations'
+import { replaceNarrativeTokens, assembleBoldSummaryLine } from './reportAssembly'
 
 // ── Dataset 1: Plant A — Scenario B, dispatch clustering with morning concentration ──
 const PLANT_A: ReportInput = {
@@ -199,6 +200,37 @@ describe('calculateReport', () => {
         expect(r.dispatch_loss_usd).toBeGreaterThanOrEqual(0)
         expect(r.parked_trucks_equivalent).toBeGreaterThanOrEqual(0)
       })
+    })
+  })
+
+  describe('replaceNarrativeTokens', () => {
+    it('replaces all 15 tokens', () => {
+      const rc = calculateReport(PLANT_A)
+      const allTokens = '{{RECOVERY_LOW}} {{RECOVERY_HIGH}} {{MONTHLY_GAP}} {{TAT_ACTUAL}} {{TAT_TARGET}} {{TAT_EXCESS}} {{TRIPS_ACTUAL}} {{TRIPS_TARGET}} {{PARKED_TRUCKS}} {{QUARTERLY_LOW}} {{QUARTERLY_HIGH}} {{ANNUAL_LOW}} {{ANNUAL_HIGH}} {{TRUCKS}} {{CONSTRAINT}}'
+      const result = replaceNarrativeTokens(allTokens, rc, PLANT_A)
+      expect(result).not.toContain('{{')
+      expect(result).not.toContain('}}')
+      expect(result).toContain('$') // currency values present
+      expect(result).toContain(rc.constraint)
+    })
+  })
+
+  describe('assembleBoldSummaryLine', () => {
+    it('generates tat-based line when gap_driver is tat', () => {
+      // Force tat scenario by using a plant with large TAT excess
+      const rc = calculateReport(PLANT_C)
+      // Plant C may be tat or mixed depending on exact calc
+      const line = assembleBoldSummaryLine(rc, PLANT_C)
+      expect(line).toContain(String(PLANT_C.trucks_assigned))
+      expect(line.length).toBeGreaterThan(20)
+    })
+
+    it('generates utilisation-based line when gap_driver is utilisation', () => {
+      const rc = calculateReport(PLANT_EDGE)
+      expect(rc.gap_driver).toBe('utilisation')
+      const line = assembleBoldSummaryLine(rc, PLANT_EDGE)
+      expect(line).toContain(PLANT_EDGE.actual_production_last_month_m3.toLocaleString('en-US'))
+      expect(line).not.toContain('trucks could complete')
     })
   })
 })

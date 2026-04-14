@@ -10,6 +10,9 @@ import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
   Header, Footer, AlignmentType, BorderStyle, WidthType,
   ShadingType, HeadingLevel, PageNumber, PageBreak } from 'docx'
 
+import type { ReportCalculations, ReportInput } from '@/lib/reportCalculations'
+import { assembleBoldSummaryLine } from '@/lib/reportAssembly'
+
 interface ExportWordProps {
   calcResult: CalcResult
   meta?: { country?: string; plant?: string; date?: string }
@@ -19,6 +22,8 @@ interface ExportWordProps {
   matrix?: PriorityMatrix | null
   fieldLogContext?: FieldLogContext | null
   phase?: string
+  rc?: ReportCalculations
+  reportInput?: ReportInput
 }
 
 // ── Design tokens ────────────────────────────────────────────────────────
@@ -221,7 +226,7 @@ const QUADRANT_LABELS: Record<string, string> = {
 
 // ── Main Component ───────────────────────────────────────────────────────
 
-export default function ExportWord({ calcResult, meta, report, dx, issues, matrix, fieldLogContext, phase }: ExportWordProps) {
+export default function ExportWord({ calcResult, meta, report, dx, issues, matrix, fieldLogContext, phase, rc, reportInput }: ExportWordProps) {
   const [exporting, setExporting] = useState(false)
   const isPre = phase === 'workshop'
   const plantName = meta?.plant || 'Plant Assessment'
@@ -347,39 +352,15 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
       ]}))
     }
 
-    // 3. Fleet reframe statement (programmatic)
-    if (isPre && ct.trips_per_truck_target > 0 && !inserted.has('fleet-reframe')) {
+    // 3. Bold summary line (deterministic, never AI-generated)
+    if (isPre && !inserted.has('fleet-reframe')) {
       inserted.add('fleet-reframe')
-      const tatExcessPctLocal = dx.tat_target > 0 ? (dx.tat_actual - dx.tat_target) / dx.tat_target : 0
-      const trucksNeeded = ct.trips_per_truck_target > 0
-        ? Math.round(dx.trucks_effective * ct.trips_per_truck / ct.trips_per_truck_target * 10) / 10 : 0
-      const hasConflicting = ct.plant_daily_m3 < ct.fleet_target_daily_m3
-
-      const isDispatchLocal = tatExcessPctLocal <= 0.2 && dx.utilization_pct < 80
-      if (tatExcessPctLocal > 0.2 && trucksNeeded < dx.trucks_effective * 0.95) {
-        // Scenario A: TAT excess > 20%, show trucks reframe
-        const runs: TextRun[] = [
-          new TextRun({ text: `At target coordination, ${trucksNeeded} trucks would deliver what your current ${dx.trucks_effective}-truck fleet delivers today. No additional fleet investment required.`, bold: true, size: SZ_BODY, font: FONT }),
-        ]
-        if (hasConflicting) {
-          runs.push(new TextRun({ text: ' Production capacity will be verified on-site.', italics: true, size: SZ_BODY, font: FONT }))
-        }
-        children.push(new Paragraph({ spacing: { before: 160, after: 160 }, children: runs }))
-      } else if (ct.plant_daily_m3 > 0 && ct.actual_daily_m3 >= ct.plant_daily_m3 * 0.9) {
-        // Scenario C: production constrained (plant at capacity, fleet underused because plant can't keep up)
-        children.push(new Paragraph({ spacing: { before: 160, after: 160 }, children: [
-          new TextRun({ text: `At current production capacity, the plant cannot sustain full fleet activity even with perfect dispatch coordination. The constraint lies in batch throughput, not fleet scheduling.`, bold: true, size: SZ_BODY, font: FONT }),
-        ]}))
-      } else {
-        // Scenario B: TAT at target but utilisation low — dispatch/coordination gap
-        const maxTripsDay = dx.tat_actual > 0 ? Math.round(dx.trucks_effective * (dx.operating_hours * 60 / dx.tat_actual)) : 0
-        const actualTripsDay = Math.round(ct.trips_per_truck * dx.trucks_effective)
-        const gapTrips = Math.max(0, maxTripsDay - actualTripsDay)
-        const gapPct = maxTripsDay > 0 ? Math.round((gapTrips / maxTripsDay) * 100) : 0
-        children.push(new Paragraph({ spacing: { before: 160, after: 160 }, children: [
-          new TextRun({ text: `Your ${dx.trucks_effective} trucks could complete ${maxTripsDay} trips per day at current TAT. Actual performance: ${actualTripsDay} trips. The ${gapTrips} missing trips represent ${gapPct}% of available fleet capacity sitting idle.`, bold: true, size: SZ_BODY, font: FONT }),
-        ]}))
-      }
+      const boldLine = rc && reportInput
+        ? assembleBoldSummaryLine(rc, reportInput)
+        : `Fleet produces ${ct.trips_per_truck} trips per truck per day against a target of ${ct.trips_per_truck_target}.`
+      children.push(new Paragraph({ spacing: { before: 160, after: 160 }, children: [
+        new TextRun({ text: boldLine, bold: true, size: SZ_BODY, font: FONT }),
+      ]}))
     }
 
     // 4. AI narrative (explains the gap)
@@ -398,6 +379,15 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
       new TextRun({ text: 'Capacity Detail', bold: true, size: SZ_SUBSECTION, font: FONT, color: DARK }),
     ]}))
 
+    // Capacity values: use rc when available, fall back to ct
+    const capActualDaily = rc?.actual_daily_output_m3 ?? ct.actual_daily_m3
+    const capTargetDaily = rc?.target_daily_output_m3 ?? ct.target_daily_m3
+    const capOpDays = rc?.op_days_per_month ?? ct.working_days_month
+    const capMargin = rc?.contribution_margin_per_m3 ?? ct.margin_per_m3
+    const capMonthlyGap = rc?.monthly_gap_usd ?? Math.round(ct.gap_monthly_m3 * ct.margin_per_m3 / 1000) * 1000
+    const capRecLo = rc?.recovery_low_usd ?? lo
+    const capRecHi = rc?.recovery_high_usd ?? hi
+
     children.push(new Table({
       width: { size: 9840, type: WidthType.DXA }, columnWidths: [3280, 3280, 3280],
       rows: [
@@ -408,60 +398,84 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
         ]}),
         new TableRow({ children: [
           cell('Daily output (m\u00B3)', { width: 3280 }),
-          cell(`${ct.actual_daily_m3} m\u00B3`, { width: 3280, align: AlignmentType.CENTER }),
-          cell(`${ct.target_daily_m3} m\u00B3`, { width: 3280, align: AlignmentType.CENTER, color: GREEN }),
+          cell(`${capActualDaily} m\u00B3`, { width: 3280, align: AlignmentType.CENTER }),
+          cell(`${capTargetDaily} m\u00B3`, { width: 3280, align: AlignmentType.CENTER, color: GREEN }),
         ]}),
         new TableRow({ children: [
           cell('Monthly output (m\u00B3)', { width: 3280 }),
-          cell(`${ct.actual_daily_m3 * ct.working_days_month} m\u00B3`, { width: 3280, align: AlignmentType.CENTER }),
-          cell(`${ct.target_daily_m3 * ct.working_days_month} m\u00B3`, { width: 3280, align: AlignmentType.CENTER, color: GREEN }),
+          cell(`${capActualDaily * capOpDays} m\u00B3`, { width: 3280, align: AlignmentType.CENTER }),
+          cell(`${capTargetDaily * capOpDays} m\u00B3`, { width: 3280, align: AlignmentType.CENTER, color: GREEN }),
         ]}),
         new TableRow({ children: [
           cell('Contribution margin', { width: 3280 }),
-          cell(`${fmt(ct.actual_daily_m3 * ct.working_days_month * ct.margin_per_m3)}/mo`, { width: 3280, align: AlignmentType.CENTER }),
-          cell(`${fmt(ct.target_daily_m3 * ct.working_days_month * ct.margin_per_m3)}/mo`, { width: 3280, align: AlignmentType.CENTER, color: GREEN }),
+          cell(`${fmt(capActualDaily * capOpDays * capMargin)}/mo`, { width: 3280, align: AlignmentType.CENTER }),
+          cell(`${fmt(capTargetDaily * capOpDays * capMargin)}/mo`, { width: 3280, align: AlignmentType.CENTER, color: GREEN }),
         ]}),
         new TableRow({ children: [
           cell('Monthly revenue gap', { bold: true, width: 3280 }),
           cell('-', { width: 3280, align: AlignmentType.CENTER }),
-          cell(`+${fmt(ct.gap_monthly_m3 * ct.margin_per_m3)}/month`, { width: 3280, align: AlignmentType.CENTER, bold: true, color: GREEN }),
+          cell(`+${fmt(capMonthlyGap)}/month`, { width: 3280, align: AlignmentType.CENTER, bold: true, color: GREEN }),
         ]}),
         new TableRow({ children: [
           cell('Recovery (40-65%)', { bold: true, width: 3280 }),
           cell('-', { width: 3280, align: AlignmentType.CENTER }),
-          cell(`${fmt(lo)}-${fmt(hi)}/month`, { width: 3280, align: AlignmentType.CENTER, bold: true, color: GREEN }),
+          cell(`${fmt(capRecLo)}-${fmt(capRecHi)}/month`, { width: 3280, align: AlignmentType.CENTER, bold: true, color: GREEN }),
         ]}),
       ],
     }))
 
+    const tripsActual = rc ? (Math.round(rc.actual_trips_per_truck_per_day * 10) / 10).toFixed(1) : ct.trips_per_truck
+    const tripsTarget = rc ? (Math.round(rc.target_trips_per_truck_per_day * 10) / 10).toFixed(1) : ct.trips_per_truck_target
+    const tatTarget = rc?.target_tat_min ?? dx.tat_target
     children.push(new Paragraph({ spacing: { before: 80, after: 20 }, children: [
-      new TextRun({ text: `Contribution margin: $${ct.margin_per_m3}/m\u00B3. Trips per truck: ${ct.trips_per_truck} actual vs ${ct.trips_per_truck_target} achievable at ~${dx.tat_target}-min TAT.`, size: SZ_SMALL, font: FONT, color: GRAY, italics: true }),
+      new TextRun({ text: `Contribution margin: $${capMargin}/m\u00B3. Trips per truck: ${tripsActual} actual vs ${tripsTarget} achievable at ~${tatTarget}-min TAT.`, size: SZ_SMALL, font: FONT, color: GRAY, italics: true }),
     ]}))
     children.push(new Paragraph({ spacing: { after: 60 }, children: [
       new TextRun({ text: 'Figures rounded to nearest $1,000. Totals may vary by $1,000 due to rounding.', size: SZ_SMALL, font: FONT, color: GRAY, italics: true }),
     ]}))
 
-    // 6. Where the gap sits (Loss Breakdown — moved from Preliminary Analysis)
-    if (dx.loss_breakdown_detail.length > 0) {
-      children.push(new Paragraph({ spacing: { before: SP_BEFORE_SECTION, after: SP_AFTER_SECTION }, children: [
-        new TextRun({ text: 'Where the gap sits', bold: true, size: SZ_SUBSECTION, font: FONT, color: DARK }),
-      ]}))
-      children.push(new Table({
-        width: { size: 9840, type: WidthType.DXA }, columnWidths: [4920, 2460, 2460],
-        rows: [
-          new TableRow({ children: [
-            cell('Dimension', { bold: true, bg: LIGHT, width: 4920 }),
-            cell('Amount', { bold: true, bg: LIGHT, width: 2460, align: AlignmentType.CENTER }),
-            cell('Type', { bold: true, bg: LIGHT, width: 2460, align: AlignmentType.CENTER }),
-          ]}),
-          ...dx.loss_breakdown_detail.map(l => new TableRow({ children: [
-            cell(l.dimension, { width: 4920 }),
-            cell(`${fmt(l.amount)}/month`, { width: 2460, align: AlignmentType.CENTER }),
-            cell(l.dimension === 'Quality' ? 'Material cost with no delivery' : 'Trips you cannot complete', { width: 2460, align: AlignmentType.CENTER, color: GRAY }),
-          ]})),
-        ],
-      }))
-      const lossTotal = dx.loss_breakdown_detail.reduce((s, l) => s + l.amount, 0)
+    // 6. Where the gap sits (Loss Breakdown)
+    {
+      const lbRows = rc
+        ? [
+            { dim: 'Production', amount: rc.production_loss_usd, type: 'Trips you cannot complete' },
+            { dim: 'Quality', amount: rc.quality_loss_usd, type: 'Material cost with no delivery' },
+            { dim: 'Dispatch coordination', amount: rc.dispatch_loss_usd, type: 'Trips you cannot complete' },
+          ].filter(r => r.amount > 0)
+        : dx.loss_breakdown_detail.map(l => ({
+            dim: l.dimension,
+            amount: l.amount,
+            type: l.dimension === 'Quality' ? 'Material cost with no delivery' : 'Trips you cannot complete',
+          }))
+
+      if (lbRows.length > 0) {
+        // Verify sum matches monthly gap
+        const lbSum = lbRows.reduce((s, r) => s + r.amount, 0)
+        const lbGap = rc?.monthly_gap_usd ?? capMonthlyGap
+        if (Math.abs(lbSum - lbGap) > 1000) {
+          console.warn('Loss breakdown does not sum to monthly gap:', { production: lbRows[0]?.amount, quality: lbRows[1]?.amount, dispatch: lbRows[2]?.amount, total: lbSum, monthly_gap: lbGap })
+        }
+
+        children.push(new Paragraph({ spacing: { before: SP_BEFORE_SECTION, after: SP_AFTER_SECTION }, children: [
+          new TextRun({ text: 'Where the gap sits', bold: true, size: SZ_SUBSECTION, font: FONT, color: DARK }),
+        ]}))
+        children.push(new Table({
+          width: { size: 9840, type: WidthType.DXA }, columnWidths: [4920, 2460, 2460],
+          rows: [
+            new TableRow({ children: [
+              cell('Dimension', { bold: true, bg: LIGHT, width: 4920 }),
+              cell('Amount', { bold: true, bg: LIGHT, width: 2460, align: AlignmentType.CENTER }),
+              cell('Type', { bold: true, bg: LIGHT, width: 2460, align: AlignmentType.CENTER }),
+            ]}),
+            ...lbRows.map(r => new TableRow({ children: [
+              cell(r.dim, { width: 4920 }),
+              cell(`${fmt(r.amount)}/month`, { width: 2460, align: AlignmentType.CENTER }),
+              cell(r.type, { width: 2460, align: AlignmentType.CENTER, color: GRAY }),
+            ]})),
+          ],
+        }))
+      }
+      const lossTotal = rc?.monthly_gap_usd ?? lbRows.reduce((s, r) => s + r.amount, 0)
       children.push(new Paragraph({ spacing: { before: 60, after: 40 }, children: [
         new TextRun({ text: `"Trips you cannot complete": deliveries lost because the constraint prevents them. "Material cost with no delivery": waste costs that add up independently. Total identified: ${fmt(lossTotal)}/month. Figures rounded to nearest $1,000.`, size: SZ_SMALL, font: FONT, color: GRAY }),
       ]}))
