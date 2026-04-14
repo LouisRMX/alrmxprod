@@ -602,11 +602,18 @@ export function calc(answers: Answers, meta?: { season?: string }, overrides?: C
   const washoutExcess  = taWashoutMin !== null  ? Math.max(0, taWashoutMin  - WASHOUT_BENCHMARK)   : 0
 
   // Demand context, must be computed before reject leak (gates opportunity cost)
-  const dsAnswer = a.demand_sufficient as string | undefined
+  // Supports both legacy dropdown values and free text responses
+  const dsAnswer = ((a.demand_sufficient as string) || '').toLowerCase()
   const demandSufficient: boolean | null =
-    dsAnswer === 'Operations, we have more demand than we can currently produce or deliver' ||
-    dsAnswer === 'Both, we could sell more, and operations are also holding us back' ? true :
-    dsAnswer === 'Demand, our volume reflects available orders, not operational limits' ? false :
+    // Legacy dropdown exact matches
+    dsAnswer === 'operations, we have more demand than we can currently produce or deliver' ||
+    dsAnswer === 'both, we could sell more, and operations are also holding us back' ? true :
+    dsAnswer === 'demand, our volume reflects available orders, not operational limits' ? false :
+    // Free text keyword detection
+    /more orders than|turn away|can.?t deliver|outpace|exceed/.test(dsAnswer) ? true :
+    /both|could sell more|also holding/.test(dsAnswer) ? true :
+    /not enough order|lower than capacity|demand is low|spare capacity/.test(dsAnswer) ? false :
+    dsAnswer.length > 0 ? true :  // Default: if they answered anything, assume demand exists
     null
 
   // Demand guard: when demand is the constraint, throughput improvement won't fill orders

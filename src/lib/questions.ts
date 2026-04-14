@@ -633,21 +633,15 @@ export const SECTIONS: Section[] = [
       },
       {
         id: 'demand_sufficient',
-        label: 'Is current production limited by demand or by operational capacity?',
-        hint: 'This shapes the entire financial analysis. Be honest, if you have more orders than you can handle, operational improvements translate directly to revenue. If you have spare capacity but not enough orders, the focus shifts to margin and pricing.',
-        howto: 'Ask the plant manager: "If you could produce 20% more concrete tomorrow, do you have customers to buy it?" The answer will be clear.',
-        type: 'opts',
-        opts: [
-          'Operations, we have more demand than we can currently produce or deliver',
-          'Both, we could sell more, and operations are also holding us back',
-          'Demand, our volume reflects available orders, not operational limits',
-          'Not sure',
-        ],
+        label: 'Are you currently able to take all the orders that come in, or are there periods where demand outpaces what you can deliver?',
+        hint: 'Describe honestly: do you turn away orders, deliver everything that comes in, or have spare capacity? This shapes the entire financial analysis.',
+        howto: 'Ask the plant manager: "If you could produce 20% more concrete tomorrow, do you have customers to buy it?"',
+        type: 'text',
         req: false,
         info: {
           what: 'Whether additional operational capacity would translate to additional revenue.',
-          why: 'The most important contextual variable in the report. If demand is the constraint, "hidden capacity" figures show the operational ceiling, not guaranteed revenue.',
-          calc: 'If "Demand": capacity gap figures are shown as indicators only, not as revenue opportunity. If "Operations" or "Both": full financial recovery estimates are shown.',
+          why: 'The most important contextual variable in the report. If demand is the constraint, capacity gap figures show the operational ceiling, not guaranteed revenue.',
+          calc: 'System interprets response: mentions of "more orders than we can deliver", "turn away" = demand exceeds capacity. Mentions of "lower than capacity", "not enough orders" = demand-limited.',
         },
       },
       {
