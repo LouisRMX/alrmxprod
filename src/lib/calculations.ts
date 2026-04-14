@@ -267,10 +267,23 @@ const ROUTE_CLUSTERING_MAP: Record<string, number> = {
 }
 
 const PLANT_IDLE_MAP: Record<string, number> = {
+  // Legacy dropdown values
   'Never, a truck is always available': 100,
   'Occasionally, a few times per week': 70,
   'Regularly, most busy periods': 40,
   'Every day, always waiting for trucks': 10,
+}
+// Free text scoring for plant_idle (Q16)
+function scorePlantIdle(raw: string | undefined): number | undefined {
+  if (!raw) return undefined
+  const exact = PLANT_IDLE_MAP[raw]
+  if (exact !== undefined) return exact
+  const lower = raw.toLowerCase()
+  if (/never|no|not really/.test(lower)) return 100
+  if (/yes.*every|every\s*day|always|constant/.test(lower)) return 10
+  if (/yes.*regular|most\s*days|frequently/.test(lower)) return 40
+  if (/yes|sometimes|occasion|few times/.test(lower)) return 55
+  return undefined
 }
 
 const DISPATCH_TOOL_MAP: Record<string, number> = {
@@ -718,7 +731,7 @@ export function calc(answers: Answers, meta?: { season?: string }, overrides?: C
   const dWeighted = [
     { v: DISPATCH_OTD_MAP[a.order_to_dispatch as string], w: 0.35 },
     { v: ROUTE_CLUSTERING_MAP[a.route_clustering as string], w: 0.22 },
-    { v: PLANT_IDLE_MAP[a.plant_idle as string], w: 0.18 },
+    { v: scorePlantIdle(a.plant_idle as string), w: 0.18 },
     { v: DISPATCH_TOOL_MAP[a.dispatch_tool as string], w: 0.13 },
     { v: ORDER_NOTICE_MAP[a.order_notice as string], w: 0.12 },
   ].filter((x) => x.v !== undefined) as { v: number; w: number }[]

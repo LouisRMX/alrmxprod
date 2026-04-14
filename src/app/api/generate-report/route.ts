@@ -238,15 +238,19 @@ The TAT component breakdown is more precise than the dropdown-derived total. Nam
 function buildIdleSignal(answers: Answers): string {
   const idle = answers?.plant_idle as string | null
   if (!idle) return ''
+  const lower = idle.toLowerCase()
 
-  const isNever = idle.toLowerCase().includes('never')
-  if (isNever) return `Plant idle signal: plant does not report waiting for trucks. This does not rule out fleet constraint but reduces its likelihood.`
+  // "No" or "Never" signals
+  if (/^no[^t]|never|not really/.test(lower))
+    return `Plant idle signal: plant does not report waiting for trucks. This does not rule out fleet constraint but reduces its likelihood.`
 
-  const isRegular = idle.toLowerCase().includes('regularly') || idle.toLowerCase().includes('every day')
-  if (isRegular) return `Plant idle signal: plant reports sitting ready with no truck available regularly. This confirms fleet is the binding constraint, not production capacity. Reference this directly when explaining the constraint mechanism.`
+  // "Yes" with explanation, or legacy "Regularly"/"Every day"
+  if (/^yes|regularly|every day|always|constant|queue.*idle|idle.*queue/.test(lower))
+    return `Plant idle signal: plant reports both queuing and idle periods. This confirms fleet coordination is the binding constraint, not production capacity. Reference this directly when explaining the constraint mechanism.`
 
-  const isOccasional = idle.toLowerCase().includes('occasionally')
-  if (isOccasional) return `Plant idle signal: plant reports occasionally waiting for trucks (a few times per week). This suggests fleet may be the binding constraint during peak periods.`
+  // Weak/occasional signal
+  if (/occasional|sometimes|few times/.test(lower))
+    return `Plant idle signal: plant reports occasionally waiting for trucks. This suggests fleet may be the binding constraint during peak periods.`
 
   return ''
 }
@@ -582,7 +586,8 @@ Paragraph 3: What to monitor. One or two dimensions most likely to slip first.`
     const mgmtCtx = (dx.management_context || '').toLowerCase()
     const idleSignal = ((answers?.plant_idle as string) || '').toLowerCase()
     const hasSiteWaitSignal = /wait|queue|site|ready|morning|idle|stuck/.test(mgmtCtx)
-    const hasIdleSignal = /regularly|every day/.test(idleSignal)
+    // Free text: "Yes" + any explanation, or legacy dropdown "Regularly"/"Every day"
+    const hasIdleSignal = /^yes|regularly|every day|idle.*waiting|queue.*idle|idle.*queue/.test(idleSignal)
     const hasBothQueueAndIdle = hasSiteWaitSignal && hasIdleSignal
     // Conflicting constraints: TAT excess AND plant can't keep up at target TAT
     const tatExcessPct = dx.tat_target > 0 ? tatExcess / dx.tat_target : 0

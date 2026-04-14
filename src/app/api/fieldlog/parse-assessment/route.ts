@@ -41,9 +41,9 @@ const FIELD_MAP = `Map the data to these exact field IDs and return a JSON objec
   "order_to_dispatch": string (must be EXACTLY one of: "Under 15 minutes, fast response" | "15 to 25 minutes, acceptable" | "25 to 40 minutes, slow" | "Over 40 minutes, critical delay"),
   "prod_data_source": string (must be EXACTLY one of: "System records, read from batch computer or dispatch system" | "Calculated from monthly reports or delivery tickets" | "Estimated by the plant manager from memory" | "Rough estimate, low confidence"),
   "biggest_pain": string (free text, plant manager's stated challenge),
-  "demand_sufficient": string (free text describing whether demand exceeds capacity, e.g. "We have more orders than we can deliver" or "Demand is lower than our capacity"),
-  "plant_idle": string (must be EXACTLY one of: "Never, a truck is always available" | "Occasionally, a few times per week" | "Regularly, most busy periods" | "Every day, always waiting for trucks"),
-  "dispatch_peak": string (free text describing when during the day most output is dispatched, e.g. "Early morning, most volume before 10am")
+  "demand_sufficient": string (free text: the answer to "Are you currently able to take all orders that come in, or are there periods where demand outpaces what you can deliver?" Copy their exact words),
+  "plant_idle": string (free text: the answer to "Do you experience both queuing AND idle periods on the same day?" Copy their exact words including any Yes/No and explanation),
+  "dispatch_peak": string (free text: the answer to "When during the day is the majority of your output dispatched?" Copy their exact words)
 }
 
 For dropdown fields: pick the closest matching option. If the value is a number (e.g. turnaround = 115), map it to the correct range.
