@@ -779,9 +779,10 @@ RULES:
 - Do NOT recommend specific operational fixes (retarder protocols, demurrage enforcement, maintenance schedules). These require on-site verification.
 - All actions must be preparation or measurement actions.
 - Use "I will" not "we will" in the measurement section. This is a personal commitment from the assessor.
-- DATA SOURCE DISCIPLINE: Never present the plant's own qualitative descriptions as confirmed findings. Frame all qualitative inputs as hypotheses to be tested during data collection.
-  WRONG: "The plant reports losing 2-3 productive hours each morning due to sites not being ready for delivery."
-  RIGHT: "Drivers should record actual site arrival time and discharge start time for every morning delivery. This will verify whether delays are concentrated in early hours or distributed across the day, and whether specific sites are responsible."
+- DATA SOURCE DISCIPLINE: Never present the plant's own qualitative descriptions as confirmed findings. Frame all qualitative inputs as hypotheses to be tested during the on-site visit.
+  WRONG: "The plant reports losing productive time each morning due to sites not being ready."
+  RIGHT: "The reported pattern of morning delays will be verified during the on-site assessment."
+- NEVER ask the plant to log, track, observe, or record anything going forward. Observation and diagnostic data collection is the assessor's job during the on-site visit.
 
 You are writing the Preparation and Measurement section of a Pre-Assessment Report for ${dx.plant_name} in ${dx.country}. Based on self-reported data. No on-site visit done.
 
@@ -805,20 +806,27 @@ ${buildClusteringSignal(answers)}
 WRITE EXACTLY THREE SECTIONS:
 
 ## Before the visit
-Exactly 5 numbered preparation items. Each item MUST have all three parts:
+Maximum 5 numbered items across two categories. Each item: bold instruction + one paragraph explaining why it matters.
 
-**Part 1 — WHAT AND HOW:** A precise instruction specifying who does it, what they record, in what format (paper, Excel, WhatsApp), and for how long. Must be executable by a plant manager or operations supervisor with no external help. Must reference the plant's actual figures (${dx.tat_actual}-min TAT, ${tatExcess}-min excess, ${dx.trucks_effective} trucks, ${ct.trips_per_truck}/${ct.trips_per_truck_target} trips).
+CATEGORY 1 — HISTORICAL RECORDS (max 3 items)
+Request ONLY documents that already exist and cover a historical period. These cannot be collected during the visit.
+RULE: Never ask the plant to create new data, observe their own operations, log timestamps going forward, or perform any diagnostic activity. Observation and timing is what the on-site visit delivers.
 
-**Part 2 — WHY THIS DATA:** One sentence explaining what this data enables during the on-site visit. Must connect directly to the constraint signal (${primarySignal}).
+Generate 3 items requesting historical records relevant to this plant's constraint signals. Examples of acceptable requests:
+- Delivery tickets from the last 30 days (paper, Excel, or system printout)
+- Rejection and return records from last 3 months
+- Production batch logs from last month showing daily output
+- Dispatch records or WhatsApp dispatch history if available
 
-**Part 3 — CONSEQUENCE OF NOT HAVING IT:** One sentence explaining what cannot be diagnosed without this data. Must feel like a real cost, not a generic disclaimer. Reference the $${loR.toLocaleString('en-US')}-$${hiR.toLocaleString('en-US')}/month recovery potential.
+Each item must state what format is acceptable (paper, Excel, system printout — all fine) and explain what historical pattern it reveals that cannot be reconstructed during the visit.
 
-EXAMPLE of required quality (adapt using actual plant values, do not copy verbatim):
-"1. **Dispatch timestamps for one week.** Ask the dispatcher to log four timestamps for every truck, every day for one full week: (1) time truck leaves plant loaded, (2) time truck arrives at site, (3) time discharge begins, (4) time truck returns empty. Paper, Excel, or WhatsApp messages are all acceptable.
+WRONG (observation task): "Ask the dispatcher to log four timestamps for every truck for one week."
+RIGHT (historical record): "Pull delivery tickets from the last 30 days. Paper tickets, Excel records, or system printouts are all acceptable. These show historical cycle patterns across ${dx.trucks_effective} trucks that cannot be reconstructed during a single visit."
 
-Without this data, the on-site visit cannot separate where in the ${dx.tat_actual}-minute cycle the ${tatExcess}-minute excess occurs — whether it is at the plant, on the road, or at the construction site. That separation determines which fix delivers the fastest return on the $${loR.toLocaleString('en-US')}-$${hiR.toLocaleString('en-US')}/month recovery potential."
+CATEGORY 2 — ACCESS AND CONTACTS (exactly 2 items, use these verbatim)
+4. **Morning access.** Confirm that I can observe operations during peak morning hours on the first day, typically 6:00 AM to 10:00 AM. Morning peak is where the ${tatExcess}-minute turnaround excess is most likely concentrated.
 
-Prioritise the 5 items so the 3 most critical come first (a busy plant manager may only complete 3).
+5. **Key contacts.** Identify the dispatcher and operations supervisor I will work with during the visit. These are the two people who control truck flow and production sequencing.
 
 ## What I will measure on-site
 Exactly 3 measurement items. Use "I will" throughout, never "we will". Each item MUST have all three parts:
