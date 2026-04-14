@@ -208,14 +208,18 @@ export function calcLossRange(totalLoss: number): { low: number; mid: number; hi
 
 export function calcTargetTA(radius: number, avgTransitMin?: number | null, deliveryDistanceKm?: number | null): number {
   // Priority: 1) direct transit time, 2) precise distance, 3) dropdown radius
+  // Formula: 60 min plant-side + round-trip transit (distance × 1.5 min/km × 2 directions)
+  // Clamp 75-150 min (75 = minimum realistic cycle, 150 = max for regional delivery)
   if (avgTransitMin && avgTransitMin > 0) {
     // transit × 2 (round trip) + 45 min (loading + pour + washout)
-    return Math.min(150, Math.max(65, Math.round(avgTransitMin * 2 + 45)))
+    return Math.min(150, Math.max(75, Math.round(avgTransitMin * 2 + 45)))
   }
   if (deliveryDistanceKm && deliveryDistanceKm > 0) {
-    return Math.min(110, Math.max(65, Math.round(60 + deliveryDistanceKm * 1.5)))
+    // distance × 1.5 min/km × 2 (round trip) + 60 min plant-side
+    return Math.min(150, Math.max(75, Math.round(60 + deliveryDistanceKm * 1.5 * 2)))
   }
-  return radius > 0 ? Math.min(110, Math.max(65, Math.round(60 + radius * 1.5))) : 80
+  // dropdown radius × 1.5 min/km × 2 (round trip) + 60 min plant-side
+  return radius > 0 ? Math.min(150, Math.max(75, Math.round(60 + radius * 1.5 * 2))) : 80
 }
 
 // ── Score Maps ───────────────────────────────────────────────────────────────

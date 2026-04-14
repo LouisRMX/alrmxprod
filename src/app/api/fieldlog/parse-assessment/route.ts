@@ -33,11 +33,10 @@ const FIELD_MAP = `Map the data to these exact field IDs and return a JSON objec
   "op_days": number (operating days per year),
   "actual_prod": number (actual production last month in m3),
   "n_trucks": number (number of trucks),
-  "deliveries_day": number (deliveries per working day),
+  "trips_last_month": number (total truck trips last month — NOT daily, this is the monthly total),
   "turnaround": number or string. If the document contains a specific number (e.g. 104 minutes), return it as a plain number string like "104". Only use dropdown values if no specific number is given: "Under 80 minutes, benchmark performance" | "80 to 100 minutes, acceptable" | "100 to 125 minutes, slow" | "Over 125 minutes, critical bottleneck",
   "reject_pct": number (rejection rate as percentage),
-  "delivery_distance_km": number (average delivery distance in km if a specific number is given, e.g. 15),
-  "delivery_radius": string (must be EXACTLY one of: "Most deliveries under 5 km, dense urban core" | "Most deliveries 5 to 12 km, city radius" | "Most deliveries 12 to 20 km, suburban / outer city" | "Many deliveries over 20 km, regional"),
+  "delivery_radius_raw": string (the raw delivery radius text from the document, e.g. "10-20 km" or "under 10"),
   "dispatch_tool": string (must be EXACTLY one of: "Dedicated dispatch software with GPS tracking" | "Spreadsheet combined with WhatsApp" | "WhatsApp messages only, no spreadsheet" | "Phone calls and whiteboard only"),
   "order_to_dispatch": string (must be EXACTLY one of: "Under 15 minutes, fast response" | "15 to 25 minutes, acceptable" | "25 to 40 minutes, slow" | "Over 40 minutes, critical delay"),
   "prod_data_source": string (must be EXACTLY one of: "System records, read from batch computer or dispatch system" | "Calculated from monthly reports or delivery tickets" | "Estimated by the plant manager from memory" | "Rough estimate, low confidence"),
@@ -147,7 +146,43 @@ export async function POST(req: NextRequest) {
 
     trackSpend(user.id)
 
-    // Convert all numeric values to strings (assessment answers are stored as strings)
+    // ── Post-parse conversions ──
+
+    // FIX 1: Convert trips_last_month (monthly total) to deliveries_day
+    const tripsMonth = +(parsed.trips_last_month ?? 0)
+    const opDays = +(parsed.op_days ?? 0)
+    if (tripsMonth > 0 && opDays > 0) {
+      const workingDaysMonth = Math.round(opDays / 12)
+      parsed.deliveries_day = Math.round(tripsMonth / workingDaysMonth * 10) / 10
+    }
+    delete parsed.trips_last_month
+
+    // FIX 2: Map delivery_radius_raw to midpoint km + platform dropdown
+    const radiusRaw = String(parsed.delivery_radius_raw || '').toLowerCase()
+    if (radiusRaw) {
+      let midpoint = 0
+      let dropdown = ''
+      if (/under\s*5|less than\s*5|<\s*5/.test(radiusRaw)) {
+        midpoint = 4; dropdown = 'Most deliveries under 5 km, dense urban core'
+      } else if (/5\s*[-–to]+\s*12|5\s*to\s*12/.test(radiusRaw)) {
+        midpoint = 8; dropdown = 'Most deliveries 5 to 12 km, city radius'
+      } else if (/12\s*[-–to]+\s*20|12\s*to\s*20/.test(radiusRaw)) {
+        midpoint = 16; dropdown = 'Most deliveries 12 to 20 km, suburban / outer city'
+      } else if (/under\s*10|less than\s*10|<\s*10/.test(radiusRaw)) {
+        midpoint = 7; dropdown = 'Most deliveries 5 to 12 km, city radius'
+      } else if (/10\s*[-–to]+\s*20|10\s*to\s*20|10-20/.test(radiusRaw)) {
+        midpoint = 15; dropdown = 'Most deliveries 12 to 20 km, suburban / outer city'
+      } else if (/over\s*20|more than\s*20|>\s*20|above\s*20/.test(radiusRaw)) {
+        midpoint = 25; dropdown = 'Many deliveries over 20 km, regional'
+      }
+      if (midpoint > 0) {
+        parsed.delivery_distance_km = midpoint
+        parsed.delivery_radius = dropdown
+      }
+    }
+    delete parsed.delivery_radius_raw
+
+    // Convert all values to strings (assessment answers are stored as strings)
     const answers: Record<string, string> = {}
     for (const [key, val] of Object.entries(parsed)) {
       if (val != null) {
