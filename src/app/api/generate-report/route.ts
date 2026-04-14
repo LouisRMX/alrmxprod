@@ -428,6 +428,13 @@ Paragraph 3: What to monitor. One or two areas that could slip if not actively m
     const parkedEquivalent = ct.trips_per_truck_target > 0
       ? Math.round(lostTripsPerDay / ct.trips_per_truck_target * 10) / 10
       : 0
+    // Cost of delay timeline (rounded to $1k)
+    const rLo = Math.round(dx.combined_recovery_range.lo / 1000) * 1000
+    const rHi = Math.round(dx.combined_recovery_range.hi / 1000) * 1000
+    const quarterlyLo = Math.round(rLo * 3 / 1000) * 1000
+    const quarterlyHi = Math.round(rHi * 3 / 1000) * 1000
+    const annualLo = Math.round(rLo * 12 / 1000) * 1000
+    const annualHi = Math.round(rHi * 12 / 1000) * 1000
 
     return `${RULES}
 
@@ -458,6 +465,8 @@ AUTHORITATIVE FINANCIAL FIGURES (use ONLY these, do not calculate your own):
 Contribution margin: $${ct.margin_per_m3}/m3
 Monthly gap: $${(Math.round(ct.gap_monthly_m3 * ct.margin_per_m3 / 1000) * 1000).toLocaleString('en-US')}/month
 Recovery range (40-65%): $${(Math.round(dx.combined_recovery_range.lo / 1000) * 1).toLocaleString('en-US')}k-$${(Math.round(dx.combined_recovery_range.hi / 1000) * 1).toLocaleString('en-US')}k/month
+Quarterly: $${quarterlyLo.toLocaleString('en-US')}-$${quarterlyHi.toLocaleString('en-US')}
+Annual: $${annualLo.toLocaleString('en-US')}-$${annualHi.toLocaleString('en-US')}
 Do NOT invent alternative ranges or revenue figures. Use only the figures above.
 AUTHORITATIVE FINANCIAL FIGURES ONLY: The only acceptable monthly figures are the monthly gap and recovery range listed above. Any other range is a hallucination.
   WRONG: "This coordination gap appears to cost between $111,000 and $160,000 per month"
@@ -471,7 +480,7 @@ Lost trips per day (fleet-wide): ${lostTripsPerDay}
 Equivalent parked trucks: ${parkedEquivalent} (i.e. ${trucksNeeded} trucks at target coordination would deliver what ${dx.trucks_effective} deliver today)
 
 STRUCTURE:
-Paragraph 1: What the reported data suggests about where margin is being lost. Name the likely area but frame as directional. Use actual numbers vs targets. If the plant manager's stated challenge is available, anchor the opening in it. After stating the dollar range, translate the loss into truck-days: "That is the equivalent of parking X trucks every day." Then reframe: "Y trucks at target coordination would deliver the same output Z trucks deliver today."
+Paragraph 1: What the reported data suggests about where margin is being lost. Name the likely area but frame as directional. Use actual numbers vs targets. If the plant manager's stated challenge is available, anchor the opening in it. After stating the dollar range, translate the loss into truck-days: "That is the equivalent of parking X trucks every day." Then reframe: "Y trucks at target coordination would deliver the same output Z trucks deliver today." End the paragraph with the cost of delay timeline: "At this recovery range, the unaddressed gap compounds to $${quarterlyLo.toLocaleString('en-US')}-$${quarterlyHi.toLocaleString('en-US')} over a quarter and $${annualLo.toLocaleString('en-US')}-$${annualHi.toLocaleString('en-US')} over a year." This is Tier 1 (direct calculation from confirmed recovery range), use declarative language.
 
 Paragraph 2: Include a before/after comparison table (markdown table format):
 | Metric | Current | Target |
