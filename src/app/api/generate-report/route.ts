@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
         try {
           const response = await anthropic.messages.stream({
             model: 'claude-sonnet-4-20250514',
-            max_tokens: 1500,
+            max_tokens: 1800,
             messages: [{ role: 'user', content: prompt }],
           })
 
@@ -363,6 +363,26 @@ RULES:
 // - Demurrage culture differences GCC vs Europe
 `
 
+// Three-tier epistemic framework for pre-assessment reports
+const PRE_ASSESSMENT_EPISTEMIC = `EPISTEMIC FRAMEWORK (MANDATORY, apply before writing any sentence):
+Every claim must be assigned to one of three tiers:
+- Tier 1 (confirmed data): Numeric inputs (TAT, trucks, trips, output, rejection, margin). Use declarative language. "The reported turnaround time is 112 minutes."
+- Tier 2 (signals/hypotheses): Patterns derived from data, qualitative inputs, ranked hypotheses. Use signal language: "The data points toward...", "This suggests...", "The most likely cause appears to be..." Never declarative. Never say "X causes Y", always "X appears to drive Y."
+- Tier 3 (unknown until on-site): Anything requiring direct observation. Use verification language: "Cannot be determined remotely.", "Requires on-site measurement." Never as a conclusion.
+
+Before writing any sentence, classify the claim. If Tier 2 is written declaratively, rewrite it. If Tier 3 is written as a conclusion, move it to verification language.
+
+WRONG (Tier 2 as Tier 1): "Manual dispatch coordination is the mechanism that creates site delays."
+RIGHT (Tier 2 correct): "The data suggests dispatch coordination may contribute to site delays. This requires on-site verification to confirm."
+
+WRONG (Tier 3 as Tier 2): "The morning pattern indicates a systematic problem with site readiness."
+RIGHT (Tier 3 correct): "Whether the morning pattern reflects a systematic problem or site-specific variation cannot be determined remotely."
+
+WRONG (Tier 1 hedged): "The turnaround time appears to be around 112 minutes."
+RIGHT (Tier 1 correct): "The reported turnaround time is 112 minutes."
+
+The report's credibility depends on this distinction. A plant owner who finds one overstated conclusion will distrust all findings.`
+
 function buildExecutivePrompt(dx: ValidatedDiagnosis, answers: Answers, phase: string, benchmarks: BenchmarkContext | null = null) {
   const RULES = `RULES:
 - Use markdown for structure: **bold** for key figures, ## for section headings, numbered lists where appropriate. Use tables (markdown format) for comparisons.
@@ -410,6 +430,8 @@ Paragraph 3: What to monitor. One or two areas that could slip if not actively m
       : 0
 
     return `${RULES}
+
+${PRE_ASSESSMENT_EPISTEMIC}
 
 You are writing the initial analysis section of a Pre-Assessment Report for ${dx.plant_name} in ${dx.country}.
 This is based on self-reported data collected remotely. No on-site verification.
@@ -554,6 +576,8 @@ Paragraph 3: What to monitor. One or two dimensions most likely to slip first.`
     const hasConflictingConstraints = tatExcessPct > 0.2 && ct.plant_daily_m3 < ct.fleet_target_daily_m3
 
     return `${RULES}
+
+${PRE_ASSESSMENT_EPISTEMIC}
 
 You are writing the Preliminary Analysis section of a Pre-Assessment Report for ${dx.plant_name} in ${dx.country}.
 This is based on self-reported data collected remotely. No on-site verification.
@@ -732,7 +756,9 @@ Next Step, heading on its own line: Exactly 3 sentences (confirmed, what on-site
     const primarySignal = /wait|queue|site|ready|morning|idle|stuck/.test(mgmtCtx)
       ? 'site readiness / dispatch timing' : 'turnaround excess'
 
-    return `RULES:
+    return `${PRE_ASSESSMENT_EPISTEMIC}
+
+RULES:
 - Use markdown for structure: **bold** for key terms, ## for section headings, numbered lists for actions.
 - Never invent data. Use only the figures provided in PLANT DATA.
 - All financial figures are POTENTIAL RANGES, not confirmed.
