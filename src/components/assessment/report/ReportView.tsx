@@ -2093,13 +2093,11 @@ function FullReportDrawer({
             const bullets: { label: string; value: string }[] = []
             // Dispatch is a mechanism (explains WHY TAT is high), not a standalone metric
             if (calcResult.ta > 0 && calcResult.TARGET_TA > 0 && calcResult.ta > calcResult.TARGET_TA)
-              bullets.push({ label: 'Turnaround', value: `${calcResult.ta} min vs ${calcResult.TARGET_TA} min target \u2193` })
-            if (calcResult.rejectPct > 3)
-              bullets.push({ label: 'Reject rate', value: `${Math.round(calcResult.rejectPct * 10) / 10}% \u2193` })
-            else if (calcResult.rejectPct > 0)
-              bullets.push({ label: 'Reject rate', value: `${Math.round(calcResult.rejectPct * 10) / 10}% \u2713` })
-            if (Math.round(calcResult.util * 100) < 80)
-              bullets.push({ label: 'Utilisation', value: `${Math.round(calcResult.util * 100)}% vs ${calcResult.utilisationTarget}% target \u2193` })
+              bullets.push({ label: 'Turnaround', value: `${calcResult.ta} min vs ~${calcResult.TARGET_TA} min target` })
+            if (calcResult.rejectPct > 0)
+              bullets.push({ label: 'Reject rate', value: `${Math.round(calcResult.rejectPct * 10) / 10}%` })
+            if (Math.round(calcResult.util * 100) < 85)
+              bullets.push({ label: 'Utilisation', value: `${Math.round(calcResult.util * 100)}% vs ~${calcResult.utilisationTarget}% target` })
             return (
               <div style={{ marginBottom: '24px' }}>
                 {/* 3-col header */}
@@ -2110,9 +2108,8 @@ function FullReportDrawer({
                 }}>
                   <div style={{ padding: '16px 20px', background: '#f6fbf8', borderRight: isMobile ? 'none' : '1px solid #e8e8e6', borderBottom: isMobile ? '1px solid #e8e8e6' : 'none' }}>
                     <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.3px', textTransform: 'uppercase', color: '#7ab89a', marginBottom: '4px' }}>Turnaround</div>
-                    <div style={{ fontSize: '36px', fontWeight: 800, color: calcResult.ta > calcResult.TARGET_TA ? '#cc6600' : '#1a6644', lineHeight: 1, letterSpacing: '-1px' }}>{calcResult.ta} min</div>
-                    <div style={{ fontSize: '10px', color: '#9b9b9b', marginTop: '2px' }}>target: {calcResult.TARGET_TA} min</div>
-                    {isPre && <div style={{ fontSize: '9px', fontWeight: 600, color: calcResult.ta > calcResult.TARGET_TA ? '#cc6600' : '#1a6644', marginTop: '2px' }}>{calcResult.ta > calcResult.TARGET_TA ? '\u2193 Below target' : '\u2713 On target'}</div>}
+                    <div style={{ fontSize: '36px', fontWeight: 800, color: calcResult.ta > calcResult.TARGET_TA ? '#cc3333' : '#1a6644', lineHeight: 1, letterSpacing: '-1px' }}>{calcResult.ta} min</div>
+                    <div style={{ fontSize: '10px', color: '#9b9b9b', marginTop: '2px' }}>target: ~{calcResult.TARGET_TA} min</div>
                     {tatSource === 'measured' && (tatTripCount ?? 0) > 0 && (
                       <div style={{ display: 'inline-block', fontSize: '9px', fontWeight: 600, color: '#1a6644', background: '#e8f5ee', border: '1px solid #b8dfc8', borderRadius: '4px', padding: '1px 6px', marginTop: '4px' }}>
                         Based on {tatTripCount} observed trips

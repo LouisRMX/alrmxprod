@@ -262,11 +262,13 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
       ]}))
     }
 
+    const RED = 'CC3333'
+    const KPI_GREEN = '1A6644'
     const metricsRow = [
-      { label: 'TURNAROUND', value: `${dx.tat_actual} min`, sub: `target: ${dx.tat_target} min${isPre && dx.tat_actual > dx.tat_target ? ' \u2193' : ''}` },
-      { label: 'UTILISATION', value: `${dx.utilization_pct}%`, sub: `target: 85%${isPre && dx.utilization_pct < 85 ? ' \u2193' : ''}` },
-      { label: 'REJECTION', value: `${dx.reject_pct}%`, sub: `target: <3%${isPre && dx.reject_pct > 3 ? ' \u2193' : ''}` },
-      { label: 'CONSTRAINT', value: isPre ? 'To be confirmed' : constraintLabel, sub: isPre ? `Likely: ${constraintLabel}` : `${fmtK(dx.main_driver.amount)}/month` },
+      { label: 'TURNAROUND', value: `${dx.tat_actual} min`, sub: `target: ~${dx.tat_target} min`, valueColor: dx.tat_actual > dx.tat_target ? RED : KPI_GREEN },
+      { label: 'UTILISATION', value: `${dx.utilization_pct}%`, sub: 'target: ~85%', valueColor: dx.utilization_pct < 85 ? RED : KPI_GREEN },
+      { label: 'REJECTION', value: `${dx.reject_pct}%`, sub: 'target: <3%', valueColor: dx.reject_pct <= 3 ? KPI_GREEN : RED },
+      { label: 'CONSTRAINT', value: isPre ? 'To be confirmed' : constraintLabel, sub: isPre ? `Likely: ${constraintLabel}` : `${fmtK(dx.main_driver.amount)}/month`, valueColor: DARK },
     ]
     children.push(new Table({
       width: { size: 9840, type: WidthType.DXA }, columnWidths: [2460, 2460, 2460, 2460],
@@ -274,7 +276,7 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
         new TableRow({ children: metricsRow.map(m => cell(m.label, { bold: true, color: GRAY, size: 16, bg: LIGHT, width: 2460, align: AlignmentType.CENTER })) }),
         new TableRow({ children: metricsRow.map(m =>
           new TableCell({ borders, width: { size: 2460, type: WidthType.DXA }, margins: { top: 60, bottom: 60, left: 60, right: 60 }, children: [
-            new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: m.value, bold: true, size: 28, color: m.label === 'TURNAROUND' && dx.tat_actual > dx.tat_target ? 'CC6600' : DARK })] }),
+            new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: m.value, bold: true, size: 28, color: m.valueColor })] }),
             new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: m.sub, size: 16, color: GRAY })] }),
           ]})
         ) }),
