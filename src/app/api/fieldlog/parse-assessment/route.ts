@@ -108,7 +108,7 @@ export async function POST(req: NextRequest) {
     } else if (ext === 'csv') {
       // CSV: read as text and send to Claude
       const text = await file.text()
-      const preview = text.slice(0, 5000)
+      const preview = text.slice(0, 8000)
 
       const response = await callWithRetry({
         model: 'claude-sonnet-4-20250514',
@@ -123,12 +123,17 @@ export async function POST(req: NextRequest) {
       const jsonMatch = respText.match(/\{[\s\S]*\}/)
       if (jsonMatch) parsed = JSON.parse(jsonMatch[0])
     } else {
-      // Excel (.xlsx/.xls): parse with xlsx library, convert to text, send to Claude
+      // Excel (.xlsx/.xls): parse with xlsx library, extract only Q#, Question, Answer columns
       const XLSX = await import('xlsx')
       const workbook = XLSX.read(Buffer.from(buffer), { type: 'buffer' })
       const sheet = workbook.Sheets[workbook.SheetNames[0]]
-      const csvText = XLSX.utils.sheet_to_csv(sheet)
-      const preview = csvText.slice(0, 5000)
+      // Convert to JSON rows to strip the long "Data Definition" column (E) that causes truncation
+      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as unknown[][]
+      const essentialCsv = rows.map((row: unknown[]) => {
+        // Keep columns A (Q#), B (Question), C (Answer), D (Unit) — skip E (instructions)
+        return [row[0] ?? '', row[1] ?? '', row[2] ?? '', row[3] ?? ''].join(' | ')
+      }).join('\n')
+      const preview = essentialCsv.slice(0, 8000)
 
       const response = await callWithRetry({
         model: 'claude-sonnet-4-20250514',
