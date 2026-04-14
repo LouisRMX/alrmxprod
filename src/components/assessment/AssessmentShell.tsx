@@ -352,9 +352,9 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
                   </div>
                 )}
 
-                {/* Upload plant data to prefill assessment */}
-                {assessmentId !== 'demo' && Object.keys(answers).filter(k => answers[k] != null && answers[k] !== '').length < 10 && (
-                  <div style={{ padding: '0 20px', marginBottom: '4px' }}>
+                {/* Upload plant data to prefill assessment + clear button */}
+                {assessmentId !== 'demo' && (
+                  <div style={{ padding: '0 20px', marginBottom: '4px', display: 'flex', gap: '8px', alignItems: 'center' }}>
                     <UploadAssessmentData onDataParsed={async (data) => {
                       try {
                         const resp = await fetch('/api/fieldlog/apply-assessment', {
@@ -372,6 +372,27 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
                         console.error('Apply failed:', err)
                       }
                     }} />
+                    {Object.keys(answers).filter(k => answers[k] != null && answers[k] !== '').length > 0 && (
+                      <button type="button" onClick={async () => {
+                        if (!confirm('Clear all answers? This cannot be undone.')) return
+                        try {
+                          await fetch('/api/fieldlog/apply-assessment', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ assessmentId, answers: {}, clear: true }),
+                          })
+                          window.location.reload()
+                        } catch (err) {
+                          console.error('Clear failed:', err)
+                        }
+                      }}
+                      style={{
+                        padding: '8px 14px', borderRadius: '6px', border: '1px solid #e5e7eb',
+                        background: '#fff', color: '#888', fontSize: '12px', cursor: 'pointer',
+                      }}>
+                        Clear all answers
+                      </button>
+                    )}
                   </div>
                 )}
 

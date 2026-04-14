@@ -6,13 +6,12 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { assessmentId, answers } = await req.json()
-  if (!assessmentId || !answers) {
-    return NextResponse.json({ error: 'Missing assessmentId or answers' }, { status: 400 })
+  const { assessmentId, answers, clear } = await req.json()
+  if (!assessmentId) {
+    return NextResponse.json({ error: 'Missing assessmentId' }, { status: 400 })
   }
 
-  // Fetch current answers and merge (don't overwrite existing)
-  // Uses user client so RLS enforces ownership. If user doesn't have access, query returns null.
+  // Verify access via RLS
   const { data: current } = await supabase
     .from('assessments')
     .select('answers')
@@ -23,16 +22,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Assessment not found or access denied' }, { status: 403 })
   }
 
-  const merged = { ...(current?.answers as Record<string, unknown> || {}), ...answers }
+  // Clear mode: reset all answers to empty object
+  const newAnswers = clear
+    ? {}
+    : { ...(current?.answers as Record<string, unknown> || {}), ...(answers || {}) }
 
   const { error: dbErr } = await supabase
     .from('assessments')
-    .update({ answers: merged })
+    .update({ answers: newAnswers })
     .eq('id', assessmentId)
 
   if (dbErr) {
     return NextResponse.json({ error: dbErr.message }, { status: 500 })
   }
 
-  return NextResponse.json({ ok: true, fieldsApplied: Object.keys(answers).length })
+  return NextResponse.json({ ok: true, fieldsApplied: clear ? 0 : Object.keys(answers || {}).length, cleared: !!clear })
 }
