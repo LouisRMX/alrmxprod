@@ -327,6 +327,19 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
       ]}))
     }
 
+    // Fleet reframe statement (programmatic, not AI-generated)
+    if (isPre && ct.trips_per_truck_target > 0) {
+      const trucksNeeded = Math.round(dx.trucks_effective * ct.trips_per_truck / ct.trips_per_truck_target * 10) / 10
+      const hasConflicting = ct.plant_daily_m3 < ct.fleet_target_daily_m3
+      const runs: TextRun[] = [
+        new TextRun({ text: `At target coordination, ${trucksNeeded} trucks would deliver what your current ${dx.trucks_effective}-truck fleet delivers today. No additional fleet investment required.`, bold: true, size: SZ_BODY, font: FONT }),
+      ]
+      if (hasConflicting) {
+        runs.push(new TextRun({ text: ' Production capacity will be verified on-site.', italics: true, size: SZ_BODY, font: FONT }))
+      }
+      children.push(new Paragraph({ spacing: { before: 160, after: 160 }, children: runs }))
+    }
+
     // ════════════════════════════════════════════════════════════════════
     // SECTION 2: CAPACITY ANALYSIS
     // ════════════════════════════════════════════════════════════════════

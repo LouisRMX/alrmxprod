@@ -488,9 +488,12 @@ Paragraph 2: Include a before/after comparison table (markdown table format):
 | Trips per truck per day | ${ct.trips_per_truck} | ${ct.trips_per_truck_target} |
 | Daily output (m3) | ${ct.actual_daily_m3} | ${ct.target_daily_m3} |
 | Monthly recovery range | - | $${Math.round(dx.combined_recovery_range.lo / 1000)}k-$${Math.round(dx.combined_recovery_range.hi / 1000)}k |
-| Trucks needed at target TAT | ${trucksNeeded} | ${dx.trucks_effective} assigned |
 
-Follow the table with 1-2 sentences on what cannot be determined remotely, and end by framing the on-site visit as the logical next step.`
+After the table, include this exact standalone statement in bold (do not rephrase):
+"At target coordination, ${trucksNeeded} trucks would deliver what your current ${dx.trucks_effective}-truck fleet delivers today. No additional fleet investment required."
+${ct.plant_daily_m3 < ct.fleet_target_daily_m3 ? 'Follow with this qualifier in italics: "Production capacity will be verified on-site."' : ''}
+
+Follow with 1-2 sentences on what cannot be determined remotely, and end by framing the on-site visit as the logical next step.`
   }
 
   // ── ON-SITE EXECUTIVE ──
