@@ -22,6 +22,7 @@ interface ExportWordProps {
 }
 
 // ── Design tokens ────────────────────────────────────────────────────────
+const FONT = 'Calibri'
 const GREEN = '0F6E56'
 const DARK = '1A1A1A'
 const GRAY = '666666'
@@ -31,6 +32,33 @@ const GREEN_LIGHT = 'E0FFE0'
 const YELLOW_LIGHT = 'FFFDE0'
 const AMBER = 'B8860B'
 
+// Typography scale (docx sizes are in half-points: 22 = 11pt)
+const SZ_BODY = 22         // 11pt — body text
+const SZ_TABLE = 20        // 10pt — table body
+const SZ_SECTION = 28      // 14pt — section headers
+const SZ_SUBSECTION = 24   // 12pt — subsection headers
+const SZ_SMALL = 18        // 9pt — labels, footnotes
+const SZ_KPI_VALUE = 40    // 20pt — KPI main values
+const SZ_KPI_LABEL = 18    // 9pt — KPI labels
+const SZ_KPI_TARGET = 18   // 9pt — KPI target lines
+const SZ_RECOVERY = 28     // 14pt — recovery banner figure
+const SZ_TITLE = 36        // 18pt — document title
+const SZ_PLANT = 24        // 12pt — plant name line
+const SZ_DATE = 20         // 10pt — date line
+
+// Line spacing (240 = single, 276 = 1.15x)
+const LINE_BODY = 276
+const LINE_TABLE = 240
+
+// Paragraph spacing (twips)
+const SP_BEFORE_PARA = 120   // ~6pt
+const SP_AFTER_PARA = 120    // ~6pt
+const SP_BEFORE_SECTION = 280 // ~14pt
+const SP_AFTER_SECTION = 160  // ~8pt
+
+// Table cell margins (twips): top 4pt=80, bottom 4pt=80, left 6pt=120, right 6pt=120
+const CELL_MARGINS = { top: 80, bottom: 80, left: 120, right: 120 }
+
 const border = { style: BorderStyle.SINGLE, size: 1, color: 'CCCCCC' }
 const borders = { top: border, bottom: border, left: border, right: border }
 
@@ -39,10 +67,11 @@ function cell(text: string, opts: { bold?: boolean; color?: string; bg?: string;
     borders,
     width: opts.width ? { size: opts.width, type: WidthType.DXA } : undefined,
     shading: opts.bg ? { fill: opts.bg, type: ShadingType.CLEAR } : undefined,
-    margins: { top: 60, bottom: 60, left: 100, right: 100 },
+    margins: CELL_MARGINS,
     children: [new Paragraph({
       alignment: opts.align || AlignmentType.LEFT,
-      children: [new TextRun({ text, bold: opts.bold || false, color: opts.color || DARK, font: 'Calibri', size: opts.size || 20 })],
+      spacing: { line: LINE_TABLE },
+      children: [new TextRun({ text, bold: opts.bold || false, color: opts.color || DARK, font: FONT, size: opts.size || SZ_TABLE })],
     })],
   })
 }
@@ -57,17 +86,16 @@ function fmtK(n: number): string { return n >= 1000 ? `$${Math.round(n / 1000).t
 // Parse inline markdown (bold, italic) into TextRun children
 function inlineRuns(text: string, baseOpts: { size?: number; color?: string } = {}): TextRun[] {
   const runs: TextRun[] = []
-  const size = baseOpts.size || 20
+  const size = baseOpts.size || SZ_BODY
   const color = baseOpts.color || DARK
-  // Split on **bold** and *italic* markers
   const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/)
   for (const part of parts) {
     if (part.startsWith('**') && part.endsWith('**')) {
-      runs.push(new TextRun({ text: part.slice(2, -2), bold: true, size, color, font: 'Calibri' }))
+      runs.push(new TextRun({ text: part.slice(2, -2), bold: true, size, color, font: FONT }))
     } else if (part.startsWith('*') && part.endsWith('*')) {
-      runs.push(new TextRun({ text: part.slice(1, -1), italics: true, size, color, font: 'Calibri' }))
+      runs.push(new TextRun({ text: part.slice(1, -1), italics: true, size, color, font: FONT }))
     } else if (part) {
-      runs.push(new TextRun({ text: part, size, color, font: 'Calibri' }))
+      runs.push(new TextRun({ text: part, size, color, font: FONT }))
     }
   }
   return runs
@@ -85,8 +113,11 @@ function markdownToParas(text: string): (Paragraph | Table)[] {
     // Heading: ## or ###
     const headingMatch = trimmed.match(/^(#{2,3})\s+(.+)$/)
     if (headingMatch) {
-      const level = headingMatch[1].length === 2 ? HeadingLevel.HEADING_2 : HeadingLevel.HEADING_3
-      result.push(new Paragraph({ heading: level, spacing: { before: 200 }, children: [new TextRun(headingMatch[2])] }))
+      const isH2 = headingMatch[1].length === 2
+      result.push(new Paragraph({
+        spacing: { before: SP_BEFORE_SECTION, after: SP_AFTER_SECTION },
+        children: [new TextRun({ text: headingMatch[2], bold: true, size: isH2 ? SZ_SUBSECTION : SZ_TABLE, font: FONT, color: DARK })],
+      }))
       continue
     }
 
@@ -98,17 +129,17 @@ function markdownToParas(text: string): (Paragraph | Table)[] {
         const headerCells = parseRow(rows[0])
         const tableRows: TableRow[] = []
         tableRows.push(new TableRow({
-          children: headerCells.map(h => cell(h, { bold: true, bg: LIGHT, size: 18 })),
+          children: headerCells.map(h => cell(h, { bold: true, bg: LIGHT, size: SZ_TABLE })),
         }))
         for (let i = 1; i < rows.length; i++) {
           const cells = parseRow(rows[i])
           tableRows.push(new TableRow({
             children: cells.map(c => {
-              const runs = inlineRuns(c, { size: 18 })
+              const runs = inlineRuns(c, { size: SZ_TABLE })
               return new TableCell({
                 borders,
-                margins: { top: 40, bottom: 40, left: 80, right: 80 },
-                children: [new Paragraph({ children: runs })],
+                margins: CELL_MARGINS,
+                children: [new Paragraph({ spacing: { line: LINE_TABLE }, children: runs })],
               })
             }),
           }))
@@ -126,7 +157,7 @@ function markdownToParas(text: string): (Paragraph | Table)[] {
         const numbered = line.match(/^\d+\.\s*(.+)$/)
         if (numbered) {
           result.push(new Paragraph({
-            spacing: { after: 80 }, indent: { left: 360 },
+            spacing: { before: SP_BEFORE_PARA, after: SP_AFTER_PARA, line: LINE_BODY }, indent: { left: 360 },
             children: inlineRuns(numbered[1]),
           }))
         }
@@ -140,8 +171,8 @@ function markdownToParas(text: string): (Paragraph | Table)[] {
         const bullet = line.match(/^[-*]\s+(.+)$/)
         if (bullet) {
           result.push(new Paragraph({
-            spacing: { after: 60 }, indent: { left: 360 },
-            children: [new TextRun({ text: '  \u2022  ', size: 20 }), ...inlineRuns(bullet[1])],
+            spacing: { before: 40, after: SP_AFTER_PARA, line: LINE_BODY }, indent: { left: 360 },
+            children: [new TextRun({ text: '  \u2022  ', size: SZ_BODY, font: FONT }), ...inlineRuns(bullet[1])],
           }))
         }
       }
@@ -150,7 +181,7 @@ function markdownToParas(text: string): (Paragraph | Table)[] {
 
     // Regular paragraph
     const paraText = lines.join(' ').trim()
-    result.push(new Paragraph({ spacing: { after: 120 }, children: inlineRuns(paraText) }))
+    result.push(new Paragraph({ spacing: { before: SP_BEFORE_PARA, after: SP_AFTER_PARA, line: LINE_BODY }, children: inlineRuns(paraText) }))
   }
 
   return result
@@ -162,10 +193,12 @@ function actionParas(text: string): (Paragraph | Table)[] { return markdownToPar
 
 function sectionHeader(text: string, audience: string): Paragraph[] {
   return [
-    new Paragraph({ spacing: { before: 100 }, children: [
-      new TextRun({ text: audience, size: 14, color: GREEN, italics: true, font: 'Calibri' }),
+    new Paragraph({ spacing: { before: SP_BEFORE_SECTION }, children: [
+      new TextRun({ text: audience, size: SZ_SMALL, color: GREEN, italics: true, font: FONT }),
     ]}),
-    new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun(text)] }),
+    new Paragraph({ spacing: { after: SP_AFTER_SECTION }, children: [
+      new TextRun({ text, bold: true, size: SZ_SECTION, font: FONT, color: DARK }),
+    ]}),
   ]
 }
 
@@ -203,21 +236,21 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
     // ════════════════════════════════════════════════════════════════════
     // TITLE PAGE
     // ════════════════════════════════════════════════════════════════════
-    children.push(new Paragraph({ spacing: { after: 80 }, children: [new TextRun({ text: reportType, font: 'Georgia', size: 40, bold: true })] }))
-    children.push(new Paragraph({ spacing: { after: 40 }, children: [new TextRun({ text: `${plantName}  |  ${country}`, size: 22, color: GRAY })] }))
-    children.push(new Paragraph({ spacing: { after: 200 }, children: [new TextRun({ text: dateStr, size: 20, color: GRAY })] }))
+    children.push(new Paragraph({ spacing: { after: 80 }, children: [new TextRun({ text: reportType, font: FONT, size: SZ_TITLE, bold: true, color: DARK })] }))
+    children.push(new Paragraph({ spacing: { after: 40 }, children: [new TextRun({ text: `${plantName}  |  ${country}`, font: FONT, size: SZ_PLANT, color: GRAY })] }))
+    children.push(new Paragraph({ spacing: { after: 200 }, children: [new TextRun({ text: dateStr, font: FONT, size: SZ_DATE, color: GRAY })] }))
 
     // Assessment basis
     if (flc && flc.total_trips_observed >= 3) {
       children.push(new Paragraph({ spacing: { after: 40 }, children: [
-        new TextRun({ text: `Assessment basis: ${flc.total_trips_observed} observed truck cycles over ${flc.days_observed} working days.`, size: 18, color: DARK }),
+        new TextRun({ text: `Assessment basis: ${flc.total_trips_observed} observed truck cycles over ${flc.days_observed} working days.`, size: SZ_SMALL, font: FONT, color: DARK }),
       ]}))
       children.push(new Paragraph({ spacing: { after: 40 }, children: [
-        new TextRun({ text: flc.total_trips_observed >= 10 ? 'Claim strength: Confirmed' : 'Claim strength: Directional (insufficient cycles for confirmed diagnosis)', size: 18, color: flc.total_trips_observed >= 10 ? GREEN : AMBER }),
+        new TextRun({ text: flc.total_trips_observed >= 10 ? 'Claim strength: Confirmed' : 'Claim strength: Directional (insufficient cycles for confirmed diagnosis)', size: SZ_SMALL, font: FONT, color: flc.total_trips_observed >= 10 ? GREEN : AMBER }),
       ]}))
     } else if (dx.tat_source === 'validated') {
       children.push(new Paragraph({ spacing: { after: 40 }, children: [
-        new TextRun({ text: 'Assessment basis: On-site validated data.', size: 18, color: GREEN }),
+        new TextRun({ text: 'Assessment basis: On-site validated data.', size: SZ_SMALL, font: FONT, color: GREEN }),
       ]}))
     }
 
@@ -232,11 +265,11 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
           width: { size: 9840, type: WidthType.DXA },
           children: [
             new Paragraph({ children: [
-              new TextRun({ text: 'Estimated recoverable margin: ', size: 20 }),
-              new TextRun({ text: `${fmt(lo)} - ${fmt(hi)} per month`, bold: true, size: 24, color: GREEN }),
+              new TextRun({ text: 'Estimated recoverable margin: ', size: SZ_BODY, font: FONT }),
+              new TextRun({ text: `${fmt(lo)} - ${fmt(hi)} per month`, bold: true, size: SZ_RECOVERY, font: FONT, color: GREEN }),
             ]}),
             new Paragraph({ spacing: { before: 40 }, children: [
-              new TextRun({ text: `${dx.tat_source === 'measured' ? `Based on ${dx.tat_trip_count} observed cycles` : dx.tat_source === 'validated' ? 'On-site validated' : 'Based on reported data'}. 40-65% execution range.`, size: 16, color: GRAY }),
+              new TextRun({ text: `${dx.tat_source === 'measured' ? `Based on ${dx.tat_trip_count} observed cycles` : dx.tat_source === 'validated' ? 'On-site validated' : 'Based on reported data'}. 40-65% execution range.`, size: SZ_SMALL, font: FONT, color: GRAY }),
             ]}),
           ],
         })] })],
@@ -258,7 +291,7 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
     // Opening line for pre-assessment
     if (isPre) {
       children.push(new Paragraph({ spacing: { after: 120 }, children: [
-        new TextRun({ text: `Based on your reported data, here is where ${plantName} stands today.`, size: 20, color: DARK }),
+        new TextRun({ text: `Based on your reported data, here is where ${plantName} stands today.`, size: SZ_BODY, font: FONT, color: DARK }),
       ]}))
     }
 
@@ -273,11 +306,11 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
     children.push(new Table({
       width: { size: 9840, type: WidthType.DXA }, columnWidths: [2460, 2460, 2460, 2460],
       rows: [
-        new TableRow({ children: metricsRow.map(m => cell(m.label, { bold: true, color: GRAY, size: 16, bg: LIGHT, width: 2460, align: AlignmentType.CENTER })) }),
+        new TableRow({ children: metricsRow.map(m => cell(m.label, { bold: true, color: GRAY, size: SZ_KPI_LABEL, bg: LIGHT, width: 2460, align: AlignmentType.CENTER })) }),
         new TableRow({ children: metricsRow.map(m =>
-          new TableCell({ borders, width: { size: 2460, type: WidthType.DXA }, margins: { top: 60, bottom: 60, left: 60, right: 60 }, children: [
-            new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: m.value, bold: true, size: 28, color: m.valueColor })] }),
-            new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: m.sub, size: 16, color: GRAY })] }),
+          new TableCell({ borders, width: { size: 2460, type: WidthType.DXA }, margins: CELL_MARGINS, children: [
+            new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: m.value, bold: true, size: SZ_KPI_VALUE, font: FONT, color: m.valueColor })] }),
+            new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: m.sub, size: SZ_KPI_TARGET, font: FONT, color: GRAY })] }),
           ]})
         ) }),
       ],
@@ -288,7 +321,7 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
       children.push(...textParas(sanitize(report.executive)))
     } else {
       children.push(new Paragraph({ spacing: { after: 60 }, children: [
-        new TextRun({ text: 'Report not yet generated. Click "Generate report" in the platform before exporting.', size: 18, color: AMBER, italics: true }),
+        new TextRun({ text: 'Report not yet generated. Click "Generate report" in the platform before exporting.', size: SZ_SMALL, font: FONT, color: AMBER, italics: true }),
       ]}))
     }
 
@@ -335,15 +368,15 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
     }))
 
     children.push(new Paragraph({ spacing: { before: 80, after: 20 }, children: [
-      new TextRun({ text: `Contribution margin: $${ct.margin_per_m3}/m\u00B3. No additional trucks or plant investment required to achieve this output.`, size: 18, color: GRAY, italics: true }),
+      new TextRun({ text: `Contribution margin: $${ct.margin_per_m3}/m\u00B3. No additional trucks or plant investment required to achieve this output.`, size: SZ_SMALL, font: FONT, color: GRAY, italics: true }),
     ]}))
     children.push(new Paragraph({ spacing: { after: 60 }, children: [
-      new TextRun({ text: 'Figures rounded to nearest $1,000. Totals may vary by $1,000 due to rounding.', size: 16, color: GRAY, italics: true }),
+      new TextRun({ text: 'Figures rounded to nearest $1,000. Totals may vary by $1,000 due to rounding.', size: SZ_SMALL, font: FONT, color: GRAY, italics: true }),
     ]}))
 
     // Trips per truck
     children.push(new Paragraph({ spacing: { after: 80 }, children: [
-      new TextRun({ text: `Trips per truck per day: ${ct.trips_per_truck} actual vs ${ct.trips_per_truck_target} achievable at ${dx.tat_target}-min TAT.`, size: 20, color: DARK }),
+      new TextRun({ text: `Trips per truck per day: ${ct.trips_per_truck} actual vs ${ct.trips_per_truck_target} achievable at ${dx.tat_target}-min TAT.`, size: SZ_BODY, font: FONT, color: DARK }),
     ]}))
 
     // ════════════════════════════════════════════════════════════════════
@@ -384,14 +417,14 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
 
       // VA/NVA summary
       children.push(new Paragraph({ spacing: { before: 80, after: 40 }, children: [
-        new TextRun({ text: `Value-adding: ${vs.va_minutes} min (${vs.va_pct}%)  |  `, size: 18, color: GREEN }),
-        new TextRun({ text: `Necessary NVA: ${vs.necessary_nva_minutes} min (${vs.necessary_nva_pct}%)  |  `, size: 18, color: AMBER }),
-        new TextRun({ text: `Pure waste: ${vs.nva_minutes} min (${vs.nva_pct}%)`, size: 18, color: 'CC3333' }),
+        new TextRun({ text: `Value-adding: ${vs.va_minutes} min (${vs.va_pct}%)  |  `, size: SZ_SMALL, font: FONT, color: GREEN }),
+        new TextRun({ text: `Necessary NVA: ${vs.necessary_nva_minutes} min (${vs.necessary_nva_pct}%)  |  `, size: SZ_SMALL, font: FONT, color: AMBER }),
+        new TextRun({ text: `Pure waste: ${vs.nva_minutes} min (${vs.nva_pct}%)`, size: SZ_SMALL, font: FONT, color: 'CC3333' }),
       ]}))
     } else if (dx.tat_breakdown && dx.tat_breakdown.length > 0) {
       // Fallback: TAT breakdown from assessment answers
       children.push(new Paragraph({ spacing: { after: 60 }, children: [
-        new TextRun({ text: '(Assessor-reported, not measured)', size: 16, color: AMBER, italics: true }),
+        new TextRun({ text: '(Assessor-reported, not measured)', size: SZ_SMALL, font: FONT, color: AMBER, italics: true }),
       ]}))
       children.push(new Table({
         width: { size: 9840, type: WidthType.DXA }, columnWidths: [3280, 1640, 1640, 1640, 1640],
@@ -424,11 +457,11 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
     if (flc?.tat_variation) {
       const tv = flc.tat_variation
       children.push(new Paragraph({ spacing: { before: 80 }, children: [
-        new TextRun({ text: `TAT range: ${tv.min}-${tv.max} min  |  Std deviation: ${tv.std_dev} min  |  P25/P75: ${tv.p25}/${tv.p75} min`, size: 18, color: DARK }),
+        new TextRun({ text: `TAT range: ${tv.min}-${tv.max} min  |  Std deviation: ${tv.std_dev} min  |  P25/P75: ${tv.p25}/${tv.p75} min`, size: SZ_SMALL, font: FONT, color: DARK }),
       ]}))
       if (tv.std_dev > 20) {
         children.push(new Paragraph({ children: [
-          new TextRun({ text: 'High variation (std dev > 20 min) indicates systemic instability.', size: 18, color: 'CC3333', bold: true }),
+          new TextRun({ text: 'High variation (std dev > 20 min) indicates systemic instability.', size: SZ_SMALL, font: FONT, color: 'CC3333', bold: true }),
         ]}))
       }
     }
@@ -444,7 +477,7 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
       children.push(...textParas(sanitize(report.diagnosis)))
     } else {
       children.push(new Paragraph({ spacing: { after: 60 }, children: [
-        new TextRun({ text: 'Report not yet generated. Click "Generate report" in the platform before exporting.', size: 18, color: AMBER, italics: true }),
+        new TextRun({ text: 'Report not yet generated. Click "Generate report" in the platform before exporting.', size: SZ_SMALL, font: FONT, color: AMBER, italics: true }),
       ]}))
     }
 
@@ -470,7 +503,7 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
       // Explain what each classification means
       const lossTotal = dx.loss_breakdown_detail.reduce((s, l) => s + l.amount, 0)
       children.push(new Paragraph({ spacing: { before: 60, after: 40 }, children: [
-        new TextRun({ text: `"Trips you cannot complete": deliveries lost because the constraint prevents them. "Material cost with no delivery": waste costs that add up independently (rejected loads, material loss). Total identified: ${fmt(lossTotal)}/month. Figures rounded to nearest $1,000.`, size: 16, color: GRAY }),
+        new TextRun({ text: `"Trips you cannot complete": deliveries lost because the constraint prevents them. "Material cost with no delivery": waste costs that add up independently (rejected loads, material loss). Total identified: ${fmt(lossTotal)}/month. Figures rounded to nearest $1,000.`, size: SZ_SMALL, font: FONT, color: GRAY }),
       ]}))
     }
 
@@ -496,7 +529,7 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
           nonConstraints.push(`Rejection rate at ${dx.reject_pct}% adds ${fmtK(dx.loss_breakdown_detail.find(l => l.dimension === 'Quality')?.amount ?? 0)}/month in material cost but does not limit throughput. Each rejection is an additive cost, it does not block the next delivery cycle.`)
         }
         for (const nc of nonConstraints) {
-          children.push(new Paragraph({ spacing: { after: 100 }, children: [new TextRun({ text: nc, size: 20 })] }))
+          children.push(new Paragraph({ spacing: { after: 100 }, children: [new TextRun({ text: nc, size: SZ_BODY, font: FONT })] }))
         }
       }
     }
@@ -516,14 +549,14 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
         if (qRows.length === 0) continue
 
         children.push(new Paragraph({ spacing: { before: 100, after: 40 }, children: [
-          new TextRun({ text: QUADRANT_LABELS[q] || q, bold: true, size: 20, color: q === 'DO_FIRST' ? GREEN : q === 'PLAN_CAREFULLY' ? AMBER : GRAY }),
+          new TextRun({ text: QUADRANT_LABELS[q] || q, bold: true, size: SZ_BODY, font: FONT, color: q === 'DO_FIRST' ? GREEN : q === 'PLAN_CAREFULLY' ? AMBER : GRAY }),
         ]}))
 
         for (const row of qRows) {
           const overrideNote = row.quadrant_source === 'consultant' && row.override_reason ? ` * ${row.override_reason}` : ''
           children.push(new Paragraph({ spacing: { after: 40 }, indent: { left: 360 }, children: [
-            new TextRun({ text: `${row.issue_title.slice(0, 70)}`, bold: true, size: 18 }),
-            new TextRun({ text: ` - ${row.constraint_note || `${fmtK(row.loss_addressed)}/mo`} (${(row.impact_score * 100).toFixed(0)}% impact) - ${row.urgency} - ${row.org_level}${overrideNote}`, size: 16, color: GRAY }),
+            new TextRun({ text: `${row.issue_title.slice(0, 70)}`, bold: true, size: SZ_TABLE, font: FONT }),
+            new TextRun({ text: ` - ${row.constraint_note || `${fmtK(row.loss_addressed)}/mo`} (${(row.impact_score * 100).toFixed(0)}% impact) - ${row.urgency} - ${row.org_level}${overrideNote}`, size: SZ_SMALL, font: FONT, color: GRAY }),
           ]}))
         }
       }
@@ -535,14 +568,14 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
       children.push(...actionParas(sanitize(report.actions)))
     } else if (!matrix || matrix.rows.length === 0) {
       children.push(new Paragraph({ spacing: { after: 60 }, children: [
-        new TextRun({ text: 'Report not yet generated. Click "Generate report" in the platform before exporting.', size: 18, color: AMBER, italics: true }),
+        new TextRun({ text: 'Report not yet generated. Click "Generate report" in the platform before exporting.', size: SZ_SMALL, font: FONT, color: AMBER, italics: true }),
       ]}))
     }
 
     // Fixed closing line (not AI-generated)
     if (isPre) {
       children.push(new Paragraph({ spacing: { before: 200, after: 60 }, border: { top: { style: BorderStyle.SINGLE, size: 1, color: 'D4EDDA', space: 8 } }, children: [
-        new TextRun({ text: 'The on-site assessment typically takes 3-5 days. If you would like to proceed, I can have a scope and timeline to you within 48 hours.', size: 20, color: GREEN, italics: true }),
+        new TextRun({ text: 'The on-site assessment typically takes 3-5 days. If you would like to proceed, I can have a scope and timeline to you within 48 hours.', size: SZ_BODY, font: FONT, color: GREEN, italics: true }),
       ]}))
     }
 
@@ -558,7 +591,7 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
       } else {
         // Auto-generate basic considerations
         children.push(new Paragraph({ spacing: { after: 100 }, children: [
-          new TextRun({ text: `Fix the constraint first. The primary constraint is ${dx.main_driver.dimension || dx.primary_constraint}. Do not optimize rejection rate, fleet size, or plant capacity until turnaround time is moving toward the ${dx.tat_target}-min target. Optimizing non-constraints wastes resources.`, size: 20 }),
+          new TextRun({ text: `Fix the constraint first. The primary constraint is ${dx.main_driver.dimension || dx.primary_constraint}. Do not optimize rejection rate, fleet size, or plant capacity until turnaround time is moving toward the ${dx.tat_target}-min target. Optimizing non-constraints wastes resources.`, size: SZ_BODY, font: FONT }),
         ]}))
 
         if (matrix) {
@@ -566,18 +599,18 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
           const contractItems = matrix.rows.filter(r => issues?.find(i => i.t === r.issue_title)?.complexity?.requires_contract_change)
           if (capitalItems.length > 0) {
             children.push(new Paragraph({ spacing: { after: 80 }, children: [
-              new TextRun({ text: `Capital requirements: ${capitalItems.length} recommendation(s) require investment. Review these in the Plan Carefully quadrant before committing budget.`, size: 20 }),
+              new TextRun({ text: `Capital requirements: ${capitalItems.length} recommendation(s) require investment. Review these in the Plan Carefully quadrant before committing budget.`, size: SZ_BODY, font: FONT }),
             ]}))
           }
           if (contractItems.length > 0) {
             children.push(new Paragraph({ spacing: { after: 80 }, children: [
-              new TextRun({ text: `Contract changes: ${contractItems.length} recommendation(s) require contract modifications (demurrage, liability). Initiate commercial discussions early as these have the longest lead time.`, size: 20 }),
+              new TextRun({ text: `Contract changes: ${contractItems.length} recommendation(s) require contract modifications (demurrage, liability). Initiate commercial discussions early as these have the longest lead time.`, size: SZ_BODY, font: FONT }),
             ]}))
           }
         }
 
         children.push(new Paragraph({ spacing: { after: 80 }, children: [
-          new TextRun({ text: 'Each action requires a confirmed owner and start date assigned by plant management before implementation begins.', size: 20, bold: true }),
+          new TextRun({ text: 'Each action requires a confirmed owner and start date assigned by plant management before implementation begins.', size: SZ_BODY, font: FONT, bold: true }),
         ]}))
       }
     }
@@ -590,7 +623,7 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
       children.push(...sectionHeader('Data Appendix', 'Reference'))
 
       children.push(new Paragraph({ spacing: { after: 80 }, children: [
-        new TextRun({ text: `Assessment basis: ${flc.total_trips_observed} observed truck cycles, ${flc.days_observed} working days`, size: 18, color: DARK }),
+        new TextRun({ text: `Assessment basis: ${flc.total_trips_observed} observed truck cycles, ${flc.days_observed} working days`, size: SZ_SMALL, font: FONT, color: DARK }),
       ]}))
 
       // Fleet performance matrix
@@ -618,7 +651,7 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
           ],
         }))
         children.push(new Paragraph({ spacing: { before: 40, after: 80 }, children: [
-          new TextRun({ text: 'Normal: < 110% of fleet avg  |  Watch: 110-130%  |  Outlier: > 130%', size: 14, color: GRAY }),
+          new TextRun({ text: 'Normal: < 110% of fleet avg  |  Watch: 110-130%  |  Outlier: > 130%', size: SZ_SMALL, font: FONT, color: GRAY }),
         ]}))
       }
 
@@ -684,16 +717,16 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
         children.push(new Paragraph({ heading: HeadingLevel.HEADING_2, children: [new TextRun('Intervention Log')] }))
         for (const intv of flc.interventions) {
           children.push(new Paragraph({ spacing: { after: 40 }, children: [
-            new TextRun({ text: `${intv.date} - ${intv.title}`, bold: true, size: 18 }),
+            new TextRun({ text: `${intv.date} - ${intv.title}`, bold: true, size: SZ_TABLE, font: FONT }),
           ]}))
           if (intv.target_metric) {
             children.push(new Paragraph({ indent: { left: 360 }, children: [
-              new TextRun({ text: `Target: ${intv.target_metric}`, size: 16, color: GRAY }),
+              new TextRun({ text: `Target: ${intv.target_metric}`, size: SZ_SMALL, font: FONT, color: GRAY }),
             ]}))
           }
           if (intv.avg_tat_before != null && intv.avg_tat_after != null) {
             children.push(new Paragraph({ indent: { left: 360 }, spacing: { after: 60 }, children: [
-              new TextRun({ text: `TAT before: ${intv.avg_tat_before} min \u2192 after: ${intv.avg_tat_after} min (${intv.approximate ? 'approximate' : 'confirmed'})`, size: 16, color: intv.avg_tat_after < intv.avg_tat_before ? GREEN : 'CC3333' }),
+              new TextRun({ text: `TAT before: ${intv.avg_tat_before} min \u2192 after: ${intv.avg_tat_after} min (${intv.approximate ? 'approximate' : 'confirmed'})`, size: SZ_SMALL, font: FONT, color: intv.avg_tat_after < intv.avg_tat_before ? GREEN : 'CC3333' }),
             ]}))
           }
         }
@@ -704,8 +737,8 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
     // FOOTER
     // ════════════════════════════════════════════════════════════════════
     children.push(new Paragraph({ spacing: { before: 400 }, border: { top: { style: BorderStyle.SINGLE, size: 1, color: 'CCCCCC', space: 8 } }, children: [
-      new TextRun({ text: 'Generated by alRMX Plant Intelligence Platform', color: GRAY, size: 16, italics: true }),
-      new TextRun({ text: `     ${dateStr}`, color: GRAY, size: 16 }),
+      new TextRun({ text: 'Generated by alRMX Plant Intelligence Platform', color: GRAY, font: FONT, size: SZ_SMALL, italics: true }),
+      new TextRun({ text: `     ${dateStr}`, color: GRAY, font: FONT, size: SZ_SMALL }),
     ]}))
 
     // ════════════════════════════════════════════════════════════════════
@@ -713,30 +746,31 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
     // ════════════════════════════════════════════════════════════════════
     const doc = new Document({
       styles: {
-        default: { document: { run: { font: 'Calibri', size: 20, color: DARK } } },
+        default: { document: { run: { font: FONT, size: SZ_BODY, color: DARK } } },
         paragraphStyles: [
           { id: 'Heading1', name: 'Heading 1', basedOn: 'Normal', next: 'Normal', quickFormat: true,
-            run: { size: 28, bold: true, font: 'Georgia', color: DARK },
-            paragraph: { spacing: { before: 360, after: 200 }, outlineLevel: 0 } },
+            run: { size: SZ_SECTION, bold: true, font: FONT, color: DARK },
+            paragraph: { spacing: { before: SP_BEFORE_SECTION, after: SP_AFTER_SECTION }, outlineLevel: 0 } },
           { id: 'Heading2', name: 'Heading 2', basedOn: 'Normal', next: 'Normal', quickFormat: true,
-            run: { size: 24, bold: true, font: 'Georgia', color: DARK },
-            paragraph: { spacing: { before: 280, after: 160 }, outlineLevel: 1 } },
+            run: { size: SZ_SUBSECTION, bold: true, font: FONT, color: DARK },
+            paragraph: { spacing: { before: SP_BEFORE_SECTION, after: SP_AFTER_SECTION }, outlineLevel: 1 } },
         ],
       },
       sections: [{
         properties: {
-          page: { size: { width: 12240, height: 15840 }, margin: { top: 1200, right: 1200, bottom: 1200, left: 1200 } },
+          // Page: Letter size, margins: top/bottom 2.5cm (1417tw), left/right 2.8cm (1587tw)
+          page: { size: { width: 12240, height: 15840 }, margin: { top: 1417, right: 1587, bottom: 1417, left: 1587 } },
         },
         headers: {
           default: new Header({ children: [new Paragraph({ children: [
-            new TextRun({ text: 'alRMX', bold: true, color: GREEN, font: 'Georgia', size: 16 }),
-            new TextRun({ text: `  |  ${reportType}`, color: GRAY, size: 16 }),
+            new TextRun({ text: 'alRMX', bold: true, color: GREEN, font: FONT, size: SZ_SMALL }),
+            new TextRun({ text: `  |  ${reportType}`, color: GRAY, font: FONT, size: SZ_SMALL }),
           ]})] }),
         },
         footers: {
           default: new Footer({ children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [
-            new TextRun({ text: 'Confidential  |  Page ', color: GRAY, size: 14 }),
-            new TextRun({ children: [PageNumber.CURRENT], color: GRAY, size: 14 }),
+            new TextRun({ text: 'Confidential  |  Page ', color: GRAY, font: FONT, size: SZ_SMALL }),
+            new TextRun({ children: [PageNumber.CURRENT], color: GRAY, font: FONT, size: SZ_SMALL }),
           ]})] }),
         },
         children,
