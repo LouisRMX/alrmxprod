@@ -191,6 +191,16 @@ function markdownToParas(text: string): (Paragraph | Table)[] {
 function textParas(text: string): (Paragraph | Table)[] { return markdownToParas(text) }
 function actionParas(text: string): (Paragraph | Table)[] { return markdownToParas(text) }
 
+// Strip AI-generated markdown headings not in the approved whitelist
+// Operates on raw markdown text BEFORE conversion to docx paragraphs
+function stripUnauthorizedHeadings(text: string, allowedHeadings: string[]): string {
+  const allowed = new Set(allowedHeadings.map(h => h.toLowerCase().trim()))
+  return text.replace(/^#{2,3}\s+(.+)$/gm, (match, heading) => {
+    if (allowed.has(heading.toLowerCase().trim())) return match
+    return '' // Remove unauthorized heading line
+  })
+}
+
 function sectionHeader(text: string, audience: string): Paragraph[] {
   return [
     new Paragraph({ spacing: { before: SP_BEFORE_SECTION }, children: [
@@ -222,6 +232,8 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
   async function handleExport() {
     setExporting(true)
     const children: (Paragraph | Table)[] = []
+    // Deduplication guard: prevent any programmatic element from appearing twice
+    const inserted = new Set<string>()
     const lo = dx.combined_recovery_range.lo
     const hi = dx.combined_recovery_range.hi
     const loK = Math.round(lo / 1000)
@@ -319,20 +331,24 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
 
     // 3. Fleet reframe statement (programmatic)
     if (isPre && ct.trips_per_truck_target > 0) {
-      const trucksNeeded = Math.round(dx.trucks_effective * ct.trips_per_truck / ct.trips_per_truck_target * 10) / 10
-      const hasConflicting = ct.plant_daily_m3 < ct.fleet_target_daily_m3
-      const runs: TextRun[] = [
-        new TextRun({ text: `At target coordination, ${trucksNeeded} trucks would deliver what your current ${dx.trucks_effective}-truck fleet delivers today. No additional fleet investment required.`, bold: true, size: SZ_BODY, font: FONT }),
-      ]
-      if (hasConflicting) {
-        runs.push(new TextRun({ text: ' Production capacity will be verified on-site.', italics: true, size: SZ_BODY, font: FONT }))
+      if (!inserted.has('fleet-reframe')) {
+        inserted.add('fleet-reframe')
+        const trucksNeeded = Math.round(dx.trucks_effective * ct.trips_per_truck / ct.trips_per_truck_target * 10) / 10
+        const hasConflicting = ct.plant_daily_m3 < ct.fleet_target_daily_m3
+        const runs: TextRun[] = [
+          new TextRun({ text: `At target coordination, ${trucksNeeded} trucks would deliver what your current ${dx.trucks_effective}-truck fleet delivers today. No additional fleet investment required.`, bold: true, size: SZ_BODY, font: FONT }),
+        ]
+        if (hasConflicting) {
+          runs.push(new TextRun({ text: ' Production capacity will be verified on-site.', italics: true, size: SZ_BODY, font: FONT }))
+        }
+        children.push(new Paragraph({ spacing: { before: 160, after: 160 }, children: runs }))
       }
-      children.push(new Paragraph({ spacing: { before: 160, after: 160 }, children: runs }))
     }
 
     // 4. AI narrative (explains the gap)
     if (report?.executive) {
-      const execText = sanitize(report.executive).replace(/^#{1,3}\s*(What the Data Suggests|Executive Summary|Executive Explanation)\s*\n+/i, '')
+      let execText = sanitize(report.executive).replace(/^#{1,3}\s*(What the Data Suggests|Executive Summary|Executive Explanation)\s*\n+/i, '')
+      execText = stripUnauthorizedHeadings(execText, ['Initial Analysis', 'Capacity Detail', 'Where the gap sits'])
       children.push(...textParas(execText))
     } else {
       children.push(new Paragraph({ spacing: { after: 60 }, children: [
@@ -510,7 +526,8 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
 
     if (report?.diagnosis) {
       // Strip leading heading that duplicates the section header (AI sometimes generates "## Preliminary Analysis")
-      const diagText = sanitize(report.diagnosis).replace(/^#{1,3}\s*(Preliminary Analysis|Root Cause Analysis|Constraint Analysis)\s*\n+/i, '')
+      let diagText = sanitize(report.diagnosis).replace(/^#{1,3}\s*(Preliminary Analysis|Root Cause Analysis|Constraint Analysis)\s*\n+/i, '')
+      diagText = stripUnauthorizedHeadings(diagText, isPre ? [] : ['Loss Breakdown'])
       children.push(...textParas(diagText))
     } else {
       children.push(new Paragraph({ spacing: { after: 60 }, children: [
@@ -586,7 +603,8 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
     }
 
     // Fixed closing line (not AI-generated)
-    if (isPre) {
+    if (isPre && !inserted.has('48h-invitation')) {
+      inserted.add('48h-invitation')
       children.push(new Paragraph({ spacing: { before: 200, after: 60 }, border: { top: { style: BorderStyle.SINGLE, size: 1, color: 'D4EDDA', space: 8 } }, children: [
         new TextRun({ text: 'The on-site assessment typically takes 3-5 days. If you would like to proceed, I can have a scope and timeline to you within 48 hours.', size: SZ_BODY, font: FONT, color: GREEN, italics: true }),
       ]}))
