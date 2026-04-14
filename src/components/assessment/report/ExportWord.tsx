@@ -302,7 +302,7 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
     const constraintLabel = isPre
       ? (hasConflictingConstraints ? 'Fleet & capacity \u2014 verify on-site'
         : tatExcessPct > 0.2 ? 'Fleet coordination'
-        : tatAtTarget && hasDispatchSignals ? 'Likely: Dispatch timing'
+        : tatAtTarget && hasDispatchSignals ? 'Dispatch timing'
         : (dx.main_driver.dimension === 'Fleet' ? 'Fleet coordination' : dx.main_driver.dimension || 'To be confirmed'))
       : (dx.main_driver.dimension || dx.primary_constraint)
 

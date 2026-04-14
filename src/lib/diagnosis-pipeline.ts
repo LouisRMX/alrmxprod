@@ -688,28 +688,30 @@ export function buildValidatedDiagnosis(
         amount: l.amount,
         classification: l.classification as LossClassification,
       }))
-      // Ensure all three rows always present: Production, Quality, Dispatch coordination
-      // Add missing dimensions with calculated or minimum values
-      if (!rows.some(r => r.dimension === 'Quality')) {
-        rows.push({ dimension: 'Quality', amount: r.rejectMaterialLoss > 0 ? r.rejectMaterialLoss : 0, classification: 'additive' as LossClassification })
-      }
-      // Dispatch coordination: absorb remainder, or calculate from fleet gap for Scenario B
-      const breakdownSum = rows.reduce((s, l) => s + l.amount, 0)
-      const remainder = calcTrace.throughput_loss_usd - breakdownSum
-      if (!rows.some(r => r.dimension === 'Dispatch coordination')) {
-        if (remainder > 0) {
-          rows.push({ dimension: 'Dispatch coordination', amount: remainder, classification: 'overlapping' as LossClassification })
-        } else {
-          // Scenario B: TAT at target but utilisation low. Calculate dispatch coordination loss from fleet gap
-          const maxTripsDay = r.ta > 0 ? r.effectiveUnits * (r.opH * 60 / r.ta) : 0
-          const actualTripsDay = r.delDay > 0 ? r.delDay : maxTripsDay
-          const gapTripsDay = Math.max(0, maxTripsDay * 0.85 - actualTripsDay)
-          const dispatchLoss = Math.round(gapTripsDay * r.effectiveMixCap * r.contribSafe * calcTrace.working_days_month)
-          rows.push({ dimension: 'Dispatch coordination', amount: Math.max(dispatchLoss, 1000), classification: 'overlapping' as LossClassification })
-        }
-      }
-      // Filter out zero-amount rows but keep minimum $1,000
-      return rows.map(r => ({ ...r, amount: Math.max(r.amount, r.dimension === 'Quality' && r.amount === 0 ? 0 : 1000) })).filter(r => r.amount > 0)
+      // Ensure exactly three rows: Production/Fleet, Quality, Dispatch coordination
+      // All three must sum to throughput_loss_usd (the monthly gap)
+      const totalGap = calcTrace.throughput_loss_usd
+
+      // Quality: additive, use as-is from pipeline
+      const qualityRow = rows.find(r => r.dimension === 'Quality')
+      const qualityAmount = qualityRow?.amount ?? (r.rejectMaterialLoss > 0 ? r.rejectMaterialLoss : 0)
+
+      // Production: throughput loss from pipeline
+      const prodRow = rows.find(r => r.dimension !== 'Quality' && r.dimension !== 'Dispatch coordination')
+      const prodRaw = prodRow?.amount ?? 0
+
+      // Dispatch coordination: remainder after production + quality, minimum $1,000
+      // If production + quality already exceeds gap, scale production down to make room
+      const qualityCapped = Math.min(qualityAmount, totalGap * 0.4) // quality never > 40% of gap
+      const dispatchMinimum = Math.max(1000, Math.round(totalGap * 0.03)) // at least 3% of gap or $1k
+      const prodCapped = Math.min(prodRaw, totalGap - qualityCapped - dispatchMinimum)
+      const dispatchAmount = Math.max(dispatchMinimum, totalGap - prodCapped - qualityCapped)
+
+      return [
+        { dimension: prodRow?.dimension || 'Fleet / Turnaround', amount: Math.max(1000, Math.round(prodCapped)), classification: 'overlapping' as LossClassification },
+        { dimension: 'Quality', amount: Math.max(qualityCapped > 0 ? 1000 : 0, Math.round(qualityCapped)), classification: 'additive' as LossClassification },
+        { dimension: 'Dispatch coordination', amount: Math.max(1000, Math.round(dispatchAmount)), classification: 'overlapping' as LossClassification },
+      ].filter(r => r.amount > 0)
     })(),
     lost_volume_m3: diagnosis.lost_volume_m3_monthly,
     margin_per_m3: diagnosis.margin_per_m3,
