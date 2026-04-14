@@ -848,6 +848,23 @@ export const SECTIONS: Section[] = [
         },
       },
       {
+        id: 'dispatch_peak',
+        label: 'When during the day is the majority of your output dispatched?',
+        hint: 'Indicates whether dispatch is concentrated in early hours or distributed across the day.',
+        type: 'opts',
+        opts: [
+          'Early morning, most volume in first 3-4 hours',
+          'Distributed fairly evenly across the day',
+          'Concentrated in midday and afternoon',
+          'Evening and night shifts carry most volume',
+        ],
+        info: {
+          what: 'When peak dispatch activity occurs.',
+          why: 'Morning concentration combined with site readiness issues indicates systematic dispatch-site mismatch.',
+          calc: 'Used in hypothesis ranking: morning concentration elevates dispatch timing as likely constraint driver.',
+        },
+      },
+      {
         id: 'plant_idle',
         label: 'Does the plant ever sit ready to produce but have no truck available to load?',
         hint: 'Happens when all trucks are out and the plant must wait. If regular, fleet/turnaround is the bottleneck.',
@@ -1262,15 +1279,22 @@ export const SECTIONS: Section[] = [
 
 export const TOTAL_Q = SECTIONS.reduce((s, sec) => s + sec.qs.length, 0)
 
+// Pre-assessment: matches the 17-question data sheet sent to customers
+// order_to_dispatch, delivery_distance_km, avg_transit_min removed (not in data sheet)
 export const PRE_ASSESSMENT_IDS = new Set([
-  'price_m3', 'material_cost',
-  'plant_cap', 'actual_prod', 'op_hours', 'op_days',
-  'n_trucks', 'deliveries_day', 'turnaround', 'delivery_radius', 'delivery_distance_km', 'avg_transit_min',
-  'reject_pct',
-  'dispatch_tool', 'order_to_dispatch',
-  'prod_data_source',
-  'biggest_pain',
-  'demand_sufficient',
+  'price_m3', 'material_cost',                       // Q1-Q2: economics
+  'plant_cap', 'op_hours', 'op_days',                // Q3-Q5: plant operations
+  'actual_prod',                                      // Q6: production
+  'n_trucks', 'deliveries_day',                       // Q7-Q8: fleet
+  'turnaround',                                       // Q9: TAT
+  'reject_pct',                                       // Q10: quality
+  'delivery_radius',                                  // Q11: radius
+  'dispatch_tool',                                    // Q12: dispatch method
+  'prod_data_source',                                 // Q13: data sources
+  'biggest_pain',                                     // Q14: biggest challenge
+  'demand_sufficient',                                // Q15: demand vs capacity
+  'plant_idle',                                       // Q16: queue + idle same day
+  'dispatch_peak',                                    // Q17: when is majority dispatched
 ])
 
 export const CORE_BLOCKS: CoreBlock[] = [
