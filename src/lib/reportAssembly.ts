@@ -42,6 +42,20 @@ export function replaceNarrativeTokens(text: string, rc: ReportCalculations, inp
     result = result.split(token).join(value)
   }
 
+  // Strip unit suffixes AI may have added after currency tokens
+  const unitPatterns = [
+    /(\$[\d,]+)\s*(?:cubic meters|cubic metres|m³)/gi,
+    /(\$[\d,]+)\s*(?:trips)/gi,
+    /(\$[\d,]+)\s*(?:minutes|min)/gi,
+  ]
+  for (const pattern of unitPatterns) {
+    const match = result.match(pattern)
+    if (match) {
+      console.warn('AI added unit suffix after token:', match[0])
+    }
+    result = result.replace(pattern, '$1')
+  }
+
   // Scan for raw numbers the AI may have generated (digits > 2 chars, not years)
   const rawNumbers = result.match(/(?<!\d)\d{3,}(?!\d)/g)
   if (rawNumbers) {

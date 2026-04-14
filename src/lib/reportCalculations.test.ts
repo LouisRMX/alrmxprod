@@ -203,6 +203,30 @@ describe('calculateReport', () => {
     })
   })
 
+  describe('parseRadius (via calculateReport target_tat_min)', () => {
+    const base = { ...PLANT_A }
+
+    it('parseRadius(20) → over_20km → TARGET_TAT 135', () => {
+      const r = calculateReport({ ...base, avg_delivery_radius: '20' as any })
+      expect(r.target_tat_min).toBe(135) // 60 + 25*1.5*2
+    })
+
+    it('parseRadius("over_20km") → TARGET_TAT 135', () => {
+      const r = calculateReport({ ...base, avg_delivery_radius: 'over_20km' })
+      expect(r.target_tat_min).toBe(135)
+    })
+
+    it('parseRadius(15) → 10_to_20km → TARGET_TAT 105', () => {
+      const r = calculateReport({ ...base, avg_delivery_radius: '15' as any })
+      expect(r.target_tat_min).toBe(105) // 60 + 15*1.5*2
+    })
+
+    it('parseRadius(9) → under_10km → TARGET_TAT 81', () => {
+      const r = calculateReport({ ...base, avg_delivery_radius: '9' as any })
+      expect(r.target_tat_min).toBe(81) // 60 + 7*1.5*2
+    })
+  })
+
   describe('replaceNarrativeTokens', () => {
     it('replaces all 15 tokens', () => {
       const rc = calculateReport(PLANT_A)

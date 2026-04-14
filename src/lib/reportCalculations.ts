@@ -63,14 +63,14 @@ function parseRadius(value: string | number): number {
   const num = typeof value === 'number' ? value : parseFloat(String(value))
   if (!isNaN(num) && num > 0) {
     if (num < 10) return 7
-    if (num <= 20) return 15
-    return 25
+    if (num < 20) return 15
+    return 25  // >= 20 maps to over_20km
   }
   // String patterns
   const lower = String(value).toLowerCase()
   if (/under\s*10|<\s*10|under\s*5|dense/.test(lower)) return 7
-  if (/10.*20|12.*20|city|suburban/.test(lower)) return 15
-  if (/over\s*20|>\s*20|20\+|regional/.test(lower)) return 25
+  if (/10\s*[-–to]+\s*20|12\s*[-–to]+\s*20|city|suburban/.test(lower) && !/over|>/.test(lower)) return 15
+  if (/over\s*20|>\s*20|20\+|regional|\d+\s*[-–]\s*4[0-9]/.test(lower)) return 25
   console.warn('Radius parse failed, defaulting to over_20km:', value)
   return 25
 }

@@ -239,8 +239,9 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
     const children: (Paragraph | Table)[] = []
     // Deduplication guard: prevent any programmatic element from appearing twice
     const inserted = new Set<string>()
-    const lo = dx.combined_recovery_range.lo
-    const hi = dx.combined_recovery_range.hi
+    // Use rc values when available; fall back to dx (old system)
+    const lo = rc?.recovery_low_usd ?? dx.combined_recovery_range.lo
+    const hi = rc?.recovery_high_usd ?? dx.combined_recovery_range.hi
     const loK = Math.round(lo / 1000)
     const hiK = Math.round(hi / 1000)
     // Catches: $54k-$88k/month, $54,361-$88,336/month, $111k–$160k monthly range, $54k to $88k per month

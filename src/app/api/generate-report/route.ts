@@ -480,6 +480,7 @@ PLACEHOLDER TOKEN RULES (MANDATORY):
 4. Do not write the bold summary line. It is injected separately by the report formatter.
 5. Do not mention rejection rate unless constraint is quality-related.
 6. Do not invent operational details not present in the input data.
+7. NEVER add a unit suffix after a token. Tokens already contain the correct formatted value. WRONG: "{{MONTHLY_GAP}} cubic meters". RIGHT: "{{MONTHLY_GAP}}". WRONG: "{{TAT_ACTUAL}} minutes". RIGHT: "{{TAT_ACTUAL}}-minute turnaround".
 
 AVAILABLE TOKENS:
 {{RECOVERY_LOW}} — recovery range low bound
