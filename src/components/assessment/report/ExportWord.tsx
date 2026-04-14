@@ -278,23 +278,17 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
     }
 
     // ════════════════════════════════════════════════════════════════════
-    // SECTION 1: EXECUTIVE SUMMARY
+    // SECTION 1: EXECUTIVE SUMMARY (all financial content in one flow)
     // ════════════════════════════════════════════════════════════════════
     children.push(...sectionHeader(isPre ? 'What the Data Suggests' : 'Executive Summary', 'Executive Section'))
 
-    // Key metrics table
     const tatExcessPct = dx.tat_target > 0 ? (dx.tat_actual - dx.tat_target) / dx.tat_target : 0
     const hasConflictingConstraints = isPre && tatExcessPct > 0.2 && ct.plant_daily_m3 < ct.fleet_target_daily_m3
     const constraintLabel = isPre
       ? (hasConflictingConstraints ? 'Fleet & capacity \u2014 verify on-site' : tatExcessPct > 0.2 ? 'Fleet coordination' : (dx.main_driver.dimension === 'Fleet' ? 'Fleet coordination' : dx.main_driver.dimension || 'Fleet turnaround'))
       : (dx.main_driver.dimension || dx.primary_constraint)
-    // Opening line for pre-assessment
-    if (isPre) {
-      children.push(new Paragraph({ spacing: { after: 120 }, children: [
-        new TextRun({ text: `Based on your reported data, here is where ${plantName} stands today.`, size: SZ_BODY, font: FONT, color: DARK }),
-      ]}))
-    }
 
+    // 1. KPI header table (first thing the plant owner sees)
     const RED = 'CC3333'
     const KPI_GREEN = '1A6644'
     const metricsRow = [
@@ -316,18 +310,14 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
       ],
     }))
 
-    if (report?.executive) {
-      children.push(new Paragraph({ spacing: { after: 60 }, children: [] }))
-      // Strip leading heading that duplicates the section header
-      const execText = sanitize(report.executive).replace(/^#{1,3}\s*(What the Data Suggests|Executive Summary|Executive Explanation)\s*\n+/i, '')
-      children.push(...textParas(execText))
-    } else {
-      children.push(new Paragraph({ spacing: { after: 60 }, children: [
-        new TextRun({ text: 'Report not yet generated. Click "Generate report" in the platform before exporting.', size: SZ_SMALL, font: FONT, color: AMBER, italics: true }),
+    // 2. Opening line
+    if (isPre) {
+      children.push(new Paragraph({ spacing: { before: 120, after: 120 }, children: [
+        new TextRun({ text: `Based on your reported data, here is where ${plantName} stands today.`, size: SZ_BODY, font: FONT, color: DARK }),
       ]}))
     }
 
-    // Fleet reframe statement (programmatic, not AI-generated)
+    // 3. Fleet reframe statement (programmatic)
     if (isPre && ct.trips_per_truck_target > 0) {
       const trucksNeeded = Math.round(dx.trucks_effective * ct.trips_per_truck / ct.trips_per_truck_target * 10) / 10
       const hasConflicting = ct.plant_daily_m3 < ct.fleet_target_daily_m3
@@ -340,11 +330,20 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
       children.push(new Paragraph({ spacing: { before: 160, after: 160 }, children: runs }))
     }
 
-    // ════════════════════════════════════════════════════════════════════
-    // SECTION 2: CAPACITY ANALYSIS
-    // ════════════════════════════════════════════════════════════════════
-    children.push(new Paragraph({ children: [new PageBreak()] }))
-    children.push(...sectionHeader('Capacity Analysis', 'Executive Section'))
+    // 4. AI narrative (explains the gap)
+    if (report?.executive) {
+      const execText = sanitize(report.executive).replace(/^#{1,3}\s*(What the Data Suggests|Executive Summary|Executive Explanation)\s*\n+/i, '')
+      children.push(...textParas(execText))
+    } else {
+      children.push(new Paragraph({ spacing: { after: 60 }, children: [
+        new TextRun({ text: 'Report not yet generated. Click "Generate report" in the platform before exporting.', size: SZ_SMALL, font: FONT, color: AMBER, italics: true }),
+      ]}))
+    }
+
+    // 5. Capacity Detail (merged from former Capacity Analysis section)
+    children.push(new Paragraph({ spacing: { before: SP_BEFORE_SECTION, after: SP_AFTER_SECTION }, children: [
+      new TextRun({ text: 'Capacity Detail', bold: true, size: SZ_SUBSECTION, font: FONT, color: DARK }),
+    ]}))
 
     children.push(new Table({
       width: { size: 9840, type: WidthType.DXA }, columnWidths: [3280, 3280, 3280],
@@ -383,16 +382,37 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
     }))
 
     children.push(new Paragraph({ spacing: { before: 80, after: 20 }, children: [
-      new TextRun({ text: `Contribution margin: $${ct.margin_per_m3}/m\u00B3. No additional trucks or plant investment required to achieve this output.`, size: SZ_SMALL, font: FONT, color: GRAY, italics: true }),
+      new TextRun({ text: `Contribution margin: $${ct.margin_per_m3}/m\u00B3. Trips per truck: ${ct.trips_per_truck} actual vs ${ct.trips_per_truck_target} achievable at ~${dx.tat_target}-min TAT.`, size: SZ_SMALL, font: FONT, color: GRAY, italics: true }),
     ]}))
     children.push(new Paragraph({ spacing: { after: 60 }, children: [
       new TextRun({ text: 'Figures rounded to nearest $1,000. Totals may vary by $1,000 due to rounding.', size: SZ_SMALL, font: FONT, color: GRAY, italics: true }),
     ]}))
 
-    // Trips per truck
-    children.push(new Paragraph({ spacing: { after: 80 }, children: [
-      new TextRun({ text: `Trips per truck per day: ${ct.trips_per_truck} actual vs ${ct.trips_per_truck_target} achievable at ${dx.tat_target}-min TAT.`, size: SZ_BODY, font: FONT, color: DARK }),
-    ]}))
+    // 6. Where the gap sits (Loss Breakdown — moved from Preliminary Analysis)
+    if (dx.loss_breakdown_detail.length > 0) {
+      children.push(new Paragraph({ spacing: { before: SP_BEFORE_SECTION, after: SP_AFTER_SECTION }, children: [
+        new TextRun({ text: 'Where the gap sits', bold: true, size: SZ_SUBSECTION, font: FONT, color: DARK }),
+      ]}))
+      children.push(new Table({
+        width: { size: 9840, type: WidthType.DXA }, columnWidths: [4920, 2460, 2460],
+        rows: [
+          new TableRow({ children: [
+            cell('Dimension', { bold: true, bg: LIGHT, width: 4920 }),
+            cell('Amount', { bold: true, bg: LIGHT, width: 2460, align: AlignmentType.CENTER }),
+            cell('Type', { bold: true, bg: LIGHT, width: 2460, align: AlignmentType.CENTER }),
+          ]}),
+          ...dx.loss_breakdown_detail.map(l => new TableRow({ children: [
+            cell(l.dimension, { width: 4920 }),
+            cell(`${fmt(l.amount)}/month`, { width: 2460, align: AlignmentType.CENTER }),
+            cell(l.classification === 'overlapping' ? 'Trips you cannot complete' : l.classification === 'additive' ? 'Material cost with no delivery' : l.classification, { width: 2460, align: AlignmentType.CENTER, color: GRAY }),
+          ]})),
+        ],
+      }))
+      const lossTotal = dx.loss_breakdown_detail.reduce((s, l) => s + l.amount, 0)
+      children.push(new Paragraph({ spacing: { before: 60, after: 40 }, children: [
+        new TextRun({ text: `"Trips you cannot complete": deliveries lost because the constraint prevents them. "Material cost with no delivery": waste costs that add up independently. Total identified: ${fmt(lossTotal)}/month. Figures rounded to nearest $1,000.`, size: SZ_SMALL, font: FONT, color: GRAY }),
+      ]}))
+    }
 
     // ════════════════════════════════════════════════════════════════════
     // SECTION 3: VALUE STREAM ANALYSIS (skip if no data available)
@@ -498,31 +518,7 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
       ]}))
     }
 
-    // Loss breakdown table
-    if (dx.loss_breakdown_detail.length > 0) {
-      children.push(new Paragraph({ spacing: { before: SP_BEFORE_SECTION, after: SP_AFTER_SECTION }, children: [new TextRun({ text: 'Loss Breakdown', bold: true, size: SZ_SUBSECTION, font: FONT, color: DARK })] }))
-      children.push(new Table({
-        width: { size: 9840, type: WidthType.DXA }, columnWidths: [4920, 2460, 2460],
-        rows: [
-          new TableRow({ children: [
-            cell('Dimension', { bold: true, bg: LIGHT, width: 4920 }),
-            cell('Amount', { bold: true, bg: LIGHT, width: 2460, align: AlignmentType.CENTER }),
-            cell('Type', { bold: true, bg: LIGHT, width: 2460, align: AlignmentType.CENTER }),
-          ]}),
-          ...dx.loss_breakdown_detail.map(l => new TableRow({ children: [
-            cell(l.dimension, { width: 4920 }),
-            cell(`${fmt(l.amount)}/month`, { width: 2460, align: AlignmentType.CENTER }),
-            cell(l.classification === 'overlapping' ? 'Trips you cannot complete' : l.classification === 'additive' ? 'Material cost with no delivery' : l.classification, { width: 2460, align: AlignmentType.CENTER, color: GRAY }),
-          ]})),
-        ],
-      }))
-
-      // Explain what each classification means
-      const lossTotal = dx.loss_breakdown_detail.reduce((s, l) => s + l.amount, 0)
-      children.push(new Paragraph({ spacing: { before: 60, after: 40 }, children: [
-        new TextRun({ text: `"Trips you cannot complete": deliveries lost because the constraint prevents them. "Material cost with no delivery": waste costs that add up independently (rejected loads, material loss). Total identified: ${fmt(lossTotal)}/month. Figures rounded to nearest $1,000.`, size: SZ_SMALL, font: FONT, color: GRAY }),
-      ]}))
-    }
+    // Loss breakdown moved to Executive section ("Where the gap sits")
 
     // ════════════════════════════════════════════════════════════════════
     // SECTION 5: WHAT WE DID NOT FIND
