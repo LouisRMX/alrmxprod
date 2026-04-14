@@ -837,7 +837,7 @@ WRONG (observation task): "Ask the dispatcher to log four timestamps for every t
 RIGHT (historical record): "Pull delivery tickets from the last 30 days. Paper tickets, Excel records, or system printouts are all acceptable. These show historical cycle patterns across ${dx.trucks_effective} trucks that cannot be reconstructed during a single visit."
 
 CATEGORY 2 — ACCESS AND CONTACTS (exactly 2 items, use these verbatim)
-4. **Morning access.** Confirm that I can observe operations during peak morning hours on the first day, typically 6:00 AM to 10:00 AM.${tatExcess > 5 ? ` Morning peak is where the ${tatExcess}-minute turnaround excess is most likely concentrated.` : ' Morning peak is when dispatch coordination patterns are most visible and fleet idle time most likely occurs.'}
+4. **Morning access.** Confirm that I can observe operations during peak morning hours on the first day, typically 6:00 AM to 10:00 AM.${tatExcessPct > 0.2 ? ` Morning peak is where the ${tatExcess}-minute turnaround excess is most likely concentrated.` : ' Morning peak is when dispatch coordination patterns are most visible and fleet idle time most likely occurs.'}
 
 5. **Key contacts.** Identify the dispatcher and operations supervisor I will work with during the visit. These are the two people who control truck flow and production sequencing.
 
