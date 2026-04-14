@@ -62,6 +62,21 @@ export const SECTIONS: Section[] = [
         },
       },
       {
+        id: 'material_cost',
+        label: 'What is the total material cost per cubic metre of concrete?',
+        hint: 'Include cement, aggregates, sand, admixtures, and water. Exclude labour, fuel, and overhead. Source: your mix design cost sheet or finance department.',
+        field: 'Check most recent production cost report or mix design sheet.',
+        howto: 'Ask the plant accountant or batch plant operator for the total raw material cost per m³. This should include cement, aggregates (sand, gravel, crushed stone), and admixtures. If they only have individual costs, add them together.',
+        type: 'num',
+        unit: 'USD / m³',
+        req: true,
+        info: {
+          what: 'Total raw material cost per m³ of finished concrete.',
+          why: 'Used to calculate contribution margin (price minus material cost). Every financial figure in this report depends on this.',
+          calc: 'Contribution margin = selling price - total material cost. Example: $64 - $31 = $33/m³.',
+        },
+      },
+      {
         id: 'cement_cost',
         label: 'How much does cement cost per cubic metre of concrete produced?',
         hint: 'Calculate: cement price per tonne × kg used per m³ ÷ 1,000. Example: 320 kg/m³ at $120/tonne = $38.40/m³.',
@@ -1248,17 +1263,18 @@ export const SECTIONS: Section[] = [
 export const TOTAL_Q = SECTIONS.reduce((s, sec) => s + sec.qs.length, 0)
 
 export const PRE_ASSESSMENT_IDS = new Set([
-  'price_m3', 'cement_cost', 'aggregate_cost', 'admix_cost',
+  'price_m3', 'material_cost',
   'plant_cap', 'actual_prod', 'op_hours', 'op_days',
   'n_trucks', 'deliveries_day', 'turnaround', 'delivery_radius', 'delivery_distance_km', 'avg_transit_min',
   'reject_pct',
   'dispatch_tool', 'order_to_dispatch',
   'prod_data_source',
   'biggest_pain',
+  'demand_sufficient',
 ])
 
 export const CORE_BLOCKS: CoreBlock[] = [
-  { id: 'economics', label: 'Economics & production volume', ids: ['price_m3', 'cement_cost', 'aggregate_cost', 'admix_cost', 'op_days', 'plant_cap', 'op_hours', 'actual_prod', 'working_days_month'] },
+  { id: 'economics', label: 'Economics & production volume', ids: ['price_m3', 'material_cost', 'cement_cost', 'aggregate_cost', 'admix_cost', 'op_days', 'plant_cap', 'op_hours', 'actual_prod', 'working_days_month'] },
   { id: 'fleet', label: 'Fleet & deliveries', ids: ['n_trucks', 'turnaround', 'deliveries_day'] },
   { id: 'quality_dispatch', label: 'Quality & dispatch', ids: ['reject_pct', 'quality_control', 'order_to_dispatch', 'dispatch_tool'] },
   { id: 'context', label: 'Visit context', ids: ['typical_month', 'prod_data_source', 'data_confidence_self', 'biggest_pain'] },

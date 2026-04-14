@@ -27,9 +27,7 @@ async function callWithRetry(params: Anthropic.MessageCreateParamsNonStreaming):
 const FIELD_MAP = `Map the data to these exact field IDs and return a JSON object:
 {
   "price_m3": number (selling price per cubic meter in USD),
-  "cement_cost": number (cement cost per m3 in USD),
-  "aggregate_cost": number (aggregate/sand cost per m3 in USD),
-  "admix_cost": number (admixture cost per m3 in USD),
+  "material_cost": number (total material cost per m3 in USD — cement + aggregates + admixtures combined),
   "plant_cap": number (plant capacity in m3 per hour),
   "op_hours": number (operating hours per day),
   "op_days": number (operating days per year),
@@ -42,7 +40,8 @@ const FIELD_MAP = `Map the data to these exact field IDs and return a JSON objec
   "dispatch_tool": string (must be EXACTLY one of: "Dedicated dispatch software with GPS tracking" | "Spreadsheet combined with WhatsApp" | "WhatsApp messages only, no spreadsheet" | "Phone calls and whiteboard only"),
   "order_to_dispatch": string (must be EXACTLY one of: "Under 15 minutes, fast response" | "15 to 25 minutes, acceptable" | "25 to 40 minutes, slow" | "Over 40 minutes, critical delay"),
   "prod_data_source": string (must be EXACTLY one of: "System records, read from batch computer or dispatch system" | "Calculated from monthly reports or delivery tickets" | "Estimated by the plant manager from memory" | "Rough estimate, low confidence"),
-  "biggest_pain": string (free text, plant manager's stated challenge)
+  "biggest_pain": string (free text, plant manager's stated challenge),
+  "demand_sufficient": string (must be EXACTLY one of: "Operations, we have more demand than we can currently produce or deliver" | "Both, we could sell more, and operations are also holding us back" | "Demand, our volume reflects available orders, not operational limits" | "Not sure")
 }
 
 For dropdown fields: pick the closest matching option. If the value is a number (e.g. turnaround = 115), map it to the correct range.

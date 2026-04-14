@@ -43,6 +43,7 @@ function answersMatchDefaults(current: Answers, defaults: Answers): boolean {
 // The questions sent to the plant before the visit (PRE_ASSESSMENT_IDS)
 const WORKSHOP_ANSWERS: Answers = {
   price_m3:           '64',
+  material_cost:      '31',
   cement_cost:        '18',
   aggregate_cost:     '9',
   admix_cost:         '4',

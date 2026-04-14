@@ -53,6 +53,7 @@ export default function UploadAssessmentData({ onDataParsed }: UploadAssessmentD
 
   const LABELS: Record<string, string> = {
     price_m3: 'Selling price',
+    material_cost: 'Material cost (total)',
     cement_cost: 'Cement cost',
     aggregate_cost: 'Aggregate cost',
     admix_cost: 'Admixture cost',

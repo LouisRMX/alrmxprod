@@ -340,10 +340,14 @@ export function calc(answers: Answers, meta?: { season?: string }, overrides?: C
 
   // Economics
   const price = +(a.price_m3 ?? 0) || 0
-  const cement = +(a.cement_cost ?? 0) || 0
-  const agg = +(a.aggregate_cost ?? 0) || 0
-  const admix = +(a.admix_cost ?? 0) || 0
-  const marginIncomplete = price > 0 && cement > 0 &&
+  // material_cost is the single total field used in pre-assessment
+  // When filled, it replaces the three separate cost fields for margin calculation
+  const materialCostTotal = +(a.material_cost ?? 0) || 0
+  const cement = materialCostTotal > 0 ? materialCostTotal : (+(a.cement_cost ?? 0) || 0)
+  const agg = materialCostTotal > 0 ? 0 : (+(a.aggregate_cost ?? 0) || 0)
+  const admix = materialCostTotal > 0 ? 0 : (+(a.admix_cost ?? 0) || 0)
+  const hasMaterialCost = materialCostTotal > 0
+  const marginIncomplete = !hasMaterialCost && price > 0 && cement > 0 &&
     (+(a.aggregate_cost ?? 0) === 0 || a.aggregate_cost === undefined || a.aggregate_cost === '') &&
     (+(a.admix_cost ?? 0) === 0 || a.admix_cost === undefined || a.admix_cost === '')
   const contribNegative = price > 0 && (cement + agg + admix) > price
@@ -352,10 +356,10 @@ export function calc(answers: Answers, meta?: { season?: string }, overrides?: C
   // contribSafe: used for all loss calculations.
   // When material costs are incomplete, contrib = price (100% margin) which inflates all loss figures 3-4x.
   // Fall back to 35% of price, conservative for GCC standard-mix, errs toward understatement.
-  const marginIncompleteEarly = price > 0 && cement > 0 &&
+  const marginIncompleteEarly = !hasMaterialCost && price > 0 && cement > 0 &&
     (+(a.aggregate_cost ?? 0) === 0 || a.aggregate_cost === undefined || a.aggregate_cost === '') &&
     (+(a.admix_cost ?? 0) === 0 || a.admix_cost === undefined || a.admix_cost === '')
-  const noCosts = price > 0 && cement === 0 && agg === 0 && admix === 0
+  const noCosts = price > 0 && cement === 0 && agg === 0 && admix === 0 && !hasMaterialCost
   const contribSafe = (marginIncompleteEarly || noCosts) ? Math.round(price * 0.35) : contrib
 
   // Mix-weighted margin
