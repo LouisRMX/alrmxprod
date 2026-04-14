@@ -495,7 +495,10 @@ Paragraph 2: Include a before/after comparison table (markdown table format):
 
 Do NOT include any statement about trucks needed at target coordination or "no additional fleet investment". That statement is inserted programmatically by the report formatter. Including it in the narrative creates a duplicate.
 
-Follow the table with 1-2 sentences on what cannot be determined remotely, and end by framing the on-site visit as the logical next step.`
+After the table, include this exact sentence (Tier 1, methodological statement):
+"The recovery range reflects a 40-65% execution probability. Operational changes rarely capture the full theoretical gap due to structural constraints, customer dependencies, and implementation time."
+
+Follow with 1-2 sentences on what cannot be determined remotely, and end by framing the on-site visit as the logical next step.`
   }
 
   // ── ON-SITE EXECUTIVE ──
@@ -549,6 +552,7 @@ function buildDiagnosisPrompt(dx: ValidatedDiagnosis, answers: Answers, phase: s
 - Write for a plant owner who is intelligent and has no patience for consultants.
 - Do not present utilisation as an independent cause alongside turnaround. Utilisation is the output of turnaround and fleet size combined.
 - The calc_trace is provided so you can explain the mechanism quantitatively. Use the actual numbers to explain what is happening.
+- FLEET PRODUCTIVITY: When describing the utilisation gap, always state three concrete numbers: (1) max fleet trips/day at current TAT, (2) actual trips/day, (3) gap in absolute trips converted to truck-equivalents. The plant owner thinks in trucks and trips, not percentages. Never describe the utilisation gap in percentage terms alone.
 - If data_quality is "directional" or flags are present, acknowledge the limitation in one sentence. Do not repeat each flag.
 - If TAT breakdown is absent: do not speculate on which component drives the turnaround excess.
 - Never use first person plural. Do not write "we". Write in third person or address the plant directly.
@@ -618,9 +622,12 @@ Trips per truck per day: ${ct.trips_per_truck} actual vs ${ct.trips_per_truck_ta
 Daily output: ${ct.actual_daily_m3} m3/day actual vs ${ct.target_daily_m3} m3/day target
 ${tatExcess <= 0 ? 'TAT STATUS: AT TARGET. Do not mention turnaround excess. The utilisation gap comes from dispatch coordination or fleet availability, not cycle time.' : ''}
 Dispatch coordination: managed via ${dx.performance_gaps['dispatch'] ? 'manual tools' : 'unknown method'}${tatExcess <= 0 ? ' — with TAT at target, dispatch timing is the primary investigation area' : ''}
-Rejection rate: ${dx.reject_pct}% (target: <3%)
+Rejection rate: ${dx.reject_pct}% (target: <3%)${dx.reject_pct > 3 ? `\nRejected loads per month: approximately ${Math.round((dx.reject_pct / 100) * ct.trips_per_truck * dx.trucks_effective * ct.working_days_month)} loads. At ${dx.reject_pct}%, each requires disposal, potential re-delivery, and driver time that does not generate revenue. Use Tier 1 for the count, Tier 2 for whether rejections cluster at specific sites or times.` : ''}
 Utilisation: ${dx.utilization_pct}% (target: 85%)
 Fleet: ${dx.trucks_effective} effective trucks of ${dx.trucks_total} assigned
+Max fleet trips/day at current TAT: ${dx.tat_actual > 0 ? Math.round(dx.trucks_effective * (dx.operating_hours * 60 / dx.tat_actual)) : 0}
+Actual trips/day: ${Math.round(ct.trips_per_truck * dx.trucks_effective)}
+Gap: ${dx.tat_actual > 0 ? Math.round(dx.trucks_effective * (dx.operating_hours * 60 / dx.tat_actual)) - Math.round(ct.trips_per_truck * dx.trucks_effective) : 0} unrealised trips/day (= ${dx.tat_actual > 0 ? Math.round((dx.trucks_effective * (dx.operating_hours * 60 / dx.tat_actual) - Math.round(ct.trips_per_truck * dx.trucks_effective)) / (dx.operating_hours * 60 / dx.tat_actual) * 10) / 10 : 0} truck-equivalents idle)
 ${sanitizeManagementContext(dx.management_context) ? `Plant manager's stated challenge: "${sanitizeManagementContext(dx.management_context)}"` : ''}
 ${buildIdleSignal(answers)}
 ${buildDispatchContext(answers)}

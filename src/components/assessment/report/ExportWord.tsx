@@ -352,10 +352,19 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
           runs.push(new TextRun({ text: ' Production capacity will be verified on-site.', italics: true, size: SZ_BODY, font: FONT }))
         }
         children.push(new Paragraph({ spacing: { before: 160, after: 160 }, children: runs }))
-      } else {
-        // TAT at target: show utilisation-based statement
+      } else if (ct.plant_daily_m3 > 0 && ct.actual_daily_m3 >= ct.plant_daily_m3 * 0.9) {
+        // Scenario C: production constrained (plant at capacity, fleet underused because plant can't keep up)
         children.push(new Paragraph({ spacing: { before: 160, after: 160 }, children: [
-          new TextRun({ text: `At 85% fleet utilisation, ${dx.trucks_effective} trucks should complete ${ct.trips_per_truck_target} trips per truck per day. Current performance at ${ct.trips_per_truck} trips suggests coordination gaps reduce effective fleet availability.`, bold: true, size: SZ_BODY, font: FONT }),
+          new TextRun({ text: `At current production capacity, the plant cannot sustain full fleet activity even with perfect dispatch coordination. The constraint lies in batch throughput, not fleet scheduling.`, bold: true, size: SZ_BODY, font: FONT }),
+        ]}))
+      } else {
+        // Scenario B: TAT at target but utilisation low — dispatch/coordination gap
+        const maxTripsDay = dx.tat_actual > 0 ? Math.round(dx.trucks_effective * (dx.operating_hours * 60 / dx.tat_actual)) : 0
+        const actualTripsDay = Math.round(ct.trips_per_truck * dx.trucks_effective)
+        const gapTrips = Math.max(0, maxTripsDay - actualTripsDay)
+        const gapPct = maxTripsDay > 0 ? Math.round((gapTrips / maxTripsDay) * 100) : 0
+        children.push(new Paragraph({ spacing: { before: 160, after: 160 }, children: [
+          new TextRun({ text: `Your ${dx.trucks_effective} trucks could complete ${maxTripsDay} trips per day at current TAT. Actual performance: ${actualTripsDay} trips. The ${gapTrips} missing trips represent ${gapPct}% of available fleet capacity sitting idle.`, bold: true, size: SZ_BODY, font: FONT }),
         ]}))
       }
     }
