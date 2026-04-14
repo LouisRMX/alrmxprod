@@ -80,15 +80,24 @@ export default function CustomerDetail({ customer, plants, members: initialMembe
   async function handleSave() {
     setSaving(true)
     setSaveError('')
-    const { error } = await supabase.from('customers').update({
-      name, country,
-      contact_name: contactName || null,
-      contact_email: contactEmail || null,
-    }).eq('id', customer.id)
-
-    if (error) {
-      console.error('Update error:', error)
-      setSaveError('Failed to save, please try again.')
+    try {
+      const resp = await fetch('/api/admin/customers', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: customer.id,
+          name, country,
+          contact_name: contactName || null,
+          contact_email: contactEmail || null,
+        }),
+      })
+      if (!resp.ok) {
+        const body = await resp.json().catch(() => ({}))
+        throw new Error(body.error || 'Update failed')
+      }
+    } catch (err) {
+      console.error('Update error:', err)
+      setSaveError(err instanceof Error ? err.message : 'Failed to save, please try again.')
       setSaving(false)
       return
     }

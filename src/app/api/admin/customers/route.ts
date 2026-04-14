@@ -42,6 +42,21 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ customer: data })
 }
 
+export async function PATCH(req: NextRequest) {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!await isSystemAdmin(user.id)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+  const { id, ...updates } = await req.json()
+  if (!id) return NextResponse.json({ error: 'Missing customer id' }, { status: 400 })
+
+  const admin = getAdminClient()
+  const { data, error } = await admin.from('customers').update(updates).eq('id', id).select().single()
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ customer: data })
+}
+
 export async function DELETE(req: NextRequest) {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
