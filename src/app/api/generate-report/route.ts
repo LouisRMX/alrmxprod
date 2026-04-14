@@ -477,10 +477,10 @@ OPERATIONAL REFRAME (use these exact numbers):
 Trips per truck per day: ${ct.trips_per_truck} actual vs ${ct.trips_per_truck_target} target
 Daily output: ${ct.actual_daily_m3} m3/day actual vs ${ct.target_daily_m3} m3/day target
 Lost trips per day (fleet-wide): ${lostTripsPerDay}
-Equivalent parked trucks: ${parkedEquivalent} (i.e. ${trucksNeeded} trucks at target coordination would deliver what ${dx.trucks_effective} deliver today)
+Equivalent parked trucks: ${parkedEquivalent}
 
 STRUCTURE:
-Paragraph 1: What the reported data suggests about where margin is being lost. Name the likely area but frame as directional. Use actual numbers vs targets. If the plant manager's stated challenge is available, anchor the opening in it. After stating the dollar range, translate the loss into truck-days: "That is the equivalent of parking X trucks every day." Then reframe: "Y trucks at target coordination would deliver the same output Z trucks deliver today." End the paragraph with the cost of delay timeline: "At this recovery range, the unaddressed gap compounds to $${quarterlyLo.toLocaleString('en-US')}-$${quarterlyHi.toLocaleString('en-US')} over a quarter and $${annualLo.toLocaleString('en-US')}-$${annualHi.toLocaleString('en-US')} over a year." This is Tier 1 (direct calculation from confirmed recovery range), use declarative language.
+Paragraph 1: What the reported data suggests about where margin is being lost. Name the likely area but frame as directional. Use actual numbers vs targets. If the plant manager's stated challenge is available, anchor the opening in it. After stating the dollar range, translate the loss into truck-days: "That is the equivalent of parking ${parkedEquivalent} trucks every day." End the paragraph with the cost of delay timeline: "At this recovery range, the unaddressed gap compounds to $${quarterlyLo.toLocaleString('en-US')}-$${quarterlyHi.toLocaleString('en-US')} over a quarter and $${annualLo.toLocaleString('en-US')}-$${annualHi.toLocaleString('en-US')} over a year." This is Tier 1 (direct calculation from confirmed recovery range), use declarative language. Do NOT write anything about how many trucks would be needed at target coordination — that statement is inserted separately by the report formatter.
 
 Paragraph 2: Include a before/after comparison table (markdown table format):
 | Metric | Current | Target |
@@ -489,11 +489,9 @@ Paragraph 2: Include a before/after comparison table (markdown table format):
 | Daily output (m3) | ${ct.actual_daily_m3} | ${ct.target_daily_m3} |
 | Monthly recovery range | - | $${Math.round(dx.combined_recovery_range.lo / 1000)}k-$${Math.round(dx.combined_recovery_range.hi / 1000)}k |
 
-After the table, include this exact standalone statement in bold (do not rephrase):
-"At target coordination, ${trucksNeeded} trucks would deliver what your current ${dx.trucks_effective}-truck fleet delivers today. No additional fleet investment required."
-${ct.plant_daily_m3 < ct.fleet_target_daily_m3 ? 'Follow with this qualifier in italics: "Production capacity will be verified on-site."' : ''}
+Do NOT include any statement about trucks needed at target coordination or "no additional fleet investment". That statement is inserted programmatically by the report formatter. Including it in the narrative creates a duplicate.
 
-Follow with 1-2 sentences on what cannot be determined remotely, and end by framing the on-site visit as the logical next step.`
+Follow the table with 1-2 sentences on what cannot be determined remotely, and end by framing the on-site visit as the logical next step.`
   }
 
   // ── ON-SITE EXECUTIVE ──
@@ -550,7 +548,10 @@ function buildDiagnosisPrompt(dx: ValidatedDiagnosis, answers: Answers, phase: s
 - If data_quality is "directional" or flags are present, acknowledge the limitation in one sentence. Do not repeat each flag.
 - If TAT breakdown is absent: do not speculate on which component drives the turnaround excess.
 - Never use first person plural. Do not write "we". Write in third person or address the plant directly.
-- DATA SOURCE DISCIPLINE: Qualitative inputs from the plant (text fields, operational descriptions, manager observations) must never be presented as confirmed findings or independent evidence. Frame as reported patterns requiring verification. WRONG: "The plant manager's observation indicates this is not random variation." RIGHT: "The plant reports morning productivity loss. Whether this reflects a consistent pattern or site-specific variation will be confirmed during the on-site visit." Apply this discipline to every qualitative reference.`
+- DATA SOURCE DISCIPLINE: Qualitative inputs from the plant (text fields, operational descriptions, manager observations) must never be presented as confirmed findings or independent evidence. Frame as reported patterns requiring verification. WRONG: "The plant manager's observation indicates this is not random variation." RIGHT: "The plant reports morning productivity loss. Whether this reflects a consistent pattern or site-specific variation will be confirmed during the on-site visit." Apply this discipline to every qualitative reference.
+- SOLUTION-FREE ZONE: Preliminary Analysis must contain zero references to solutions, tools, systems, or interventions. It describes only what the data shows and what requires on-site verification. Never write about scheduling tools, dispatch software, automation, process improvements, or any specific solution. The only forward-looking language permitted: "The on-site assessment will determine..." followed by what will be measured, never what will be changed or implemented.
+  WRONG: "Whether automated scheduling tools could reduce coordination gaps by improving truck sequencing"
+  RIGHT: "Whether dispatch timing patterns create systematic clustering that extends cycle times beyond site-side delays"`
 
   const performingWell = dx.total_loss === 0 && dx.actions.length === 0 && dx.data_quality !== 'insufficient'
 
