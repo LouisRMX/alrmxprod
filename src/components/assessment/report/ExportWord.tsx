@@ -312,24 +312,27 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
     // ════════════════════════════════════════════════════════════════════
     children.push(...sectionHeader(isPre ? 'What the Data Suggests' : 'Executive Summary', 'Executive Section'))
 
-    const tatExcessPct = dx.tat_target > 0 ? (dx.tat_actual - dx.tat_target) / dx.tat_target : 0
+    // KPI values: use rc when available, fall back to dx
+    const kpiTatTarget = rc?.target_tat_min ?? dx.tat_target
+    const kpiTatActual = rc ? reportInput!.avg_turnaround_min : dx.tat_actual
+    const tatExcessPct = kpiTatTarget > 0 ? (kpiTatActual - kpiTatTarget) / kpiTatTarget : 0
     const hasConflictingConstraints = isPre && tatExcessPct > 0.2 && ct.plant_daily_m3 < ct.fleet_target_daily_m3
-    // Scenario classification: > 20% = Fleet, <= 20% with dispatch signals = Dispatch, else main_driver
     const hasDispatchSignals = dx.utilization_pct < 80
     const isDispatchScenario = tatExcessPct <= 0.2 && hasDispatchSignals
     const constraintLabel = isPre
-      ? (hasConflictingConstraints ? 'Fleet & capacity \u2014 verify on-site'
+      ? (rc ? rc.constraint // Use rc constraint directly when available
+        : hasConflictingConstraints ? 'Fleet & capacity \u2014 verify on-site'
         : tatExcessPct > 0.2 ? 'Fleet coordination'
         : isDispatchScenario ? 'Dispatch timing'
         : (dx.main_driver.dimension === 'Fleet' ? 'Fleet coordination' : dx.main_driver.dimension || 'To be confirmed'))
       : (dx.main_driver.dimension || dx.primary_constraint)
 
-    // 1. KPI header table (first thing the plant owner sees)
+    // 1. KPI header table
     const RED = 'CC3333'
     const KPI_GREEN = '1A6644'
     const metricsRow = [
-      { label: 'TURNAROUND', value: `${dx.tat_actual} min`, sub: `target: ~${dx.tat_target} min`, valueColor: dx.tat_actual > dx.tat_target ? RED : KPI_GREEN },
-      { label: 'UTILISATION', value: `${dx.utilization_pct}%`, sub: 'target: ~85%', valueColor: dx.utilization_pct < 85 ? RED : KPI_GREEN },
+      { label: 'TURNAROUND', value: `${kpiTatActual} min`, sub: `target: ~${kpiTatTarget} min`, valueColor: kpiTatActual > kpiTatTarget ? RED : KPI_GREEN },
+      { label: 'UTILISATION', value: `${rc?.utilisation_actual_pct ?? dx.utilization_pct}%`, sub: 'target: ~85%', valueColor: (rc?.utilisation_actual_pct ?? dx.utilization_pct) < 85 ? RED : KPI_GREEN },
       { label: 'REJECTION', value: `${dx.reject_pct}%`, sub: 'target: <3%', valueColor: dx.reject_pct <= 3 ? KPI_GREEN : RED },
       { label: 'CONSTRAINT', value: isPre ? `Likely: ${constraintLabel}` : constraintLabel, sub: isPre ? 'To be confirmed on-site' : `${fmtK(dx.main_driver.amount)}/month`, valueColor: DARK },
     ]
