@@ -56,6 +56,25 @@ const RADIUS_MAP: Record<string, number> = {
   'over_20km': 25,
 }
 
+function parseRadius(value: string | number): number {
+  // Exact enum match
+  if (typeof value === 'string' && RADIUS_MAP[value] !== undefined) return RADIUS_MAP[value]
+  // Numeric value
+  const num = typeof value === 'number' ? value : parseFloat(String(value))
+  if (!isNaN(num) && num > 0) {
+    if (num < 10) return 7
+    if (num <= 20) return 15
+    return 25
+  }
+  // String patterns
+  const lower = String(value).toLowerCase()
+  if (/under\s*10|<\s*10|under\s*5|dense/.test(lower)) return 7
+  if (/10.*20|12.*20|city|suburban/.test(lower)) return 15
+  if (/over\s*20|>\s*20|20\+|regional/.test(lower)) return 25
+  console.warn('Radius parse failed, defaulting to over_20km:', value)
+  return 25
+}
+
 export function calculateReport(input: ReportInput): ReportCalculations {
   const {
     selling_price_per_m3, material_cost_per_m3, plant_capacity_m3_per_hour,
@@ -73,8 +92,8 @@ export function calculateReport(input: ReportInput): ReportCalculations {
     ? Math.round((actual_production_last_month_m3 / total_trips_last_month) * 10) / 10
     : 7 // default mixer capacity
 
-  // ── Rule 1: TARGET_TAT ──
-  const radius_km = RADIUS_MAP[avg_delivery_radius] ?? 15
+  // ── Rule 1: TARGET_TAT with robust radius parsing ──
+  const radius_km = parseRadius(avg_delivery_radius)
   const target_tat_min = Math.min(150, Math.max(75, Math.round(60 + radius_km * 1.5 * 2)))
 
   // ── Trips ──
@@ -108,7 +127,19 @@ export function calculateReport(input: ReportInput): ReportCalculations {
   const fleet_target_daily_m3 = Math.round(
     trucks_assigned * target_trips_per_truck_per_day * avg_load_m3
   )
-  const target_daily_output_m3 = Math.min(fleet_target_daily_m3, plant_daily_m3)
+  let target_daily_output_m3 = Math.min(fleet_target_daily_m3, plant_daily_m3)
+
+  // ── Guard: actual exceeds target (large fleet compensates high TAT) ──
+  if (actual_daily_output_m3 >= target_daily_output_m3 && plant_daily_m3 > actual_daily_output_m3) {
+    // Gap is between actual and plant capacity, not fleet target
+    target_daily_output_m3 = plant_daily_m3
+    gap_driver = 'utilisation'
+  } else if (actual_daily_output_m3 >= target_daily_output_m3) {
+    // Actual exceeds both fleet target and plant capacity — use capacity ceiling
+    target_daily_output_m3 = Math.max(actual_daily_output_m3 + 1, plant_daily_m3)
+    gap_driver = 'utilisation'
+  }
+
   const monthly_gap_m3 = Math.max(0, target_daily_output_m3 - actual_daily_output_m3) * op_days_per_month
   const monthly_gap_usd = Math.round(monthly_gap_m3 * contribution_margin_per_m3 / 1000) * 1000
 
