@@ -44,7 +44,7 @@ const FIELD_MAP = `Map the data to these exact field IDs and return a JSON objec
   "biggest_pain": string (free text, plant manager's stated challenge),
   "demand_sufficient": string (must be EXACTLY one of: "Operations, we have more demand than we can currently produce or deliver" | "Both, we could sell more, and operations are also holding us back" | "Demand, our volume reflects available orders, not operational limits" | "Not sure"),
   "plant_idle": string (must be EXACTLY one of: "Never, a truck is always available" | "Occasionally, a few times per week" | "Regularly, most busy periods" | "Every day, always waiting for trucks"),
-  "dispatch_peak": string (must be EXACTLY one of: "Early morning, most volume in first 3-4 hours" | "Distributed fairly evenly across the day" | "Concentrated in midday and afternoon" | "Evening and night shifts carry most volume")
+  "dispatch_peak": string (free text describing when during the day most output is dispatched, e.g. "Early morning, most volume before 10am")
 }
 
 For dropdown fields: pick the closest matching option. If the value is a number (e.g. turnaround = 115), map it to the correct range.

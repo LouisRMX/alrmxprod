@@ -850,14 +850,8 @@ export const SECTIONS: Section[] = [
       {
         id: 'dispatch_peak',
         label: 'When during the day is the majority of your output dispatched?',
-        hint: 'Indicates whether dispatch is concentrated in early hours or distributed across the day.',
-        type: 'opts',
-        opts: [
-          'Early morning, most volume in first 3-4 hours',
-          'Distributed fairly evenly across the day',
-          'Concentrated in midday and afternoon',
-          'Evening and night shifts carry most volume',
-        ],
+        hint: 'E.g. "Early morning, 70% before 10am" or "Spread evenly across the day". Describe your typical dispatch pattern.',
+        type: 'text',
         info: {
           what: 'When peak dispatch activity occurs.',
           why: 'Morning concentration combined with site readiness issues indicates systematic dispatch-site mismatch.',
