@@ -432,7 +432,7 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
     const tripsTarget = rc ? (Math.round(rc.target_trips_per_truck_per_day * 10) / 10).toFixed(1) : ct.trips_per_truck_target
     const tatTarget = rc?.target_tat_min ?? dx.tat_target
     children.push(new Paragraph({ spacing: { before: 80, after: 20 }, children: [
-      new TextRun({ text: `Contribution margin: $${capMargin}/m\u00B3. Trips per truck: ${tripsActual} actual vs ${tripsTarget} achievable at ~${tatTarget}-min TAT.`, size: SZ_SMALL, font: FONT, color: GRAY, italics: true }),
+      new TextRun({ text: `Contribution margin: $${capMargin}/m\u00B3. Trips per truck: ${tripsActual} actual vs ${tripsTarget} at target TAT of ~${tatTarget} min.`, size: SZ_SMALL, font: FONT, color: GRAY, italics: true }),
     ]}))
     children.push(new Paragraph({ spacing: { after: 60 }, children: [
       new TextRun({ text: 'Figures rounded to nearest $1,000. Totals may vary by $1,000 due to rounding.', size: SZ_SMALL, font: FONT, color: GRAY, italics: true }),
@@ -442,14 +442,14 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
     {
       const lbRows = rc
         ? [
-            { dim: 'Production', amount: rc.production_loss_usd, type: 'Trips you cannot complete' },
+            { dim: 'Production', amount: rc.production_loss_usd, type: 'Cycle time exceeds target' },
             { dim: 'Quality', amount: rc.quality_loss_usd, type: 'Material cost with no delivery' },
-            { dim: 'Dispatch coordination', amount: rc.dispatch_loss_usd, type: 'Trips you cannot complete' },
+            { dim: 'Dispatch coordination', amount: rc.dispatch_loss_usd, type: 'Cycle time exceeds target' },
           ].filter(r => r.amount > 0)
         : dx.loss_breakdown_detail.map(l => ({
             dim: l.dimension,
             amount: l.amount,
-            type: l.dimension === 'Quality' ? 'Material cost with no delivery' : 'Trips you cannot complete',
+            type: l.dimension === 'Quality' ? 'Material cost with no delivery' : 'Cycle time exceeds target',
           }))
 
       if (lbRows.length > 0) {
@@ -481,7 +481,7 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
       }
       const lossTotal = rc?.monthly_gap_usd ?? lbRows.reduce((s, r) => s + r.amount, 0)
       children.push(new Paragraph({ spacing: { before: 60, after: 40 }, children: [
-        new TextRun({ text: `"Trips you cannot complete": deliveries lost because the constraint prevents them. "Material cost with no delivery": waste costs that add up independently. Total identified: ${fmt(lossTotal)}/month. Figures rounded to nearest $1,000.`, size: SZ_SMALL, font: FONT, color: GRAY }),
+        new TextRun({ text: `"Cycle time exceeds target": trips not completed due to turnaround exceeding benchmark. "Material cost with no delivery": waste costs that add up independently. Total identified: ${fmt(lossTotal)}/month. Figures rounded to nearest $1,000.`, size: SZ_SMALL, font: FONT, color: GRAY }),
       ]}))
     }
 

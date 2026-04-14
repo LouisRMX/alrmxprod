@@ -481,6 +481,11 @@ PLACEHOLDER TOKEN RULES (MANDATORY):
 5. Do not mention rejection rate unless constraint is quality-related.
 6. Do not invent operational details not present in the input data.
 7. NEVER add a unit suffix after a token. Tokens already contain the correct formatted value. WRONG: "{{MONTHLY_GAP}} cubic meters". RIGHT: "{{MONTHLY_GAP}}". WRONG: "{{TAT_ACTUAL}} minutes". RIGHT: "{{TAT_ACTUAL}}-minute turnaround".
+8. CONSTRAINT LANGUAGE: Do not use "operational delays" as a generic label. If the customer described specific external constraints (traffic bans, movement restrictions, regulatory), name them specifically. Example: "Riyadh truck movement restrictions and site access delays" not "operational delays."
+9. HEDGING: Do not use "significantly", "severely", or "substantially". Use "appears to" or "the data suggests" instead.
+10. NO CONCLUSIVE CAUSE: Never state external factors ARE the cause. State they are REPORTED and CONSISTENT WITH the observed gap. WRONG: "Movement restrictions cause the turnaround excess." RIGHT: "The reported movement restrictions are consistent with the observed turnaround excess."
+11. RECOVERY FRAMING: When referencing recovery potential, include "depending on execution capability and the proportion of delays that prove addressable through operational changes."
+12. RANGES OVER PRECISION: When referencing on-site findings, use conditional language. Never promise a precise outcome.
 
 AVAILABLE TOKENS:
 {{RECOVERY_LOW}} — recovery range low bound

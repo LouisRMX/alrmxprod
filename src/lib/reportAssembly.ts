@@ -78,7 +78,7 @@ export function assembleBoldSummaryLine(rc: ReportCalculations, input: ReportInp
     const missingTrips = targetTripsTotal - actualTripsTotal
     const idlePct = targetTripsTotal > 0 ? Math.round((missingTrips / targetTripsTotal) * 100) : 0
 
-    return `Your ${input.trucks_assigned} trucks could complete ${targetTripsTotal} trips per day at target TAT. Actual performance: ${actualTripsTotal} trips. The ${missingTrips} missing trips represent ${idlePct}% of available fleet capacity sitting idle.`
+    return `Your ${input.trucks_assigned} trucks completed ${actualTripsTotal} trips per day last month \u2014 ${missingTrips} fewer than the ${targetTripsTotal} daily trips the fleet would achieve at the ${rc.target_tat_min}-minute target. This ${idlePct}% gap is what this assessment will quantify and explain.`
   }
 
   // gap_driver === 'utilisation' or 'mixed'
@@ -86,5 +86,5 @@ export function assembleBoldSummaryLine(rc: ReportCalculations, input: ReportInp
   const gapM3 = targetM3 - input.actual_production_last_month_m3
   const utilGapPct = targetM3 > 0 ? Math.round((gapM3 / targetM3) * 100) : 0
 
-  return `Your plant produced ${input.actual_production_last_month_m3.toLocaleString('en-US')} m\u00B3 last month against an achievable ${targetM3.toLocaleString('en-US')} m\u00B3. The ${gapM3.toLocaleString('en-US')} m\u00B3 shortfall represents ${utilGapPct}% of available capacity running underutilised.`
+  return `Your plant produced ${input.actual_production_last_month_m3.toLocaleString('en-US')} m\u00B3 last month against a target of ${targetM3.toLocaleString('en-US')} m\u00B3. The ${gapM3.toLocaleString('en-US')} m\u00B3 shortfall represents ${utilGapPct}% of target capacity. This assessment will determine where this gap originates.`
 }

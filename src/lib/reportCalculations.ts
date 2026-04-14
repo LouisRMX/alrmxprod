@@ -183,6 +183,8 @@ export function calculateReport(input: ReportInput): ReportCalculations {
     constraint = 'Likely: Dispatch clustering'
   } else if (hasSiteAccess && !hasIdle) {
     constraint = 'Likely: Site access coordination'
+  } else if (/movement ban|movement restriction|truck ban|traffic police|road block|road closure/.test(bocLower)) {
+    constraint = 'Likely: External \u2014 verify on-site'
   } else if (avg_turnaround_min > target_tat_min * 1.20) {
     constraint = 'Likely: Fleet coordination'
   } else {
