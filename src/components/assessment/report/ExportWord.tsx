@@ -207,47 +207,77 @@ function stripUnauthorizedHeadings(text: string, allowedHeadings: string[]): str
 }
 
 /**
- * Build a TAT waterfall SVG: two-segment horizontal bar showing target (green)
- * and excess (light red), with a dotted boundary line and inline labels.
- * Pure string generation — no browser APIs.
+ * Build a TAT waterfall SVG styled to match the approved mockup:
+ * - Legend row at top: Actual / Target / Excess with colored squares
+ * - Horizontal bar: green target segment + pink excess segment
+ * - Axis below bar with tick marks at 0, 50, 100, 150, 200, 220 min
+ * Pure string generation, no browser APIs.
  */
 function buildTatWaterfallSvg(targetTat: number, actualTat: number): string {
-  const W = 600
-  const H = 110
-  const barY = 28
-  const barH = 44
-  const leftPad = 12
-  const rightPad = 12
+  const W = 800
+  const H = 120
+  const leftPad = 20
+  const rightPad = 20
   const drawW = W - leftPad - rightPad
 
   const excessMin = Math.max(0, actualTat - targetTat)
-  const maxX = Math.max(220, actualTat + 20)
+  const maxX = 220
   const pxPerMin = drawW / maxX
 
-  const targetW = targetTat * pxPerMin
-  const excessW = excessMin * pxPerMin
+  const targetW = Math.min(targetTat, maxX) * pxPerMin
+  const excessW = Math.min(excessMin, Math.max(0, maxX - targetTat)) * pxPerMin
 
-  const GREEN_HEX = '#3B6D11'
-  const RED_HEX = '#F09595'
+  // Color palette matches the mockup
+  const RED_HEX = '#C83E3E'        // legend square only (no red in bar)
+  const GREEN_HEX = '#3B6D11'      // target segment
+  const PINK_HEX = '#F5CCCC'       // excess segment
   const DARK_HEX = '#1A1A1A'
   const GRAY_HEX = '#666666'
+  const AXIS_HEX = '#CCCCCC'
 
-  // Show label inline if the segment is wide enough (~50px), otherwise skip.
-  const showTargetLabel = targetW >= 50
-  const showExcessLabel = excessMin > 0 && excessW >= 40
+  // ── Legend row (y=6-20) ──
+  // Three entries roughly evenly spaced across the width
+  const legendY = 14
+  const squareSize = 10
+  const squareTextGap = 6
+  const legendFontSize = 11
+  // Position three entries starting around 1/4, 1/2, 3/4 of width
+  const legendAx = 100
+  const legendBx = 330
+  const legendCx = 560
 
-  const targetLabelX = leftPad + targetW / 2
-  const excessLabelX = leftPad + targetW + excessW / 2
+  // ── Bar (y=38-70) ──
+  const barY = 40
+  const barH = 28
+
+  // ── Axis (y=72-108) ──
+  const axisY = barY + barH + 4
+  const tickValues = [0, 50, 100, 150, 200, 220]
+
+  const ticks = tickValues.map(v => {
+    const x = leftPad + v * pxPerMin
+    return `<line x1="${x}" y1="${axisY}" x2="${x}" y2="${axisY + 6}" stroke="${GRAY_HEX}" stroke-width="1"/>
+<text x="${x}" y="${axisY + 22}" font-family="Calibri, sans-serif" font-size="${legendFontSize}" fill="${GRAY_HEX}" text-anchor="middle">${v} min</text>`
+  }).join('\n')
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+<!-- Legend row -->
+<rect x="${legendAx}" y="${legendY - squareSize + 2}" width="${squareSize}" height="${squareSize}" fill="${RED_HEX}"/>
+<text x="${legendAx + squareSize + squareTextGap}" y="${legendY}" font-family="Calibri, sans-serif" font-size="${legendFontSize}" fill="${DARK_HEX}">Actual \u2014 ${actualTat} min</text>
+
+<rect x="${legendBx}" y="${legendY - squareSize + 2}" width="${squareSize}" height="${squareSize}" fill="${GREEN_HEX}"/>
+<text x="${legendBx + squareSize + squareTextGap}" y="${legendY}" font-family="Calibri, sans-serif" font-size="${legendFontSize}" fill="${DARK_HEX}">Target \u2014 ${targetTat} min</text>
+
+<rect x="${legendCx}" y="${legendY - squareSize + 2}" width="${squareSize}" height="${squareSize}" fill="${PINK_HEX}"/>
+<text x="${legendCx + squareSize + squareTextGap}" y="${legendY}" font-family="Calibri, sans-serif" font-size="${legendFontSize}" fill="${DARK_HEX}">Excess \u2014 ${excessMin} min</text>
+
+<!-- Bar: target (green) + excess (pink) -->
 <rect x="${leftPad}" y="${barY}" width="${targetW}" height="${barH}" fill="${GREEN_HEX}"/>
-<rect x="${leftPad + targetW}" y="${barY}" width="${excessW}" height="${barH}" fill="${RED_HEX}"/>
-${showTargetLabel ? `<text x="${targetLabelX}" y="${barY + barH / 2 + 5}" font-family="Calibri, sans-serif" font-size="15" font-weight="700" fill="white" text-anchor="middle">${targetTat} min</text>` : ''}
-${showExcessLabel ? `<text x="${excessLabelX}" y="${barY + barH / 2 + 5}" font-family="Calibri, sans-serif" font-size="15" font-weight="700" fill="${DARK_HEX}" text-anchor="middle">+${excessMin} min</text>` : ''}
-<line x1="${leftPad + targetW}" y1="${barY - 4}" x2="${leftPad + targetW}" y2="${barY + barH + 4}" stroke="${GRAY_HEX}" stroke-width="1" stroke-dasharray="3,3"/>
-<text x="${leftPad}" y="${barY + barH + 22}" font-family="Calibri, sans-serif" font-size="11" fill="${GRAY_HEX}" text-anchor="start">0 min</text>
-<text x="${leftPad + targetW}" y="${barY - 10}" font-family="Calibri, sans-serif" font-size="11" font-weight="600" fill="${GRAY_HEX}" text-anchor="middle">Target</text>
-<text x="${leftPad + drawW}" y="${barY + barH + 22}" font-family="Calibri, sans-serif" font-size="11" fill="${GRAY_HEX}" text-anchor="end">${maxX} min</text>
+<rect x="${leftPad + targetW}" y="${barY}" width="${excessW}" height="${barH}" fill="${PINK_HEX}"/>
+
+<!-- Axis baseline -->
+<line x1="${leftPad}" y1="${axisY}" x2="${leftPad + drawW}" y2="${axisY}" stroke="${AXIS_HEX}" stroke-width="1"/>
+${ticks}
 </svg>`
 }
 
@@ -324,8 +354,8 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
     // Pre-generate TAT waterfall chart PNG (client-side SVG → canvas → PNG).
     // Fails silently if browser APIs unavailable; chart just won't render.
     const isPreWithRc = phase === 'workshop' && rc && reportInput
-    const TAT_CHART_W = 600
-    const TAT_CHART_H = 110
+    const TAT_CHART_W = 800
+    const TAT_CHART_H = 120
     let tatChartPng: Uint8Array | null = null
     if (isPreWithRc) {
       try {
@@ -518,17 +548,16 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
 
       // TAT waterfall chart (SVG rasterized to PNG)
       if (tatChartPng) {
-        // Image width in EMU: docx uses pixel-equivalent for dimensions parameter.
-        // At 96 DPI, 600px ≈ 6.25in. Shrink to ~500px (5.2in) to fit margins cleanly.
-        children.push(new Paragraph({ spacing: { before: 40, after: 40 }, alignment: AlignmentType.CENTER, children: [
+        // At 96 DPI, 640px ≈ 6.67in. Fits within standard 9840 DXA content width
+        // (≈6.83in when borders/margins are respected). Preserves 800:120 aspect.
+        const displayW = 640
+        const displayH = Math.round(displayW * (TAT_CHART_H / TAT_CHART_W))
+        children.push(new Paragraph({ spacing: { before: 40, after: 120 }, alignment: AlignmentType.CENTER, children: [
           new ImageRun({
             data: tatChartPng as unknown as Buffer,
-            transformation: { width: 500, height: Math.round(500 * (TAT_CHART_H / TAT_CHART_W)) },
+            transformation: { width: displayW, height: displayH },
             type: 'png',
           }),
-        ]}))
-        children.push(new Paragraph({ spacing: { after: 120 }, alignment: AlignmentType.CENTER, children: [
-          new TextRun({ text: 'Dotted line marks target. Green segment is target turnaround, red is excess.', size: SZ_SMALL, font: FONT, color: GRAY, italics: true }),
         ]}))
       }
     }
