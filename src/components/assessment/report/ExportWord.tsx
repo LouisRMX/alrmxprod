@@ -529,7 +529,10 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
       const radiusKm = Math.round((rc.target_tat_min - 60) / 3)
       const tatExcessAbs = Math.max(0, reportInput.avg_turnaround_min - rc.target_tat_min)
       const tatExcessPctVal = rc.target_tat_min > 0 ? Math.round((tatExcessAbs / rc.target_tat_min) * 100) : 0
-      const utilGapPct = Math.max(0, rc.utilisation_target_pct - rc.utilisation_actual_pct)
+      const utilDiff = rc.utilisation_actual_pct - rc.utilisation_target_pct
+      const utilStatus = utilDiff > 0 ? `${utilDiff} pts above target`
+        : utilDiff < 0 ? `${-utilDiff} pts below target`
+        : 'At target'
 
       children.push(new Paragraph({ spacing: { before: 140, after: 40 }, children: [
         new TextRun({ text: 'Turnaround time', bold: true, size: SZ_SMALL, font: FONT, color: DARK }),
@@ -542,7 +545,7 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
         new TextRun({ text: 'Capacity utilization', bold: true, size: SZ_SMALL, font: FONT, color: DARK }),
         new TextRun({ text: `  ${rc.utilisation_actual_pct}% actual, target ~${rc.utilisation_target_pct}%`, size: SZ_SMALL, font: FONT, color: DARK }),
       ]}))
-      children.push(trace(`${reportInput.actual_production_last_month_m3.toLocaleString('en-US')} m\u00B3/month \u00F7 ${opDaysMonth} days = ${actualDaily.toLocaleString('en-US')} m\u00B3/day. Plant max = ${reportInput.plant_capacity_m3_per_hour} m\u00B3/hr \u00D7 ${reportInput.operating_hours_per_day} hr = ${plantMaxDaily.toLocaleString('en-US')} m\u00B3/day. ${actualDaily.toLocaleString('en-US')} \u00F7 ${plantMaxDaily.toLocaleString('en-US')} = ${rc.utilisation_actual_pct}%. ${utilGapPct}% below target.`))
+      children.push(trace(`${reportInput.actual_production_last_month_m3.toLocaleString('en-US')} m\u00B3/month \u00F7 ${opDaysMonth} days = ${actualDaily.toLocaleString('en-US')} m\u00B3/day. Plant max = ${reportInput.plant_capacity_m3_per_hour} m\u00B3/hr \u00D7 ${reportInput.operating_hours_per_day} hr = ${plantMaxDaily.toLocaleString('en-US')} m\u00B3/day. ${actualDaily.toLocaleString('en-US')} \u00F7 ${plantMaxDaily.toLocaleString('en-US')} = ${rc.utilisation_actual_pct}%. ${utilStatus}.`))
 
       children.push(new Paragraph({ spacing: { before: 40, after: 40 }, children: [
         new TextRun({ text: 'Rejection rate', bold: true, size: SZ_SMALL, font: FONT, color: DARK }),
@@ -726,7 +729,7 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
         ? [
             { dim: 'Production', amount: rc.production_loss_usd, type: 'Cycle time exceeds target' },
             { dim: 'Quality', amount: rc.quality_loss_usd, type: 'Material cost with no delivery' },
-            { dim: 'Dispatch coordination', amount: rc.dispatch_loss_usd, type: 'Cycle time exceeds target' },
+            { dim: 'Dispatch coordination', amount: rc.dispatch_loss_usd, type: 'Sequencing and timing within windows' },
           ].filter(r => r.amount > 0)
         : dx.loss_breakdown_detail.map(l => ({
             dim: l.dimension,
@@ -763,7 +766,7 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
       }
       const lossTotal = rc?.monthly_gap_usd ?? lbRows.reduce((s, r) => s + r.amount, 0)
       children.push(new Paragraph({ spacing: { before: 60, after: 40 }, children: [
-        new TextRun({ text: `"Cycle time exceeds target": trips not completed due to turnaround exceeding benchmark. "Material cost with no delivery": waste costs that add up independently. Total identified: ${fmt(lossTotal)}/month. Figures rounded to nearest $1,000.`, size: SZ_SMALL, font: FONT, color: GRAY }),
+        new TextRun({ text: `"Cycle time exceeds target": trips not completed due to turnaround exceeding benchmark. "Sequencing and timing within windows": coordination losses from dispatch decisions (timing, order release, site sequencing). "Material cost with no delivery": waste costs that add up independently. Total identified: ${fmt(lossTotal)}/month. Figures rounded to nearest $1,000.`, size: SZ_SMALL, font: FONT, color: GRAY }),
       ]}))
     }
 
