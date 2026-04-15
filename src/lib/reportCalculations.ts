@@ -243,7 +243,8 @@ export function calculateReport(input: ReportInput): ReportCalculations {
       : 0
     const effective_daily_output = Math.round(effective_trips * trucks_assigned * avg_load_m3)
 
-    const reg_gap_m3 = Math.max(0, target_daily_output_m3 - effective_daily_output) * op_days_per_month
+    // Gap = what's recoverable within effective hours (effective ceiling - actual)
+    const reg_gap_m3 = Math.max(0, effective_daily_output - actual_daily_output_m3) * op_days_per_month
     const reg_gap_usd = Math.round(reg_gap_m3 * contribution_margin_per_m3 / 1000) * 1000
     const reg_rec_lo = Math.round(reg_gap_usd * 0.4 / 1000) * 1000
     const reg_rec_hi = Math.round(reg_gap_usd * 0.65 / 1000) * 1000
