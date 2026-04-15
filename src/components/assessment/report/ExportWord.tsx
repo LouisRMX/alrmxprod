@@ -577,8 +577,12 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
           ]}),
         ],
       }))
-      children.push(new Paragraph({ spacing: { before: 40, after: 120 }, children: [
+      children.push(new Paragraph({ spacing: { before: 40, after: 40 }, children: [
         new TextRun({ text: 'Monthly figure is an annual average. Actual gap varies by season and demand. Average load per trip assumes current load per trip remains consistent at target performance.', size: SZ_SMALL, font: FONT, color: GRAY, italics: true }),
+      ]}))
+      // Connecting note: ties the precise point estimate to the range shown in bold-line/narrative
+      children.push(new Paragraph({ spacing: { after: 120 }, children: [
+        new TextRun({ text: `The monthly output gap (~${monthlyGapDisplay.toLocaleString('en-US')} m\u00B3) is the point estimate within the range shown in the report (${rc.monthly_gap_m3_low.toLocaleString('en-US')}-${rc.monthly_gap_m3_high.toLocaleString('en-US')} m\u00B3). The band reflects pre-assessment data uncertainty of +/-15%.`, size: SZ_SMALL, font: FONT, color: GRAY, italics: true }),
       ]}))
     }
 

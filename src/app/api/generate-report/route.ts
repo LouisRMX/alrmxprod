@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import type { ValidatedDiagnosis } from '@/lib/diagnosis-pipeline'
 import type { Answers } from '@/lib/calculations'
 import { calculateReport, mapToReportInput, type ReportInput, type ReportCalculations } from '@/lib/reportCalculations'
-import { replaceNarrativeTokens, assembleBoldSummaryLine } from '@/lib/reportAssembly'
+import { replaceNarrativeTokens, assembleBoldSummaryLine, sanitizeNarrative } from '@/lib/reportAssembly'
 
 // mapToReportInput is now in @/lib/reportCalculations.ts (shared between route + frontend)
 
@@ -129,7 +129,9 @@ export async function POST(req: NextRequest) {
                 rawText += chunk.delta.text
               }
             }
-            const processed = replaceNarrativeTokens(rawText.trim(), rc, reportInput)
+            // Post-process: sanitize causal-verb slip-throughs BEFORE token replacement
+            const sanitized = sanitizeNarrative(rawText.trim())
+            const processed = replaceNarrativeTokens(sanitized, rc, reportInput)
             controller.enqueue(encoder.encode(processed))
           } else {
             // Stream directly for on-site reports

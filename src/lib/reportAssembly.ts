@@ -18,6 +18,82 @@ function fmtM3(n: number): string {
 }
 
 /**
+ * Post-processing sanitizer for AI narrative. Replaces known causal-verb
+ * slip-throughs with approved association language.
+ *
+ * Design: narrow, specific verb+noun pairs. Avoids broad matches like
+ * "create the" which false-positive on legitimate planning verbs
+ * ("create the schedule", "create the action list").
+ *
+ * Covers create/creates/created/creating in causal contexts plus the
+ * stem-from family which has repeatedly slipped through prompt rule 13.
+ */
+export function sanitizeNarrative(text: string): string {
+  const patterns: Array<[RegExp, string]> = [
+    // "create/creates/created/creating additional" → verb-form of "add to"
+    [/\bcreate\s+additional\b/gi, 'add to'],
+    [/\bcreates\s+additional\b/gi, 'adds to'],
+    [/\bcreated\s+additional\b/gi, 'added to'],
+    [/\bcreating\s+additional\b/gi, 'adding to'],
+
+    // "create X delays" → "contribute to delays"
+    [/\bcreate\s+(additional\s+)?delays?\b/gi, 'contribute to delays'],
+    [/\bcreates\s+(additional\s+)?delays?\b/gi, 'contributes to delays'],
+    [/\bcreated\s+(additional\s+)?delays?\b/gi, 'contributed to delays'],
+    [/\bcreating\s+(additional\s+)?delays?\b/gi, 'contributing to delays'],
+
+    // "create wait time" → "extend wait time"
+    [/\bcreate\s+wait(\s+time)?\b/gi, 'extend wait time'],
+    [/\bcreates\s+wait(\s+time)?\b/gi, 'extends wait time'],
+    [/\bcreated\s+wait(\s+time)?\b/gi, 'extended wait time'],
+    [/\bcreating\s+wait(\s+time)?\b/gi, 'extending wait time'],
+
+    // "create a/the gap" → "point to a/the gap"
+    [/\bcreate\s+(a|the)\s+gap\b/gi, 'point to $1 gap'],
+    [/\bcreates\s+(a|the)\s+gap\b/gi, 'points to $1 gap'],
+    [/\bcreated\s+(a|the)\s+gap\b/gi, 'pointed to $1 gap'],
+    [/\bcreating\s+(a|the)\s+gap\b/gi, 'pointing to $1 gap'],
+
+    // "create bottlenecks" → "contribute to bottlenecks"
+    [/\bcreate\s+bottlenecks?\b/gi, 'contribute to bottlenecks'],
+    [/\bcreates\s+bottlenecks?\b/gi, 'contributes to bottlenecks'],
+    [/\bcreated\s+bottlenecks?\b/gi, 'contributed to bottlenecks'],
+    [/\bcreating\s+bottlenecks?\b/gi, 'contributing to bottlenecks'],
+
+    // stem-from family (rule 13 bans these but they persist).
+    // "X stems from Y" → "X is associated with Y" keeps the sentence well-formed.
+    [/\bstems\s+from\b/gi, 'is associated with'],
+    [/\bstem\s+from\b/gi, 'are associated with'],
+    [/\bstemmed\s+from\b/gi, 'were associated with'],
+    [/\bstemming\s+from\b/gi, 'associated with'],
+
+    // arise-from family (same intent)
+    [/\barises\s+from\b/gi, 'is associated with'],
+    [/\barise\s+from\b/gi, 'are associated with'],
+    [/\barose\s+from\b/gi, 'were associated with'],
+    [/\barising\s+from\b/gi, 'associated with'],
+  ]
+
+  let result = text
+  for (const [pattern, replacement] of patterns) {
+    result = result.replace(pattern, (match: string, ...args: string[]) => {
+      // Build the actual replacement by applying $1 etc. substitutions if needed
+      let actual = replacement
+      if (replacement.includes('$')) {
+        // Simple $1 $2 substitution using capture groups (args[0..n-3] are groups; last two are offset + string)
+        for (let i = 0; i < args.length - 2; i++) {
+          actual = actual.replace(new RegExp(`\\$${i + 1}`, 'g'), args[i] || '')
+        }
+      }
+      console.warn('[sanitizeNarrative] replaced:', JSON.stringify(match), '→', JSON.stringify(actual))
+      return actual
+    })
+  }
+
+  return result
+}
+
+/**
  * Replace {{TOKEN}} placeholders in AI narrative with formatted rc values.
  * Returns the processed text.
  */
