@@ -207,14 +207,16 @@ function stripUnauthorizedHeadings(text: string, allowedHeadings: string[]): str
 }
 
 function sectionHeader(text: string, audience: string): Paragraph[] {
-  return [
-    new Paragraph({ spacing: { before: SP_BEFORE_SECTION }, children: [
+  const paragraphs: Paragraph[] = []
+  if (audience) {
+    paragraphs.push(new Paragraph({ spacing: { before: SP_BEFORE_SECTION }, children: [
       new TextRun({ text: audience, size: SZ_SMALL, color: GREEN, italics: true, font: FONT }),
-    ]}),
-    new Paragraph({ spacing: { after: SP_AFTER_SECTION }, children: [
-      new TextRun({ text, bold: true, size: SZ_SECTION, font: FONT, color: DARK }),
-    ]}),
-  ]
+    ]}))
+  }
+  paragraphs.push(new Paragraph({ spacing: { before: audience ? undefined : SP_BEFORE_SECTION, after: SP_AFTER_SECTION }, children: [
+    new TextRun({ text, bold: true, size: SZ_SECTION, font: FONT, color: DARK }),
+  ]}))
+  return paragraphs
 }
 
 const QUADRANT_LABELS: Record<string, string> = {
@@ -307,37 +309,10 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
       children.push(new Paragraph({ spacing: { after: 60 }, children: [] }))
     }
 
-    // ── BREAKDOWN 1: How this is calculated (contribution margin basis) ──
-    if (isPre && rc && reportInput) {
-      children.push(new Paragraph({ spacing: { before: 120, after: 80 }, children: [
-        new TextRun({ text: 'How this is calculated', bold: true, size: SZ_BODY, font: FONT, color: DARK }),
-      ]}))
-      children.push(new Table({
-        width: { size: 9840, type: WidthType.DXA }, columnWidths: [5400, 4440],
-        rows: [
-          new TableRow({ children: [
-            cell('Selling price per m\u00B3', { width: 5400 }),
-            cell(`$${reportInput.selling_price_per_m3.toFixed(2)}`, { width: 4440, align: AlignmentType.RIGHT }),
-          ]}),
-          new TableRow({ children: [
-            cell('Material cost per m\u00B3', { width: 5400 }),
-            cell(`$${reportInput.material_cost_per_m3.toFixed(2)}`, { width: 4440, align: AlignmentType.RIGHT }),
-          ]}),
-          new TableRow({ children: [
-            cell('Material contribution per m\u00B3', { width: 5400, bold: true, bg: LIGHT }),
-            cell(`$${rc.contribution_margin_per_m3.toFixed(2)}`, { width: 4440, align: AlignmentType.RIGHT, bold: true, bg: LIGHT }),
-          ]}),
-        ],
-      }))
-      children.push(new Paragraph({ spacing: { before: 40, after: 120 }, children: [
-        new TextRun({ text: 'Material cost only. Fuel, labour and overhead not included.', size: SZ_SMALL, font: FONT, color: GRAY, italics: true }),
-      ]}))
-    }
-
     // ════════════════════════════════════════════════════════════════════
     // SECTION 1: EXECUTIVE SUMMARY (all financial content in one flow)
     // ════════════════════════════════════════════════════════════════════
-    children.push(...sectionHeader(isPre ? 'What the Data Suggests' : 'Executive Summary', 'Executive Section'))
+    children.push(...sectionHeader(isPre ? 'What the Data Suggests' : 'Executive Summary', ''))
 
     // KPI values: use rc when available, fall back to dx
     const kpiTatTarget = rc?.target_tat_min ?? dx.tat_target
@@ -459,6 +434,33 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
       ]}))
     }
 
+    // ── BREAKDOWN 1: Margin used in this calculation (placed above Capacity Detail) ──
+    if (isPre && rc && reportInput) {
+      children.push(new Paragraph({ spacing: { before: 160, after: 80 }, children: [
+        new TextRun({ text: 'Margin used in this calculation', bold: true, size: SZ_BODY, font: FONT, color: DARK }),
+      ]}))
+      children.push(new Table({
+        width: { size: 9840, type: WidthType.DXA }, columnWidths: [5400, 4440],
+        rows: [
+          new TableRow({ children: [
+            cell('Selling price per m\u00B3', { width: 5400 }),
+            cell(`$${reportInput.selling_price_per_m3.toFixed(2)}`, { width: 4440, align: AlignmentType.RIGHT }),
+          ]}),
+          new TableRow({ children: [
+            cell('Raw material cost per m\u00B3', { width: 5400 }),
+            cell(`$${reportInput.material_cost_per_m3.toFixed(2)}`, { width: 4440, align: AlignmentType.RIGHT }),
+          ]}),
+          new TableRow({ children: [
+            cell('Material contribution per m\u00B3', { width: 5400, bold: true, bg: LIGHT }),
+            cell(`$${rc.contribution_margin_per_m3.toFixed(2)}`, { width: 4440, align: AlignmentType.RIGHT, bold: true, bg: LIGHT }),
+          ]}),
+        ],
+      }))
+      children.push(new Paragraph({ spacing: { before: 40, after: 160 }, children: [
+        new TextRun({ text: 'Material cost only. Fuel, labour and overhead not included.', size: SZ_SMALL, font: FONT, color: GRAY, italics: true }),
+      ]}))
+    }
+
     // 5. Capacity Detail (merged from former Capacity Analysis section)
     children.push(new Paragraph({ spacing: { before: SP_BEFORE_SECTION, after: SP_AFTER_SECTION }, children: [
       new TextRun({ text: 'Capacity Detail', bold: true, size: SZ_SUBSECTION, font: FONT, color: DARK }),
@@ -467,8 +469,14 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
     // Capacity values: use rc when available, fall back to ct
     const capActualDaily = rc?.actual_daily_output_m3 ?? ct.actual_daily_m3
     const capTargetDaily = rc?.target_daily_output_m3 ?? ct.target_daily_m3
-    const capOpDays = rc?.op_days_per_month ?? ct.working_days_month
     const capMargin = rc?.contribution_margin_per_m3 ?? ct.margin_per_m3
+    // Use annual basis (matches Breakdown 3 and rc.monthly_gap_usd). Monthly figures
+    // are annualized averages: daily × operating_days_per_year / 12, not × rounded
+    // op_days_per_month. This keeps the Capacity Detail table internally consistent
+    // with the Monthly revenue gap row.
+    const capOpDaysYear = reportInput?.operating_days_per_year ?? ((rc?.op_days_per_month ?? ct.working_days_month) * 12)
+    const monthlyCurrent = Math.round(capActualDaily * capOpDaysYear / 12)
+    const monthlyTarget = Math.round(capTargetDaily * capOpDaysYear / 12)
     const capMonthlyGap = rc?.monthly_gap_usd ?? Math.round(ct.gap_monthly_m3 * ct.margin_per_m3 / 1000) * 1000
     const capRecLo = rc?.recovery_low_usd ?? lo
     const capRecHi = rc?.recovery_high_usd ?? hi
@@ -488,13 +496,13 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
         ]}),
         new TableRow({ children: [
           cell('Monthly output (m\u00B3)', { width: 3280 }),
-          cell(`${capActualDaily * capOpDays} m\u00B3`, { width: 3280, align: AlignmentType.CENTER }),
-          cell(`${capTargetDaily * capOpDays} m\u00B3`, { width: 3280, align: AlignmentType.CENTER, color: GREEN }),
+          cell(`${monthlyCurrent.toLocaleString('en-US')} m\u00B3`, { width: 3280, align: AlignmentType.CENTER }),
+          cell(`${monthlyTarget.toLocaleString('en-US')} m\u00B3`, { width: 3280, align: AlignmentType.CENTER, color: GREEN }),
         ]}),
         new TableRow({ children: [
           cell('Contribution margin', { width: 3280 }),
-          cell(`${fmt(capActualDaily * capOpDays * capMargin)}/mo`, { width: 3280, align: AlignmentType.CENTER }),
-          cell(`${fmt(capTargetDaily * capOpDays * capMargin)}/mo`, { width: 3280, align: AlignmentType.CENTER, color: GREEN }),
+          cell(`${fmt(monthlyCurrent * capMargin)}/mo`, { width: 3280, align: AlignmentType.CENTER }),
+          cell(`${fmt(monthlyTarget * capMargin)}/mo`, { width: 3280, align: AlignmentType.CENTER, color: GREEN }),
         ]}),
         new TableRow({ children: [
           cell('Monthly revenue gap', { bold: true, width: 3280 }),
@@ -513,7 +521,7 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
     const tripsTarget = rc ? (Math.round(rc.target_trips_per_truck_per_day * 10) / 10).toFixed(1) : ct.trips_per_truck_target
     const tatTarget = rc?.target_tat_min ?? dx.tat_target
     children.push(new Paragraph({ spacing: { before: 80, after: 20 }, children: [
-      new TextRun({ text: `Contribution margin: $${capMargin}/m\u00B3. Trips per truck: ${tripsActual} actual vs ${tripsTarget} at target TAT of ~${tatTarget} min.`, size: SZ_SMALL, font: FONT, color: GRAY, italics: true }),
+      new TextRun({ text: `Monthly figures are annualized averages (operating days per year divided by 12). Trips per truck: ${tripsActual} actual vs ${tripsTarget} at target TAT of ~${tatTarget} min.`, size: SZ_SMALL, font: FONT, color: GRAY, italics: true }),
     ]}))
     children.push(new Paragraph({ spacing: { after: 60 }, children: [
       new TextRun({ text: 'Figures rounded to nearest $1,000. Totals may vary by $1,000 due to rounding.', size: SZ_SMALL, font: FONT, color: GRAY, italics: true }),
