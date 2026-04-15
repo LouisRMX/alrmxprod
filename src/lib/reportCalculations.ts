@@ -235,19 +235,13 @@ export function calculateReport(input: ReportInput): ReportCalculations {
     const banMatch = biggest_operational_challenge.match(/(\d+)\s*hours?/i)
     const ban_hours = banMatch ? parseInt(banMatch[1], 10) : 4
 
-    // Effective hours = operating hours minus half the ban hours
-    // (0.5 factor: not all ban hours directly remove productive capacity)
-    const effective_hours = operating_hours_per_day - (ban_hours * 0.5)
-    const effective_trips = avg_turnaround_min > 0
-      ? (effective_hours * 60) / avg_turnaround_min
-      : 0
-    const effective_daily_output = Math.round(effective_trips * trucks_assigned * avg_load_m3)
-
-    // Gap = what's recoverable within effective hours (effective ceiling - actual)
-    const reg_gap_m3 = Math.max(0, effective_daily_output - actual_daily_output_m3) * op_days_per_month
-    const reg_gap_usd = Math.round(reg_gap_m3 * contribution_margin_per_m3 / 1000) * 1000
-    const reg_rec_lo = Math.round(reg_gap_usd * 0.4 / 1000) * 1000
-    const reg_rec_hi = Math.round(reg_gap_usd * 0.65 / 1000) * 1000
+    // Regulatory recovery = proportion of main recovery achievable within restricted hours
+    // Main recovery assumes full operating hours. Ban reduces the fraction that's near-term addressable.
+    const effective_hours = Math.max(1, operating_hours_per_day - (ban_hours * 0.5))
+    const restriction_factor = effective_hours / operating_hours_per_day
+    const reg_rec_lo = Math.round(recovery_low_usd * restriction_factor / 1000) * 1000
+    const reg_rec_hi = Math.round(recovery_high_usd * restriction_factor / 1000) * 1000
+    const reg_gap_usd = Math.round(monthly_gap_usd * restriction_factor / 1000) * 1000
 
     regulatory_scenario = {
       monthly_gap_usd: reg_gap_usd,
