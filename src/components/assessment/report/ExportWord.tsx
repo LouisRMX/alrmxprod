@@ -715,6 +715,14 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
       }
     }
 
+    // Fleet note for large multi-plant deployments with external constraints
+    if (isPre && rc?.has_external_constraint && reportInput && reportInput.trucks_assigned >= 50 && !inserted.has('fleet-note')) {
+      inserted.add('fleet-note')
+      children.push(new Paragraph({ spacing: { before: 200, after: 60 }, children: [
+        new TextRun({ text: `Note: figures reflect combined performance across all plant locations and all ${reportInput.trucks_assigned} trucks operating under central dispatch.`, size: SZ_BODY, font: FONT, color: GREEN, italics: true }),
+      ]}))
+    }
+
     // Fixed closing line (not AI-generated)
     if (isPre && !inserted.has('48h-invitation')) {
       inserted.add('48h-invitation')

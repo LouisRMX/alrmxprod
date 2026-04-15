@@ -486,6 +486,8 @@ PLACEHOLDER TOKEN RULES (MANDATORY):
 10. NO CONCLUSIVE CAUSE: Never state external factors ARE the cause. State they are REPORTED and CONSISTENT WITH the observed gap. WRONG: "Movement restrictions cause the turnaround excess." RIGHT: "The reported movement restrictions are consistent with the observed turnaround excess."
 11. RECOVERY FRAMING: When referencing recovery potential, include "depending on execution capability and the proportion of delays that prove addressable through operational changes."
 12. RANGES OVER PRECISION: When referencing on-site findings, use conditional language. Never promise a precise outcome.
+13. NO CAUSAL VERBS FOR EXTERNAL FACTORS: Never write that external factors "create", "cause", or "drive" delays. External factors (movement bans, traffic, regulatory windows, site access) are context that the observed gap is consistent with, not the verified cause. WRONG: "Movement restrictions create the turnaround excess." WRONG: "Traffic windows drive dispatch clustering." RIGHT: "The observed turnaround excess is consistent with the reported movement restrictions."
+14. TRIPS AS OBSERVATIONS, NOT CAUSE-EFFECT: When referencing actual vs target trips, state them as observations, not as a cause-effect pair. WRONG: "Because trucks complete {{TRIPS_ACTUAL}} trips instead of {{TRIPS_TARGET}}, output falls short." RIGHT: "Trucks currently complete {{TRIPS_ACTUAL}} trips per day; the {{TAT_TARGET}}-minute target would support {{TRIPS_TARGET}}."
 
 AVAILABLE TOKENS:
 {{RECOVERY_LOW}} — recovery range low bound
