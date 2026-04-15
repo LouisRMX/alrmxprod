@@ -218,7 +218,7 @@ export function calculateReport(input: ReportInput): ReportCalculations {
     // External factors are noted but not the actionable label.
     // Frame constraint around what on-site intervention can address.
     constraint = 'Likely: Dispatch and site coordination'
-    constraint_note = 'External restrictions noted \u2014 on-site focus'
+    constraint_note = 'External restrictions noted, on-site focus'
   } else if (avg_turnaround_min > target_tat_min * 1.20) {
     constraint = 'Likely: Fleet coordination'
   } else {

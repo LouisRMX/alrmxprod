@@ -29,6 +29,20 @@ function fmtM3(n: number): string {
  * stem-from family which has repeatedly slipped through prompt rule 13.
  */
 export function sanitizeNarrative(text: string): string {
+  // ── Em-dash removal (rule 18) ──
+  // Smart replacement: em-dash followed by capital letter signals a sentence
+  // boundary (period); em-dash in mid-phrase becomes a comma. Applied before
+  // the causal-verb patterns so downstream replacements see clean text.
+  text = text.replace(/\s*\u2014\s+([A-Z])/g, '. $1')
+  text = text.replace(/\s*\u2014\s*/g, ', ')
+  text = text.replace(/\s*---\s+([A-Z])/g, '. $1')
+  text = text.replace(/\s*---\s*/g, ', ')
+  text = text.replace(/\s+--\s+([A-Z])/g, '. $1')
+  text = text.replace(/\s+--\s+/g, ', ')
+  // Cleanup: collapse double commas and comma-before-period artifacts
+  text = text.replace(/,\s*,/g, ',')
+  text = text.replace(/,\s*\./g, '.')
+
   const patterns: Array<[RegExp, string]> = [
     // "create/creates/created/creating additional" → verb-form of "add to"
     [/\bcreate\s+additional\b/gi, 'add to'],
@@ -168,7 +182,7 @@ export function assembleBoldSummaryLine(rc: ReportCalculations, input: ReportInp
     const missingTrips = targetTripsTotal - actualTripsTotal
     const idlePct = targetTripsTotal > 0 ? Math.round((missingTrips / targetTripsTotal) * 100) : 0
 
-    return `Your ${input.trucks_assigned} trucks completed ${actualTripsTotal} trips per day last month \u2014 ${missingTrips} fewer than the ${targetTripsTotal} daily trips the fleet would achieve at the ${rc.target_tat_min}-minute target. This ${idlePct}% gap \u2014 equivalent to ${gapLowStr}-${gapHighStr} m\u00B3 of unrealised monthly output \u2014 is what this assessment will quantify and explain.`
+    return `Your ${input.trucks_assigned} trucks completed ${actualTripsTotal} trips per day last month, ${missingTrips} fewer than the ${targetTripsTotal} daily trips the fleet would achieve at the ${rc.target_tat_min}-minute target. This ${idlePct}% gap, equivalent to ${gapLowStr}-${gapHighStr} m\u00B3 of unrealised monthly output, is what this assessment will quantify and explain.`
   }
 
   // gap_driver === 'utilisation' or 'mixed'

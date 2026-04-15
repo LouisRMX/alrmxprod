@@ -367,7 +367,7 @@ describe('calculateReport', () => {
 
     it('TEST 5: constraint_note for Riyadh dataset notes external restrictions', () => {
       const r = calculateReport(PLANT_RIYADH)
-      expect(r.constraint_note).toBe('External restrictions noted \u2014 on-site focus')
+      expect(r.constraint_note).toBe('External restrictions noted, on-site focus')
     })
 
     it('TEST 6: constraint for Plant A dataset is unchanged', () => {

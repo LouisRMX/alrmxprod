@@ -263,13 +263,13 @@ function buildTatWaterfallSvg(targetTat: number, actualTat: number): string {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
 <!-- Legend row -->
 <rect x="${legendAx}" y="${legendY - squareSize + 2}" width="${squareSize}" height="${squareSize}" fill="${RED_HEX}"/>
-<text x="${legendAx + squareSize + squareTextGap}" y="${legendY}" font-family="Calibri, sans-serif" font-size="${legendFontSize}" fill="${DARK_HEX}">Actual \u2014 ${actualTat} min</text>
+<text x="${legendAx + squareSize + squareTextGap}" y="${legendY}" font-family="Calibri, sans-serif" font-size="${legendFontSize}" fill="${DARK_HEX}">Actual: ${actualTat} min</text>
 
 <rect x="${legendBx}" y="${legendY - squareSize + 2}" width="${squareSize}" height="${squareSize}" fill="${GREEN_HEX}"/>
-<text x="${legendBx + squareSize + squareTextGap}" y="${legendY}" font-family="Calibri, sans-serif" font-size="${legendFontSize}" fill="${DARK_HEX}">Target \u2014 ${targetTat} min</text>
+<text x="${legendBx + squareSize + squareTextGap}" y="${legendY}" font-family="Calibri, sans-serif" font-size="${legendFontSize}" fill="${DARK_HEX}">Target: ${targetTat} min</text>
 
 <rect x="${legendCx}" y="${legendY - squareSize + 2}" width="${squareSize}" height="${squareSize}" fill="${PINK_HEX}"/>
-<text x="${legendCx + squareSize + squareTextGap}" y="${legendY}" font-family="Calibri, sans-serif" font-size="${legendFontSize}" fill="${DARK_HEX}">Excess \u2014 ${excessMin} min</text>
+<text x="${legendCx + squareSize + squareTextGap}" y="${legendY}" font-family="Calibri, sans-serif" font-size="${legendFontSize}" fill="${DARK_HEX}">Excess: ${excessMin} min</text>
 
 <!-- Bar: target (green) + excess (pink) -->
 <rect x="${leftPad}" y="${barY}" width="${targetW}" height="${barH}" fill="${GREEN_HEX}"/>
@@ -392,7 +392,7 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
       new TextRun({ text: 'Prepared by Louis Hellmann', font: FONT, size: SZ_BODY, color: DARK }),
     ]}))
     children.push(new Paragraph({ spacing: { after: 200 }, children: [
-      new TextRun({ text: 'Operational Excellence Consultant \u2014 Al-Cem', font: FONT, size: SZ_SMALL, color: GRAY, italics: true }),
+      new TextRun({ text: 'Operational Excellence Consultant, Al-Cem', font: FONT, size: SZ_SMALL, color: GRAY, italics: true }),
     ]}))
 
     // Assessment basis
@@ -447,7 +447,7 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
     const isDispatchScenario = tatExcessPct <= 0.2 && hasDispatchSignals
     const constraintLabel = isPre
       ? (rc ? rc.constraint // Use rc constraint directly when available
-        : hasConflictingConstraints ? 'Fleet & capacity \u2014 verify on-site'
+        : hasConflictingConstraints ? 'Fleet & capacity, verify on-site'
         : tatExcessPct > 0.2 ? 'Fleet coordination'
         : isDispatchScenario ? 'Dispatch timing'
         : (dx.main_driver.dimension === 'Fleet' ? 'Fleet coordination' : dx.main_driver.dimension || 'To be confirmed'))
@@ -644,7 +644,7 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
           cell(`${fmt(monthlyTarget * capMargin)}/mo`, { width: 3280, align: AlignmentType.CENTER, color: GREEN }),
         ]}),
         new TableRow({ children: [
-          cell('Monthly revenue gap', { bold: true, width: 3280 }),
+          cell('Monthly gap', { bold: true, width: 3280 }),
           cell('-', { width: 3280, align: AlignmentType.CENTER }),
           cell(`+${fmt(capMonthlyGap)}/month`, { width: 3280, align: AlignmentType.CENTER, bold: true, color: GREEN }),
         ]}),
@@ -666,95 +666,8 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
       new TextRun({ text: 'Figures rounded to nearest $1,000. Totals may vary by $1,000 due to rounding.', size: SZ_SMALL, font: FONT, color: GRAY, italics: true }),
     ]}))
 
-    // ── BREAKDOWN 3: Gap calculation ──
-    if (isPre && rc && reportInput) {
-      const dailyGap = Math.max(0, rc.target_daily_output_m3 - rc.actual_daily_output_m3)
-      const annualGap = dailyGap * reportInput.operating_days_per_year
-      const monthlyGapDisplay = Math.round(annualGap / 12)
-
-      children.push(new Paragraph({ spacing: { before: 120, after: 80 }, children: [
-        new TextRun({ text: 'Gap calculation', bold: true, size: SZ_BODY, font: FONT, color: DARK }),
-      ]}))
-      children.push(new Table({
-        width: { size: 9840, type: WidthType.DXA }, columnWidths: [5400, 4440],
-        rows: [
-          new TableRow({ children: [
-            cell('Average load per trip', { width: 5400 }),
-            cell(`${rc.avg_load_m3.toFixed(2)} m\u00B3`, { width: 4440, align: AlignmentType.RIGHT }),
-          ]}),
-          new TableRow({ children: [
-            cell('Target daily output', { width: 5400 }),
-            cell(`${rc.target_daily_output_m3.toLocaleString('en-US')} m\u00B3`, { width: 4440, align: AlignmentType.RIGHT }),
-          ]}),
-          new TableRow({ children: [
-            cell('Actual daily output', { width: 5400 }),
-            cell(`${rc.actual_daily_output_m3.toLocaleString('en-US')} m\u00B3`, { width: 4440, align: AlignmentType.RIGHT }),
-          ]}),
-          new TableRow({ children: [
-            cell('Daily output gap', { width: 5400 }),
-            cell(`${dailyGap.toLocaleString('en-US')} m\u00B3`, { width: 4440, align: AlignmentType.RIGHT }),
-          ]}),
-          new TableRow({ children: [
-            cell('Operating days per year', { width: 5400 }),
-            cell(`${reportInput.operating_days_per_year}`, { width: 4440, align: AlignmentType.RIGHT }),
-          ]}),
-          new TableRow({ children: [
-            cell('Annual output gap', { width: 5400 }),
-            cell(`${annualGap.toLocaleString('en-US')} m\u00B3`, { width: 4440, align: AlignmentType.RIGHT }),
-          ]}),
-          new TableRow({ children: [
-            cell('Monthly output gap', { width: 5400 }),
-            cell(`~${monthlyGapDisplay.toLocaleString('en-US')} m\u00B3`, { width: 4440, align: AlignmentType.RIGHT }),
-          ]}),
-          new TableRow({ children: [
-            cell('Material contribution per m\u00B3', { width: 5400 }),
-            cell(`$${rc.contribution_margin_per_m3.toFixed(2)}`, { width: 4440, align: AlignmentType.RIGHT }),
-          ]}),
-          new TableRow({ children: [
-            cell('Full monthly gap', { width: 5400, bold: true, bg: LIGHT }),
-            cell(`~${fmt(rc.monthly_gap_usd)}`, { width: 4440, align: AlignmentType.RIGHT, bold: true, bg: LIGHT, color: GREEN }),
-          ]}),
-        ],
-      }))
-      children.push(new Paragraph({ spacing: { before: 40, after: 40 }, children: [
-        new TextRun({ text: 'Monthly figure is an annual average. Actual gap varies by season and demand. Average load per trip assumes current load per trip remains consistent at target performance.', size: SZ_SMALL, font: FONT, color: GRAY, italics: true }),
-      ]}))
-      // Connecting note: ties the precise point estimate to the range shown in bold-line/narrative
-      children.push(new Paragraph({ spacing: { after: 120 }, children: [
-        new TextRun({ text: `The monthly output gap (~${monthlyGapDisplay.toLocaleString('en-US')} m\u00B3) is the point estimate within the range shown in the report (${rc.monthly_gap_m3_low.toLocaleString('en-US')}-${rc.monthly_gap_m3_high.toLocaleString('en-US')} m\u00B3). The band reflects pre-assessment data uncertainty of +/-15%.`, size: SZ_SMALL, font: FONT, color: GRAY, italics: true }),
-      ]}))
-    }
-
-    // ── BREAKDOWN 4: Recovery range basis ──
-    if (isPre && rc && reportInput) {
-      children.push(new Paragraph({ spacing: { before: 120, after: 80 }, children: [
-        new TextRun({ text: 'Recovery range basis', bold: true, size: SZ_BODY, font: FONT, color: DARK }),
-      ]}))
-      children.push(new Table({
-        width: { size: 9840, type: WidthType.DXA }, columnWidths: [5400, 4440],
-        rows: [
-          new TableRow({ children: [
-            cell('Full monthly gap', { width: 5400 }),
-            cell(`~${fmt(rc.monthly_gap_usd)}`, { width: 4440, align: AlignmentType.RIGHT }),
-          ]}),
-          new TableRow({ children: [
-            cell('Execution range', { width: 5400 }),
-            cell('40-65%', { width: 4440, align: AlignmentType.RIGHT }),
-          ]}),
-          new TableRow({ children: [
-            cell('Recovery low', { width: 5400 }),
-            cell(`~${fmt(rc.recovery_low_usd)}`, { width: 4440, align: AlignmentType.RIGHT }),
-          ]}),
-          new TableRow({ children: [
-            cell('Recovery high', { width: 5400, bold: true, bg: LIGHT }),
-            cell(`~${fmt(rc.recovery_high_usd)}`, { width: 4440, align: AlignmentType.RIGHT, bold: true, bg: LIGHT, color: GREEN }),
-          ]}),
-        ],
-      }))
-      children.push(new Paragraph({ spacing: { before: 40, after: 120 }, children: [
-        new TextRun({ text: 'Planning range based on professional judgement. Operational changes rarely capture the full gap. Structural constraints, customer dependencies, and implementation time all limit recovery.', size: SZ_SMALL, font: FONT, color: GRAY, italics: true }),
-      ]}))
-    }
+    // Breakdowns for gap calculation and recovery range basis have moved to
+    // the appendix (after sign-off) to keep the main body focused on findings.
 
     // 6. Where the gap sits (Loss Breakdown)
     {
@@ -826,7 +739,7 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
             new Paragraph({ children: [
               new TextRun({ text: 'Riyadh\'s truck movement restrictions currently reduce effective daily operating capacity. Under current conditions, near-term recovery is estimated at ', size: SZ_BODY, font: FONT }),
               new TextRun({ text: `${fmt(reg.recovery_low_usd)} - ${fmt(reg.recovery_high_usd)}`, bold: true, size: SZ_BODY, font: FONT, color: GREEN }),
-              new TextRun({ text: ' per month \u2014 the portion achievable within the existing regulatory framework.', size: SZ_BODY, font: FONT }),
+              new TextRun({ text: ' per month, the portion achievable within the existing regulatory framework.', size: SZ_BODY, font: FONT }),
             ]}),
             new Paragraph({ spacing: { before: 80 }, children: [
               new TextRun({ text: 'The on-site assessment will quantify the exact restriction impact and identify which improvements can be implemented immediately versus those contingent on regulatory changes.', size: SZ_BODY, font: FONT }),
@@ -1068,6 +981,105 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
       ]}))
       children.push(new Paragraph({ spacing: { after: 20 }, children: [
         new TextRun({ text: 'Louishellmann@gmail.com  |  +45 20 91 29 11', font: FONT, size: SZ_SMALL, color: GRAY }),
+      ]}))
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // APPENDIX: CALCULATION BASIS (pre-assessment only)
+    // Derivation tables moved here to keep main body focused on findings.
+    // ════════════════════════════════════════════════════════════════════
+    if (isPre && rc && reportInput) {
+      children.push(new Paragraph({ children: [new PageBreak()] }))
+      children.push(new Paragraph({ spacing: { before: SP_BEFORE_SECTION, after: 40 }, children: [
+        new TextRun({ text: 'Appendix: Calculation Basis', bold: true, size: SZ_SECTION, font: FONT, color: DARK }),
+      ]}))
+      children.push(new Paragraph({ spacing: { after: 160 }, children: [
+        new TextRun({ text: 'Pre-assessment figures are based on reported data. All calculations use material cost only. Fuel, labour and overhead not included.', size: SZ_SMALL, font: FONT, color: GRAY, italics: true }),
+      ]}))
+
+      // A. Gap calculation table
+      const dailyGap = Math.max(0, rc.target_daily_output_m3 - rc.actual_daily_output_m3)
+      const annualGap = dailyGap * reportInput.operating_days_per_year
+      const monthlyGapDisplay = Math.round(annualGap / 12)
+
+      children.push(new Paragraph({ spacing: { before: 120, after: 80 }, children: [
+        new TextRun({ text: 'A. Gap calculation', bold: true, size: SZ_BODY, font: FONT, color: DARK }),
+      ]}))
+      children.push(new Table({
+        width: { size: 9840, type: WidthType.DXA }, columnWidths: [5400, 4440],
+        rows: [
+          new TableRow({ children: [
+            cell('Average load per trip', { width: 5400 }),
+            cell(`${rc.avg_load_m3.toFixed(2)} m\u00B3`, { width: 4440, align: AlignmentType.RIGHT }),
+          ]}),
+          new TableRow({ children: [
+            cell('Target daily output', { width: 5400 }),
+            cell(`${rc.target_daily_output_m3.toLocaleString('en-US')} m\u00B3`, { width: 4440, align: AlignmentType.RIGHT }),
+          ]}),
+          new TableRow({ children: [
+            cell('Actual daily output', { width: 5400 }),
+            cell(`${rc.actual_daily_output_m3.toLocaleString('en-US')} m\u00B3`, { width: 4440, align: AlignmentType.RIGHT }),
+          ]}),
+          new TableRow({ children: [
+            cell('Daily output gap', { width: 5400 }),
+            cell(`${dailyGap.toLocaleString('en-US')} m\u00B3`, { width: 4440, align: AlignmentType.RIGHT }),
+          ]}),
+          new TableRow({ children: [
+            cell('Operating days per year', { width: 5400 }),
+            cell(`${reportInput.operating_days_per_year}`, { width: 4440, align: AlignmentType.RIGHT }),
+          ]}),
+          new TableRow({ children: [
+            cell('Annual output gap', { width: 5400 }),
+            cell(`${annualGap.toLocaleString('en-US')} m\u00B3`, { width: 4440, align: AlignmentType.RIGHT }),
+          ]}),
+          new TableRow({ children: [
+            cell('Monthly output gap', { width: 5400 }),
+            cell(`~${monthlyGapDisplay.toLocaleString('en-US')} m\u00B3`, { width: 4440, align: AlignmentType.RIGHT }),
+          ]}),
+          new TableRow({ children: [
+            cell('Material contribution per m\u00B3', { width: 5400 }),
+            cell(`$${rc.contribution_margin_per_m3.toFixed(2)}`, { width: 4440, align: AlignmentType.RIGHT }),
+          ]}),
+          new TableRow({ children: [
+            cell('Full monthly gap', { width: 5400, bold: true, bg: LIGHT }),
+            cell(`~${fmt(rc.monthly_gap_usd)}`, { width: 4440, align: AlignmentType.RIGHT, bold: true, bg: LIGHT, color: GREEN }),
+          ]}),
+        ],
+      }))
+      children.push(new Paragraph({ spacing: { before: 40, after: 40 }, children: [
+        new TextRun({ text: 'Monthly figure is an annual average. Actual gap varies by season and demand. Average load per trip assumes current load per trip remains consistent at target performance.', size: SZ_SMALL, font: FONT, color: GRAY, italics: true }),
+      ]}))
+      children.push(new Paragraph({ spacing: { after: 160 }, children: [
+        new TextRun({ text: `The monthly output gap (~${monthlyGapDisplay.toLocaleString('en-US')} m\u00B3) is the point estimate within the range shown in the report (${rc.monthly_gap_m3_low.toLocaleString('en-US')}-${rc.monthly_gap_m3_high.toLocaleString('en-US')} m\u00B3). The band reflects pre-assessment data uncertainty of +/-15%.`, size: SZ_SMALL, font: FONT, color: GRAY, italics: true }),
+      ]}))
+
+      // B. Recovery range basis table
+      children.push(new Paragraph({ spacing: { before: 120, after: 80 }, children: [
+        new TextRun({ text: 'B. Recovery range basis', bold: true, size: SZ_BODY, font: FONT, color: DARK }),
+      ]}))
+      children.push(new Table({
+        width: { size: 9840, type: WidthType.DXA }, columnWidths: [5400, 4440],
+        rows: [
+          new TableRow({ children: [
+            cell('Full monthly gap', { width: 5400 }),
+            cell(`~${fmt(rc.monthly_gap_usd)}`, { width: 4440, align: AlignmentType.RIGHT }),
+          ]}),
+          new TableRow({ children: [
+            cell('Execution range', { width: 5400 }),
+            cell('40-65%', { width: 4440, align: AlignmentType.RIGHT }),
+          ]}),
+          new TableRow({ children: [
+            cell('Recovery low', { width: 5400 }),
+            cell(`~${fmt(rc.recovery_low_usd)}`, { width: 4440, align: AlignmentType.RIGHT }),
+          ]}),
+          new TableRow({ children: [
+            cell('Recovery high', { width: 5400, bold: true, bg: LIGHT }),
+            cell(`~${fmt(rc.recovery_high_usd)}`, { width: 4440, align: AlignmentType.RIGHT, bold: true, bg: LIGHT, color: GREEN }),
+          ]}),
+        ],
+      }))
+      children.push(new Paragraph({ spacing: { before: 40, after: 120 }, children: [
+        new TextRun({ text: 'Planning range based on professional judgement. Operational changes rarely capture the full gap. Structural constraints, customer dependencies, and implementation time all limit recovery.', size: SZ_SMALL, font: FONT, color: GRAY, italics: true }),
       ]}))
     }
 
