@@ -360,9 +360,9 @@ describe('calculateReport', () => {
   }
 
   describe('CHANGE 1 — constraint label for external constraints', () => {
-    it('TEST 4: constraint for Riyadh dataset is dispatch & site coordination', () => {
+    it('TEST 4: constraint for Riyadh dataset is dispatch and site coordination', () => {
       const r = calculateReport(PLANT_RIYADH)
-      expect(r.constraint).toBe('Likely: Dispatch & site coordination')
+      expect(r.constraint).toBe('Likely: Dispatch and site coordination')
     })
 
     it('TEST 5: constraint_note for Riyadh dataset notes external restrictions', () => {

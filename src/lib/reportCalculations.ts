@@ -213,7 +213,7 @@ export function calculateReport(input: ReportInput): ReportCalculations {
   } else if (/movement ban|movement restriction|truck ban|traffic police|road block|road closure/.test(bocLower)) {
     // External factors are noted but not the actionable label.
     // Frame constraint around what on-site intervention can address.
-    constraint = 'Likely: Dispatch & site coordination'
+    constraint = 'Likely: Dispatch and site coordination'
     constraint_note = 'External restrictions noted \u2014 on-site focus'
   } else if (avg_turnaround_min > target_tat_min * 1.20) {
     constraint = 'Likely: Fleet coordination'
