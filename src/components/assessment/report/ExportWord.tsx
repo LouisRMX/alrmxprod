@@ -307,6 +307,33 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
       children.push(new Paragraph({ spacing: { after: 60 }, children: [] }))
     }
 
+    // ── BREAKDOWN 1: How this is calculated (contribution margin basis) ──
+    if (isPre && rc && reportInput) {
+      children.push(new Paragraph({ spacing: { before: 120, after: 80 }, children: [
+        new TextRun({ text: 'How this is calculated', bold: true, size: SZ_BODY, font: FONT, color: DARK }),
+      ]}))
+      children.push(new Table({
+        width: { size: 9840, type: WidthType.DXA }, columnWidths: [5400, 4440],
+        rows: [
+          new TableRow({ children: [
+            cell('Selling price per m\u00B3', { width: 5400 }),
+            cell(`$${reportInput.selling_price_per_m3.toFixed(2)}`, { width: 4440, align: AlignmentType.RIGHT }),
+          ]}),
+          new TableRow({ children: [
+            cell('Material cost per m\u00B3', { width: 5400 }),
+            cell(`$${reportInput.material_cost_per_m3.toFixed(2)}`, { width: 4440, align: AlignmentType.RIGHT }),
+          ]}),
+          new TableRow({ children: [
+            cell('Material contribution per m\u00B3', { width: 5400, bold: true, bg: LIGHT }),
+            cell(`$${rc.contribution_margin_per_m3.toFixed(2)}`, { width: 4440, align: AlignmentType.RIGHT, bold: true, bg: LIGHT }),
+          ]}),
+        ],
+      }))
+      children.push(new Paragraph({ spacing: { before: 40, after: 120 }, children: [
+        new TextRun({ text: 'Material cost only. Fuel, labour and overhead not included.', size: SZ_SMALL, font: FONT, color: GRAY, italics: true }),
+      ]}))
+    }
+
     // ════════════════════════════════════════════════════════════════════
     // SECTION 1: EXECUTIVE SUMMARY (all financial content in one flow)
     // ════════════════════════════════════════════════════════════════════
@@ -364,6 +391,60 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
         : `Fleet produces ${ct.trips_per_truck} trips per truck per day against a target of ${ct.trips_per_truck_target}.`
       children.push(new Paragraph({ spacing: { before: 160, after: 160 }, children: [
         new TextRun({ text: boldLine, bold: true, size: SZ_BODY, font: FONT }),
+      ]}))
+    }
+
+    // ── BREAKDOWN 2: Trip calculation basis ──
+    if (isPre && rc && reportInput) {
+      const opMinutes = reportInput.operating_hours_per_day * 60
+      const tripsActualDec = (Math.round(rc.actual_trips_per_truck_per_day * 10) / 10).toFixed(1)
+      const tripsTargetDec = (Math.round(rc.target_trips_per_truck_per_day * 10) / 10).toFixed(1)
+      const targetTripsTotal = Math.round(rc.target_trips_per_truck_per_day * reportInput.trucks_assigned)
+      const actualTripsTotal = Math.round(rc.actual_trips_per_truck_per_day * reportInput.trucks_assigned)
+      // Reverse-engineer radius_km from target_tat (formula: tat = 60 + radius_km * 3, capped 75-150)
+      const radiusKm = Math.round((rc.target_tat_min - 60) / 3)
+      const radiusLabel = radiusKm < 10 ? 'under 10 km' : radiusKm < 20 ? '10-20 km' : 'over 20 km'
+
+      children.push(new Paragraph({ spacing: { before: 120, after: 80 }, children: [
+        new TextRun({ text: 'Trip calculation basis', bold: true, size: SZ_BODY, font: FONT, color: DARK }),
+      ]}))
+      children.push(new Table({
+        width: { size: 9840, type: WidthType.DXA }, columnWidths: [4320, 2760, 2760],
+        rows: [
+          new TableRow({ children: [
+            cell('', { bg: LIGHT, width: 4320 }),
+            cell('TARGET', { bold: true, bg: LIGHT, width: 2760, align: AlignmentType.CENTER }),
+            cell('ACTUAL', { bold: true, bg: LIGHT, width: 2760, align: AlignmentType.CENTER }),
+          ]}),
+          new TableRow({ children: [
+            cell('Operating minutes per day', { width: 4320 }),
+            cell(`${opMinutes} min`, { width: 2760, align: AlignmentType.CENTER }),
+            cell(`${opMinutes} min`, { width: 2760, align: AlignmentType.CENTER }),
+          ]}),
+          new TableRow({ children: [
+            cell('Turnaround time', { width: 4320 }),
+            cell(`${rc.target_tat_min} min`, { width: 2760, align: AlignmentType.CENTER, color: GREEN }),
+            cell(`${reportInput.avg_turnaround_min} min`, { width: 2760, align: AlignmentType.CENTER }),
+          ]}),
+          new TableRow({ children: [
+            cell('Trips per truck per day', { width: 4320 }),
+            cell(tripsTargetDec, { width: 2760, align: AlignmentType.CENTER, color: GREEN }),
+            cell(tripsActualDec, { width: 2760, align: AlignmentType.CENTER }),
+          ]}),
+          new TableRow({ children: [
+            cell('Trucks assigned', { width: 4320 }),
+            cell(`${reportInput.trucks_assigned}`, { width: 2760, align: AlignmentType.CENTER }),
+            cell(`${reportInput.trucks_assigned}`, { width: 2760, align: AlignmentType.CENTER }),
+          ]}),
+          new TableRow({ children: [
+            cell('Trips per day, full fleet', { width: 4320, bold: true, bg: LIGHT }),
+            cell(`${targetTripsTotal}`, { width: 2760, align: AlignmentType.CENTER, bold: true, bg: LIGHT, color: GREEN }),
+            cell(`${actualTripsTotal}`, { width: 2760, align: AlignmentType.CENTER, bold: true, bg: LIGHT }),
+          ]}),
+        ],
+      }))
+      children.push(new Paragraph({ spacing: { before: 40, after: 120 }, children: [
+        new TextRun({ text: `Target TAT based on ${rc.target_tat_min}-minute benchmark for ${radiusLabel} delivery zone: 60 min plant and site handling plus ${radiusKm} km round-trip travel at 1.5 min/km.`, size: SZ_SMALL, font: FONT, color: GRAY, italics: true }),
       ]}))
     }
 
@@ -437,6 +518,92 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
     children.push(new Paragraph({ spacing: { after: 60 }, children: [
       new TextRun({ text: 'Figures rounded to nearest $1,000. Totals may vary by $1,000 due to rounding.', size: SZ_SMALL, font: FONT, color: GRAY, italics: true }),
     ]}))
+
+    // ── BREAKDOWN 3: Gap calculation ──
+    if (isPre && rc && reportInput) {
+      const dailyGap = Math.max(0, rc.target_daily_output_m3 - rc.actual_daily_output_m3)
+      const annualGap = dailyGap * reportInput.operating_days_per_year
+      const monthlyGapDisplay = Math.round(annualGap / 12)
+
+      children.push(new Paragraph({ spacing: { before: 120, after: 80 }, children: [
+        new TextRun({ text: 'Gap calculation', bold: true, size: SZ_BODY, font: FONT, color: DARK }),
+      ]}))
+      children.push(new Table({
+        width: { size: 9840, type: WidthType.DXA }, columnWidths: [5400, 4440],
+        rows: [
+          new TableRow({ children: [
+            cell('Average load per trip', { width: 5400 }),
+            cell(`${rc.avg_load_m3.toFixed(2)} m\u00B3`, { width: 4440, align: AlignmentType.RIGHT }),
+          ]}),
+          new TableRow({ children: [
+            cell('Target daily output', { width: 5400 }),
+            cell(`${rc.target_daily_output_m3.toLocaleString('en-US')} m\u00B3`, { width: 4440, align: AlignmentType.RIGHT }),
+          ]}),
+          new TableRow({ children: [
+            cell('Actual daily output', { width: 5400 }),
+            cell(`${rc.actual_daily_output_m3.toLocaleString('en-US')} m\u00B3`, { width: 4440, align: AlignmentType.RIGHT }),
+          ]}),
+          new TableRow({ children: [
+            cell('Daily output gap', { width: 5400 }),
+            cell(`${dailyGap.toLocaleString('en-US')} m\u00B3`, { width: 4440, align: AlignmentType.RIGHT }),
+          ]}),
+          new TableRow({ children: [
+            cell('Operating days per year', { width: 5400 }),
+            cell(`${reportInput.operating_days_per_year}`, { width: 4440, align: AlignmentType.RIGHT }),
+          ]}),
+          new TableRow({ children: [
+            cell('Annual output gap', { width: 5400 }),
+            cell(`${annualGap.toLocaleString('en-US')} m\u00B3`, { width: 4440, align: AlignmentType.RIGHT }),
+          ]}),
+          new TableRow({ children: [
+            cell('Monthly output gap', { width: 5400 }),
+            cell(`~${monthlyGapDisplay.toLocaleString('en-US')} m\u00B3`, { width: 4440, align: AlignmentType.RIGHT }),
+          ]}),
+          new TableRow({ children: [
+            cell('Material contribution per m\u00B3', { width: 5400 }),
+            cell(`$${rc.contribution_margin_per_m3.toFixed(2)}`, { width: 4440, align: AlignmentType.RIGHT }),
+          ]}),
+          new TableRow({ children: [
+            cell('Full monthly gap', { width: 5400, bold: true, bg: LIGHT }),
+            cell(`~${fmt(rc.monthly_gap_usd)}`, { width: 4440, align: AlignmentType.RIGHT, bold: true, bg: LIGHT, color: GREEN }),
+          ]}),
+        ],
+      }))
+      children.push(new Paragraph({ spacing: { before: 40, after: 120 }, children: [
+        new TextRun({ text: 'Monthly figure is an annual average. Actual gap varies by season and demand. Average load per trip assumes current load per trip remains consistent at target performance.', size: SZ_SMALL, font: FONT, color: GRAY, italics: true }),
+      ]}))
+    }
+
+    // ── BREAKDOWN 4: Recovery range basis ──
+    if (isPre && rc && reportInput) {
+      children.push(new Paragraph({ spacing: { before: 120, after: 80 }, children: [
+        new TextRun({ text: 'Recovery range basis', bold: true, size: SZ_BODY, font: FONT, color: DARK }),
+      ]}))
+      children.push(new Table({
+        width: { size: 9840, type: WidthType.DXA }, columnWidths: [5400, 4440],
+        rows: [
+          new TableRow({ children: [
+            cell('Full monthly gap', { width: 5400 }),
+            cell(`~${fmt(rc.monthly_gap_usd)}`, { width: 4440, align: AlignmentType.RIGHT }),
+          ]}),
+          new TableRow({ children: [
+            cell('Execution range', { width: 5400 }),
+            cell('40-65%', { width: 4440, align: AlignmentType.RIGHT }),
+          ]}),
+          new TableRow({ children: [
+            cell('Recovery low', { width: 5400 }),
+            cell(`~${fmt(rc.recovery_low_usd)}`, { width: 4440, align: AlignmentType.RIGHT }),
+          ]}),
+          new TableRow({ children: [
+            cell('Recovery high', { width: 5400, bold: true, bg: LIGHT }),
+            cell(`~${fmt(rc.recovery_high_usd)}`, { width: 4440, align: AlignmentType.RIGHT, bold: true, bg: LIGHT, color: GREEN }),
+          ]}),
+        ],
+      }))
+      children.push(new Paragraph({ spacing: { before: 40, after: 120 }, children: [
+        new TextRun({ text: 'Planning range based on professional judgement. Operational changes rarely capture the full gap. Structural constraints, customer dependencies, and implementation time all limit recovery.', size: SZ_SMALL, font: FONT, color: GRAY, italics: true }),
+      ]}))
+    }
 
     // 6. Where the gap sits (Loss Breakdown)
     {

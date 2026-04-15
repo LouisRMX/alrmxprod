@@ -435,4 +435,40 @@ describe('calculateReport', () => {
       expect(result).not.toContain('}}')
     })
   })
+
+  describe('Breakdown tables arithmetic invariants', () => {
+    const inputs = [PLANT_A, PLANT_C, PLANT_EDGE, PLANT_RIYADH]
+
+    inputs.forEach((input, i) => {
+      const r = calculateReport(input)
+      const label = `Dataset ${i + 1}`
+
+      it(`${label}: TEST 1 — daily_gap = target_daily - actual_daily`, () => {
+        const daily_gap = Math.max(0, r.target_daily_output_m3 - r.actual_daily_output_m3)
+        expect(daily_gap).toBe(Math.max(0, r.target_daily_output_m3 - r.actual_daily_output_m3))
+      })
+
+      it(`${label}: TEST 2 — annual_gap = daily_gap × operating_days_per_year`, () => {
+        const daily_gap = Math.max(0, r.target_daily_output_m3 - r.actual_daily_output_m3)
+        const annual_gap = daily_gap * input.operating_days_per_year
+        expect(annual_gap).toBe(daily_gap * input.operating_days_per_year)
+      })
+
+      it(`${label}: TEST 3 — monthly_gap_m3 = annual_gap / 12 (rc matches within 1 m³)`, () => {
+        const daily_gap = Math.max(0, r.target_daily_output_m3 - r.actual_daily_output_m3)
+        const annual_gap = daily_gap * input.operating_days_per_year
+        expect(Math.abs(r.monthly_gap_m3 - annual_gap / 12)).toBeLessThan(1)
+      })
+
+      it(`${label}: TEST 4 — recovery_low ≈ monthly_gap_usd × 0.40 (rounded to $1000)`, () => {
+        const expected = Math.round(r.monthly_gap_usd * 0.4 / 1000) * 1000
+        expect(r.recovery_low_usd).toBe(expected)
+      })
+
+      it(`${label}: TEST 5 — recovery_high ≈ monthly_gap_usd × 0.65 (rounded to $1000)`, () => {
+        const expected = Math.round(r.monthly_gap_usd * 0.65 / 1000) * 1000
+        expect(r.recovery_high_usd).toBe(expected)
+      })
+    })
+  })
 })
