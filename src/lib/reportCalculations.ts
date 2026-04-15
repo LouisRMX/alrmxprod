@@ -50,6 +50,15 @@ export interface ReportCalculations {
   annual_gap_high: number
   has_external_constraint: boolean
   regulatory_scenario: RegulatoryScenario | null
+  // Optional secondary context for CONSTRAINT cell (e.g. external restriction note)
+  constraint_note?: string
+  // m³ ranges for narrative/bold-line use (pre-assessment uncertainty band)
+  // Asymmetric widths: gap ±15% (model-derived, wider band), actual daily ±5%
+  // (customer-reported, tighter band). All rounded to nearest 50 m³ outward.
+  monthly_gap_m3_low: number
+  monthly_gap_m3_high: number
+  actual_daily_m3_low: number
+  actual_daily_m3_high: number
 }
 
 export interface RegulatoryScenario {
@@ -161,6 +170,13 @@ export function calculateReport(input: ReportInput): ReportCalculations {
   const monthly_gap_m3 = Math.max(0, target_daily_output_m3 - actual_daily_output_m3) * op_days_per_month
   const monthly_gap_usd = Math.round(monthly_gap_m3 * contribution_margin_per_m3 / 1000) * 1000
 
+  // ── m³ ranges (pre-assessment uncertainty band, rounded to nearest 50 outward) ──
+  // floor/ceil ensures range always strictly brackets the point estimate for non-zero gaps.
+  const monthly_gap_m3_low = monthly_gap_m3 > 0 ? Math.floor(monthly_gap_m3 * 0.85 / 50) * 50 : 0
+  const monthly_gap_m3_high = monthly_gap_m3 > 0 ? Math.ceil(monthly_gap_m3 * 1.15 / 50) * 50 : 0
+  const actual_daily_m3_low = actual_daily_output_m3 > 0 ? Math.floor(actual_daily_output_m3 * 0.95 / 50) * 50 : 0
+  const actual_daily_m3_high = actual_daily_output_m3 > 0 ? Math.ceil(actual_daily_output_m3 * 1.05 / 50) * 50 : 0
+
   // ── Recovery range (40-65%) ──
   const recovery_low_usd = Math.round(monthly_gap_usd * 0.4 / 1000) * 1000
   const recovery_high_usd = Math.round(monthly_gap_usd * 0.65 / 1000) * 1000
@@ -187,6 +203,7 @@ export function calculateReport(input: ReportInput): ReportCalculations {
   const hasSiteAccess = /site access|access window|waiting at site|queue outside|limited access/.test(bocLower)
 
   let constraint: string
+  let constraint_note: string | undefined
   if (hasQueue && hasIdle && hasMorning) {
     constraint = 'Likely: Dispatch clustering \u2014 morning concentration'
   } else if (hasQueue && hasIdle) {
@@ -194,7 +211,10 @@ export function calculateReport(input: ReportInput): ReportCalculations {
   } else if (hasSiteAccess && !hasIdle) {
     constraint = 'Likely: Site access coordination'
   } else if (/movement ban|movement restriction|truck ban|traffic police|road block|road closure/.test(bocLower)) {
-    constraint = 'Likely: External \u2014 verify on-site'
+    // External factors are noted but not the actionable label.
+    // Frame constraint around what on-site intervention can address.
+    constraint = 'Likely: Dispatch & site coordination'
+    constraint_note = 'External restrictions noted \u2014 on-site focus'
   } else if (avg_turnaround_min > target_tat_min * 1.20) {
     constraint = 'Likely: Fleet coordination'
   } else {
@@ -224,7 +244,7 @@ export function calculateReport(input: ReportInput): ReportCalculations {
 
   // ── External constraint detection (Scenario B trigger) ──
   const has_external_constraint =
-    constraint === 'Likely: External \u2014 verify on-site' ||
+    constraint_note !== undefined ||
     /movement ban|movement restriction|truck ban|traffic police|road block|road closure|traffic restriction|\bban\b/.test(bocLower) ||
     (/traffic/.test(bocLower) && /hours?/.test(bocLower))
 
@@ -279,6 +299,11 @@ export function calculateReport(input: ReportInput): ReportCalculations {
     annual_gap_high,
     has_external_constraint,
     regulatory_scenario,
+    constraint_note,
+    monthly_gap_m3_low,
+    monthly_gap_m3_high,
+    actual_daily_m3_low,
+    actual_daily_m3_high,
   }
 }
 

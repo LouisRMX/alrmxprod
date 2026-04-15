@@ -488,6 +488,7 @@ PLACEHOLDER TOKEN RULES (MANDATORY):
 12. RANGES OVER PRECISION: When referencing on-site findings, use conditional language. Never promise a precise outcome.
 13. NO CAUSAL VERBS FOR EXTERNAL FACTORS: Never write that external factors "create", "cause", or "drive" delays. External factors (movement bans, traffic, regulatory windows, site access) are context that the observed gap is consistent with, not the verified cause. WRONG: "Movement restrictions create the turnaround excess." WRONG: "Traffic windows drive dispatch clustering." RIGHT: "The observed turnaround excess is consistent with the reported movement restrictions."
 14. TRIPS AS OBSERVATIONS, NOT CAUSE-EFFECT: When referencing actual vs target trips, state them as observations, not as a cause-effect pair. WRONG: "Because trucks complete {{TRIPS_ACTUAL}} trips instead of {{TRIPS_TARGET}}, output falls short." RIGHT: "Trucks currently complete {{TRIPS_ACTUAL}} trips per day; the {{TAT_TARGET}}-minute target would support {{TRIPS_TARGET}}."
+15. m³ RANGES IN NARRATIVE: When referencing monthly output or monthly gap in m³, always use ranges, never precise figures. Use {{GAP_M3_LOW}} and {{GAP_M3_HIGH}} for the monthly gap in m³. Use {{ACTUAL_M3_LOW}} and {{ACTUAL_M3_HIGH}} for monthly actual output. Do not add m³ to every sentence — use it once in paragraph 1 to give the gap physical context alongside the dollar figure. Preferred format: "{{MONTHLY_GAP}} — equivalent to {{GAP_M3_LOW}}-{{GAP_M3_HIGH}} m³ of unrealised monthly output". Precise m³ only appears in the Capacity Detail table, never in your narrative.
 
 AVAILABLE TOKENS:
 {{RECOVERY_LOW}} — recovery range low bound
@@ -505,6 +506,10 @@ AVAILABLE TOKENS:
 {{ANNUAL_HIGH}} — annual recovery range high
 {{TRUCKS}} — number of trucks assigned
 {{CONSTRAINT}} — the likely constraint label
+{{GAP_M3_LOW}} — monthly gap in m³, low bound (rounded to 50)
+{{GAP_M3_HIGH}} — monthly gap in m³, high bound (rounded to 50)
+{{ACTUAL_M3_LOW}} — monthly actual output in m³, low bound (rounded to 50)
+{{ACTUAL_M3_HIGH}} — monthly actual output in m³, high bound (rounded to 50)
 
 PLANT CONTEXT (self-reported, not verified):
 Turnaround: {{TAT_ACTUAL}} min (target: {{TAT_TARGET}} min)${rc && rc.gap_driver !== 'tat' ? '\nTAT is at or near target. Do not mention turnaround excess. Focus on utilisation gap and dispatch signals.' : ''}

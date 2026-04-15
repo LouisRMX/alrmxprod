@@ -331,8 +331,108 @@ describe('calculateReport', () => {
       const rc = calculateReport(PLANT_EDGE)
       expect(rc.gap_driver).toBe('utilisation')
       const line = assembleBoldSummaryLine(rc, PLANT_EDGE)
-      expect(line).toContain(PLANT_EDGE.actual_production_last_month_m3.toLocaleString('en-US'))
+      // Line now uses monthly actual range, not exact production figure
+      expect(line).toMatch(/\d[\d,]* m\u00B3 last month/)
+      expect(line).toMatch(/against a target of [\d,]+ m\u00B3/)
       expect(line).not.toContain('trucks could complete')
+    })
+  })
+
+  // ── Dataset 4: Plant Riyadh — External constraint (movement ban) ──
+  const PLANT_RIYADH: ReportInput = {
+    selling_price_per_m3: 70,
+    material_cost_per_m3: 37.5,
+    plant_capacity_m3_per_hour: 450,
+    operating_hours_per_day: 12,
+    operating_days_per_year: 300,
+    actual_production_last_month_m3: 81000,
+    trucks_assigned: 87,
+    total_trips_last_month: 11310,
+    avg_turnaround_min: 170,
+    rejection_rate_pct: 1.5,
+    avg_delivery_radius: '10-20km',
+    dispatch_tool: 'Dispatcher + Excel',
+    data_sources: 'Monthly reports',
+    biggest_operational_challenge: 'Riyadh truck movement restrictions, 7 hours per day, and customer site readiness delays',
+    demand_vs_capacity: 'Demand sufficient',
+    queuing_and_idle: 'Sometimes',
+    dispatch_timing: 'Spread across the day',
+  }
+
+  describe('CHANGE 1 — constraint label for external constraints', () => {
+    it('TEST 4: constraint for Riyadh dataset is dispatch & site coordination', () => {
+      const r = calculateReport(PLANT_RIYADH)
+      expect(r.constraint).toBe('Likely: Dispatch & site coordination')
+    })
+
+    it('TEST 5: constraint_note for Riyadh dataset notes external restrictions', () => {
+      const r = calculateReport(PLANT_RIYADH)
+      expect(r.constraint_note).toBe('External restrictions noted \u2014 on-site focus')
+    })
+
+    it('TEST 6: constraint for Plant A dataset is unchanged', () => {
+      const r = calculateReport(PLANT_A)
+      expect(r.constraint).toBe('Likely: Dispatch clustering \u2014 morning concentration')
+      expect(r.constraint_note).toBeUndefined()
+    })
+
+    it('TEST 7: constraint for Plant C dataset is unchanged', () => {
+      const r = calculateReport(PLANT_C)
+      expect(r.constraint).toBe('Likely: Site access coordination')
+      expect(r.constraint_note).toBeUndefined()
+    })
+
+    it('Riyadh still has_external_constraint true', () => {
+      const r = calculateReport(PLANT_RIYADH)
+      expect(r.has_external_constraint).toBe(true)
+      expect(r.regulatory_scenario).not.toBeNull()
+    })
+  })
+
+  describe('CHANGE 2 — m³ ranges', () => {
+    const inputs = [PLANT_A, PLANT_C, PLANT_EDGE, PLANT_RIYADH]
+
+    inputs.forEach((input, i) => {
+      const r = calculateReport(input)
+      const label = `Dataset ${i + 1}`
+
+      it(`${label}: TEST 1 — monthly_gap_m3_low < monthly_gap_m3 < monthly_gap_m3_high`, () => {
+        if (r.monthly_gap_m3 > 0) {
+          expect(r.monthly_gap_m3_low).toBeLessThan(r.monthly_gap_m3)
+          expect(r.monthly_gap_m3).toBeLessThan(r.monthly_gap_m3_high)
+        } else {
+          expect(r.monthly_gap_m3_low).toBe(0)
+          expect(r.monthly_gap_m3_high).toBe(0)
+        }
+      })
+
+      it(`${label}: TEST 2 — actual_daily_m3_low < actual_daily_output_m3 < actual_daily_m3_high`, () => {
+        if (r.actual_daily_output_m3 > 0) {
+          expect(r.actual_daily_m3_low).toBeLessThan(r.actual_daily_output_m3)
+          expect(r.actual_daily_output_m3).toBeLessThan(r.actual_daily_m3_high)
+        }
+      })
+
+      it(`${label}: TEST 3 — all m³ range values round to nearest 50`, () => {
+        expect(r.monthly_gap_m3_low % 50).toBe(0)
+        expect(r.monthly_gap_m3_high % 50).toBe(0)
+        expect(r.actual_daily_m3_low % 50).toBe(0)
+        expect(r.actual_daily_m3_high % 50).toBe(0)
+      })
+    })
+
+    it('bold line contains m³ range for tat gap_driver', () => {
+      const r = calculateReport(PLANT_RIYADH)
+      const line = assembleBoldSummaryLine(r, PLANT_RIYADH)
+      expect(line).toContain(`${r.monthly_gap_m3_low.toLocaleString('en-US')}-${r.monthly_gap_m3_high.toLocaleString('en-US')} m\u00B3`)
+    })
+
+    it('replaceNarrativeTokens resolves all 4 m³ range tokens', () => {
+      const r = calculateReport(PLANT_RIYADH)
+      const text = '{{GAP_M3_LOW}} {{GAP_M3_HIGH}} {{ACTUAL_M3_LOW}} {{ACTUAL_M3_HIGH}}'
+      const result = replaceNarrativeTokens(text, r, PLANT_RIYADH)
+      expect(result).not.toContain('{{')
+      expect(result).not.toContain('}}')
     })
   })
 })
