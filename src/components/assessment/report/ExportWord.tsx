@@ -8,7 +8,7 @@ import type { PriorityMatrix, Quadrant } from '@/lib/priority-matrix'
 import type { FieldLogContext } from '@/lib/fieldlog/context'
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
   Header, Footer, AlignmentType, BorderStyle, WidthType,
-  ShadingType, HeadingLevel, PageNumber, PageBreak } from 'docx'
+  ShadingType, HeadingLevel, PageNumber, PageBreak, ImageRun } from 'docx'
 
 import type { ReportCalculations, ReportInput } from '@/lib/reportCalculations'
 import { assembleBoldSummaryLine } from '@/lib/reportAssembly'
@@ -206,6 +206,85 @@ function stripUnauthorizedHeadings(text: string, allowedHeadings: string[]): str
   })
 }
 
+/**
+ * Build a TAT waterfall SVG: two-segment horizontal bar showing target (green)
+ * and excess (light red), with a dotted boundary line and inline labels.
+ * Pure string generation — no browser APIs.
+ */
+function buildTatWaterfallSvg(targetTat: number, actualTat: number): string {
+  const W = 600
+  const H = 110
+  const barY = 28
+  const barH = 44
+  const leftPad = 12
+  const rightPad = 12
+  const drawW = W - leftPad - rightPad
+
+  const excessMin = Math.max(0, actualTat - targetTat)
+  const maxX = Math.max(220, actualTat + 20)
+  const pxPerMin = drawW / maxX
+
+  const targetW = targetTat * pxPerMin
+  const excessW = excessMin * pxPerMin
+
+  const GREEN_HEX = '#3B6D11'
+  const RED_HEX = '#F09595'
+  const DARK_HEX = '#1A1A1A'
+  const GRAY_HEX = '#666666'
+
+  // Show label inline if the segment is wide enough (~50px), otherwise skip.
+  const showTargetLabel = targetW >= 50
+  const showExcessLabel = excessMin > 0 && excessW >= 40
+
+  const targetLabelX = leftPad + targetW / 2
+  const excessLabelX = leftPad + targetW + excessW / 2
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+<rect x="${leftPad}" y="${barY}" width="${targetW}" height="${barH}" fill="${GREEN_HEX}"/>
+<rect x="${leftPad + targetW}" y="${barY}" width="${excessW}" height="${barH}" fill="${RED_HEX}"/>
+${showTargetLabel ? `<text x="${targetLabelX}" y="${barY + barH / 2 + 5}" font-family="Calibri, sans-serif" font-size="15" font-weight="700" fill="white" text-anchor="middle">${targetTat} min</text>` : ''}
+${showExcessLabel ? `<text x="${excessLabelX}" y="${barY + barH / 2 + 5}" font-family="Calibri, sans-serif" font-size="15" font-weight="700" fill="${DARK_HEX}" text-anchor="middle">+${excessMin} min</text>` : ''}
+<line x1="${leftPad + targetW}" y1="${barY - 4}" x2="${leftPad + targetW}" y2="${barY + barH + 4}" stroke="${GRAY_HEX}" stroke-width="1" stroke-dasharray="3,3"/>
+<text x="${leftPad}" y="${barY + barH + 22}" font-family="Calibri, sans-serif" font-size="11" fill="${GRAY_HEX}" text-anchor="start">0 min</text>
+<text x="${leftPad + targetW}" y="${barY - 10}" font-family="Calibri, sans-serif" font-size="11" font-weight="600" fill="${GRAY_HEX}" text-anchor="middle">Target</text>
+<text x="${leftPad + drawW}" y="${barY + barH + 22}" font-family="Calibri, sans-serif" font-size="11" fill="${GRAY_HEX}" text-anchor="end">${maxX} min</text>
+</svg>`
+}
+
+/**
+ * Rasterize SVG string to PNG bytes using browser Canvas API.
+ * Returns a Uint8Array ready for docx ImageRun. 2x pixel density for crisp
+ * rendering in Word (doubled canvas, same logical dimensions).
+ */
+async function svgToPng(svg: string, width: number, height: number): Promise<Uint8Array> {
+  const svgBlob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' })
+  const url = URL.createObjectURL(svgBlob)
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const i = new Image()
+      i.onload = () => resolve(i)
+      i.onerror = () => reject(new Error('SVG image load failed'))
+      i.src = url
+    })
+    const scale = 2
+    const canvas = document.createElement('canvas')
+    canvas.width = width * scale
+    canvas.height = height * scale
+    const ctx = canvas.getContext('2d')
+    if (!ctx) throw new Error('Canvas 2D context unavailable')
+    ctx.fillStyle = 'white'
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+    const blob = await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('toBlob returned null'))), 'image/png')
+    })
+    const buffer = await blob.arrayBuffer()
+    return new Uint8Array(buffer)
+  } finally {
+    URL.revokeObjectURL(url)
+  }
+}
+
 function sectionHeader(text: string, audience: string): Paragraph[] {
   const paragraphs: Paragraph[] = []
   if (audience) {
@@ -241,6 +320,21 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
     const children: (Paragraph | Table)[] = []
     // Deduplication guard: prevent any programmatic element from appearing twice
     const inserted = new Set<string>()
+
+    // Pre-generate TAT waterfall chart PNG (client-side SVG → canvas → PNG).
+    // Fails silently if browser APIs unavailable; chart just won't render.
+    const isPreWithRc = phase === 'workshop' && rc && reportInput
+    const TAT_CHART_W = 600
+    const TAT_CHART_H = 110
+    let tatChartPng: Uint8Array | null = null
+    if (isPreWithRc) {
+      try {
+        const svg = buildTatWaterfallSvg(rc.target_tat_min, reportInput.avg_turnaround_min)
+        tatChartPng = await svgToPng(svg, TAT_CHART_W, TAT_CHART_H)
+      } catch (err) {
+        console.warn('TAT chart generation failed, skipping:', err)
+      }
+    }
     // Use rc values when available; fall back to dx (old system)
     const lo = rc?.recovery_low_usd ?? dx.combined_recovery_range.lo
     const hi = rc?.recovery_high_usd ?? dx.combined_recovery_range.hi
@@ -418,9 +512,25 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
           ]}),
         ],
       }))
-      children.push(new Paragraph({ spacing: { before: 40, after: 120 }, children: [
+      children.push(new Paragraph({ spacing: { before: 40, after: 80 }, children: [
         new TextRun({ text: `Target TAT based on ${rc.target_tat_min}-minute benchmark for ${radiusLabel} delivery zone: 60 min plant and site handling plus ${radiusKm} km round-trip travel at 1.5 min/km.`, size: SZ_SMALL, font: FONT, color: GRAY, italics: true }),
       ]}))
+
+      // TAT waterfall chart (SVG rasterized to PNG)
+      if (tatChartPng) {
+        // Image width in EMU: docx uses pixel-equivalent for dimensions parameter.
+        // At 96 DPI, 600px ≈ 6.25in. Shrink to ~500px (5.2in) to fit margins cleanly.
+        children.push(new Paragraph({ spacing: { before: 40, after: 40 }, alignment: AlignmentType.CENTER, children: [
+          new ImageRun({
+            data: tatChartPng as unknown as Buffer,
+            transformation: { width: 500, height: Math.round(500 * (TAT_CHART_H / TAT_CHART_W)) },
+            type: 'png',
+          }),
+        ]}))
+        children.push(new Paragraph({ spacing: { after: 120 }, alignment: AlignmentType.CENTER, children: [
+          new TextRun({ text: 'Dotted line marks target. Green segment is target turnaround, red is excess.', size: SZ_SMALL, font: FONT, color: GRAY, italics: true }),
+        ]}))
+      }
     }
 
     // 4. AI narrative (explains the gap)
