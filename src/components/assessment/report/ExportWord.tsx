@@ -315,6 +315,24 @@ async function svgToPng(svg: string, width: number, height: number): Promise<Uin
   }
 }
 
+/**
+ * Build an italic-gray micro-trace paragraph to place directly under a number.
+ * Style rules (from Al-Omran template):
+ *  - No "Calculated:" prefix
+ *  - No intermediate "→ rounded" steps, just final rounded value
+ *  - Use "~" prefix for approximations
+ *  - Keep formula breakdowns inline (e.g. "14 hr × 60 min = 840 min")
+ */
+function trace(text: string): Paragraph {
+  return new Paragraph({
+    spacing: { before: 20, after: 120 },
+    alignment: AlignmentType.LEFT,
+    children: [
+      new TextRun({ text, size: SZ_SMALL, font: FONT, color: GRAY, italics: true }),
+    ],
+  })
+}
+
 function sectionHeader(text: string, audience: string): Paragraph[] {
   const paragraphs: Paragraph[] = []
   if (audience) {
@@ -425,12 +443,41 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
               new TextRun({ text: ' in recoverable margin every month.', size: SZ_BODY, font: FONT }),
             ]}),
             new Paragraph({ spacing: { before: 40 }, children: [
-              new TextRun({ text: `${dx.tat_source === 'measured' ? `Based on ${dx.tat_trip_count} observed cycles` : dx.tat_source === 'validated' ? 'On-site validated' : 'Based on reported data'}. 40-65% execution range.`, size: SZ_SMALL, font: FONT, color: GRAY }),
+              new TextRun({ text: (() => {
+                const basis = dx.tat_source === 'measured' ? `Based on ${dx.tat_trip_count} observed cycles`
+                  : dx.tat_source === 'validated' ? 'On-site validated' : 'Based on reported data'
+                if (isPre && rc && reportInput && rc.monthly_gap_usd > 0) {
+                  return `${basis}. 40\u201365% execution of a ${fmt(rc.monthly_gap_usd)} theoretical monthly gap, achievable with your current ${reportInput.trucks_assigned}-truck fleet.`
+                }
+                return `${basis}. 40\u201365% execution range.`
+              })(), size: SZ_SMALL, font: FONT, color: GRAY }),
             ]}),
+            ...(isPre ? [new Paragraph({ spacing: { before: 20 }, children: [
+              new TextRun({ text: 'Based on material cost only. Fuel, labour and overhead not included.', size: SZ_SMALL, font: FONT, color: GRAY }),
+            ]})] : []),
           ],
         })] })],
       }))
       children.push(new Paragraph({ spacing: { after: 60 }, children: [] }))
+    }
+
+    // ── DISCLAIMER + PURPOSE sections (pre-assessment only) ──
+    if (isPre) {
+      children.push(new Paragraph({ spacing: { before: 160, after: 40 }, children: [
+        new TextRun({ text: 'Disclaimer', bold: true, size: SZ_SUBSECTION, font: FONT, color: DARK }),
+      ]}))
+      children.push(new Paragraph({ spacing: { after: 60 }, children: [
+        new TextRun({ text: 'This assessment is based on self-reported operational data inputs. No on-site validation has yet been conducted.', size: SZ_BODY, font: FONT, color: DARK }),
+      ]}))
+      children.push(new Paragraph({ spacing: { after: 160 }, children: [
+        new TextRun({ text: 'The analysis therefore represents an indicative estimate of operational performance and financial impact. Actual results may vary depending on data accuracy and operational conditions.', size: SZ_BODY, font: FONT, color: DARK }),
+      ]}))
+      children.push(new Paragraph({ spacing: { before: 120, after: 40 }, children: [
+        new TextRun({ text: 'Purpose', bold: true, size: SZ_SUBSECTION, font: FONT, color: DARK }),
+      ]}))
+      children.push(new Paragraph({ spacing: { after: 200 }, children: [
+        new TextRun({ text: 'The purpose of this pre-assessment is to identify potential areas of value and establish whether a detailed on-site assessment is justified. The on-site phase will validate key assumptions, refine the calculations, and quantify a realistic, executable recovery plan.', size: SZ_BODY, font: FONT, color: DARK }),
+      ]}))
     }
 
     // ════════════════════════════════════════════════════════════════════
@@ -475,15 +522,44 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
       ],
     }))
 
-    // 2. Opening line
-    if (isPre) {
+    // 2. KPI traces (pre-assessment only) - derivations for each KPI value
+    if (isPre && rc && reportInput) {
+      const opDaysMonth = rc.op_days_per_month
+      const plantMaxDaily = reportInput.plant_capacity_m3_per_hour * reportInput.operating_hours_per_day
+      const radiusKm = Math.round((rc.target_tat_min - 60) / 3)
+      const tatExcessAbs = Math.max(0, reportInput.avg_turnaround_min - rc.target_tat_min)
+      const tatExcessPctVal = rc.target_tat_min > 0 ? Math.round((tatExcessAbs / rc.target_tat_min) * 100) : 0
+      const utilGapPct = Math.max(0, rc.utilisation_target_pct - rc.utilisation_actual_pct)
+
+      children.push(new Paragraph({ spacing: { before: 140, after: 40 }, children: [
+        new TextRun({ text: 'Turnaround time', bold: true, size: SZ_SMALL, font: FONT, color: DARK }),
+        new TextRun({ text: `  ${reportInput.avg_turnaround_min} min actual, target ${rc.target_tat_min} min`, size: SZ_SMALL, font: FONT, color: DARK }),
+      ]}))
+      children.push(trace(`Target: 60 min plant/site handling + (${radiusKm} km \u00D7 1.5 min/km \u00D7 2 = ${Math.round(radiusKm * 3)} min) = ${rc.target_tat_min} min. ${tatExcessPctVal}% above target.`))
+
+      const actualDaily = rc.actual_daily_output_m3
+      children.push(new Paragraph({ spacing: { before: 40, after: 40 }, children: [
+        new TextRun({ text: 'Capacity utilization', bold: true, size: SZ_SMALL, font: FONT, color: DARK }),
+        new TextRun({ text: `  ${rc.utilisation_actual_pct}% actual, target ~${rc.utilisation_target_pct}%`, size: SZ_SMALL, font: FONT, color: DARK }),
+      ]}))
+      children.push(trace(`${reportInput.actual_production_last_month_m3.toLocaleString('en-US')} m\u00B3/month \u00F7 ${opDaysMonth} days = ${actualDaily.toLocaleString('en-US')} m\u00B3/day. Plant max = ${reportInput.plant_capacity_m3_per_hour} m\u00B3/hr \u00D7 ${reportInput.operating_hours_per_day} hr = ${plantMaxDaily.toLocaleString('en-US')} m\u00B3/day. ${actualDaily.toLocaleString('en-US')} \u00F7 ${plantMaxDaily.toLocaleString('en-US')} = ${rc.utilisation_actual_pct}%. ${utilGapPct}% below target.`))
+
+      children.push(new Paragraph({ spacing: { before: 40, after: 40 }, children: [
+        new TextRun({ text: 'Rejection rate', bold: true, size: SZ_SMALL, font: FONT, color: DARK }),
+        new TextRun({ text: `  ${reportInput.rejection_rate_pct}% reported, target <3%`, size: SZ_SMALL, font: FONT, color: DARK }),
+      ]}))
+      children.push(trace(`Reported. Rejected trips as a percentage of total trips last month. ${reportInput.rejection_rate_pct <= 3 ? 'Within target.' : `${(reportInput.rejection_rate_pct - 3).toFixed(1)} pts above threshold.`}`))
+    }
+
+    // 3. Opening line (on-site only; pre-assessment KPI traces replace this)
+    if (!isPre) {
       children.push(new Paragraph({ spacing: { before: 120, after: 120 }, children: [
         new TextRun({ text: `Based on your reported data, here is where ${plantName} stands today.`, size: SZ_BODY, font: FONT, color: DARK }),
       ]}))
     }
 
-    // 3. Bold summary line (deterministic, never AI-generated)
-    if (isPre && !inserted.has('fleet-reframe')) {
+    // 3. Bold summary line (on-site only; pre-assessment relies on tables + traces)
+    if (!isPre && !inserted.has('fleet-reframe')) {
       inserted.add('fleet-reframe')
       const boldLine = rc && reportInput
         ? assembleBoldSummaryLine(rc, reportInput)
@@ -562,43 +638,18 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
       }
     }
 
-    // 4. AI narrative (explains the gap)
-    if (report?.executive) {
+    // 4. AI narrative (on-site only; pre-assessment relies on tables + traces)
+    if (!isPre && report?.executive) {
       let execText = sanitize(report.executive).replace(/^#{1,3}\s*(What the Data Suggests|Executive Summary|Executive Explanation)\s*\n+/i, '')
       execText = stripUnauthorizedHeadings(execText, ['Initial Analysis', 'Capacity Detail', 'Where the gap sits'])
       children.push(...textParas(execText))
-    } else {
+    } else if (!isPre) {
       children.push(new Paragraph({ spacing: { after: 60 }, children: [
         new TextRun({ text: 'Report not yet generated. Click "Generate report" in the platform before exporting.', size: SZ_SMALL, font: FONT, color: AMBER, italics: true }),
       ]}))
     }
 
-    // ── BREAKDOWN 1: Margin used in this calculation (placed above Capacity Detail) ──
-    if (isPre && rc && reportInput) {
-      children.push(new Paragraph({ spacing: { before: 160, after: 80 }, children: [
-        new TextRun({ text: 'Margin used in this calculation', bold: true, size: SZ_BODY, font: FONT, color: DARK }),
-      ]}))
-      children.push(new Table({
-        width: { size: 9840, type: WidthType.DXA }, columnWidths: [5400, 4440],
-        rows: [
-          new TableRow({ children: [
-            cell('Selling price per m\u00B3', { width: 5400 }),
-            cell(`$${reportInput.selling_price_per_m3.toFixed(2)}`, { width: 4440, align: AlignmentType.RIGHT }),
-          ]}),
-          new TableRow({ children: [
-            cell('Raw material cost per m\u00B3', { width: 5400 }),
-            cell(`$${reportInput.material_cost_per_m3.toFixed(2)}`, { width: 4440, align: AlignmentType.RIGHT }),
-          ]}),
-          new TableRow({ children: [
-            cell('Material contribution per m\u00B3', { width: 5400, bold: true, bg: LIGHT }),
-            cell(`$${rc.contribution_margin_per_m3.toFixed(2)}`, { width: 4440, align: AlignmentType.RIGHT, bold: true, bg: LIGHT }),
-          ]}),
-        ],
-      }))
-      children.push(new Paragraph({ spacing: { before: 40, after: 160 }, children: [
-        new TextRun({ text: 'Material cost only. Fuel, labour and overhead not included.', size: SZ_SMALL, font: FONT, color: GRAY, italics: true }),
-      ]}))
-    }
+    // Margin breakdown moved to Appendix (Step 1) per new report structure.
 
     // 5. Capacity Detail (merged from former Capacity Analysis section)
     children.push(new Paragraph({ spacing: { before: SP_BEFORE_SECTION, after: SP_AFTER_SECTION }, children: [
@@ -713,6 +764,112 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
       const lossTotal = rc?.monthly_gap_usd ?? lbRows.reduce((s, r) => s + r.amount, 0)
       children.push(new Paragraph({ spacing: { before: 60, after: 40 }, children: [
         new TextRun({ text: `"Cycle time exceeds target": trips not completed due to turnaround exceeding benchmark. "Material cost with no delivery": waste costs that add up independently. Total identified: ${fmt(lossTotal)}/month. Figures rounded to nearest $1,000.`, size: SZ_SMALL, font: FONT, color: GRAY }),
+      ]}))
+    }
+
+    // ── REALISTIC RECOVERY RANGE explanation (pre-assessment only) ──
+    if (isPre && rc && reportInput && rc.monthly_gap_usd > 0) {
+      children.push(new Paragraph({ spacing: { before: SP_BEFORE_SECTION, after: 80 }, children: [
+        new TextRun({ text: `Realistic recovery range, and why it is not the full ${fmt(rc.monthly_gap_usd)}`, bold: true, size: SZ_SUBSECTION, font: FONT, color: DARK }),
+      ]}))
+      children.push(new Paragraph({ spacing: { after: 100 }, children: [
+        new TextRun({ text: 'Not all of the gap is capturable immediately.', bold: true, size: SZ_BODY, font: FONT, color: DARK }),
+      ]}))
+      children.push(new Paragraph({ spacing: { after: 100 }, children: [
+        new TextRun({ text: 'Structural constraints, customer site dependencies, and implementation time all limit near-term recovery. The 40\u201365% range reflects professional judgement on what operational changes alone can achieve.', size: SZ_BODY, font: FONT, color: DARK }),
+      ]}))
+      children.push(new Paragraph({ spacing: { after: 40 }, children: [
+        new TextRun({ text: `${fmt(rc.recovery_low_usd)}\u2013${fmt(rc.recovery_high_usd)}`, bold: true, size: SZ_SUBSECTION, font: FONT, color: GREEN }),
+      ]}))
+      children.push(trace(`40\u201365% of ${fmt(rc.monthly_gap_usd)}`))
+    }
+
+    // ── COMPOUNDED COST OF INACTION (pre-assessment only) ──
+    if (isPre && rc && rc.monthly_gap_usd > 0) {
+      children.push(new Paragraph({ spacing: { before: SP_BEFORE_SECTION, after: 80 }, children: [
+        new TextRun({ text: 'Compounded cost of inaction', bold: true, size: SZ_SUBSECTION, font: FONT, color: DARK }),
+      ]}))
+      children.push(new Table({
+        width: { size: 9840, type: WidthType.DXA }, columnWidths: [3280, 3280, 3280],
+        rows: [
+          new TableRow({ children: [
+            cell('Per month', { bold: true, bg: LIGHT, width: 3280, align: AlignmentType.CENTER }),
+            cell('Per quarter', { bold: true, bg: LIGHT, width: 3280, align: AlignmentType.CENTER }),
+            cell('Per year', { bold: true, bg: LIGHT, width: 3280, align: AlignmentType.CENTER }),
+          ]}),
+          new TableRow({ children: [
+            new TableCell({ borders, width: { size: 3280, type: WidthType.DXA }, margins: CELL_MARGINS, children: [
+              new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: `${fmtK(rc.recovery_low_usd)}\u2013${fmtK(rc.recovery_high_usd)}`, bold: true, size: SZ_SUBSECTION, font: FONT, color: GREEN })] }),
+              new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'Recovery estimate', size: SZ_SMALL, font: FONT, color: GRAY })] }),
+            ]}),
+            new TableCell({ borders, width: { size: 3280, type: WidthType.DXA }, margins: CELL_MARGINS, children: [
+              new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: `${fmtK(rc.quarterly_gap_low)}\u2013${fmtK(rc.quarterly_gap_high)}`, bold: true, size: SZ_SUBSECTION, font: FONT, color: GREEN })] }),
+              new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: '3 months unrealized', size: SZ_SMALL, font: FONT, color: GRAY })] }),
+            ]}),
+            new TableCell({ borders, width: { size: 3280, type: WidthType.DXA }, margins: CELL_MARGINS, children: [
+              new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: `${fmtK(rc.annual_gap_low)}\u2013${fmtK(rc.annual_gap_high)}`, bold: true, size: SZ_SUBSECTION, font: FONT, color: GREEN })] }),
+              new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: '12 months unrealized', size: SZ_SMALL, font: FONT, color: GRAY })] }),
+            ]}),
+          ]}),
+        ],
+      }))
+    }
+
+    // ── HOW TO REACH X% CAPACITY UTILIZATION (pre-assessment only) ──
+    if (isPre && rc && reportInput && rc.monthly_gap_usd > 0) {
+      const plantMaxDaily = reportInput.plant_capacity_m3_per_hour * reportInput.operating_hours_per_day
+      const fleetCeilingPct = plantMaxDaily > 0 ? Math.round((rc.target_daily_output_m3 / plantMaxDaily) * 100) : 0
+      const currentUtilPct = rc.utilisation_actual_pct
+      // Structural target: aim for a realistic practical ceiling (use fleet ceiling + 5-10 pts, capped at 85)
+      const structuralTargetPct = Math.min(85, fleetCeilingPct + 6)
+      const gapToStructural = structuralTargetPct - currentUtilPct
+      const radiusKm = Math.round((rc.target_tat_min - 60) / 3)
+      const radiusLabel = radiusKm < 10 ? 'under 10 km' : radiusKm < 20 ? '10-20 km' : `${radiusKm} km`
+      const tripsActualDec = (Math.round(rc.actual_trips_per_truck_per_day * 10) / 10).toFixed(1)
+      const tripsTargetDec = (Math.round(rc.target_trips_per_truck_per_day * 10) / 10).toFixed(1)
+      const actualTatMin = reportInput.avg_turnaround_min
+      // Structural adjustment: requires either more trucks, bigger mixers, or shorter radius
+      const needM3Day = Math.round(plantMaxDaily * structuralTargetPct / 100)
+      const addedTrucks = Math.max(1, Math.round((needM3Day - rc.target_daily_output_m3) / (rc.target_trips_per_truck_per_day * rc.avg_load_m3)))
+      const newTotalTrucks = reportInput.trucks_assigned + addedTrucks
+      const biggerMixerLoad = Math.round((needM3Day / (reportInput.trucks_assigned * rc.target_trips_per_truck_per_day)) * 10) / 10
+      const shorterRadius = Math.max(5, Math.round((((reportInput.operating_hours_per_day * 60) / (needM3Day / (reportInput.trucks_assigned * rc.avg_load_m3))) - 60) / 3))
+
+      children.push(new Paragraph({ spacing: { before: SP_BEFORE_SECTION, after: 80 }, children: [
+        new TextRun({ text: `How to reach ${structuralTargetPct}% capacity utilization`, bold: true, size: SZ_SUBSECTION, font: FONT, color: DARK }),
+      ]}))
+      children.push(new Table({
+        width: { size: 9840, type: WidthType.DXA }, columnWidths: [3280, 3280, 3280],
+        rows: [
+          new TableRow({ children: [
+            cell('Today', { bold: true, bg: LIGHT, width: 3280, align: AlignmentType.CENTER }),
+            cell('With operational improvements', { bold: true, bg: LIGHT, width: 3280, align: AlignmentType.CENTER }),
+            cell('With modest structural adjustments', { bold: true, bg: LIGHT, width: 3280, align: AlignmentType.CENTER }),
+          ]}),
+          new TableRow({ children: [
+            new TableCell({ borders, width: { size: 3280, type: WidthType.DXA }, margins: CELL_MARGINS, children: [
+              new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: `${currentUtilPct}%`, bold: true, size: SZ_SUBSECTION, font: FONT, color: RED })] }),
+              new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 60 }, children: [new TextRun({ text: `${radiusLabel} radius \u00B7 ${actualTatMin} min TAT`, size: SZ_SMALL, font: FONT, color: GRAY })] }),
+              new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 40 }, children: [new TextRun({ text: `${tripsActualDec} trips/truck/day`, size: SZ_SMALL, font: FONT, color: DARK })] }),
+            ]}),
+            new TableCell({ borders, width: { size: 3280, type: WidthType.DXA }, margins: CELL_MARGINS, children: [
+              new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: `${fleetCeilingPct}%`, bold: true, size: SZ_SUBSECTION, font: FONT, color: AMBER })] }),
+              new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 60 }, children: [new TextRun({ text: `${radiusLabel} radius \u00B7 ${rc.target_tat_min} min TAT`, size: SZ_SMALL, font: FONT, color: GRAY })] }),
+              new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 40 }, children: [new TextRun({ text: `${tripsTargetDec} trips/truck/day`, size: SZ_SMALL, font: FONT, color: DARK })] }),
+            ]}),
+            new TableCell({ borders, width: { size: 3280, type: WidthType.DXA }, margins: CELL_MARGINS, children: [
+              new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: `${structuralTargetPct}%`, bold: true, size: SZ_SUBSECTION, font: FONT, color: GREEN })] }),
+              new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 60 }, children: [new TextRun({ text: `${addedTrucks} trucks added, OR ${biggerMixerLoad} m\u00B3 avg load, OR ${shorterRadius} km radius`, size: SZ_SMALL, font: FONT, color: GRAY })] }),
+            ]}),
+          ]}),
+        ],
+      }))
+      children.push(new Paragraph({ spacing: { before: 80, after: 60 }, children: [
+        new TextRun({ text: `Reaching ${structuralTargetPct}% requires a modest structural adjustment beyond operational improvements. Three viable paths: ${addedTrucks} additional trucks (brings fleet to ${newTotalTrucks}), larger average mixer load (from ${rc.avg_load_m3.toFixed(2)} m\u00B3 to ~${biggerMixerLoad} m\u00B3), or tighter delivery radius (from ${radiusKm} km to ${shorterRadius} km). On-site assessment will establish which lever is most feasible for your operation.`, size: SZ_BODY, font: FONT, color: DARK }),
+      ]}))
+      children.push(new Paragraph({ spacing: { after: 120 }, children: [
+        new TextRun({ text: `+${gapToStructural} pts`, bold: true, size: SZ_BODY, font: FONT, color: GREEN }),
+        new TextRun({ text: '  Capacity utilization gap to close', size: SZ_SMALL, font: FONT, color: GRAY }),
       ]}))
     }
 
@@ -997,13 +1154,38 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
         new TextRun({ text: 'Pre-assessment figures are based on reported data. All calculations use material cost only. Fuel, labour and overhead not included.', size: SZ_SMALL, font: FONT, color: GRAY, italics: true }),
       ]}))
 
-      // A. Gap calculation table
+      // A. Margin used in this calculation
+      children.push(new Paragraph({ spacing: { before: 120, after: 80 }, children: [
+        new TextRun({ text: 'A. Margin used in this calculation', bold: true, size: SZ_BODY, font: FONT, color: DARK }),
+      ]}))
+      children.push(new Table({
+        width: { size: 9840, type: WidthType.DXA }, columnWidths: [5400, 4440],
+        rows: [
+          new TableRow({ children: [
+            cell('Selling price per m\u00B3', { width: 5400 }),
+            cell(`$${reportInput.selling_price_per_m3.toFixed(2)}`, { width: 4440, align: AlignmentType.RIGHT }),
+          ]}),
+          new TableRow({ children: [
+            cell('Raw material cost per m\u00B3', { width: 5400 }),
+            cell(`$${reportInput.material_cost_per_m3.toFixed(2)}`, { width: 4440, align: AlignmentType.RIGHT }),
+          ]}),
+          new TableRow({ children: [
+            cell('Material contribution per m\u00B3', { width: 5400, bold: true, bg: LIGHT }),
+            cell(`$${rc.contribution_margin_per_m3.toFixed(2)}`, { width: 4440, align: AlignmentType.RIGHT, bold: true, bg: LIGHT }),
+          ]}),
+        ],
+      }))
+      children.push(new Paragraph({ spacing: { before: 40, after: 160 }, children: [
+        new TextRun({ text: 'Material cost only. Fuel, labour and overhead not included.', size: SZ_SMALL, font: FONT, color: GRAY, italics: true }),
+      ]}))
+
+      // B. Gap calculation table
       const dailyGap = Math.max(0, rc.target_daily_output_m3 - rc.actual_daily_output_m3)
       const annualGap = dailyGap * reportInput.operating_days_per_year
       const monthlyGapDisplay = Math.round(annualGap / 12)
 
       children.push(new Paragraph({ spacing: { before: 120, after: 80 }, children: [
-        new TextRun({ text: 'A. Gap calculation', bold: true, size: SZ_BODY, font: FONT, color: DARK }),
+        new TextRun({ text: 'B. Gap calculation', bold: true, size: SZ_BODY, font: FONT, color: DARK }),
       ]}))
       children.push(new Table({
         width: { size: 9840, type: WidthType.DXA }, columnWidths: [5400, 4440],
@@ -1053,9 +1235,9 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
         new TextRun({ text: `The monthly output gap (~${monthlyGapDisplay.toLocaleString('en-US')} m\u00B3) is the point estimate within the range shown in the report (${rc.monthly_gap_m3_low.toLocaleString('en-US')}-${rc.monthly_gap_m3_high.toLocaleString('en-US')} m\u00B3). The band reflects pre-assessment data uncertainty of +/-15%.`, size: SZ_SMALL, font: FONT, color: GRAY, italics: true }),
       ]}))
 
-      // B. Recovery range basis table
+      // C. Recovery range basis table
       children.push(new Paragraph({ spacing: { before: 120, after: 80 }, children: [
-        new TextRun({ text: 'B. Recovery range basis', bold: true, size: SZ_BODY, font: FONT, color: DARK }),
+        new TextRun({ text: 'C. Recovery range basis', bold: true, size: SZ_BODY, font: FONT, color: DARK }),
       ]}))
       children.push(new Table({
         width: { size: 9840, type: WidthType.DXA }, columnWidths: [5400, 4440],
