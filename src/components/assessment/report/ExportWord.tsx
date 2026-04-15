@@ -505,7 +505,7 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
     const KPI_GREEN = '1A6644'
     const metricsRow = [
       { label: 'TURNAROUND', value: `${kpiTatActual} min`, sub: `target: ~${kpiTatTarget} min`, valueColor: kpiTatActual > kpiTatTarget ? RED : KPI_GREEN },
-      { label: 'UTILISATION', value: `${rc?.utilisation_actual_pct ?? dx.utilization_pct}%`, sub: 'target: ~85%', valueColor: (rc?.utilisation_actual_pct ?? dx.utilization_pct) < 85 ? RED : KPI_GREEN },
+      { label: 'UTILISATION', value: `${rc?.utilisation_actual_pct ?? dx.utilization_pct}%`, sub: `target: ~${rc?.utilisation_target_pct ?? 75}%`, valueColor: (rc?.utilisation_actual_pct ?? dx.utilization_pct) < (rc?.utilisation_target_pct ?? 75) ? RED : KPI_GREEN },
       { label: 'REJECTION', value: `${dx.reject_pct}%`, sub: 'target: <3%', valueColor: dx.reject_pct <= 3 ? KPI_GREEN : RED },
       { label: 'CONSTRAINT', value: isPre ? (constraintLabel.startsWith('Likely:') ? constraintLabel : `Likely: ${constraintLabel}`) : constraintLabel, sub: isPre ? (rc?.constraint_note || 'To be confirmed on-site') : `${fmtK(dx.main_driver.amount)}/month`, valueColor: DARK },
     ]
@@ -816,61 +816,76 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
     }
 
     // ── HOW TO REACH X% CAPACITY UTILIZATION (pre-assessment only) ──
+    // Two scenarios:
+    //   (A) Fleet-constrained: fleet cannot reach target → render 3-tier with structural levers
+    //   (B) Plant-constrained: fleet already exceeds target → render one-line note (no structural adjustment needed)
     if (isPre && rc && reportInput && rc.monthly_gap_usd > 0) {
       const plantMaxDaily = reportInput.plant_capacity_m3_per_hour * reportInput.operating_hours_per_day
       const fleetCeilingPct = plantMaxDaily > 0 ? Math.round((rc.target_daily_output_m3 / plantMaxDaily) * 100) : 0
       const currentUtilPct = rc.utilisation_actual_pct
-      // Structural target: aim for a realistic practical ceiling (use fleet ceiling + 5-10 pts, capped at 85)
-      const structuralTargetPct = Math.min(85, fleetCeilingPct + 6)
-      const gapToStructural = structuralTargetPct - currentUtilPct
-      const radiusKm = Math.round((rc.target_tat_min - 60) / 3)
-      const radiusLabel = radiusKm < 10 ? 'under 10 km' : radiusKm < 20 ? '10-20 km' : `${radiusKm} km`
-      const tripsActualDec = (Math.round(rc.actual_trips_per_truck_per_day * 10) / 10).toFixed(1)
-      const tripsTargetDec = (Math.round(rc.target_trips_per_truck_per_day * 10) / 10).toFixed(1)
-      const actualTatMin = reportInput.avg_turnaround_min
-      // Structural adjustment: requires either more trucks, bigger mixers, or shorter radius
-      const needM3Day = Math.round(plantMaxDaily * structuralTargetPct / 100)
-      const addedTrucks = Math.max(1, Math.round((needM3Day - rc.target_daily_output_m3) / (rc.target_trips_per_truck_per_day * rc.avg_load_m3)))
-      const newTotalTrucks = reportInput.trucks_assigned + addedTrucks
-      const biggerMixerLoad = Math.round((needM3Day / (reportInput.trucks_assigned * rc.target_trips_per_truck_per_day)) * 10) / 10
-      const shorterRadius = Math.max(5, Math.round((((reportInput.operating_hours_per_day * 60) / (needM3Day / (reportInput.trucks_assigned * rc.avg_load_m3))) - 60) / 3))
+      const targetPct = rc.utilisation_target_pct
 
-      children.push(new Paragraph({ spacing: { before: SP_BEFORE_SECTION, after: 80 }, children: [
-        new TextRun({ text: `How to reach ${structuralTargetPct}% capacity utilization`, bold: true, size: SZ_SUBSECTION, font: FONT, color: DARK }),
-      ]}))
-      children.push(new Table({
-        width: { size: 9840, type: WidthType.DXA }, columnWidths: [3280, 3280, 3280],
-        rows: [
-          new TableRow({ children: [
-            cell('Today', { bold: true, bg: LIGHT, width: 3280, align: AlignmentType.CENTER }),
-            cell('With operational improvements', { bold: true, bg: LIGHT, width: 3280, align: AlignmentType.CENTER }),
-            cell('With modest structural adjustments', { bold: true, bg: LIGHT, width: 3280, align: AlignmentType.CENTER }),
-          ]}),
-          new TableRow({ children: [
-            new TableCell({ borders, width: { size: 3280, type: WidthType.DXA }, margins: CELL_MARGINS, children: [
-              new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: `${currentUtilPct}%`, bold: true, size: SZ_SUBSECTION, font: FONT, color: RED })] }),
-              new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 60 }, children: [new TextRun({ text: `${radiusLabel} radius \u00B7 ${actualTatMin} min TAT`, size: SZ_SMALL, font: FONT, color: GRAY })] }),
-              new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 40 }, children: [new TextRun({ text: `${tripsActualDec} trips/truck/day`, size: SZ_SMALL, font: FONT, color: DARK })] }),
+      if (fleetCeilingPct >= targetPct) {
+        // Plant-constrained: no structural adjustment needed
+        children.push(new Paragraph({ spacing: { before: SP_BEFORE_SECTION, after: SP_AFTER_SECTION }, children: [
+          new TextRun({ text: 'Capacity outlook', bold: true, size: SZ_SUBSECTION, font: FONT, color: DARK }),
+        ]}))
+        children.push(new Paragraph({ spacing: { after: 120 }, children: [
+          new TextRun({ text: `At target turnaround time your plant will reach ${fleetCeilingPct}% utilisation, already exceeding the ${targetPct}% benchmark. Your current ${reportInput.trucks_assigned}-truck fleet is appropriately sized for the plant\u2019s capacity; no structural adjustment is required.`, size: SZ_BODY, font: FONT, color: DARK }),
+        ]}))
+      } else {
+        // Fleet-constrained: render 3-tier with structural levers
+        const structuralTargetPct = Math.min(targetPct, fleetCeilingPct + 6)
+        const gapToStructural = structuralTargetPct - currentUtilPct
+        const radiusKm = Math.round((rc.target_tat_min - 60) / 3)
+        const radiusLabel = radiusKm < 10 ? 'under 10 km' : radiusKm < 20 ? '10-20 km' : `${radiusKm} km`
+        const tripsActualDec = (Math.round(rc.actual_trips_per_truck_per_day * 10) / 10).toFixed(1)
+        const tripsTargetDec = (Math.round(rc.target_trips_per_truck_per_day * 10) / 10).toFixed(1)
+        const actualTatMin = reportInput.avg_turnaround_min
+        const needM3Day = Math.round(plantMaxDaily * structuralTargetPct / 100)
+        const addedTrucks = Math.max(1, Math.round((needM3Day - rc.target_daily_output_m3) / (rc.target_trips_per_truck_per_day * rc.avg_load_m3)))
+        const newTotalTrucks = reportInput.trucks_assigned + addedTrucks
+        const biggerMixerLoad = Math.round((needM3Day / (reportInput.trucks_assigned * rc.target_trips_per_truck_per_day)) * 10) / 10
+        const shorterRadius = Math.max(5, Math.round((((reportInput.operating_hours_per_day * 60) / (needM3Day / (reportInput.trucks_assigned * rc.avg_load_m3))) - 60) / 3))
+        const truckWord = addedTrucks === 1 ? 'truck' : 'trucks'
+
+        children.push(new Paragraph({ spacing: { before: SP_BEFORE_SECTION, after: 80 }, children: [
+          new TextRun({ text: `How to reach ${structuralTargetPct}% capacity utilisation`, bold: true, size: SZ_SUBSECTION, font: FONT, color: DARK }),
+        ]}))
+        children.push(new Table({
+          width: { size: 9840, type: WidthType.DXA }, columnWidths: [3280, 3280, 3280],
+          rows: [
+            new TableRow({ children: [
+              cell('Today', { bold: true, bg: LIGHT, width: 3280, align: AlignmentType.CENTER }),
+              cell('With operational improvements', { bold: true, bg: LIGHT, width: 3280, align: AlignmentType.CENTER }),
+              cell('With modest structural adjustments', { bold: true, bg: LIGHT, width: 3280, align: AlignmentType.CENTER }),
             ]}),
-            new TableCell({ borders, width: { size: 3280, type: WidthType.DXA }, margins: CELL_MARGINS, children: [
-              new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: `${fleetCeilingPct}%`, bold: true, size: SZ_SUBSECTION, font: FONT, color: AMBER })] }),
-              new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 60 }, children: [new TextRun({ text: `${radiusLabel} radius \u00B7 ${rc.target_tat_min} min TAT`, size: SZ_SMALL, font: FONT, color: GRAY })] }),
-              new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 40 }, children: [new TextRun({ text: `${tripsTargetDec} trips/truck/day`, size: SZ_SMALL, font: FONT, color: DARK })] }),
+            new TableRow({ children: [
+              new TableCell({ borders, width: { size: 3280, type: WidthType.DXA }, margins: CELL_MARGINS, children: [
+                new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: `${currentUtilPct}%`, bold: true, size: SZ_SUBSECTION, font: FONT, color: RED })] }),
+                new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 60 }, children: [new TextRun({ text: `${radiusLabel} radius \u00B7 ${actualTatMin} min TAT`, size: SZ_SMALL, font: FONT, color: GRAY })] }),
+                new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 40 }, children: [new TextRun({ text: `${tripsActualDec} trips/truck/day`, size: SZ_SMALL, font: FONT, color: DARK })] }),
+              ]}),
+              new TableCell({ borders, width: { size: 3280, type: WidthType.DXA }, margins: CELL_MARGINS, children: [
+                new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: `${fleetCeilingPct}%`, bold: true, size: SZ_SUBSECTION, font: FONT, color: AMBER })] }),
+                new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 60 }, children: [new TextRun({ text: `${radiusLabel} radius \u00B7 ${rc.target_tat_min} min TAT`, size: SZ_SMALL, font: FONT, color: GRAY })] }),
+                new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 40 }, children: [new TextRun({ text: `${tripsTargetDec} trips/truck/day`, size: SZ_SMALL, font: FONT, color: DARK })] }),
+              ]}),
+              new TableCell({ borders, width: { size: 3280, type: WidthType.DXA }, margins: CELL_MARGINS, children: [
+                new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: `${structuralTargetPct}%`, bold: true, size: SZ_SUBSECTION, font: FONT, color: GREEN })] }),
+                new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 60 }, children: [new TextRun({ text: `${addedTrucks} ${truckWord} added, OR ${biggerMixerLoad} m\u00B3 avg load, OR ${shorterRadius} km radius`, size: SZ_SMALL, font: FONT, color: GRAY })] }),
+              ]}),
             ]}),
-            new TableCell({ borders, width: { size: 3280, type: WidthType.DXA }, margins: CELL_MARGINS, children: [
-              new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: `${structuralTargetPct}%`, bold: true, size: SZ_SUBSECTION, font: FONT, color: GREEN })] }),
-              new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 60 }, children: [new TextRun({ text: `${addedTrucks} trucks added, OR ${biggerMixerLoad} m\u00B3 avg load, OR ${shorterRadius} km radius`, size: SZ_SMALL, font: FONT, color: GRAY })] }),
-            ]}),
-          ]}),
-        ],
-      }))
-      children.push(new Paragraph({ spacing: { before: 80, after: 60 }, children: [
-        new TextRun({ text: `Reaching ${structuralTargetPct}% requires a modest structural adjustment beyond operational improvements. Three viable paths: ${addedTrucks} additional trucks (brings fleet to ${newTotalTrucks}), larger average mixer load (from ${rc.avg_load_m3.toFixed(2)} m\u00B3 to ~${biggerMixerLoad} m\u00B3), or tighter delivery radius (from ${radiusKm} km to ${shorterRadius} km). On-site assessment will establish which lever is most feasible for your operation.`, size: SZ_BODY, font: FONT, color: DARK }),
-      ]}))
-      children.push(new Paragraph({ spacing: { after: 120 }, children: [
-        new TextRun({ text: `+${gapToStructural} pts`, bold: true, size: SZ_BODY, font: FONT, color: GREEN }),
-        new TextRun({ text: '  Capacity utilization gap to close', size: SZ_SMALL, font: FONT, color: GRAY }),
-      ]}))
+          ],
+        }))
+        children.push(new Paragraph({ spacing: { before: 80, after: 60 }, children: [
+          new TextRun({ text: `Reaching ${structuralTargetPct}% requires a modest structural adjustment beyond operational improvements. Three viable paths: ${addedTrucks} additional ${truckWord} (brings fleet to ${newTotalTrucks}), larger average mixer load (from ${rc.avg_load_m3.toFixed(2)} m\u00B3 to ~${biggerMixerLoad} m\u00B3), or tighter delivery radius (from ${radiusKm} km to ${shorterRadius} km). On-site assessment will establish which lever is most feasible for your operation.`, size: SZ_BODY, font: FONT, color: DARK }),
+        ]}))
+        children.push(new Paragraph({ spacing: { after: 120 }, children: [
+          new TextRun({ text: `+${gapToStructural} pts`, bold: true, size: SZ_BODY, font: FONT, color: GREEN }),
+          new TextRun({ text: '  Capacity utilisation gap to close', size: SZ_SMALL, font: FONT, color: GRAY }),
+        ]}))
+      }
     }
 
     // ════════════════════════════════════════════════════════════════════

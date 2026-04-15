@@ -135,7 +135,7 @@ export function calculateReport(input: ReportInput): ReportCalculations {
   let gap_driver: 'tat' | 'utilisation' | 'mixed'
   if (target_trips_per_truck_per_day <= actual_trips_per_truck_per_day) {
     // TAT is at/below target but utilisation gap exists — recalculate target from utilisation
-    target_trips_per_truck_per_day = Math.round(actual_trips_per_truck_per_day * (85 / Math.max(1, utilisation_pct_raw(input))) * 100) / 100
+    target_trips_per_truck_per_day = Math.round(actual_trips_per_truck_per_day * (75 / Math.max(1, utilisation_pct_raw(input))) * 100) / 100
     // Ensure target exceeds actual after adjustment
     if (target_trips_per_truck_per_day <= actual_trips_per_truck_per_day) {
       target_trips_per_truck_per_day = Math.round((actual_trips_per_truck_per_day + 0.5) * 100) / 100
@@ -195,7 +195,7 @@ export function calculateReport(input: ReportInput): ReportCalculations {
   const utilisation_actual_pct = plant_capacity_m3_per_hour > 0 && operating_hours_per_day > 0
     ? Math.round((actual_daily_output_m3 / (plant_capacity_m3_per_hour * operating_hours_per_day)) * 100)
     : 0
-  const utilisation_target_pct = 85
+  const utilisation_target_pct = 75
 
   // ── Rule 4: Constraint logic (priority order) ──
   const qiLower = queuing_and_idle.toLowerCase()
