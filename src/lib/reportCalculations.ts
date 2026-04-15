@@ -114,9 +114,9 @@ export function calculateReport(input: ReportInput): ReportCalculations {
   const contribution_margin_per_m3 = Math.max(0, selling_price_per_m3 - material_cost_per_m3)
   const op_days_per_month = Math.round(operating_days_per_year / 12)
 
-  // ── Avg load per trip ──
+  // ── Avg load per trip (2-decimal precision so display matches calculator check) ──
   const avg_load_m3 = total_trips_last_month > 0
-    ? Math.round((actual_production_last_month_m3 / total_trips_last_month) * 10) / 10
+    ? Math.round((actual_production_last_month_m3 / total_trips_last_month) * 100) / 100
     : 7 // default mixer capacity
 
   // ── Rule 1: TARGET_TAT with robust radius parsing ──
@@ -167,7 +167,11 @@ export function calculateReport(input: ReportInput): ReportCalculations {
     gap_driver = 'utilisation'
   }
 
-  const monthly_gap_m3 = Math.max(0, target_daily_output_m3 - actual_daily_output_m3) * op_days_per_month
+  // ── Monthly gap from annual basis (avoids Math.round(days/12) precision loss) ──
+  // op_days_per_month stays integer 25 for display; gap calc uses operating_days_per_year directly.
+  const daily_gap_m3 = Math.max(0, target_daily_output_m3 - actual_daily_output_m3)
+  const annual_gap_m3 = daily_gap_m3 * operating_days_per_year
+  const monthly_gap_m3 = annual_gap_m3 / 12
   const monthly_gap_usd = Math.round(monthly_gap_m3 * contribution_margin_per_m3 / 1000) * 1000
 
   // ── m³ ranges (pre-assessment uncertainty band, rounded to nearest 50 outward) ──
