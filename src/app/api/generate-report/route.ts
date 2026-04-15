@@ -513,6 +513,14 @@ Rejection rate: ${dx.reject_pct}% (target: <3%)
 Utilisation: ${dx.utilization_pct}% (target: 85%)
 Fleet: {{TRUCKS}} trucks assigned
 
+${rc?.has_external_constraint ? `EXTERNAL CONSTRAINT CONTEXT:
+This plant has reported external regulatory constraints. The main report benchmarks against normal operating conditions (TARGET_TAT). A separate regulatory caveat section will show near-term recovery under current restrictions.
+Your narrative must:
+1. Present the main gap ({{MONTHLY_GAP}}) as the full recovery potential under normal conditions
+2. Acknowledge that external constraints currently limit near-term recovery, but do not quantify this in the narrative (it is quantified in the caveat section)
+3. Frame the on-site assessment as the step that determines what is achievable now versus later
+Do not mention specific regulatory recovery figures in the narrative.
+` : ''}
 STRUCTURE — write exactly three paragraphs, maximum 120 words total:
 
 Paragraph 1: The mechanism behind {{CONSTRAINT}}, grounded in the qualitative inputs above. Use {{MONTHLY_GAP}} for the gap. Use {{RECOVERY_LOW}} to {{RECOVERY_HIGH}} for the recovery range. End with: "At this recovery range, the unaddressed gap compounds to {{QUARTERLY_LOW}}-{{QUARTERLY_HIGH}} over a quarter and {{ANNUAL_LOW}}-{{ANNUAL_HIGH}} over a year."

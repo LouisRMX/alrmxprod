@@ -3,7 +3,7 @@
  * Pure functions, zero side effects.
  */
 
-import type { ReportCalculations, ReportInput, ScenarioBCalculations } from './reportCalculations'
+import type { ReportCalculations, ReportInput } from './reportCalculations'
 
 function fmtCurrency(n: number): string {
   return '$' + Math.round(n).toLocaleString('en-US')
@@ -87,34 +87,4 @@ export function assembleBoldSummaryLine(rc: ReportCalculations, input: ReportInp
   const utilGapPct = targetM3 > 0 ? Math.round((gapM3 / targetM3) * 100) : 0
 
   return `Your plant produced ${input.actual_production_last_month_m3.toLocaleString('en-US')} m\u00B3 last month against a target of ${targetM3.toLocaleString('en-US')} m\u00B3. The ${gapM3.toLocaleString('en-US')} m\u00B3 shortfall represents ${utilGapPct}% of target capacity. This assessment will determine where this gap originates.`
-}
-
-/**
- * Build the deterministic bold summary line for Scenario B.
- */
-export function assembleScenarioBBoldLine(sb: ScenarioBCalculations, input: ReportInput): string {
-  const targetTripsTotal = Math.round(sb.target_trips_per_truck * input.trucks_assigned)
-  const actualTripsTotal = Math.round(input.total_trips_last_month / (Math.round(input.operating_days_per_year / 12)))
-  const missingTrips = Math.max(0, targetTripsTotal - actualTripsTotal)
-  const idlePct = targetTripsTotal > 0 ? Math.round((missingTrips / targetTripsTotal) * 100) : 0
-
-  return `Under normal operating conditions, your ${input.trucks_assigned} trucks would complete ${targetTripsTotal} trips per day at the ${sb.target_tat_min}-minute target. The current ${missingTrips} trip gap represents ${idlePct}% of that potential \u2014 addressable through operational improvements.`
-}
-
-/**
- * Replace Scenario B tokens in AI narrative.
- */
-export function replaceScenarioBTokens(text: string, sb: ScenarioBCalculations, input: ReportInput): string {
-  const map: Record<string, string> = {
-    '{{B_RECOVERY_LOW}}': fmtCurrency(sb.recovery_low_usd),
-    '{{B_RECOVERY_HIGH}}': fmtCurrency(sb.recovery_high_usd),
-    '{{B_MONTHLY_GAP}}': fmtCurrency(sb.monthly_gap_usd),
-    '{{B_TARGET_TRIPS}}': fmtDec(sb.target_trips_per_truck),
-    '{{B_TRUCKS}}': String(input.trucks_assigned),
-  }
-  let result = text
-  for (const [token, value] of Object.entries(map)) {
-    result = result.split(token).join(value)
-  }
-  return result
 }

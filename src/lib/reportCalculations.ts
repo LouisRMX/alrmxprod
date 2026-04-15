@@ -49,24 +49,15 @@ export interface ReportCalculations {
   annual_gap_low: number
   annual_gap_high: number
   has_external_constraint: boolean
-  scenario_b: ScenarioBCalculations | null
+  regulatory_scenario: RegulatoryScenario | null
 }
 
-export interface ScenarioBCalculations {
-  label: string
-  basis: string
-  target_tat_min: number
-  target_trips_per_truck: number
-  target_daily_output_m3: number
-  target_monthly_output_m3: number
+export interface RegulatoryScenario {
   monthly_gap_usd: number
   recovery_low_usd: number
   recovery_high_usd: number
-  monthly_margin_target: number
-  quarterly_gap_low: number
-  quarterly_gap_high: number
-  annual_gap_low: number
-  annual_gap_high: number
+  basis: string
+  ban_hours: number
 }
 
 const RADIUS_MAP: Record<string, number> = {
@@ -237,36 +228,32 @@ export function calculateReport(input: ReportInput): ReportCalculations {
     /movement ban|movement restriction|truck ban|traffic police|road block|road closure|traffic restriction|\bban\b/.test(bocLower) ||
     (/traffic/.test(bocLower) && /hours?/.test(bocLower))
 
-  // ── Scenario B: normal operations without external constraint ──
-  let scenario_b: ScenarioBCalculations | null = null
+  // ── Regulatory scenario: near-term recovery under current restrictions ──
+  let regulatory_scenario: RegulatoryScenario | null = null
   if (has_external_constraint) {
-    // Scenario B uses TARGET_TAT without 0.85 factor (theoretical max under normal conditions)
-    const bTripsPerTruck = target_tat_min > 0
-      ? Math.round(((operating_hours_per_day * 60) / target_tat_min) * 100) / 100
-      : 0
-    const bDailyOutput = Math.round(bTripsPerTruck * trucks_assigned * avg_load_m3)
-    const bTargetMonthly = bDailyOutput * op_days_per_month
-    const bGapM3 = Math.max(0, bDailyOutput - actual_daily_output_m3) * op_days_per_month
-    const bGapUsd = Math.round(bGapM3 * contribution_margin_per_m3 / 1000) * 1000
-    const bRecLo = Math.round(bGapUsd * 0.4 / 1000) * 1000
-    const bRecHi = Math.round(bGapUsd * 0.65 / 1000) * 1000
-    const bMarginTarget = Math.round(bTargetMonthly * contribution_margin_per_m3 / 1000) * 1000
+    // Extract ban hours from challenge text, default to 4
+    const banMatch = biggest_operational_challenge.match(/(\d+)\s*hours?/i)
+    const ban_hours = banMatch ? parseInt(banMatch[1], 10) : 4
 
-    scenario_b = {
-      label: 'Scenario B: Normal operating conditions',
-      basis: `Assumes no regulatory movement restrictions. Based on target TAT of ${target_tat_min} min for this delivery zone. Actual performance data unchanged.`,
-      target_tat_min,
-      target_trips_per_truck: bTripsPerTruck,
-      target_daily_output_m3: bDailyOutput,
-      target_monthly_output_m3: bTargetMonthly,
-      monthly_gap_usd: bGapUsd,
-      recovery_low_usd: bRecLo,
-      recovery_high_usd: bRecHi,
-      monthly_margin_target: bMarginTarget,
-      quarterly_gap_low: Math.round(bRecLo * 3 / 1000) * 1000,
-      quarterly_gap_high: Math.round(bRecHi * 3 / 1000) * 1000,
-      annual_gap_low: Math.round(bRecLo * 12 / 1000) * 1000,
-      annual_gap_high: Math.round(bRecHi * 12 / 1000) * 1000,
+    // Effective hours = operating hours minus half the ban hours
+    // (0.5 factor: not all ban hours directly remove productive capacity)
+    const effective_hours = operating_hours_per_day - (ban_hours * 0.5)
+    const effective_trips = avg_turnaround_min > 0
+      ? (effective_hours * 60) / avg_turnaround_min
+      : 0
+    const effective_daily_output = Math.round(effective_trips * trucks_assigned * avg_load_m3)
+
+    const reg_gap_m3 = Math.max(0, target_daily_output_m3 - effective_daily_output) * op_days_per_month
+    const reg_gap_usd = Math.round(reg_gap_m3 * contribution_margin_per_m3 / 1000) * 1000
+    const reg_rec_lo = Math.round(reg_gap_usd * 0.4 / 1000) * 1000
+    const reg_rec_hi = Math.round(reg_gap_usd * 0.65 / 1000) * 1000
+
+    regulatory_scenario = {
+      monthly_gap_usd: reg_gap_usd,
+      recovery_low_usd: reg_rec_lo,
+      recovery_high_usd: reg_rec_hi,
+      ban_hours,
+      basis: `Estimates ${ban_hours}-hour daily movement restriction reducing effective operating capacity. Recovery range reflects operational improvements within current regulatory constraints.`,
     }
   }
 
@@ -296,7 +283,7 @@ export function calculateReport(input: ReportInput): ReportCalculations {
     annual_gap_low,
     annual_gap_high,
     has_external_constraint,
-    scenario_b,
+    regulatory_scenario,
   }
 }
 

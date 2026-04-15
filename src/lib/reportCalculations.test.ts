@@ -259,38 +259,47 @@ describe('calculateReport', () => {
 
   })
 
-  describe('Scenario B — external constraint detection', () => {
+  describe('Regulatory scenario — external constraint detection', () => {
     it('has_external_constraint = true for movement ban', () => {
       const input = { ...PLANT_A, biggest_operational_challenge: 'Trucks movement Ban in riyadh which is 7 Hours per day' }
       const r = calculateReport(input)
       expect(r.has_external_constraint).toBe(true)
-      expect(r.scenario_b).not.toBeNull()
-      expect(r.scenario_b!.recovery_low_usd).toBeGreaterThan(0)
-      expect(r.scenario_b!.recovery_high_usd).toBeGreaterThan(r.scenario_b!.recovery_low_usd)
+      expect(r.regulatory_scenario).not.toBeNull()
+      expect(r.regulatory_scenario!.recovery_low_usd).toBeGreaterThanOrEqual(0)
+      expect(r.regulatory_scenario!.recovery_high_usd).toBeGreaterThan(r.regulatory_scenario!.recovery_low_usd)
     })
 
     it('has_external_constraint = false for Plant A (site waiting)', () => {
       const r = calculateReport(PLANT_A)
       expect(r.has_external_constraint).toBe(false)
-      expect(r.scenario_b).toBeNull()
+      expect(r.regulatory_scenario).toBeNull()
     })
 
     it('has_external_constraint = false for Plant C (site access, no ban)', () => {
       const r = calculateReport(PLANT_C)
       expect(r.has_external_constraint).toBe(false)
-      expect(r.scenario_b).toBeNull()
+      expect(r.regulatory_scenario).toBeNull()
     })
 
-    it('Scenario B calculations are internally consistent', () => {
+    it('regulatory_scenario internal consistency', () => {
       const input = { ...PLANT_A, biggest_operational_challenge: 'Trucks movement Ban in riyadh which is 7 Hours per day' }
       const r = calculateReport(input)
-      const sb = r.scenario_b!
-      expect(sb.recovery_low_usd).toBe(Math.round(sb.monthly_gap_usd * 0.4 / 1000) * 1000)
-      expect(sb.recovery_high_usd).toBe(Math.round(sb.monthly_gap_usd * 0.65 / 1000) * 1000)
-      expect(sb.quarterly_gap_low).toBe(Math.round(sb.recovery_low_usd * 3 / 1000) * 1000)
-      expect(sb.quarterly_gap_high).toBe(Math.round(sb.recovery_high_usd * 3 / 1000) * 1000)
-      expect(sb.annual_gap_low).toBe(Math.round(sb.recovery_low_usd * 12 / 1000) * 1000)
-      expect(sb.annual_gap_high).toBe(Math.round(sb.recovery_high_usd * 12 / 1000) * 1000)
+      const reg = r.regulatory_scenario!
+      expect(reg.recovery_low_usd).toBe(Math.round(reg.monthly_gap_usd * 0.4 / 1000) * 1000)
+      expect(reg.recovery_high_usd).toBe(Math.round(reg.monthly_gap_usd * 0.65 / 1000) * 1000)
+      expect(reg.recovery_high_usd).toBeGreaterThan(reg.recovery_low_usd)
+    })
+
+    it('ban_hours extraction: specific hours', () => {
+      const input = { ...PLANT_A, biggest_operational_challenge: 'movement ban of 7 hours per day' }
+      const r = calculateReport(input)
+      expect(r.regulatory_scenario!.ban_hours).toBe(7)
+    })
+
+    it('ban_hours extraction: default when no hours mentioned', () => {
+      const input = { ...PLANT_A, biggest_operational_challenge: 'movement ban in riyadh' }
+      const r = calculateReport(input)
+      expect(r.regulatory_scenario!.ban_hours).toBe(4)
     })
   })
 
