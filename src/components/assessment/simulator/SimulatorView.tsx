@@ -164,9 +164,9 @@ export default function SimulatorView({ calcResult, readOnly, reportInput, rc }:
       const targetTA = result.prodDaily > 0
         ? Math.max(40, Math.round(baseline.opH * 60 * sTrucks * sAvgLoad / result.prodDaily))
         : sTurnaround
-      return `Fleet is the active constraint, delivering ${Math.round(result.effFleetDaily)} m\u00B3/day but plant can produce ${Math.round(result.prodDaily)} m\u00B3/day (${gap} m\u00B3/day idle capacity). Reducing turnaround to ~${targetTA} min unlocks that gap without adding trucks.`
+      return `Fleet is the active constraint, delivering ${Math.round(result.effFleetDaily)} m³/day but plant can produce ${Math.round(result.prodDaily)} m³/day (${gap} m³/day idle capacity). Reducing turnaround to ~${targetTA} min unlocks that gap without adding trucks.`
     }
-    return `Plant is running at full capacity (${Math.round(result.prodDaily)} m\u00B3/day), adding trucks or cutting turnaround will not increase output from here. Use the Price slider to grow revenue on existing volume, or invest in plant capacity expansion.`
+    return `Plant is running at full capacity (${Math.round(result.prodDaily)} m³/day), adding trucks or cutting turnaround will not increase output from here. Use the Price slider to grow revenue on existing volume, or invest in plant capacity expansion.`
   }, [result, baseline, sTurnaround, sTrucks, sAvgLoad])
 
   const resetAll = () => {
@@ -232,7 +232,7 @@ export default function SimulatorView({ calcResult, readOnly, reportInput, rc }:
           fontSize: '12px', color: 'var(--phase-workshop)',
           display: 'flex', alignItems: 'center', gap: '8px',
         }}>
-          <span>\ud83d\udcca</span>
+          <span>📊</span>
           <span>Exploring scenarios, assessment data is not changed</span>
         </div>
       )}
@@ -270,7 +270,7 @@ export default function SimulatorView({ calcResult, readOnly, reportInput, rc }:
               fontFamily: 'var(--font)',
             }}
           >
-            \u24D8
+            ⓘ
           </button>
           <button
             type="button"
@@ -300,14 +300,14 @@ export default function SimulatorView({ calcResult, readOnly, reportInput, rc }:
             <Slider label="Turnaround time" value={sTurnaround} min={60} max={240} step={1} baselineValue={baseline.turnaround || 90} unit="min" onChange={setSTurnaround} />
             {marginalTA > MARGINAL_THRESHOLD && (
               <div style={{ fontSize: '11px', color: 'var(--gray-400)', marginTop: '-10px', marginBottom: '10px', textAlign: 'right' }}>
-                \u22121 min \u2192 +{fmtMarginal(marginalTA)}/yr contribution
+                −1 min → +{fmtMarginal(marginalTA)}/yr contribution
               </div>
             )}
 
             <Slider label="Delivery radius" value={sRadius} min={3} max={50} step={1} baselineValue={baseline.deliveryRadius || 15} unit="km" onChange={setSRadius} />
             {marginalRadius > MARGINAL_THRESHOLD && (
               <div style={{ fontSize: '11px', color: 'var(--gray-400)', marginTop: '-10px', marginBottom: '10px', textAlign: 'right' }}>
-                \u22121 km \u2192 +{fmtMarginal(marginalRadius)}/yr contribution
+                −1 km → +{fmtMarginal(marginalRadius)}/yr contribution
               </div>
             )}
 
@@ -320,14 +320,14 @@ export default function SimulatorView({ calcResult, readOnly, reportInput, rc }:
             <Slider label="Fleet size" value={sTrucks} min={1} max={Math.max(baseline.trucks * 2, 20)} step={1} baselineValue={baseline.trucks || 10} unit="trucks" onChange={setSTrucks} />
             {marginalTrucks > MARGINAL_THRESHOLD && (
               <div style={{ fontSize: '11px', color: 'var(--gray-400)', marginTop: '-10px', marginBottom: '10px', textAlign: 'right' }}>
-                +1 truck \u2192 +{fmtMarginal(marginalTrucks)}/yr contribution
+                +1 truck → +{fmtMarginal(marginalTrucks)}/yr contribution
               </div>
             )}
 
-            <Slider label="Avg load per trip" value={sAvgLoad} min={5} max={10} step={0.1} baselineValue={baseline.avgLoadM3 || 7} unit="m\u00B3" onChange={setSAvgLoad} />
+            <Slider label="Avg load per trip" value={sAvgLoad} min={5} max={10} step={0.1} baselineValue={baseline.avgLoadM3 || 7} unit="m³" onChange={setSAvgLoad} />
             {marginalLoad > MARGINAL_THRESHOLD && (
               <div style={{ fontSize: '11px', color: 'var(--gray-400)', marginTop: '-10px', marginBottom: '10px', textAlign: 'right' }}>
-                +0.5 m\u00B3 \u2192 +{fmtMarginal(marginalLoad)}/yr contribution
+                +0.5 m³ → +{fmtMarginal(marginalLoad)}/yr contribution
               </div>
             )}
           </div>
@@ -336,17 +336,17 @@ export default function SimulatorView({ calcResult, readOnly, reportInput, rc }:
           <div style={groupStyle}>
             <div style={groupTitle}>Commercial</div>
 
-            <Slider label="Selling price" value={sPrice} min={20} max={150} step={0.5} baselineValue={baseline.price || 65} unit="$/m\u00B3" onChange={setSPrice} />
+            <Slider label="Selling price" value={sPrice} min={20} max={150} step={0.5} baselineValue={baseline.price || 65} unit="$/m³" onChange={setSPrice} />
             {Math.abs(marginalPrice) > MARGINAL_THRESHOLD && (
               <div style={{ fontSize: '11px', color: 'var(--gray-400)', marginTop: '-10px', marginBottom: '10px', textAlign: 'right' }}>
-                +$1/m\u00B3 \u2192 +{fmtMarginal(marginalPrice)}/yr contribution
+                +$1/m³ → +{fmtMarginal(marginalPrice)}/yr contribution
               </div>
             )}
 
-            <Slider label="Material cost" value={sMaterialCost} min={10} max={100} step={0.5} baselineValue={baseline.materialCost || 35} unit="$/m\u00B3" onChange={setSMaterialCost} />
+            <Slider label="Material cost" value={sMaterialCost} min={10} max={100} step={0.5} baselineValue={baseline.materialCost || 35} unit="$/m³" onChange={setSMaterialCost} />
             {marginalMaterial > MARGINAL_THRESHOLD && (
               <div style={{ fontSize: '11px', color: 'var(--gray-400)', marginTop: '-10px', marginBottom: '10px', textAlign: 'right' }}>
-                \u2212$1/m\u00B3 \u2192 +{fmtMarginal(marginalMaterial)}/yr contribution
+                −$1/m³ → +{fmtMarginal(marginalMaterial)}/yr contribution
               </div>
             )}
 
@@ -358,7 +358,7 @@ export default function SimulatorView({ calcResult, readOnly, reportInput, rc }:
             }}>
               <span style={{ fontSize: '11px', color: 'var(--gray-600)' }}>Contribution margin</span>
               <span style={{ fontSize: '14px', fontWeight: 600, fontFamily: 'var(--mono)', color: sContrib > 0 ? 'var(--green)' : 'var(--red)' }}>
-                ${sContrib.toFixed(2)}/m\u00B3
+                ${sContrib.toFixed(2)}/m³
               </span>
             </div>
           </div>
@@ -370,7 +370,7 @@ export default function SimulatorView({ calcResult, readOnly, reportInput, rc }:
             <Slider label="Rejection rate" value={sReject} min={0} max={10} step={0.1} baselineValue={baseline.rejectPct || 0} unit="%" onChange={setSReject} />
             {marginalReject > MARGINAL_THRESHOLD && (
               <div style={{ fontSize: '11px', color: 'var(--gray-400)', marginTop: '-10px', marginBottom: '10px', textAlign: 'right' }}>
-                \u22120.5pp \u2192 +{fmtMarginal(marginalReject)}/yr savings
+                −0.5pp → +{fmtMarginal(marginalReject)}/yr savings
               </div>
             )}
           </div>
@@ -385,7 +385,7 @@ export default function SimulatorView({ calcResult, readOnly, reportInput, rc }:
             }}>
               {simWarnings.map((w, i) => (
                 <div key={i} style={{ fontSize: '11px', color: 'var(--warning-dark)', lineHeight: 1.5, marginBottom: i < simWarnings.length - 1 ? '4px' : 0 }}>
-                  \u26A0 {w}
+                  ⚠ {w}
                 </div>
               ))}
             </div>
@@ -404,10 +404,10 @@ export default function SimulatorView({ calcResult, readOnly, reportInput, rc }:
               fontSize: '26px', fontWeight: 600, fontFamily: 'var(--mono)', marginTop: '4px',
               color: deltaPositive ? 'var(--green)' : result.deltaVol < 0 ? 'var(--red)' : 'var(--gray-500)',
             }}>
-              {result.deltaVol > 0 ? '+' : ''}{result.deltaVol.toLocaleString()} m\u00B3
+              {result.deltaVol > 0 ? '+' : ''}{result.deltaVol.toLocaleString()} m³
             </div>
             <div style={{ fontSize: '12px', color: 'var(--gray-500)', marginTop: '4px' }}>
-              Scenario: {result.scenarioAnnual.toLocaleString()} m\u00B3/year \u00B7 {result.scenarioMonthly.toLocaleString()} m\u00B3/month
+              Scenario: {result.scenarioAnnual.toLocaleString()} m³/year \u00B7 {result.scenarioMonthly.toLocaleString()} m³/month
             </div>
           </div>
 
@@ -479,11 +479,11 @@ export default function SimulatorView({ calcResult, readOnly, reportInput, rc }:
             </div>
             <div style={{ display: 'flex', gap: '8px', marginBottom: '4px' }}>
               <span style={{ fontSize: '12px', color: 'var(--gray-500)', width: '110px' }}>Production:</span>
-              <span style={{ fontSize: '12px', fontFamily: 'var(--mono)' }}>{Math.round(result.prodDaily).toLocaleString()} m\u00B3/day</span>
+              <span style={{ fontSize: '12px', fontFamily: 'var(--mono)' }}>{Math.round(result.prodDaily).toLocaleString()} m³/day</span>
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
               <span style={{ fontSize: '12px', color: 'var(--gray-500)', width: '110px' }}>Fleet cap:</span>
-              <span style={{ fontSize: '12px', fontFamily: 'var(--mono)' }}>{Math.round(result.effFleetDaily).toLocaleString()} m\u00B3/day</span>
+              <span style={{ fontSize: '12px', fontFamily: 'var(--mono)' }}>{Math.round(result.effFleetDaily).toLocaleString()} m³/day</span>
             </div>
 
             {result.maxUtilPct < result.sUtil ? (
@@ -492,7 +492,7 @@ export default function SimulatorView({ calcResult, readOnly, reportInput, rc }:
                 background: 'var(--warning-bg)', border: '1px solid var(--warning-border)',
                 fontSize: '11px', color: 'var(--warning-dark)', lineHeight: 1.5,
               }}>
-                \u26A0 Fleet limits utilisation to {result.maxUtilPct}% at this turnaround, shorten turnaround or add trucks to raise it
+                ⚠ Fleet limits utilisation to {result.maxUtilPct}% at this turnaround, shorten turnaround or add trucks to raise it
               </div>
             ) : result.maxUtilPct > result.sUtil ? (
               <div style={{
@@ -500,7 +500,7 @@ export default function SimulatorView({ calcResult, readOnly, reportInput, rc }:
                 background: 'var(--phase-complete-bg)', border: '1px solid var(--tooltip-border)',
                 fontSize: '11px', color: 'var(--phase-complete)', lineHeight: 1.5,
               }}>
-                \u2713 Fleet can support up to {result.maxUtilPct}% utilisation at this turnaround, plant is the binding constraint
+                ✓ Fleet can support up to {result.maxUtilPct}% utilisation at this turnaround, plant is the binding constraint
               </div>
             ) : null}
 
@@ -529,7 +529,7 @@ export default function SimulatorView({ calcResult, readOnly, reportInput, rc }:
               </div>
 
               <TransparencyRow label="Plant capacity"
-                value={`${baseline.cap} m\u00B3/hr${baseline.numberOfPlants > 1 ? ` (${baseline.numberOfPlants} plants)` : ''}`}
+                value={`${baseline.cap} m³/hr${baseline.numberOfPlants > 1 ? ` (${baseline.numberOfPlants} plants)` : ''}`}
                 provenance={getProvenance(baseline.provenance, 'plant_capacity_m3_per_hour')} />
               <TransparencyRow label="Operating hours"
                 value={`${baseline.opH} hrs/day`}
@@ -539,10 +539,10 @@ export default function SimulatorView({ calcResult, readOnly, reportInput, rc }:
                 provenance={getProvenance(baseline.provenance, 'operating_days_per_year')} />
               <TransparencyRow label="Current utilisation"
                 value={`${baseline.util}%`}
-                provenance={{ type: 'calculated', formula: 'actual output \u00F7 plant capacity' }} />
+                provenance={{ type: 'calculated', formula: 'actual output ÷ plant capacity' }} />
               <TransparencyRow label="Contribution margin"
-                value={`$${baseline.contrib.toFixed(2)}/m\u00B3`}
-                provenance={{ type: 'calculated', formula: `$${baseline.price.toFixed(2)} \u2212 $${baseline.materialCost.toFixed(2)}` }} />
+                value={`$${baseline.contrib.toFixed(2)}/m³`}
+                provenance={{ type: 'calculated', formula: `$${baseline.price.toFixed(2)} − $${baseline.materialCost.toFixed(2)}` }} />
 
               {baseline.dispatchTool && (
                 <TransparencyRow label="Dispatch tool"
@@ -593,28 +593,28 @@ export default function SimulatorView({ calcResult, readOnly, reportInput, rc }:
                 onClick={() => setShowInfo(false)}
                 style={{ background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer', color: 'var(--gray-400)', lineHeight: 1 }}
               >
-                \u00D7
+                ×
               </button>
             </div>
 
             <div style={{ fontSize: '11px', color: 'var(--gray-600)', lineHeight: 1.7 }}>
               <p style={{ marginBottom: '10px' }}>
-                <strong>Scenario fleet:</strong> {sTrucks} trucks \u00D7 ({baseline.opH}h \u00D7 60 \u00F7 {sTurnaround} min) \u00D7 {sAvgLoad.toFixed(2)} m\u00B3 = {Math.round(result.effFleetDaily).toLocaleString()} m\u00B3/day.
+                <strong>Scenario fleet:</strong> {sTrucks} trucks × ({baseline.opH}h × 60 ÷ {sTurnaround} min) × {sAvgLoad.toFixed(2)} m³ = {Math.round(result.effFleetDaily).toLocaleString()} m³/day.
               </p>
               <p style={{ marginBottom: '10px' }}>
-                <strong>Plant ceiling:</strong> {baseline.cap} m\u00B3/hr \u00D7 92% \u00D7 {baseline.opH} hr = {Math.round(result.prodDaily).toLocaleString()} m\u00B3/day.
+                <strong>Plant ceiling:</strong> {baseline.cap} m³/hr × 92% × {baseline.opH} hr = {Math.round(result.prodDaily).toLocaleString()} m³/day.
               </p>
               <p style={{ marginBottom: '10px' }}>
-                <strong>Scenario output:</strong> min(fleet, plant) = {Math.round(result.effFleetDaily < result.prodDaily ? result.effFleetDaily : result.prodDaily).toLocaleString()} m\u00B3/day \u00D7 {baseline.opD} days = {result.scenarioAnnual.toLocaleString()} m\u00B3/yr.
+                <strong>Scenario output:</strong> min(fleet, plant) = {Math.round(result.effFleetDaily < result.prodDaily ? result.effFleetDaily : result.prodDaily).toLocaleString()} m³/day × {baseline.opD} days = {result.scenarioAnnual.toLocaleString()} m³/yr.
               </p>
               <p style={{ marginBottom: '10px' }}>
-                <strong>Scenario target TAT:</strong> 60 min handling + ({sRadius} km \u00D7 1.5 min/km \u00D7 2) = {result.scenarioTargetTA} min.
+                <strong>Scenario target TAT:</strong> 60 min handling + ({sRadius} km × 1.5 min/km × 2) = {result.scenarioTargetTA} min.
               </p>
               <p style={{ marginBottom: '10px' }}>
-                <strong>Scenario contribution:</strong> ${sPrice.toFixed(2)} \u2212 ${sMaterialCost.toFixed(2)} = ${sContrib.toFixed(2)}/m\u00B3.
+                <strong>Scenario contribution:</strong> ${sPrice.toFixed(2)} − ${sMaterialCost.toFixed(2)} = ${sContrib.toFixed(2)}/m³.
               </p>
               <p style={{ marginBottom: '10px' }}>
-                <strong>Contribution upside:</strong> {result.scenarioAnnual.toLocaleString()} \u00D7 ${sContrib.toFixed(2)} \u2212 baseline total = {result.contribUpside >= 0 ? '+' : ''}{fmt(result.contribUpside)}/yr.
+                <strong>Contribution upside:</strong> {result.scenarioAnnual.toLocaleString()} × ${sContrib.toFixed(2)} − baseline total = {result.contribUpside >= 0 ? '+' : ''}{fmt(result.contribUpside)}/yr.
               </p>
               <p style={{ marginBottom: '10px' }}>
                 <strong>Rejection impact:</strong> at {sReject}% vs baseline {baseline.rejectPct}%, monthly delta = {result.rejectDelta >= 0 ? '+' : ''}{fmt(result.rejectDelta)}/mo in material cost.
