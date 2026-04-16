@@ -106,6 +106,21 @@ export default function SimulatorView({ calcResult, readOnly, reportInput, rc }:
     rejectPct: sReject,
   }), [sTurnaround, sRadius, sTrucks, sAvgLoad, sPrice, sMaterialCost, sReject])
 
+  /**
+   * Radius change handler: couples TAT to radius so the radius slider has
+   * real volume/financial impact. When radius changes, the travel portion
+   * of TAT changes proportionally (3 min per km, round-trip at 1.5 min/km).
+   * Plant/site handling time is assumed constant.
+   *
+   * The customer can still manually move the TAT slider further to simulate
+   * pure operational improvements on top of the geographic change.
+   */
+  const handleRadiusChange = (newRadius: number) => {
+    const travelDelta = (newRadius - sRadius) * 3
+    setSRadius(newRadius)
+    setSTurnaround(prev => Math.max(60, Math.round(prev + travelDelta)))
+  }
+
   const result = useMemo(() => {
     if (baseline.cap === 0) return null
     return simCalc(baseline, scenario)
@@ -122,9 +137,14 @@ export default function SimulatorView({ calcResult, readOnly, reportInput, rc }:
 
   const marginalRadius = useMemo(() => {
     if (!result || sRadius <= 3) return 0
-    const r2 = simCalc(baseline, { ...scenario, deliveryRadius: sRadius - 1 })
+    // Coupled: reducing radius by 1 km also reduces TAT by 3 min (travel only)
+    const r2 = simCalc(baseline, {
+      ...scenario,
+      deliveryRadius: sRadius - 1,
+      turnaround: Math.max(60, sTurnaround - 3),
+    })
     return r2.contribUpside - result.contribUpside
-  }, [baseline, scenario, result, sRadius])
+  }, [baseline, scenario, result, sRadius, sTurnaround])
 
   const marginalTrucks = useMemo(() => {
     if (!result) return 0
@@ -304,7 +324,7 @@ export default function SimulatorView({ calcResult, readOnly, reportInput, rc }:
               </div>
             )}
 
-            <Slider label="Delivery radius" value={sRadius} min={3} max={50} step={1} baselineValue={baseline.deliveryRadius || 15} unit="km" onChange={setSRadius} />
+            <Slider label="Delivery radius" value={sRadius} min={3} max={50} step={1} baselineValue={baseline.deliveryRadius || 15} unit="km" onChange={handleRadiusChange} />
             {marginalRadius > MARGINAL_THRESHOLD && (
               <div style={{ fontSize: '11px', color: 'var(--gray-400)', marginTop: '-10px', marginBottom: '10px', textAlign: 'right' }}>
                 −1 km → +{fmtMarginal(marginalRadius / 12)}/mo contribution
