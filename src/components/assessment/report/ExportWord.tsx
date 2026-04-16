@@ -884,10 +884,75 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
         children.push(new Paragraph({ spacing: { before: 80, after: 60 }, children: [
           new TextRun({ text: `Reaching ${structuralTargetPct}% requires a modest structural adjustment beyond operational improvements. Three viable paths: ${addedTrucks} additional ${truckWord} (brings fleet to ${newTotalTrucks}), larger average mixer load (from ${rc.avg_load_m3.toFixed(2)} m\u00B3 to ~${biggerMixerLoad} m\u00B3), or tighter delivery radius (from ${radiusKm} km to ${shorterRadius} km). On-site assessment will establish which lever is most feasible for your operation.`, size: SZ_BODY, font: FONT, color: DARK }),
         ]}))
-        children.push(new Paragraph({ spacing: { after: 120 }, children: [
+        children.push(new Paragraph({ spacing: { after: 160 }, children: [
           new TextRun({ text: `+${gapToStructural} pts`, bold: true, size: SZ_BODY, font: FONT, color: GREEN }),
           new TextRun({ text: '  Capacity utilisation gap to close', size: SZ_SMALL, font: FONT, color: GRAY }),
         ]}))
+
+        // ── Full transparency summary table ──
+        // Shows daily output, monthly contribution, full gap, and realistic recovery
+        // for all three tiers side-by-side. Reader can verify every number.
+        const actualDaily = rc.actual_daily_output_m3
+        const opDailyOutput = rc.target_daily_output_m3
+        const structDailyOutput = Math.round(plantMaxDaily * structuralTargetPct / 100)
+        const actualMonthly = Math.round(actualDaily * reportInput.operating_days_per_year / 12)
+        const opMonthly = Math.round(opDailyOutput * reportInput.operating_days_per_year / 12)
+        const structMonthly = Math.round(structDailyOutput * reportInput.operating_days_per_year / 12)
+        const actualContribution = Math.round(actualMonthly * rc.contribution_margin_per_m3 / 1000) * 1000
+        const opContribution = Math.round(opMonthly * rc.contribution_margin_per_m3 / 1000) * 1000
+        const structContribution = Math.round(structMonthly * rc.contribution_margin_per_m3 / 1000) * 1000
+        const opGain = opContribution - actualContribution
+        const structGain = structContribution - actualContribution
+        const opRecoveryLo = Math.round(opGain * 0.4 / 1000) * 1000
+        const opRecoveryHi = Math.round(opGain * 0.65 / 1000) * 1000
+        const structRecoveryLo = Math.round(structGain * 0.4 / 1000) * 1000
+        const structRecoveryHi = Math.round(structGain * 0.65 / 1000) * 1000
+
+        children.push(new Paragraph({ spacing: { before: 120, after: 80 }, children: [
+          new TextRun({ text: 'Full transparency: what each tier earns', bold: true, size: SZ_BODY, font: FONT, color: DARK }),
+        ]}))
+        children.push(new Table({
+          width: { size: 9840, type: WidthType.DXA }, columnWidths: [3000, 2280, 2280, 2280],
+          rows: [
+            new TableRow({ children: [
+              cell('', { bg: LIGHT, width: 3000 }),
+              cell(`Today (${currentUtilPct}%)`, { bold: true, bg: LIGHT, width: 2280, align: AlignmentType.CENTER }),
+              cell(`Operational (${fleetCeilingPct}%)`, { bold: true, bg: LIGHT, width: 2280, align: AlignmentType.CENTER }),
+              cell(`Structural (${structuralTargetPct}%)`, { bold: true, bg: LIGHT, width: 2280, align: AlignmentType.CENTER }),
+            ]}),
+            new TableRow({ children: [
+              cell('Daily output', { width: 3000 }),
+              cell(`${actualDaily.toLocaleString('en-US')} m\u00B3`, { width: 2280, align: AlignmentType.CENTER }),
+              cell(`${opDailyOutput.toLocaleString('en-US')} m\u00B3`, { width: 2280, align: AlignmentType.CENTER }),
+              cell(`${structDailyOutput.toLocaleString('en-US')} m\u00B3`, { width: 2280, align: AlignmentType.CENTER }),
+            ]}),
+            new TableRow({ children: [
+              cell('Monthly output (annualized)', { width: 3000 }),
+              cell(`${actualMonthly.toLocaleString('en-US')} m\u00B3`, { width: 2280, align: AlignmentType.CENTER }),
+              cell(`${opMonthly.toLocaleString('en-US')} m\u00B3`, { width: 2280, align: AlignmentType.CENTER }),
+              cell(`${structMonthly.toLocaleString('en-US')} m\u00B3`, { width: 2280, align: AlignmentType.CENTER }),
+            ]}),
+            new TableRow({ children: [
+              cell('Monthly contribution', { width: 3000 }),
+              cell(`${fmt(actualContribution)}`, { width: 2280, align: AlignmentType.CENTER }),
+              cell(`${fmt(opContribution)}`, { width: 2280, align: AlignmentType.CENTER }),
+              cell(`${fmt(structContribution)}`, { width: 2280, align: AlignmentType.CENTER }),
+            ]}),
+            new TableRow({ children: [
+              cell('Gain vs today (full)', { width: 3000 }),
+              cell('—', { width: 2280, align: AlignmentType.CENTER }),
+              cell(`+${fmt(opGain)}`, { width: 2280, align: AlignmentType.CENTER, color: GREEN }),
+              cell(`+${fmt(structGain)}`, { width: 2280, align: AlignmentType.CENTER, color: GREEN }),
+            ]}),
+            new TableRow({ children: [
+              cell('Realistic recovery (40\u201365%)', { bold: true, width: 3000, bg: LIGHT }),
+              cell('—', { width: 2280, align: AlignmentType.CENTER, bg: LIGHT }),
+              cell(`${fmt(opRecoveryLo)}\u2013${fmt(opRecoveryHi)}`, { width: 2280, align: AlignmentType.CENTER, bold: true, color: GREEN, bg: LIGHT }),
+              cell(`${fmt(structRecoveryLo)}\u2013${fmt(structRecoveryHi)}`, { width: 2280, align: AlignmentType.CENTER, bold: true, color: GREEN, bg: LIGHT }),
+            ]}),
+          ],
+        }))
+        children.push(trace(`"Gain vs today" is the theoretical monthly contribution gain if the tier is fully achieved. "Realistic recovery" applies a 40\u201365% execution range reflecting operational constraints, customer dependencies, and implementation limits. Monthly output is annualized (${reportInput.operating_days_per_year} op days \u00F7 12).`))
       }
     }
 
