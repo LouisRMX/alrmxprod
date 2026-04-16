@@ -499,25 +499,23 @@ export function mapToReportInput(
   const workingDaysMonth = Math.round(opDays / 12)
   const nTrucks = +(answers.n_trucks ?? 0) || 0
 
-  // Trips: support toggle between total_monthly / per_truck_per_day / per_truck_per_week
+  // Trips: support two input paths.
+  //
+  // Input priority:
+  //   1. answers.total_trips_last_month (explicit answer, unit controlled by trips_unit)
+  //   2. answers.deliveries_day (legacy field: total FLEET deliveries per working day,
+  //      not per-truck. Scaled to monthly by multiplying with working days per month.)
+  //
+  // deliveries_day is populated either by the assessment UI (user answers the
+  // "deliveries per day" question directly) or by parse-assessment.route.ts which
+  // converts monthly trips to daily average. In both cases it is fleet-level.
   const tripsUnit = (answers.trips_unit as TripsUnit | undefined) ?? 'total_monthly'
   let totalTripsMonth: number
-  // Input priority:
-  //   1. answers.total_trips_last_month (primary raw answer, interpreted via trips_unit)
-  //   2. answers.deliveries_day (legacy field, implicit per_truck_per_day)
-  //
-  // trips_unit (default 'total_monthly') describes how the raw answer should
-  // be interpreted. Allows customers to answer "5 Trips" and mean trips/truck/day.
-  const rawTripsAnswer = answers.total_trips_last_month ?? answers.deliveries_day ?? null
-  const effectiveUnit: TripsUnit =
-    answers.trips_unit == null && answers.deliveries_day != null && answers.total_trips_last_month == null
-      ? 'per_truck_per_day'
-      : tripsUnit
 
-  if (rawTripsAnswer != null && rawTripsAnswer !== '') {
+  if (answers.total_trips_last_month != null && answers.total_trips_last_month !== '') {
     const parsed = parseTrips(
-      rawTripsAnswer as string | number,
-      effectiveUnit,
+      answers.total_trips_last_month as string | number,
+      tripsUnit,
       nTrucks,
       workingDaysMonth
     )
@@ -525,6 +523,9 @@ export function mapToReportInput(
     if (parsed.provenance.type !== 'reported') {
       provenance.total_trips_last_month = parsed.provenance
     }
+  } else if (answers.deliveries_day != null && answers.deliveries_day !== '') {
+    const deliveriesDay = +(answers.deliveries_day ?? 0) || 0
+    totalTripsMonth = Math.round(deliveriesDay * workingDaysMonth)
   } else {
     totalTripsMonth = 0
   }

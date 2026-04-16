@@ -28,15 +28,16 @@ const FIELD_MAP = `Map the data to these exact field IDs and return a JSON objec
 {
   "price_m3": number (selling price per cubic meter in USD),
   "material_cost": number (total material cost per m3 in USD — cement + aggregates + admixtures combined),
-  "plant_cap": number (plant capacity in m3 per hour),
-  "op_hours": number (operating hours per day),
-  "op_days": number (operating days per year),
+  "plant_cap": number (plant capacity in m3 per hour. CRITICAL: if the answer mentions multiple plants like "Five batching plants, total of 90 m3/hour each", compute the combined capacity (5 × 90 = 450). If the answer says "total of X m3/hour" with a plant count, interpret the total; if ambiguous, multiply plant count × per-plant capacity),
+  "number_of_plants": number (if multiple batching plants are mentioned, count them. Use 1 if a single plant. CRITICAL: words like "Five", "Three" must be converted to digits 5, 3. Do NOT put this count into any other field),
+  "op_hours": number (operating hours per DAY, a value typically between 8 and 20. CRITICAL: this is HOURS, not number of plants, not batches. If the answer is a range like "12-16 hours" return the midpoint (14). If the answer uses a word like "Five" or "Six" in a non-hour context, do NOT use that number here),
+  "op_days": number (operating days per year, typically 250-310),
   "actual_prod": number (actual production last month in m3),
   "n_trucks": number (number of trucks),
-  "trips_last_month": number (total truck trips last month — NOT daily, this is the monthly total),
+  "trips_last_month": number (total truck trips last month — NOT daily, this is the monthly total. CRITICAL: if the answer is just "5" or "5 Trips" with no time unit, this likely means "5 trips per truck per day". In that case return trips_last_month = 5 × n_trucks × (op_days / 12). Only use the raw number directly if it is clearly monthly and at least 500),
   "turnaround": number or string. If the document contains a specific number (e.g. 104 minutes), return it as a plain number string like "104". Only use dropdown values if no specific number is given: "Under 80 minutes, benchmark performance" | "80 to 100 minutes, acceptable" | "100 to 125 minutes, slow" | "Over 125 minutes, critical bottleneck",
-  "reject_pct": number (rejection rate as percentage),
-  "delivery_radius_raw": string (the raw delivery radius text from the document, e.g. "10-20 km" or "under 10"),
+  "reject_pct": number (rejection rate as percentage. If range like "1-2%" return midpoint 1.5),
+  "delivery_radius_raw": string (the raw delivery radius text from the document, e.g. "10-20 km" or "under 10" or "5km-45km"),
   "dispatch_tool": string (free text describing dispatch method, e.g. "WhatsApp and paper tickets" or "Dedicated dispatch software"),
   "prod_data_source": string (free text describing where the numbers came from, e.g. "Batch computer system" or "Manual records and estimates"),
   "biggest_pain": string (free text, plant manager's stated challenge),
@@ -44,6 +45,13 @@ const FIELD_MAP = `Map the data to these exact field IDs and return a JSON objec
   "plant_idle": string (free text: the answer to "Do you experience both queuing AND idle periods on the same day?" Copy their exact words including any Yes/No and explanation),
   "dispatch_peak": string (free text: the answer to "When during the day is the majority of your output dispatched?" Copy their exact words)
 }
+
+Anti-confusion rules (read carefully):
+- Each numeric field must be sourced from the answer to its own corresponding question in the sheet. Do NOT borrow a number from one question to fill another.
+- "op_hours" must come from the "operating hours per day" row, not from plant counts or mixer capacities.
+- "plant_cap" must come from the "plant capacity" row, not from trip counts or fleet size.
+- "n_trucks" must come from the "number of trucks" row, not from deliveries or plants.
+- If a numeric field's source row is missing or unreadable, return null rather than guessing from an adjacent row.
 
 For dropdown fields: pick the closest matching option. If the value is a number (e.g. turnaround = 115), map it to the correct range.
 For numeric fields: extract the number only, no units.
