@@ -266,62 +266,127 @@ export default function SimulatorView({ calcResult, readOnly, reportInput, rc }:
   // Monthly figures assume 25 working days per month (305 op days ÷ 12).
   const opDaysMonth = Math.round(baseline.opD / 12)
 
+  // All step builders follow a common pattern:
+  //   1. INPUTS section lists every baseline value the calc uses
+  //   2. DERIVATION section walks each arithmetic step
+  //   3. final row shows the monthly contribution/savings result
+
   const tatSteps: CalcStep[] = (() => {
-    const baseDelsPerTruck = baseline.opH * 60 / sTurnaround
-    const newDelsPerTruck = baseline.opH * 60 / (sTurnaround - 1)
+    const opMinutes = baseline.opH * 60
+    const baseDelsPerTruck = opMinutes / sTurnaround
+    const newDelsPerTruck = opMinutes / (sTurnaround - 1)
     const extraTripsPerTruckDay = newDelsPerTruck - baseDelsPerTruck
     const extraTripsPerFleetDay = extraTripsPerTruckDay * sTrucks
     const extraM3PerDay = extraTripsPerFleetDay * sAvgLoad
     const extraM3PerMonth = extraM3PerDay * opDaysMonth
     return [
-      { label: `Trips/truck/day at ${sTurnaround} min TAT`, value: `${baseline.opH} hrs × 60 ÷ ${sTurnaround} = ${baseDelsPerTruck.toFixed(2)}` },
-      { label: `Trips/truck/day at ${sTurnaround - 1} min TAT`, value: `${baseline.opH} hrs × 60 ÷ ${sTurnaround - 1} = ${newDelsPerTruck.toFixed(2)}` },
-      { label: 'Extra trips per truck per day', value: `+${extraTripsPerTruckDay.toFixed(3)}` },
-      { label: `Extra fleet trips per day (× ${sTrucks} trucks)`, value: `+${extraTripsPerFleetDay.toFixed(1)}` },
-      { label: `Extra volume per day (× ${sAvgLoad.toFixed(2)} m³/trip)`, value: `+${extraM3PerDay.toFixed(1)} m³` },
-      { label: `Extra volume per month (× ${opDaysMonth} days)`, value: `+${Math.round(extraM3PerMonth).toLocaleString()} m³` },
-      { label: `Contribution gain (× $${sContrib.toFixed(2)} margin)`, value: fmt(Math.round(extraM3PerMonth * sContrib)) + '/mo' },
+      { label: 'Inputs', value: '', section: true },
+      { label: 'Operating hours per day', value: `${baseline.opH} hrs` },
+      { label: 'Current turnaround time', value: `${sTurnaround} min per trip` },
+      { label: 'Scenario turnaround time', value: `${sTurnaround - 1} min per trip (−1 min)` },
+      { label: 'Number of trucks', value: `${sTrucks}` },
+      { label: 'Average load per trip', value: `${sAvgLoad.toFixed(2)} m³` },
+      { label: 'Operating days per month', value: `${opDaysMonth} days (305 ÷ 12)` },
+      { label: 'Contribution margin per m³', value: `$${sContrib.toFixed(2)} ($${sPrice.toFixed(2)} − $${sMaterialCost.toFixed(2)})` },
+
+      { label: 'Derivation', value: '', section: true },
+      { label: 'Operating minutes per day', value: `${baseline.opH} × 60 = ${opMinutes} min` },
+      { label: `Trips per truck at ${sTurnaround} min TAT`, value: `${opMinutes} ÷ ${sTurnaround} = ${baseDelsPerTruck.toFixed(3)}` },
+      { label: `Trips per truck at ${sTurnaround - 1} min TAT`, value: `${opMinutes} ÷ ${sTurnaround - 1} = ${newDelsPerTruck.toFixed(3)}` },
+      { label: 'Extra trips per truck per day', value: `${newDelsPerTruck.toFixed(3)} − ${baseDelsPerTruck.toFixed(3)} = ${extraTripsPerTruckDay.toFixed(4)}` },
+      { label: 'Extra fleet trips per day', value: `${extraTripsPerTruckDay.toFixed(4)} × ${sTrucks} = ${extraTripsPerFleetDay.toFixed(2)}` },
+      { label: 'Extra volume per day', value: `${extraTripsPerFleetDay.toFixed(2)} × ${sAvgLoad.toFixed(2)} = ${extraM3PerDay.toFixed(2)} m³` },
+      { label: 'Extra volume per month', value: `${extraM3PerDay.toFixed(2)} × ${opDaysMonth} = ${Math.round(extraM3PerMonth).toLocaleString()} m³` },
+
+      { label: `${Math.round(extraM3PerMonth).toLocaleString()} m³ × $${sContrib.toFixed(2)} contribution margin`, value: fmt(Math.round(extraM3PerMonth * sContrib)) + '/mo', final: true },
     ]
   })()
 
   const radiusSteps: CalcStep[] = (() => {
-    // Radius change is coupled: −1 km → TAT falls 3 min (travel only)
+    // Radius −1 km → travel falls by 3 min (1.5 min/km × 2 ways). Handling unchanged.
+    const opMinutes = baseline.opH * 60
     const newTAT = Math.max(60, sTurnaround - 3)
-    const baseDelsPerTruck = baseline.opH * 60 / sTurnaround
-    const newDelsPerTruck = baseline.opH * 60 / newTAT
-    const extraM3PerMonth = (newDelsPerTruck - baseDelsPerTruck) * sTrucks * sAvgLoad * opDaysMonth
+    const baseDelsPerTruck = opMinutes / sTurnaround
+    const newDelsPerTruck = opMinutes / newTAT
+    const extraTripsPerTruckDay = newDelsPerTruck - baseDelsPerTruck
+    const extraTripsPerFleetDay = extraTripsPerTruckDay * sTrucks
+    const extraM3PerDay = extraTripsPerFleetDay * sAvgLoad
+    const extraM3PerMonth = extraM3PerDay * opDaysMonth
     return [
-      { label: `Radius ${sRadius} km → ${sRadius - 1} km reduces travel`, value: `1 km × 1.5 min/km × 2 = −3 min` },
-      { label: 'New TAT (handling unchanged)', value: `${sTurnaround} − 3 = ${newTAT} min` },
-      { label: `Trips/truck/day at new TAT`, value: `${baseline.opH * 60} ÷ ${newTAT} = ${newDelsPerTruck.toFixed(2)}` },
-      { label: `Extra fleet m³/day`, value: `+${((newDelsPerTruck - baseDelsPerTruck) * sTrucks * sAvgLoad).toFixed(1)} m³` },
-      { label: `Extra volume per month (× ${opDaysMonth} days)`, value: `+${Math.round(extraM3PerMonth).toLocaleString()} m³` },
-      { label: `Contribution gain (× $${sContrib.toFixed(2)} margin)`, value: fmt(Math.round(extraM3PerMonth * sContrib)) + '/mo' },
+      { label: 'Inputs', value: '', section: true },
+      { label: 'Current radius', value: `${sRadius} km (one way)` },
+      { label: 'Scenario radius', value: `${sRadius - 1} km (−1 km, one way)` },
+      { label: 'GCC urban speed assumption', value: '1.5 min per km' },
+      { label: 'Current turnaround time', value: `${sTurnaround} min` },
+      { label: 'Operating hours per day', value: `${baseline.opH} hrs` },
+      { label: 'Number of trucks', value: `${sTrucks}` },
+      { label: 'Average load per trip', value: `${sAvgLoad.toFixed(2)} m³` },
+      { label: 'Operating days per month', value: `${opDaysMonth} days` },
+      { label: 'Contribution margin per m³', value: `$${sContrib.toFixed(2)}` },
+
+      { label: 'Derivation', value: '', section: true },
+      { label: 'Travel time saved one-way', value: `1 km × 1.5 min/km = 1.5 min` },
+      { label: 'Travel time saved round-trip', value: `1.5 min × 2 ways = 3 min` },
+      { label: 'New turnaround (handling unchanged)', value: `${sTurnaround} − 3 = ${newTAT} min` },
+      { label: 'Operating minutes per day', value: `${baseline.opH} × 60 = ${opMinutes} min` },
+      { label: `Trips per truck at ${sTurnaround} min TAT`, value: `${opMinutes} ÷ ${sTurnaround} = ${baseDelsPerTruck.toFixed(3)}` },
+      { label: `Trips per truck at ${newTAT} min TAT`, value: `${opMinutes} ÷ ${newTAT} = ${newDelsPerTruck.toFixed(3)}` },
+      { label: 'Extra trips per truck per day', value: `${newDelsPerTruck.toFixed(3)} − ${baseDelsPerTruck.toFixed(3)} = ${extraTripsPerTruckDay.toFixed(3)}` },
+      { label: 'Extra fleet trips per day', value: `${extraTripsPerTruckDay.toFixed(3)} × ${sTrucks} = ${extraTripsPerFleetDay.toFixed(2)}` },
+      { label: 'Extra volume per day', value: `${extraTripsPerFleetDay.toFixed(2)} × ${sAvgLoad.toFixed(2)} = ${extraM3PerDay.toFixed(1)} m³` },
+      { label: 'Extra volume per month', value: `${extraM3PerDay.toFixed(1)} × ${opDaysMonth} = ${Math.round(extraM3PerMonth).toLocaleString()} m³` },
+
+      { label: `${Math.round(extraM3PerMonth).toLocaleString()} m³ × $${sContrib.toFixed(2)} contribution margin`, value: fmt(Math.round(extraM3PerMonth * sContrib)) + '/mo', final: true },
     ]
   })()
 
   const trucksSteps: CalcStep[] = (() => {
-    const delsPerTruck = baseline.opH * 60 / sTurnaround
+    const opMinutes = baseline.opH * 60
+    const delsPerTruck = opMinutes / sTurnaround
     const extraM3PerDay = delsPerTruck * sAvgLoad
     const extraM3PerMonth = extraM3PerDay * opDaysMonth
     return [
-      { label: `Trips/truck/day at ${sTurnaround} min TAT`, value: `${baseline.opH * 60} ÷ ${sTurnaround} = ${delsPerTruck.toFixed(2)}` },
-      { label: `Extra volume per day (× ${sAvgLoad.toFixed(2)} m³/trip)`, value: `+${extraM3PerDay.toFixed(1)} m³` },
-      { label: `Extra volume per month (× ${opDaysMonth} days)`, value: `+${Math.round(extraM3PerMonth).toLocaleString()} m³` },
-      { label: `Contribution gain (× $${sContrib.toFixed(2)} margin)`, value: fmt(Math.round(extraM3PerMonth * sContrib)) + '/mo' },
+      { label: 'Inputs', value: '', section: true },
+      { label: 'Current fleet size', value: `${sTrucks} trucks` },
+      { label: 'Scenario fleet size', value: `${sTrucks + 1} trucks (+1)` },
+      { label: 'Current turnaround time', value: `${sTurnaround} min per trip` },
+      { label: 'Operating hours per day', value: `${baseline.opH} hrs` },
+      { label: 'Average load per trip', value: `${sAvgLoad.toFixed(2)} m³` },
+      { label: 'Operating days per month', value: `${opDaysMonth} days` },
+      { label: 'Contribution margin per m³', value: `$${sContrib.toFixed(2)}` },
+
+      { label: 'Derivation', value: '', section: true },
+      { label: 'Operating minutes per day', value: `${baseline.opH} × 60 = ${opMinutes} min` },
+      { label: `Trips per truck per day`, value: `${opMinutes} ÷ ${sTurnaround} = ${delsPerTruck.toFixed(2)}` },
+      { label: 'Extra volume per day (one extra truck)', value: `${delsPerTruck.toFixed(2)} × ${sAvgLoad.toFixed(2)} = ${extraM3PerDay.toFixed(1)} m³` },
+      { label: 'Extra volume per month', value: `${extraM3PerDay.toFixed(1)} × ${opDaysMonth} = ${Math.round(extraM3PerMonth).toLocaleString()} m³` },
+
+      { label: `${Math.round(extraM3PerMonth).toLocaleString()} m³ × $${sContrib.toFixed(2)} contribution margin`, value: fmt(Math.round(extraM3PerMonth * sContrib)) + '/mo', final: true },
     ]
   })()
 
   const loadSteps: CalcStep[] = (() => {
-    const delsPerTruck = baseline.opH * 60 / sTurnaround
+    const opMinutes = baseline.opH * 60
+    const delsPerTruck = opMinutes / sTurnaround
     const tripsFleetMonth = delsPerTruck * sTrucks * opDaysMonth
     const extraM3PerMonth = tripsFleetMonth * 0.5
     return [
-      { label: `Trips/truck/day at ${sTurnaround} min TAT`, value: delsPerTruck.toFixed(2) },
-      { label: `Fleet trips per month (× ${sTrucks} × ${opDaysMonth} days)`, value: Math.round(tripsFleetMonth).toLocaleString() },
-      { label: 'Extra m³ per trip', value: '+0.5 m³' },
-      { label: 'Extra volume per month', value: `+${Math.round(extraM3PerMonth).toLocaleString()} m³` },
-      { label: `Contribution gain (× $${sContrib.toFixed(2)} margin)`, value: fmt(Math.round(extraM3PerMonth * sContrib)) + '/mo' },
+      { label: 'Inputs', value: '', section: true },
+      { label: 'Current avg load per trip', value: `${sAvgLoad.toFixed(2)} m³` },
+      { label: 'Scenario avg load per trip', value: `${(sAvgLoad + 0.5).toFixed(2)} m³ (+0.5)` },
+      { label: 'Current turnaround time', value: `${sTurnaround} min per trip` },
+      { label: 'Operating hours per day', value: `${baseline.opH} hrs` },
+      { label: 'Number of trucks', value: `${sTrucks}` },
+      { label: 'Operating days per month', value: `${opDaysMonth} days` },
+      { label: 'Contribution margin per m³', value: `$${sContrib.toFixed(2)}` },
+
+      { label: 'Derivation', value: '', section: true },
+      { label: 'Operating minutes per day', value: `${baseline.opH} × 60 = ${opMinutes} min` },
+      { label: `Trips per truck per day`, value: `${opMinutes} ÷ ${sTurnaround} = ${delsPerTruck.toFixed(2)}` },
+      { label: `Fleet trips per month`, value: `${delsPerTruck.toFixed(2)} × ${sTrucks} × ${opDaysMonth} = ${Math.round(tripsFleetMonth).toLocaleString()}` },
+      { label: 'Extra volume per month (+0.5 m³/trip)', value: `${Math.round(tripsFleetMonth).toLocaleString()} × 0.5 = ${Math.round(extraM3PerMonth).toLocaleString()} m³` },
+
+      { label: `${Math.round(extraM3PerMonth).toLocaleString()} m³ × $${sContrib.toFixed(2)} contribution margin`, value: fmt(Math.round(extraM3PerMonth * sContrib)) + '/mo', final: true },
     ]
   })()
 
@@ -330,9 +395,19 @@ export default function SimulatorView({ calcResult, readOnly, reportInput, rc }:
     const scenarioMonthly = result.scenarioMonthly
     const gain = scenarioMonthly * 1
     return [
-      { label: 'Scenario monthly volume', value: `${scenarioMonthly.toLocaleString()} m³/mo` },
-      { label: 'Price increase', value: '+$1/m³' },
-      { label: `Extra contribution per month`, value: fmt(Math.round(gain)) + '/mo' },
+      { label: 'Inputs', value: '', section: true },
+      { label: 'Current selling price', value: `$${sPrice.toFixed(2)} per m³` },
+      { label: 'Scenario selling price', value: `$${(sPrice + 1).toFixed(2)} per m³ (+$1)` },
+      { label: 'Current material cost', value: `$${sMaterialCost.toFixed(2)} per m³` },
+      { label: 'Monthly volume at scenario settings', value: `${scenarioMonthly.toLocaleString()} m³` },
+      { label: 'Demand status', value: 'Outpaces delivery (volume sellable)' },
+
+      { label: 'Derivation', value: '', section: true },
+      { label: 'New contribution margin per m³', value: `$${(sPrice + 1).toFixed(2)} − $${sMaterialCost.toFixed(2)} = $${(sPrice + 1 - sMaterialCost).toFixed(2)}` },
+      { label: 'Margin increase per m³', value: `$1.00` },
+      { label: 'Volume unchanged (no elasticity assumption)', value: `${scenarioMonthly.toLocaleString()} m³/mo` },
+
+      { label: `${scenarioMonthly.toLocaleString()} m³ × $1.00 extra margin`, value: fmt(Math.round(gain)) + '/mo', final: true },
     ]
   })()
 
@@ -340,23 +415,45 @@ export default function SimulatorView({ calcResult, readOnly, reportInput, rc }:
     const scenarioMonthly = result.scenarioMonthly
     const gain = scenarioMonthly * 1
     return [
-      { label: 'Scenario monthly volume', value: `${scenarioMonthly.toLocaleString()} m³/mo` },
-      { label: 'Material cost reduction', value: '−$1/m³' },
-      { label: `Extra contribution per month`, value: fmt(Math.round(gain)) + '/mo' },
+      { label: 'Inputs', value: '', section: true },
+      { label: 'Current material cost', value: `$${sMaterialCost.toFixed(2)} per m³` },
+      { label: 'Scenario material cost', value: `$${(sMaterialCost - 1).toFixed(2)} per m³ (−$1)` },
+      { label: 'Current selling price', value: `$${sPrice.toFixed(2)} per m³` },
+      { label: 'Monthly volume at scenario settings', value: `${scenarioMonthly.toLocaleString()} m³` },
+
+      { label: 'Derivation', value: '', section: true },
+      { label: 'New contribution margin per m³', value: `$${sPrice.toFixed(2)} − $${(sMaterialCost - 1).toFixed(2)} = $${(sPrice - sMaterialCost + 1).toFixed(2)}` },
+      { label: 'Margin increase per m³', value: `$1.00` },
+
+      { label: `${scenarioMonthly.toLocaleString()} m³ × $1.00 saved per m³`, value: fmt(Math.round(gain)) + '/mo', final: true },
     ]
   })()
 
   const rejectSteps: CalcStep[] = (() => {
-    const delsPerTruck = baseline.opH * 60 / sTurnaround
+    const opMinutes = baseline.opH * 60
+    const delsPerTruck = opMinutes / sTurnaround
     const tripsMonth = delsPerTruck * sTrucks * opDaysMonth
     const savedTrips = tripsMonth * 0.005
     const savedM3 = savedTrips * sAvgLoad
     const savedDollars = savedM3 * sMaterialCost
     return [
-      { label: 'Fleet trips per month', value: Math.round(tripsMonth).toLocaleString() },
-      { label: 'Rejection drop', value: '−0.5 percentage points' },
-      { label: `Fewer rejected trips (× 0.5%)`, value: `−${savedTrips.toFixed(1)}` },
-      { label: `Material saved (× ${sAvgLoad.toFixed(2)} m³ × $${sMaterialCost.toFixed(2)})`, value: fmt(Math.round(savedDollars)) + '/mo' },
+      { label: 'Inputs', value: '', section: true },
+      { label: 'Current rejection rate', value: `${sReject.toFixed(1)}%` },
+      { label: 'Scenario rejection rate', value: `${Math.max(0, sReject - 0.5).toFixed(1)}% (−0.5 pp)` },
+      { label: 'Current turnaround time', value: `${sTurnaround} min per trip` },
+      { label: 'Number of trucks', value: `${sTrucks}` },
+      { label: 'Average load per trip', value: `${sAvgLoad.toFixed(2)} m³` },
+      { label: 'Material cost per m³', value: `$${sMaterialCost.toFixed(2)}` },
+      { label: 'Operating days per month', value: `${opDaysMonth} days` },
+
+      { label: 'Derivation', value: '', section: true },
+      { label: 'Operating minutes per day', value: `${baseline.opH} × 60 = ${opMinutes} min` },
+      { label: 'Trips per truck per day', value: `${opMinutes} ÷ ${sTurnaround} = ${delsPerTruck.toFixed(2)}` },
+      { label: 'Fleet trips per month', value: `${delsPerTruck.toFixed(2)} × ${sTrucks} × ${opDaysMonth} = ${Math.round(tripsMonth).toLocaleString()}` },
+      { label: 'Fewer rejected trips per month', value: `${Math.round(tripsMonth).toLocaleString()} × 0.5% = ${savedTrips.toFixed(1)}` },
+      { label: 'Material saved per month', value: `${savedTrips.toFixed(1)} × ${sAvgLoad.toFixed(2)} m³ = ${savedM3.toFixed(1)} m³` },
+
+      { label: `${savedM3.toFixed(1)} m³ × $${sMaterialCost.toFixed(2)} material cost saved`, value: fmt(Math.round(savedDollars)) + '/mo', final: true },
     ]
   })()
 
@@ -958,7 +1055,14 @@ export default function SimulatorView({ calcResult, readOnly, reportInput, rc }:
 // info toggle. When clicked, expands a small panel showing the step-by-step
 // math that produces the number. Lets the owner verify the claim instead of
 // having to trust it.
-interface CalcStep { label: string; value: string }
+interface CalcStep {
+  label: string
+  value: string
+  /** If set, renders as a section header divider, not a data row */
+  section?: boolean
+  /** If true, this is the final result row (emphasized) */
+  final?: boolean
+}
 function MarginalHint({ text, steps }: { text: string; steps: CalcStep[] }) {
   const [show, setShow] = useState(false)
   return (
@@ -991,18 +1095,32 @@ function MarginalHint({ text, steps }: { text: string; steps: CalcStep[] }) {
           <div style={{ fontSize: '9px', color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '.4px', fontWeight: 600, marginBottom: '6px' }}>
             How this is calculated
           </div>
-          {steps.map((s, i) => (
-            <div key={i} style={{
-              display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
-              padding: '2px 0',
-              borderTop: i === steps.length - 1 ? '1px solid var(--gray-200)' : 'none',
-              marginTop: i === steps.length - 1 ? '4px' : 0,
-              paddingTop: i === steps.length - 1 ? '6px' : '2px',
-            }}>
-              <span style={{ fontSize: '10px', color: 'var(--gray-600)', flex: 1 }}>{s.label}</span>
-              <span style={{ fontSize: '10px', fontFamily: 'var(--mono)', fontWeight: i === steps.length - 1 ? 600 : 500, color: i === steps.length - 1 ? 'var(--green)' : 'var(--gray-800)', marginLeft: '8px', textAlign: 'right' }}>{s.value}</span>
-            </div>
-          ))}
+          {steps.map((s, i) => {
+            if (s.section) {
+              return (
+                <div key={i} style={{
+                  fontSize: '9px', fontWeight: 700, letterSpacing: '.4px', textTransform: 'uppercase',
+                  color: 'var(--gray-500)', marginTop: i === 0 ? 0 : '8px', marginBottom: '2px',
+                  paddingTop: i === 0 ? 0 : '6px',
+                  borderTop: i === 0 ? 'none' : '1px solid var(--gray-200)',
+                }}>
+                  {s.label}
+                </div>
+              )
+            }
+            return (
+              <div key={i} style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+                padding: '2px 0',
+                borderTop: s.final ? '1px solid var(--gray-200)' : 'none',
+                marginTop: s.final ? '4px' : 0,
+                paddingTop: s.final ? '6px' : '2px',
+              }}>
+                <span style={{ fontSize: '10px', color: 'var(--gray-600)', flex: 1 }}>{s.label}</span>
+                <span style={{ fontSize: '10px', fontFamily: 'var(--mono)', fontWeight: s.final ? 600 : 500, color: s.final ? 'var(--green)' : 'var(--gray-800)', marginLeft: '8px', textAlign: 'right' }}>{s.value}</span>
+              </div>
+            )
+          })}
         </div>
       )}
     </div>
