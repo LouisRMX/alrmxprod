@@ -206,55 +206,58 @@ describe('calculateReport', () => {
   describe('parseRadius (via calculateReport target_tat_min)', () => {
     const base = { ...PLANT_A }
 
-    it('parseRadius(20) → over_20km → TARGET_TAT 135', () => {
+    // v2: parseRadius now preserves exact customer-reported values (not bucketed to 7/15/25).
+    // TARGET_TAT formula: 60 + radius × 3, clamped [75, 150].
+
+    it('parseRadius(20) → exact 20 km → TARGET_TAT 120', () => {
       const r = calculateReport({ ...base, avg_delivery_radius: '20' as any })
-      expect(r.target_tat_min).toBe(135) // 60 + 25*1.5*2
+      expect(r.target_tat_min).toBe(120) // 60 + 20*3
     })
 
-    it('parseRadius("over_20km") → TARGET_TAT 135', () => {
+    it('parseRadius("over_20km") → legacy bucket → TARGET_TAT 135', () => {
       const r = calculateReport({ ...base, avg_delivery_radius: 'over_20km' })
-      expect(r.target_tat_min).toBe(135)
+      expect(r.target_tat_min).toBe(135) // legacy enum still maps to 25 km
     })
 
-    it('parseRadius(15) → 10_to_20km → TARGET_TAT 105', () => {
+    it('parseRadius(15) → exact 15 km → TARGET_TAT 105', () => {
       const r = calculateReport({ ...base, avg_delivery_radius: '15' as any })
-      expect(r.target_tat_min).toBe(105) // 60 + 15*1.5*2
+      expect(r.target_tat_min).toBe(105) // 60 + 15*3
     })
 
-    it('parseRadius(9) → under_10km → TARGET_TAT 81', () => {
+    it('parseRadius(9) → exact 9 km → TARGET_TAT 87', () => {
       const r = calculateReport({ ...base, avg_delivery_radius: '9' as any })
-      expect(r.target_tat_min).toBe(81)
+      expect(r.target_tat_min).toBe(87) // 60 + 9*3
     })
 
-    // Range midpoint tests
-    it('"5-40km" → midpoint 22.5 → over_20km → TARGET_TAT 135', () => {
+    // Range midpoint tests (midpoint preserved, not bucketed)
+    it('"5-40km" → midpoint 22.5 → TARGET_TAT 128', () => {
       const r = calculateReport({ ...base, avg_delivery_radius: '5-40km' as any })
-      expect(r.target_tat_min).toBe(135)
+      expect(r.target_tat_min).toBe(128) // 60 + 22.5*3 = 127.5 → 128
     })
 
-    it('"5-45km" → midpoint 25 → over_20km → TARGET_TAT 135', () => {
+    it('"5-45km" → midpoint 25 → TARGET_TAT 135', () => {
       const r = calculateReport({ ...base, avg_delivery_radius: '5-45km' as any })
-      expect(r.target_tat_min).toBe(135)
+      expect(r.target_tat_min).toBe(135) // 60 + 25*3
     })
 
-    it('"5-15km" → midpoint 10 → 10_to_20km → TARGET_TAT 105', () => {
+    it('"5-15km" → midpoint 10 → TARGET_TAT 90', () => {
       const r = calculateReport({ ...base, avg_delivery_radius: '5-15km' as any })
-      expect(r.target_tat_min).toBe(105)
+      expect(r.target_tat_min).toBe(90) // 60 + 10*3
     })
 
-    it('"1-8km" → midpoint 4.5 → under_10km → TARGET_TAT 81', () => {
+    it('"1-8km" → midpoint 4.5 → TARGET_TAT 75 (clamped)', () => {
       const r = calculateReport({ ...base, avg_delivery_radius: '1-8km' as any })
-      expect(r.target_tat_min).toBe(81)
+      expect(r.target_tat_min).toBe(75) // 60 + 4.5*3 = 73.5 → clamped to 75 min floor
     })
 
-    it('"10-20km" → midpoint 15 → 10_to_20km → TARGET_TAT 105', () => {
+    it('"10-20km" → midpoint 15 → TARGET_TAT 105', () => {
       const r = calculateReport({ ...base, avg_delivery_radius: '10-20km' as any })
-      expect(r.target_tat_min).toBe(105)
+      expect(r.target_tat_min).toBe(105) // 60 + 15*3
     })
 
-    it('"12 to 20" → midpoint 16 → 10_to_20km → TARGET_TAT 105', () => {
+    it('"12 to 20" → midpoint 16 → TARGET_TAT 108', () => {
       const r = calculateReport({ ...base, avg_delivery_radius: '12 to 20' as any })
-      expect(r.target_tat_min).toBe(105)
+      expect(r.target_tat_min).toBe(108) // 60 + 16*3
     })
 
   })

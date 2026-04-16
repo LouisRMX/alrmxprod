@@ -55,7 +55,7 @@ const WORKSHOP_ANSWERS: Answers = {
   deliveries_day:     '110',
   turnaround:         '112',
   reject_pct:         '3',
-  delivery_radius:    'Most deliveries 12 to 20 km, suburban / outer city',
+  delivery_radius:    '16',
   dispatch_tool:      'Spreadsheet combined with WhatsApp',
   order_to_dispatch:  '25 to 40 minutes, slow',
   prod_data_source:   'System records, read from batch computer or dispatch system',
@@ -88,7 +88,7 @@ const ONSITE_ANSWERS: Answers = {
   // Fleet depth — on-site observed (worse than self-reported)
   truck_availability: '19',       // pre: 24 assigned, on-site: only 19 operational
   qualified_drivers:  '18',       // pre: assumed all, on-site: 18 qualified
-  delivery_radius:    'Most deliveries 12 to 20 km, suburban / outer city',
+  delivery_radius:    '16',
   partial_load_size:  '6.2',      // pre: assumed 7 nominal, on-site: 6.2 actual avg
   site_wait_time:     '58',       // pre: not asked, on-site: worse than expected
   washout_time:       '10 to 20 minutes, standard',

@@ -98,24 +98,21 @@ const RADIUS_MAP: Record<string, number> = {
 }
 
 function parseRadius(value: string | number): number {
-  // Exact enum match
+  // Exact enum match (legacy dropdown answers)
   if (typeof value === 'string' && RADIUS_MAP[value] !== undefined) return RADIUS_MAP[value]
-  // Range string: extract both bounds, classify by midpoint
+  // Range string: extract both bounds, return exact midpoint (not bucketed)
   const rangeMatch = String(value).match(/(\d+(?:\.\d+)?)\s*[-–to]+\s*(\d+(?:\.\d+)?)/)
   if (rangeMatch) {
     const mid = (parseFloat(rangeMatch[1]) + parseFloat(rangeMatch[2])) / 2
-    if (mid < 10) return 7
-    if (mid < 20) return 15
-    return 25
+    if (mid > 0) return Math.round(mid * 10) / 10
   }
-  // Single numeric value
+  // Single numeric value: return exact value (with 0.1 km precision).
+  // Preserves customer-reported precision instead of bucketing to 7/15/25.
   const num = typeof value === 'number' ? value : parseFloat(String(value))
   if (!isNaN(num) && num > 0) {
-    if (num < 10) return 7
-    if (num < 20) return 15
-    return 25
+    return Math.round(num * 10) / 10
   }
-  // String patterns
+  // Qualitative string patterns (legacy, map to bucket midpoints)
   const lower = String(value).toLowerCase()
   if (/under\s*10|<\s*10|under\s*5|dense/.test(lower)) return 7
   if (/city|suburban/.test(lower)) return 15
