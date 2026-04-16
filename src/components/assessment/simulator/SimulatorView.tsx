@@ -262,6 +262,104 @@ export default function SimulatorView({ calcResult, readOnly, reportInput, rc }:
 
   const MARGINAL_THRESHOLD = 500
 
+  // ── Calculation step builders: each slider's marginal value derivation ──
+  // Monthly figures assume 25 working days per month (305 op days ÷ 12).
+  const opDaysMonth = Math.round(baseline.opD / 12)
+
+  const tatSteps: CalcStep[] = (() => {
+    const baseDelsPerTruck = baseline.opH * 60 / sTurnaround
+    const newDelsPerTruck = baseline.opH * 60 / (sTurnaround - 1)
+    const extraTripsPerTruckDay = newDelsPerTruck - baseDelsPerTruck
+    const extraTripsPerFleetDay = extraTripsPerTruckDay * sTrucks
+    const extraM3PerDay = extraTripsPerFleetDay * sAvgLoad
+    const extraM3PerMonth = extraM3PerDay * opDaysMonth
+    return [
+      { label: `Trips/truck/day at ${sTurnaround} min TAT`, value: `${baseline.opH} hrs × 60 ÷ ${sTurnaround} = ${baseDelsPerTruck.toFixed(2)}` },
+      { label: `Trips/truck/day at ${sTurnaround - 1} min TAT`, value: `${baseline.opH} hrs × 60 ÷ ${sTurnaround - 1} = ${newDelsPerTruck.toFixed(2)}` },
+      { label: 'Extra trips per truck per day', value: `+${extraTripsPerTruckDay.toFixed(3)}` },
+      { label: `Extra fleet trips per day (× ${sTrucks} trucks)`, value: `+${extraTripsPerFleetDay.toFixed(1)}` },
+      { label: `Extra volume per day (× ${sAvgLoad.toFixed(2)} m³/trip)`, value: `+${extraM3PerDay.toFixed(1)} m³` },
+      { label: `Extra volume per month (× ${opDaysMonth} days)`, value: `+${Math.round(extraM3PerMonth).toLocaleString()} m³` },
+      { label: `Contribution gain (× $${sContrib.toFixed(2)} margin)`, value: fmt(Math.round(extraM3PerMonth * sContrib)) + '/mo' },
+    ]
+  })()
+
+  const radiusSteps: CalcStep[] = (() => {
+    // Radius change is coupled: −1 km → TAT falls 3 min (travel only)
+    const newTAT = Math.max(60, sTurnaround - 3)
+    const baseDelsPerTruck = baseline.opH * 60 / sTurnaround
+    const newDelsPerTruck = baseline.opH * 60 / newTAT
+    const extraM3PerMonth = (newDelsPerTruck - baseDelsPerTruck) * sTrucks * sAvgLoad * opDaysMonth
+    return [
+      { label: `Radius ${sRadius} km → ${sRadius - 1} km reduces travel`, value: `1 km × 1.5 min/km × 2 = −3 min` },
+      { label: 'New TAT (handling unchanged)', value: `${sTurnaround} − 3 = ${newTAT} min` },
+      { label: `Trips/truck/day at new TAT`, value: `${baseline.opH * 60} ÷ ${newTAT} = ${newDelsPerTruck.toFixed(2)}` },
+      { label: `Extra fleet m³/day`, value: `+${((newDelsPerTruck - baseDelsPerTruck) * sTrucks * sAvgLoad).toFixed(1)} m³` },
+      { label: `Extra volume per month (× ${opDaysMonth} days)`, value: `+${Math.round(extraM3PerMonth).toLocaleString()} m³` },
+      { label: `Contribution gain (× $${sContrib.toFixed(2)} margin)`, value: fmt(Math.round(extraM3PerMonth * sContrib)) + '/mo' },
+    ]
+  })()
+
+  const trucksSteps: CalcStep[] = (() => {
+    const delsPerTruck = baseline.opH * 60 / sTurnaround
+    const extraM3PerDay = delsPerTruck * sAvgLoad
+    const extraM3PerMonth = extraM3PerDay * opDaysMonth
+    return [
+      { label: `Trips/truck/day at ${sTurnaround} min TAT`, value: `${baseline.opH * 60} ÷ ${sTurnaround} = ${delsPerTruck.toFixed(2)}` },
+      { label: `Extra volume per day (× ${sAvgLoad.toFixed(2)} m³/trip)`, value: `+${extraM3PerDay.toFixed(1)} m³` },
+      { label: `Extra volume per month (× ${opDaysMonth} days)`, value: `+${Math.round(extraM3PerMonth).toLocaleString()} m³` },
+      { label: `Contribution gain (× $${sContrib.toFixed(2)} margin)`, value: fmt(Math.round(extraM3PerMonth * sContrib)) + '/mo' },
+    ]
+  })()
+
+  const loadSteps: CalcStep[] = (() => {
+    const delsPerTruck = baseline.opH * 60 / sTurnaround
+    const tripsFleetMonth = delsPerTruck * sTrucks * opDaysMonth
+    const extraM3PerMonth = tripsFleetMonth * 0.5
+    return [
+      { label: `Trips/truck/day at ${sTurnaround} min TAT`, value: delsPerTruck.toFixed(2) },
+      { label: `Fleet trips per month (× ${sTrucks} × ${opDaysMonth} days)`, value: Math.round(tripsFleetMonth).toLocaleString() },
+      { label: 'Extra m³ per trip', value: '+0.5 m³' },
+      { label: 'Extra volume per month', value: `+${Math.round(extraM3PerMonth).toLocaleString()} m³` },
+      { label: `Contribution gain (× $${sContrib.toFixed(2)} margin)`, value: fmt(Math.round(extraM3PerMonth * sContrib)) + '/mo' },
+    ]
+  })()
+
+  const priceSteps: CalcStep[] = (() => {
+    // Price lifts contribution per m³ on all volume (demand-constrained mode)
+    const scenarioMonthly = result.scenarioMonthly
+    const gain = scenarioMonthly * 1
+    return [
+      { label: 'Scenario monthly volume', value: `${scenarioMonthly.toLocaleString()} m³/mo` },
+      { label: 'Price increase', value: '+$1/m³' },
+      { label: `Extra contribution per month`, value: fmt(Math.round(gain)) + '/mo' },
+    ]
+  })()
+
+  const materialSteps: CalcStep[] = (() => {
+    const scenarioMonthly = result.scenarioMonthly
+    const gain = scenarioMonthly * 1
+    return [
+      { label: 'Scenario monthly volume', value: `${scenarioMonthly.toLocaleString()} m³/mo` },
+      { label: 'Material cost reduction', value: '−$1/m³' },
+      { label: `Extra contribution per month`, value: fmt(Math.round(gain)) + '/mo' },
+    ]
+  })()
+
+  const rejectSteps: CalcStep[] = (() => {
+    const delsPerTruck = baseline.opH * 60 / sTurnaround
+    const tripsMonth = delsPerTruck * sTrucks * opDaysMonth
+    const savedTrips = tripsMonth * 0.005
+    const savedM3 = savedTrips * sAvgLoad
+    const savedDollars = savedM3 * sMaterialCost
+    return [
+      { label: 'Fleet trips per month', value: Math.round(tripsMonth).toLocaleString() },
+      { label: 'Rejection drop', value: '−0.5 percentage points' },
+      { label: `Fewer rejected trips (× 0.5%)`, value: `−${savedTrips.toFixed(1)}` },
+      { label: `Material saved (× ${sAvgLoad.toFixed(2)} m³ × $${sMaterialCost.toFixed(2)})`, value: fmt(Math.round(savedDollars)) + '/mo' },
+    ]
+  })()
+
   // ── Group styling ──
   const groupStyle: React.CSSProperties = {
     background: 'var(--white)',
@@ -359,9 +457,7 @@ export default function SimulatorView({ calcResult, readOnly, reportInput, rc }:
 
             <Slider label="Turnaround time" value={sTurnaround} min={60} max={240} step={1} baselineValue={baseline.turnaround || 90} unit="min" onChange={setSTurnaround} />
             {marginalTA > MARGINAL_THRESHOLD && (
-              <div style={{ fontSize: '11px', color: 'var(--gray-400)', marginTop: '-10px', marginBottom: '10px', textAlign: 'right' }}>
-                −1 min → +{fmtMarginal(marginalTA / 12)}/mo contribution
-              </div>
+              <MarginalHint text={`−1 min → +${fmtMarginal(marginalTA / 12)}/mo contribution`} steps={tatSteps} />
             )}
 
             {/* ── Advanced: TAT value-stream breakdown ── */}
@@ -431,9 +527,7 @@ export default function SimulatorView({ calcResult, readOnly, reportInput, rc }:
 
             <Slider label="Delivery radius" value={sRadius} min={3} max={50} step={1} baselineValue={baseline.deliveryRadius || 15} unit="km" onChange={handleRadiusChange} />
             {marginalRadius > MARGINAL_THRESHOLD && (
-              <div style={{ fontSize: '11px', color: 'var(--gray-400)', marginTop: '-10px', marginBottom: '10px', textAlign: 'right' }}>
-                −1 km → +{fmtMarginal(marginalRadius / 12)}/mo contribution
-              </div>
+              <MarginalHint text={`−1 km → +${fmtMarginal(marginalRadius / 12)}/mo contribution`} steps={radiusSteps} />
             )}
 
           </div>
@@ -444,16 +538,12 @@ export default function SimulatorView({ calcResult, readOnly, reportInput, rc }:
 
             <Slider label="Fleet size" value={sTrucks} min={1} max={Math.max(baseline.trucks * 2, 20)} step={1} baselineValue={baseline.trucks || 10} unit="trucks" onChange={setSTrucks} />
             {marginalTrucks > MARGINAL_THRESHOLD && (
-              <div style={{ fontSize: '11px', color: 'var(--gray-400)', marginTop: '-10px', marginBottom: '10px', textAlign: 'right' }}>
-                +1 truck → +{fmtMarginal(marginalTrucks / 12)}/mo contribution
-              </div>
+              <MarginalHint text={`+1 truck → +${fmtMarginal(marginalTrucks / 12)}/mo contribution`} steps={trucksSteps} />
             )}
 
             <Slider label="Avg load per trip" value={sAvgLoad} min={5} max={10} step={0.1} baselineValue={baseline.avgLoadM3 || 7} unit="m³" onChange={setSAvgLoad} />
             {marginalLoad > MARGINAL_THRESHOLD && (
-              <div style={{ fontSize: '11px', color: 'var(--gray-400)', marginTop: '-10px', marginBottom: '10px', textAlign: 'right' }}>
-                +0.5 m³ → +{fmtMarginal(marginalLoad / 12)}/mo contribution
-              </div>
+              <MarginalHint text={`+0.5 m³ → +${fmtMarginal(marginalLoad / 12)}/mo contribution`} steps={loadSteps} />
             )}
           </div>
 
@@ -463,16 +553,12 @@ export default function SimulatorView({ calcResult, readOnly, reportInput, rc }:
 
             <Slider label="Selling price" value={sPrice} min={20} max={150} step={0.5} baselineValue={baseline.price || 65} unit="$/m³" onChange={setSPrice} />
             {Math.abs(marginalPrice) > MARGINAL_THRESHOLD && (
-              <div style={{ fontSize: '11px', color: 'var(--gray-400)', marginTop: '-10px', marginBottom: '10px', textAlign: 'right' }}>
-                +$1/m³ → +{fmtMarginal(marginalPrice / 12)}/mo contribution
-              </div>
+              <MarginalHint text={`+$1/m³ → +${fmtMarginal(marginalPrice / 12)}/mo contribution`} steps={priceSteps} />
             )}
 
             <Slider label="Material cost" value={sMaterialCost} min={10} max={100} step={0.5} baselineValue={baseline.materialCost || 35} unit="$/m³" onChange={setSMaterialCost} />
             {marginalMaterial > MARGINAL_THRESHOLD && (
-              <div style={{ fontSize: '11px', color: 'var(--gray-400)', marginTop: '-10px', marginBottom: '10px', textAlign: 'right' }}>
-                −$1/m³ → +{fmtMarginal(marginalMaterial / 12)}/mo contribution
-              </div>
+              <MarginalHint text={`−$1/m³ → +${fmtMarginal(marginalMaterial / 12)}/mo contribution`} steps={materialSteps} />
             )}
 
             {/* Derived contribution margin */}
@@ -494,9 +580,7 @@ export default function SimulatorView({ calcResult, readOnly, reportInput, rc }:
 
             <Slider label="Rejection rate" value={sReject} min={0} max={10} step={0.1} baselineValue={baseline.rejectPct || 0} unit="%" onChange={setSReject} />
             {marginalReject > MARGINAL_THRESHOLD && (
-              <div style={{ fontSize: '11px', color: 'var(--gray-400)', marginTop: '-10px', marginBottom: '10px', textAlign: 'right' }}>
-                −0.5pp → +{fmtMarginal(marginalReject / 12)}/mo savings
-              </div>
+              <MarginalHint text={`−0.5pp → +${fmtMarginal(marginalReject / 12)}/mo savings`} steps={rejectSteps} />
             )}
           </div>
         </div>
@@ -863,6 +947,62 @@ export default function SimulatorView({ calcResult, readOnly, reportInput, rc }:
               Click anywhere outside to close
             </div>
           </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Marginal hint with expandable calculation ─────────────────────────────
+// Shows one-line impact hint like "−1 min → +$13k/mo contribution" with an
+// info toggle. When clicked, expands a small panel showing the step-by-step
+// math that produces the number. Lets the owner verify the claim instead of
+// having to trust it.
+interface CalcStep { label: string; value: string }
+function MarginalHint({ text, steps }: { text: string; steps: CalcStep[] }) {
+  const [show, setShow] = useState(false)
+  return (
+    <div style={{ marginTop: '-10px', marginBottom: '10px' }}>
+      <div style={{
+        fontSize: '11px', color: 'var(--gray-400)', textAlign: 'right',
+        display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '6px',
+      }}>
+        <span>{text}</span>
+        <button
+          type="button"
+          onClick={() => setShow(v => !v)}
+          style={{
+            background: 'none', border: '1px solid var(--gray-300)', borderRadius: '50%',
+            width: '16px', height: '16px', fontSize: '10px', fontWeight: 600,
+            color: 'var(--gray-500)', cursor: 'pointer', lineHeight: 1, padding: 0,
+            fontFamily: 'var(--font)',
+          }}
+          title={show ? 'Hide calculation' : 'Show calculation'}
+        >
+          {show ? '×' : 'ⓘ'}
+        </button>
+      </div>
+      {show && (
+        <div style={{
+          marginTop: '6px', padding: '8px 10px',
+          background: '#FAFBFC', border: '1px solid var(--gray-100)',
+          borderRadius: '4px',
+        }}>
+          <div style={{ fontSize: '9px', color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '.4px', fontWeight: 600, marginBottom: '6px' }}>
+            How this is calculated
+          </div>
+          {steps.map((s, i) => (
+            <div key={i} style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+              padding: '2px 0',
+              borderTop: i === steps.length - 1 ? '1px solid var(--gray-200)' : 'none',
+              marginTop: i === steps.length - 1 ? '4px' : 0,
+              paddingTop: i === steps.length - 1 ? '6px' : '2px',
+            }}>
+              <span style={{ fontSize: '10px', color: 'var(--gray-600)', flex: 1 }}>{s.label}</span>
+              <span style={{ fontSize: '10px', fontFamily: 'var(--mono)', fontWeight: i === steps.length - 1 ? 600 : 500, color: i === steps.length - 1 ? 'var(--green)' : 'var(--gray-800)', marginLeft: '8px', textAlign: 'right' }}>{s.value}</span>
+            </div>
+          ))}
         </div>
       )}
     </div>
