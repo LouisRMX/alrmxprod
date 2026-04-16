@@ -410,7 +410,7 @@ export default function SimulatorView({ calcResult, readOnly, reportInput, rc }:
                   }}>
                     <span style={{ color: 'var(--gray-600)' }}>Handling subtotal</span>
                     <span style={{ fontFamily: 'var(--mono)', fontWeight: 600 }}>{handlingSum} min</span>
-                    <span style={{ color: 'var(--gray-600)' }}>Transport round-trip ({sRadius} km × 3)</span>
+                    <span style={{ color: 'var(--gray-600)' }}>Transport round-trip ({sRadius} km × 1.5 min/km × 2 ways)</span>
                     <span style={{ fontFamily: 'var(--mono)' }}>{travel} min</span>
                     <span style={{ color: 'var(--gray-800)', fontWeight: 600, borderTop: '1px solid var(--gray-200)', paddingTop: '4px', marginTop: '2px' }}>Total TAT</span>
                     <span style={{ fontFamily: 'var(--mono)', fontWeight: 700, color: 'var(--green)', borderTop: '1px solid var(--gray-200)', paddingTop: '4px', marginTop: '2px' }}>{handlingSum + travel} min</span>
