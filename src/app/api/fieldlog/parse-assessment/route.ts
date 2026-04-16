@@ -37,7 +37,7 @@ const FIELD_MAP = `Map the data to these exact field IDs and return a JSON objec
   "trips_last_month": number (total truck trips last month — NOT daily, this is the monthly total. CRITICAL: if the answer is just "5" or "5 Trips" with no time unit, this likely means "5 trips per truck per day". In that case return trips_last_month = 5 × n_trucks × (op_days / 12). Only use the raw number directly if it is clearly monthly and at least 500),
   "turnaround": number or string. If the document contains a specific number (e.g. 104 minutes), return it as a plain number string like "104". Only use dropdown values if no specific number is given: "Under 80 minutes, benchmark performance" | "80 to 100 minutes, acceptable" | "100 to 125 minutes, slow" | "Over 125 minutes, critical bottleneck",
   "reject_pct": number (rejection rate as percentage. If range like "1-2%" return midpoint 1.5),
-  "delivery_radius_raw": string (the raw delivery radius text from the document, e.g. "10-20 km" or "under 10" or "5km-45km"),
+  "delivery_radius_raw": string (the customer's ACTUAL answer for delivery radius, as a string. CRITICAL: extract only the answer value, NOT the unit-column hint text. If the sheet has a unit column saying "Under 10 km, 10-20, over 20 km" that is the OPTIONS list, not the answer. The answer is the number or phrase the customer wrote in the answer cell. Examples of valid values: "25", "25 km", "5-45 km", "10-20", "under 10". A single bare number like "25" is preferred if that is what the customer wrote),
   "dispatch_tool": string (free text describing dispatch method, e.g. "WhatsApp and paper tickets" or "Dedicated dispatch software"),
   "prod_data_source": string (free text describing where the numbers came from, e.g. "Batch computer system" or "Manual records and estimates"),
   "biggest_pain": string (free text, plant manager's stated challenge),
@@ -170,26 +170,55 @@ export async function POST(req: NextRequest) {
     delete parsed.trips_last_month
 
     // FIX 2: Map delivery_radius_raw to midpoint km + platform dropdown
-    const radiusRaw = String(parsed.delivery_radius_raw || '').toLowerCase()
+    //
+    // Priority:
+    //   1. If the raw text contains a single bare number (e.g. "25"), use it directly.
+    //      This is the cleanest answer format and should not be forced into a bucket.
+    //   2. If it contains a range ("5-45km", "10-20"), compute midpoint.
+    //   3. Otherwise fall through to qualitative text patterns, checking LARGEST
+    //      buckets first so that unit-column text like "Under 10 km, 10-20, over 20 km"
+    //      matches "over 20" (the actual answer's spirit), not the first option listed.
+    const radiusRaw = String(parsed.delivery_radius_raw || '').toLowerCase().trim()
     if (radiusRaw) {
       let midpoint = 0
-      let dropdown = ''
-      if (/under\s*5|less than\s*5|<\s*5/.test(radiusRaw)) {
-        midpoint = 4; dropdown = 'Most deliveries under 5 km, dense urban core'
-      } else if (/5\s*[-–to]+\s*12|5\s*to\s*12/.test(radiusRaw)) {
-        midpoint = 8; dropdown = 'Most deliveries 5 to 12 km, city radius'
-      } else if (/12\s*[-–to]+\s*20|12\s*to\s*20/.test(radiusRaw)) {
-        midpoint = 16; dropdown = 'Most deliveries 12 to 20 km, suburban / outer city'
-      } else if (/under\s*10|less than\s*10|<\s*10/.test(radiusRaw)) {
-        midpoint = 7; dropdown = 'Most deliveries 5 to 12 km, city radius'
-      } else if (/10\s*[-–to]+\s*20|10\s*to\s*20|10-20/.test(radiusRaw)) {
-        midpoint = 15; dropdown = 'Most deliveries 12 to 20 km, suburban / outer city'
-      } else if (/over\s*20|more than\s*20|>\s*20|above\s*20/.test(radiusRaw)) {
-        midpoint = 25; dropdown = 'Many deliveries over 20 km, regional'
+
+      // 1. Bare number: "25", "25 km", "25km"
+      const bareNumber = radiusRaw.match(/^(-?\d+(?:\.\d+)?)\s*(?:km)?\s*$/)
+      if (bareNumber) {
+        const num = parseFloat(bareNumber[1])
+        if (num > 0) midpoint = num
       }
+
+      // 2. Range: "5-45km", "10-20", "5 to 12"
+      if (midpoint === 0) {
+        const rangeMatch = radiusRaw.match(/(\d+(?:\.\d+)?)\s*(?:km)?\s*(?:[-–to]+|to)\s*(\d+(?:\.\d+)?)\s*(?:km)?/)
+        if (rangeMatch) {
+          const min = parseFloat(rangeMatch[1])
+          const max = parseFloat(rangeMatch[2])
+          if (min >= 0 && max > min) midpoint = Math.round(((min + max) / 2) * 10) / 10
+        }
+      }
+
+      // 3. Qualitative patterns, LARGEST bucket first (prevents false match on option-list text)
+      if (midpoint === 0) {
+        if (/over\s*20|more than\s*20|>\s*20|above\s*20|regional/.test(radiusRaw)) {
+          midpoint = 25
+        } else if (/12\s*[-–to]+\s*20|12\s*to\s*20|suburban|outer city/.test(radiusRaw)) {
+          midpoint = 16
+        } else if (/10\s*[-–to]+\s*20|10\s*to\s*20|10-20/.test(radiusRaw)) {
+          midpoint = 15
+        } else if (/5\s*[-–to]+\s*12|5\s*to\s*12|city radius/.test(radiusRaw)) {
+          midpoint = 8
+        } else if (/under\s*10|less than\s*10|<\s*10/.test(radiusRaw)) {
+          midpoint = 7
+        } else if (/under\s*5|less than\s*5|<\s*5|dense/.test(radiusRaw)) {
+          midpoint = 4
+        }
+      }
+
       if (midpoint > 0) {
         parsed.delivery_distance_km = midpoint
-        parsed.delivery_radius = dropdown
+        // Keep raw answer as the authoritative signal; do not fabricate a dropdown string.
       }
     }
     // Preserve raw radius for parseRadius() in reportCalculations (never loses precision)

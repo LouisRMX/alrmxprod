@@ -537,12 +537,33 @@ export default function SimulatorView({ calcResult, readOnly, reportInput, rc }:
               <TransparencyRow label="Operating days"
                 value={`${baseline.opD} /year`}
                 provenance={getProvenance(baseline.provenance, 'operating_days_per_year')} />
-              <TransparencyRow label="Current utilisation"
-                value={`${baseline.util}%`}
-                provenance={{ type: 'calculated', formula: 'actual output ÷ plant capacity' }} />
+              <TransparencyRow label="Trucks assigned"
+                value={`${baseline.trucks}`}
+                provenance={getProvenance(baseline.provenance, 'trucks_assigned')} />
+              <TransparencyRow label="Turnaround time"
+                value={`${baseline.turnaround} min`}
+                provenance={getProvenance(baseline.provenance, 'avg_turnaround_min')} />
+              <TransparencyRow label="Delivery radius"
+                value={`${baseline.deliveryRadius} km`}
+                provenance={getProvenance(baseline.provenance, 'avg_delivery_radius')} />
+              <TransparencyRow label="Avg load per trip"
+                value={`${baseline.avgLoadM3.toFixed(2)} m³`}
+                provenance={getProvenance(baseline.provenance, 'avg_load_m3')} />
+              <TransparencyRow label="Rejection rate"
+                value={`${baseline.rejectPct}%`}
+                provenance={getProvenance(baseline.provenance, 'rejection_rate_pct')} />
+              <TransparencyRow label="Selling price"
+                value={`$${baseline.price.toFixed(2)}/m³`}
+                provenance={{ type: 'reported' }} />
+              <TransparencyRow label="Material cost"
+                value={`$${baseline.materialCost.toFixed(2)}/m³`}
+                provenance={{ type: 'reported' }} />
               <TransparencyRow label="Contribution margin"
                 value={`$${baseline.contrib.toFixed(2)}/m³`}
                 provenance={{ type: 'calculated', formula: `$${baseline.price.toFixed(2)} − $${baseline.materialCost.toFixed(2)}` }} />
+              <TransparencyRow label="Current utilisation"
+                value={`${baseline.util}%`}
+                provenance={{ type: 'calculated', formula: 'actual output ÷ plant capacity' }} />
 
               {baseline.dispatchTool && (
                 <TransparencyRow label="Dispatch tool"
