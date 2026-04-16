@@ -53,7 +53,7 @@ const WORKSHOP_ANSWERS: Answers = {
   op_days:            '260',
   n_trucks:           '24',
   deliveries_day:     '110',
-  turnaround:         '100 to 125 minutes, slow',
+  turnaround:         '112',
   reject_pct:         '3',
   delivery_radius:    'Most deliveries 12 to 20 km, suburban / outer city',
   dispatch_tool:      'Spreadsheet combined with WhatsApp',
@@ -315,10 +315,10 @@ export default function DemoView({ userRole = null, isOverridden = false }: Demo
   const [demoPhase, setDemoPhase] = useState<DemoPhase>('workshop')
 
   // Allowed modes per role + phase
-  // Pre-assessment: only what 14 remote questions can support
+  // Pre-assessment: questions + report + decision + simulator (for scenario exploration with the customer)
   // On-site: full product after plant visit
   const allowedModes: AssessmentMode[] = demoPhase === 'workshop'
-    ? (userRole === 'operator' ? ['track'] : ['questions', 'report', 'decision'])
+    ? (userRole === 'operator' ? ['track'] : ['questions', 'report', 'decision', 'simulator'])
     : userRole === 'owner'
     ? ['report', 'decision', 'simulator', 'track']
     : userRole === 'operator'

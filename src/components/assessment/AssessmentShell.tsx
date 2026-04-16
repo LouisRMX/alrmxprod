@@ -20,6 +20,7 @@ import FieldLogView from '@/components/fieldlog/FieldLogView'
 import UploadAssessmentData from './UploadAssessmentData'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { useSetChatContext } from '@/context/ChatContext'
+import { mapToReportInput, calculateReport } from '@/lib/reportCalculations'
 
 export interface DemoBannerProps {
   show: boolean
@@ -469,7 +470,32 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
       )}
 
       {mode === 'simulator' && (
-        <SimulatorView calcResult={calcResult} readOnly={userRole === 'owner'} />
+        (() => {
+          // Build reportInput + rc on the fly so the simulator can render
+          // provenance-tagged data basis and use the same avg_load / margin
+          // numbers as the generated report. Falls back gracefully if
+          // buildValidatedDiagnosis output is missing.
+          let simReportInput: React.ComponentProps<typeof SimulatorView>['reportInput']
+          let simRc: React.ComponentProps<typeof SimulatorView>['rc']
+          try {
+            const dxLite = {
+              tat_actual: calcResult.ta,
+              reject_pct: calcResult.rejectPct ?? 0,
+              management_context: String(answers.biggest_pain ?? ''),
+            }
+            const input = mapToReportInput(dxLite, answers as Record<string, unknown>)
+            simReportInput = input
+            const rcFull = calculateReport(input)
+            simRc = {
+              avg_load_m3: rcFull.avg_load_m3,
+              target_tat_min: rcFull.target_tat_min,
+              contribution_margin_per_m3: rcFull.contribution_margin_per_m3,
+            }
+          } catch (err) {
+            console.warn('SimulatorView reportInput build failed, continuing without provenance:', err)
+          }
+          return <SimulatorView calcResult={calcResult} readOnly={userRole === 'owner'} reportInput={simReportInput} rc={simRc} />
+        })()
       )}
 
       {mode === 'track' && (() => {

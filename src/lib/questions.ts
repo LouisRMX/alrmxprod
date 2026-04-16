@@ -336,15 +336,10 @@ export const SECTIONS: Section[] = [
       {
         id: 'turnaround',
         label: 'How long does one complete truck trip take, from leaving the plant loaded to returning empty?',
-        hint: 'Full round trip: load at plant + drive to site + wait at site + discharge concrete + drive back. Best practice for a 10–20 km radius: 75–90 minutes.',
-        howto: 'Think of a typical delivery this week. From when the truck left the gate loaded, to when it returned empty, how long does that usually take?',
-        type: 'opts',
-        opts: [
-          'Under 80 minutes, benchmark performance',
-          '80 to 100 minutes, acceptable',
-          '100 to 125 minutes, slow',
-          'Over 125 minutes, critical bottleneck',
-        ],
+        hint: 'Full round trip: load at plant + drive to site + wait at site + discharge concrete + drive back. Benchmark bands: under 80 min (best practice for 10-20 km radius), 80-100 min (acceptable), 100-125 min (slow), over 125 min (critical bottleneck).',
+        howto: 'Think of a typical delivery this week. From when the truck left the gate loaded, to when it returned empty, how long does that usually take? Enter the exact number of minutes.',
+        type: 'num',
+        unit: 'min',
         req: true,
         info: {
           what: 'Total time for one complete truck cycle, loaded departure to empty return.',

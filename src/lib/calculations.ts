@@ -139,23 +139,45 @@ export interface SimBaseline {
   cap: number
   opH: number
   opD: number
-  mixCap: number
-  turnaround: number
+  mixCap: number                    // default mixer capacity, used as fallback for avgLoadM3
+  turnaround: number                // current TAT, min
   trucks: number
-  util: number // 0-100
-  price: number
-  contrib: number
+  util: number                      // 0-100
+  price: number                     // $/m³
+  contrib: number                   // $/m³, baseline price minus baseline material cost
   TARGET_TA: number
-  dispatchMin: number  // baseline order-to-dispatch minutes (same scale as scenario)
-  dispatchMin_baseline: number // baseline dispatch time
-  rejectPct: number // baseline rejection %
+
+  // ── Extended for v2 simulator (8 sliders, 4 groups) ──
+  deliveryRadius: number            // km, drives target TAT via 60 + radius × 3
+  avgLoadM3: number                 // actual avg load per trip from reportCalculations
+  materialCost: number              // $/m³, reported raw material cost
+  plantSiteHandlingMin: number      // fixed plant + site handling floor, typically 60 min
+
+  // ── Context for transparency panel (not sliders) ──
+  numberOfPlants: number            // typically 1, can be >1 (Al-Omran: 5)
+  truckBanHours: number | null      // regulatory ban, null if not applicable
+  demandStatus: 'constrained' | 'matched' | 'weak'
+  dispatchTool: string              // qualitative flag only, e.g. "Phone, WhatsApp"
+  rejectPct: number                 // baseline rejection %, now also a slider
+  provenance?: import('./reportProvenance').ProvenanceMap
 }
 
 export interface SimScenario {
-  turnaround: number
+  // Operational
+  turnaround: number                // min
+  deliveryRadius: number            // km
+  plantSiteHandlingMin: number      // min (rarely moved but available)
+
+  // Structural
   trucks: number
-  price: number
-  otd: number // order-to-dispatch minutes
+  avgLoadM3: number                 // m³/trip
+
+  // Commercial
+  price: number                     // $/m³
+  materialCost: number              // $/m³
+
+  // Quality
+  rejectPct: number                 // 0-100
 }
 
 export interface SimResult {
@@ -168,11 +190,14 @@ export interface SimResult {
   effFleetDaily: number
   sProdScore: number
   sFleetScore: number
-  sDispScore: number
   sContrib: number
-  dispEff: number
   maxUtilPct: number
   sUtil: number
+  // ── v2 additions ──
+  scenarioTargetTA: number          // recomputed from deliveryRadius + plantSiteHandlingMin
+  scenarioMonthly: number           // m³/mo at this scenario
+  rejectSavings: number             // $/mo saved from rejection drop (absolute, not delta vs baseline)
+  rejectDelta: number               // $/mo difference vs baseline rejection loss
 }
 
 // ── Overrides ────────────────────────────────────────────────────────────────
@@ -999,28 +1024,32 @@ export function calcConsistency(result: CalcResult, answers: Answers): Consisten
 // ── Scenario Simulator ───────────────────────────────────────────────────────
 
 export function simCalc(baseline: SimBaseline, scenario: SimScenario): SimResult {
-  const { cap, opH, opD, mixCap, TARGET_TA } = baseline
-  const { turnaround: sTA, trucks: sTrucks, price: sPrice, otd: sOTD } = scenario
-
-  // Variable costs from baseline
-  const bVarCosts = baseline.price - baseline.contrib
+  const { cap, opH, opD } = baseline
 
   // Plant max daily capacity (best-practice ceiling: 92% of nameplate)
   const plantMaxDaily = cap * 0.92 * opH
   const prodDaily = plantMaxDaily
 
-  // Fleet-limited daily capacity
-  const delsPerTruck = sTA > 0 ? (opH * 60 / sTA) : 0
-  const totalDels = delsPerTruck * sTrucks
-  const fleetDaily = totalDels * mixCap
+  // ── Scenario target TAT is recomputed from radius + handling ──
+  // This allows the radius/handling sliders to feed back into TAT,
+  // while the TAT slider still drives the actual cycle time directly.
+  const scenarioTargetTA = Math.max(60, Math.round(scenario.plantSiteHandlingMin + scenario.deliveryRadius * 3))
 
-  // Dispatch efficiency from order-to-dispatch time
-  const dispEff = Math.max(0.40, Math.min(0.98, 1 - (sOTD / 100)))
-  const effFleetDaily = fleetDaily * dispEff
+  // Fleet-limited daily capacity using scenario avg load (not baseline mixCap)
+  const delsPerTruck = scenario.turnaround > 0 ? (opH * 60 / scenario.turnaround) : 0
+  const totalDels = delsPerTruck * scenario.trucks
+  const fleetDaily = totalDels * scenario.avgLoadM3
+
+  // Effective fleet daily equals fleet daily in v2 (no dispEff multiplier).
+  // Dispatch efficiency losses were removed because OTD is no longer measured;
+  // any dispatch impact is absorbed inside the TAT slider itself.
+  const effFleetDaily = fleetDaily
 
   // Scenario output = min of plant and fleet constraints
   const scenarioDaily = Math.min(plantMaxDaily, effFleetDaily)
   const scenarioAnnual = Math.round(scenarioDaily * opD)
+  const opDaysPerMonth = Math.round(opD / 12)
+  const scenarioMonthly = Math.round(scenarioDaily * opDaysPerMonth)
 
   // Derived utilisation, what plant + fleet together actually produce
   const sUtil = cap > 0 && opH > 0 ? Math.round((scenarioDaily / (cap * opH)) * 100) : 0
@@ -1028,41 +1057,116 @@ export function simCalc(baseline: SimBaseline, scenario: SimScenario): SimResult
   // Bottleneck
   const scenarioBottleneck = plantMaxDaily <= effFleetDaily ? 'Production' : 'Fleet / Logistics'
 
-  // Contribution recalculated when price changes
-  const sContrib = Math.max(0, sPrice - bVarCosts)
+  // Contribution from scenario price minus scenario material cost
+  const sContrib = Math.max(0, scenario.price - scenario.materialCost)
 
-  // Baseline annual volume, same 92% ceiling, same opH
+  // Baseline annual volume using baseline avg load
   const bProdDaily = cap * 0.92 * opH
   const bDelsPerTruck = baseline.turnaround > 0 ? (opH * 60 / baseline.turnaround) : 0
-  const bFleetDaily = bDelsPerTruck * baseline.trucks * mixCap
-  const bDispEff = Math.max(0.40, Math.min(0.98, 1 - (baseline.dispatchMin / 100)))
-  const bEffFleetDaily = bFleetDaily * bDispEff
-  const bBaselineDaily = Math.min(bProdDaily, bEffFleetDaily)
+  const bFleetDaily = bDelsPerTruck * baseline.trucks * baseline.avgLoadM3
+  const bBaselineDaily = Math.min(bProdDaily, bFleetDaily)
   const bAnnualVol = Math.round(bBaselineDaily * opD)
 
   const deltaVol = scenarioAnnual - bAnnualVol
-  // Revenue and contribution impact = total scenario earnings minus total baseline earnings
-  // This captures both volume change AND price change on all volume
-  const revenueUpside = Math.round(scenarioAnnual * sPrice - bAnnualVol * baseline.price)
+  // Revenue and contribution impact: captures both volume change AND price/cost change on all volume
+  const revenueUpside = Math.round(scenarioAnnual * scenario.price - bAnnualVol * baseline.price)
   const contribUpside = Math.round(scenarioAnnual * sContrib - bAnnualVol * baseline.contrib)
+
+  // ── Rejection savings ──
+  // Loss from rejections = rejected_trips × avg_load × material_cost
+  // Positive rejectDelta means scenario saves money vs baseline.
+  const baselineTripsPerMonth = bDelsPerTruck * baseline.trucks * opDaysPerMonth
+  const scenarioTripsPerMonth = delsPerTruck * scenario.trucks * opDaysPerMonth
+  const baselineRejectLossMonthly =
+    baselineTripsPerMonth * (baseline.rejectPct / 100) * baseline.avgLoadM3 * baseline.materialCost
+  const scenarioRejectLossMonthly =
+    scenarioTripsPerMonth * (scenario.rejectPct / 100) * scenario.avgLoadM3 * scenario.materialCost
+  const rejectDelta = Math.round(baselineRejectLossMonthly - scenarioRejectLossMonthly)
+  const rejectSavings = Math.round(scenarioRejectLossMonthly)
 
   // Scores
   const sProdScore = Math.max(0, Math.min(100, Math.round((sUtil / 92) * 100)))
-  const taRatio = TARGET_TA > 0 ? sTA / TARGET_TA : 1
+  const taRatio = scenarioTargetTA > 0 ? scenario.turnaround / scenarioTargetTA : 1
   const sFleetScore = Math.max(0, Math.min(100, Math.round(taRatio <= 1 ? 100 : 100 - ((taRatio - 1) * 120))))
-  const sDispScore = Math.max(0, Math.min(100, Math.round(100 - sOTD * 1.4)))
 
   // maxUtilPct: the utilisation % the current fleet configuration can support.
-  // Expressed as % of plant capacity (cap × opH), not as % of the 92% target.
-  // < sUtil → fleet is the binding constraint (amber warning)
-  // > sUtil → fleet has headroom above current utilisation (green prompt to raise slider)
-  // Capped at 99 to avoid showing "100%" which implies no constraint at all
   const maxUtilPct = cap > 0 && opH > 0
     ? Math.min(99, Math.round((effFleetDaily / (cap * opH)) * 100))
     : sUtil
 
   return {
     scenarioAnnual, deltaVol, revenueUpside, contribUpside, scenarioBottleneck,
-    prodDaily, effFleetDaily, sProdScore, sFleetScore, sDispScore, sContrib, dispEff, maxUtilPct, sUtil,
+    prodDaily, effFleetDaily, sProdScore, sFleetScore, sContrib, maxUtilPct, sUtil,
+    scenarioTargetTA, scenarioMonthly, rejectSavings, rejectDelta,
+  }
+}
+
+/**
+ * Build a SimBaseline from the ReportCalculations + ReportInput that the
+ * rest of the pipeline already produces. This keeps the simulator in lock-step
+ * with the report, both use the same provenance-tagged data.
+ *
+ * Falls back gracefully for older assessments where reportInput is absent,
+ * by filling the v2 slider fields with sensible defaults derived from
+ * calcResult alone.
+ */
+export function buildSimBaseline(
+  r: CalcResult,
+  reportInput?: {
+    plant_capacity_m3_per_hour?: number
+    operating_hours_per_day?: number
+    operating_days_per_year?: number
+    material_cost_per_m3?: number
+    avg_turnaround_min?: number
+    rejection_rate_pct?: number
+    trucks_assigned?: number
+    number_of_plants?: number
+    biggest_operational_challenge?: string
+    demand_vs_capacity?: string
+    dispatch_tool?: string
+    provenance?: import('./reportProvenance').ProvenanceMap
+  },
+  rc?: {
+    avg_load_m3?: number
+    target_tat_min?: number
+    contribution_margin_per_m3?: number
+  }
+): SimBaseline {
+  // Demand status inferred from customer's demand_vs_capacity answer
+  const demandAnswer = String(reportInput?.demand_vs_capacity ?? '').toLowerCase()
+  let demandStatus: 'constrained' | 'matched' | 'weak' = 'matched'
+  if (/outpace|more orders|cannot meet/.test(demandAnswer)) demandStatus = 'constrained'
+  else if (/lower than|excess capacity|weak demand/.test(demandAnswer)) demandStatus = 'weak'
+
+  // Extract truck ban hours from biggest-operational-challenge free text
+  const challenge = String(reportInput?.biggest_operational_challenge ?? '')
+  const banMatch = challenge.match(/(\d+)\s*hours?\s*(per day|daily|movement)/i)
+  const truckBanHours = banMatch ? parseInt(banMatch[1], 10) : null
+
+  return {
+    cap: r.cap,
+    opH: r.opH,
+    opD: r.opD,
+    mixCap: r.mixCap,
+    turnaround: r.ta,
+    trucks: r.trucks,
+    util: Math.round(r.util * 100),
+    price: r.price,
+    contrib: r.contrib,
+    TARGET_TA: r.TARGET_TA,
+
+    // ── v2 slider values ──
+    deliveryRadius: Math.round((r.TARGET_TA - 60) / 3),       // back-derive from TARGET_TA
+    avgLoadM3: rc?.avg_load_m3 ?? r.mixCap,
+    materialCost: reportInput?.material_cost_per_m3 ?? Math.max(0, r.price - r.contrib),
+    plantSiteHandlingMin: 60,                                  // benchmark floor; moveable in advanced
+
+    // ── context for transparency panel ──
+    numberOfPlants: reportInput?.number_of_plants ?? 1,
+    truckBanHours,
+    demandStatus,
+    dispatchTool: String(reportInput?.dispatch_tool ?? '').trim(),
+    rejectPct: r.rejectPct ?? reportInput?.rejection_rate_pct ?? 0,
+    provenance: reportInput?.provenance,
   }
 }

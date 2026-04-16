@@ -296,8 +296,15 @@ function makeBaseline(overrides: Partial<SimBaseline> = {}): SimBaseline {
     price: 58,
     contrib: 20,
     TARGET_TA: 83, // 60 + 15*1.5 = 82.5 → 83
-    dispatchMin: 25,
-    dispatchMin_baseline: 25,
+    // v2 extension fields
+    deliveryRadius: 15,
+    avgLoadM3: 7,
+    materialCost: 38, // so contrib = price - materialCost = 20
+    plantSiteHandlingMin: 60,
+    numberOfPlants: 1,
+    truckBanHours: null,
+    demandStatus: 'constrained',
+    dispatchTool: '',
     rejectPct: 3,
     ...overrides,
   }
@@ -306,9 +313,13 @@ function makeBaseline(overrides: Partial<SimBaseline> = {}): SimBaseline {
 function makeScenario(overrides: Partial<SimScenario> = {}): SimScenario {
   return {
     turnaround: 97,
+    deliveryRadius: 15,
+    plantSiteHandlingMin: 60,
     trucks: 32,
+    avgLoadM3: 7,
     price: 58,
-    otd: 20,
+    materialCost: 38,
+    rejectPct: 3,
     ...overrides,
   }
 }
@@ -398,32 +409,39 @@ describe('simCalc(), Financial', () => {
   })
 })
 
-describe('simCalc(), Dispatch Efficiency', () => {
-  it('low OTD → high dispatch efficiency', () => {
+describe('simCalc(), Radius and handling drive target TAT', () => {
+  it('shorter radius reduces scenario target TAT', () => {
     const b = makeBaseline()
-    const r = simCalc(b, makeScenario({ otd: 5 }))
-    expect(r.dispEff).toBeGreaterThan(0.90)
+    const long = simCalc(b, makeScenario({ deliveryRadius: 30 }))
+    const short = simCalc(b, makeScenario({ deliveryRadius: 10 }))
+    expect(short.scenarioTargetTA).toBeLessThan(long.scenarioTargetTA)
   })
 
-  it('high OTD → low dispatch efficiency', () => {
+  it('lower plant/site handling reduces scenario target TAT', () => {
     const b = makeBaseline()
-    const r = simCalc(b, makeScenario({ otd: 50 }))
-    expect(r.dispEff).toBeLessThan(0.55)
+    const slow = simCalc(b, makeScenario({ plantSiteHandlingMin: 90 }))
+    const fast = simCalc(b, makeScenario({ plantSiteHandlingMin: 50 }))
+    expect(fast.scenarioTargetTA).toBeLessThan(slow.scenarioTargetTA)
   })
 
-  it('dispatch efficiency clamped to [0.40, 0.98]', () => {
+  it('target TAT = handling + radius \u00D7 3', () => {
     const b = makeBaseline()
-    const low = simCalc(b, makeScenario({ otd: 200 }))
-    const high = simCalc(b, makeScenario({ otd: 0 }))
-    expect(low.dispEff).toBe(0.40)
-    expect(high.dispEff).toBe(0.98)
+    const r = simCalc(b, makeScenario({ deliveryRadius: 20, plantSiteHandlingMin: 60 }))
+    expect(r.scenarioTargetTA).toBe(120) // 60 + 20*3
+  })
+})
+
+describe('simCalc(), Rejection rate', () => {
+  it('lower rejection saves money (positive rejectDelta)', () => {
+    const b = makeBaseline({ rejectPct: 3 })
+    const r = simCalc(b, makeScenario({ rejectPct: 1 }))
+    expect(r.rejectDelta).toBeGreaterThan(0)
   })
 
-  it('OTD improvement → better dispatch score', () => {
-    const b = makeBaseline()
-    const slow = simCalc(b, makeScenario({ otd: 40 }))
-    const fast = simCalc(b, makeScenario({ otd: 10 }))
-    expect(fast.sDispScore).toBeGreaterThan(slow.sDispScore)
+  it('higher rejection costs more (negative rejectDelta)', () => {
+    const b = makeBaseline({ rejectPct: 2 })
+    const r = simCalc(b, makeScenario({ rejectPct: 5 }))
+    expect(r.rejectDelta).toBeLessThan(0)
   })
 })
 
@@ -442,14 +460,16 @@ describe('simCalc(), Scores', () => {
   })
 
   it('turnaround below target → fleet score 100', () => {
-    const b = makeBaseline({ TARGET_TA: 80 })
-    const r = simCalc(b, makeScenario({ turnaround: 60 }))
+    // v2: scenarioTargetTA = handling + radius × 3. Use 60 + 20×3 = 120 as target.
+    const b = makeBaseline()
+    const r = simCalc(b, makeScenario({ deliveryRadius: 20, plantSiteHandlingMin: 60, turnaround: 60 }))
     expect(r.sFleetScore).toBe(100)
   })
 
   it('turnaround above target → fleet score < 100', () => {
-    const b = makeBaseline({ TARGET_TA: 80 })
-    const r = simCalc(b, makeScenario({ turnaround: 100 }))
+    // v2: scenarioTargetTA = 60 + 10×3 = 90. Scenario TA 120 > target → score < 100.
+    const b = makeBaseline()
+    const r = simCalc(b, makeScenario({ deliveryRadius: 10, plantSiteHandlingMin: 60, turnaround: 120 }))
     expect(r.sFleetScore).toBeLessThan(100)
   })
 })

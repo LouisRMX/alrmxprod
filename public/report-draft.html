@@ -3,358 +3,735 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Al-RMX — Report Draft v3</title>
+<title>Al-RMX, Pre-Assessment Report Bible v4 (Al-Omran structure)</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #eef0f2; padding: 32px; }
-  .page { background: white; max-width: 800px; margin: 0 auto; padding: 48px; box-shadow: 0 4px 40px rgba(0,0,0,.1); }
-
-  /* Header */
-  .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 36px; padding-bottom: 18px; border-bottom: 2px solid #1a2e3b; }
-  .logo { font-size: 20px; font-weight: 800; color: #1a2e3b; }
-  .logo em { color: #0F6E56; font-style: normal; }
-  .header-sub { font-size: 10px; color: #9ca3af; letter-spacing: .4px; margin-top: 2px; }
-  .plant-name { font-size: 17px; font-weight: 700; color: #1a2e3b; text-align: right; }
-  .plant-meta { font-size: 11px; color: #9ca3af; margin-top: 2px; text-align: right; }
-
-  /* Section label */
-  .section-label { font-size: 9px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; color: #9ca3af; margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
-  .section-label::after { content: ''; flex: 1; height: 1px; background: #e5e7eb; }
-
-  /* Divider */
-  hr { border: none; border-top: 1px solid #e5e7eb; margin: 28px 0; }
-
-  /* ── KPI PYRAMID ───────────────────────────────── */
-  .pyramid { display: flex; flex-direction: column; gap: 0; margin-bottom: 28px; }
-
-  .pyramid-row { display: flex; gap: 10px; }
-
-  /* Connector between rows */
-  .pyramid-connector {
-    display: flex; justify-content: center; align-items: center;
-    height: 18px; position: relative;
+  body {
+    font-family: Calibri, 'Segoe UI', system-ui, sans-serif;
+    background: #eef0f2;
+    padding: 32px;
+    color: #1a1a1a;
+    font-size: 11pt;
+    line-height: 1.45;
   }
-  .pyramid-connector::before {
-    content: ''; position: absolute; left: 50%; top: 0;
-    width: 1px; height: 100%; background: #e5e7eb;
+  .page {
+    background: white;
+    max-width: 900px;
+    margin: 0 auto 28px;
+    padding: 56px 64px;
+    box-shadow: 0 4px 40px rgba(0,0,0,.08);
   }
 
-  /* Base box */
-  .kpi-box {
-    flex: 1; border-radius: 8px; padding: 14px 16px;
-    border: 1px solid #e5e7eb; position: relative;
-    display: flex; flex-direction: column; gap: 6px;
+  /* ── Headings ── */
+  h1 { font-size: 18pt; font-weight: 700; color: #1a1a1a; margin-bottom: 2px; }
+  h2 {
+    font-size: 14pt; font-weight: 700; color: #1a1a1a;
+    margin: 28px 0 10px; padding-bottom: 4px;
+    border-bottom: 1px solid #1a1a1a;
+  }
+  h3 {
+    font-size: 12pt; font-weight: 700; color: #1a1a1a;
+    margin: 18px 0 8px;
+  }
+  p { margin-bottom: 10px; }
+
+  /* ── Subtitle / meta row ── */
+  .subtitle { font-size: 12pt; color: #666; margin-bottom: 2px; }
+  .date-row { font-size: 10pt; color: #666; margin-bottom: 26px; }
+  .prepared-by { margin-top: 18px; margin-bottom: 28px; }
+  .prepared-by .pb-name { font-size: 11pt; color: #1a1a1a; font-weight: 600; }
+  .prepared-by .pb-role { font-size: 9pt; color: #666; font-style: italic; }
+
+  /* ── Editor-field marker ── */
+  .editor-field {
+    border-left: 3px solid #D68910;
+    background: #FEF9E7;
+    padding: 10px 14px;
+    margin: 14px 0;
+    font-size: 10pt;
+    color: #7a5a00;
+  }
+  .editor-field strong { color: #7a5a00; font-weight: 700; }
+  .editor-field-tag {
+    display: inline-block;
+    background: #D68910;
+    color: white;
+    font-size: 8pt;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 3px;
+    margin-right: 8px;
   }
 
-  /* Financial box — top, full row */
-  .kpi-financial {
-    background: #fdf2f2; border-color: #fca5a5;
-    flex-direction: row; align-items: center; justify-content: space-between;
-    padding: 18px 24px;
+  /* ── Hero recovery box ── */
+  .hero {
+    background: #F0FAF4;
+    border-left: 6px solid #0F6E56;
+    padding: 18px 22px;
+    margin: 20px 0 24px;
+    border-radius: 2px;
   }
-  .kpi-financial .kpi-label { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #ef4444; margin-bottom: 4px; }
-  .kpi-financial .kpi-value { font-size: 30px; font-weight: 800; font-family: 'Courier New', monospace; color: #b91c1c; line-height: 1; }
-  .kpi-financial .kpi-sub { font-size: 10px; color: #9ca3af; margin-top: 4px; }
-  .kpi-financial-right { text-align: right; border-left: 1px solid #fca5a5; padding-left: 20px; }
-  .kpi-financial-right .kpi-label { color: #9ca3af; }
-  .kpi-financial-right .kpi-value { font-size: 18px; font-weight: 700; font-family: 'Courier New', monospace; color: #b91c1c; }
+  .hero-lead { font-size: 13pt; color: #1a1a1a; line-height: 1.5; }
+  .hero-figure {
+    font-size: 20pt; font-weight: 700; color: #0F6E56;
+    display: inline;
+  }
+  .hero-footnote { font-size: 9pt; color: #666; margin-top: 6px; }
 
-  /* Tier 2 boxes — critical */
-  .kpi-critical { background: #fffbf0; border-color: #fde68a; }
-  .kpi-critical-red { background: #fdf2f2; border-color: #fca5a5; }
+  /* ── Generic tables ── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 8px 0 18px;
+    font-size: 10pt;
+  }
+  table th, table td {
+    padding: 7px 10px;
+    border: 1px solid #ccc;
+    text-align: left;
+    vertical-align: top;
+  }
+  table thead th {
+    background: #f5f5f5;
+    font-weight: 700;
+    font-size: 9pt;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    color: #555;
+  }
+  .group-header td {
+    background: #eef2f5;
+    font-weight: 700;
+    font-size: 9pt;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    color: #333;
+  }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  td.calc { font-size: 9pt; color: #555; }
+  td.value { font-weight: 600; }
 
-  /* Tier 3 boxes — supporting */
-  .kpi-supporting { background: #f9fafb; border-color: #e5e7eb; }
+  /* ── KPI boxes (3 chosen KPIs) ── */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+    margin: 14px 0 18px;
+  }
+  .kpi {
+    border: 1px solid #ddd;
+    border-top: 3px solid #0F6E56;
+    padding: 12px 14px;
+    border-radius: 2px;
+    background: #fafafa;
+  }
+  .kpi.warn { border-top-color: #D68910; }
+  .kpi.bad  { border-top-color: #C0392B; }
+  .kpi.good { border-top-color: #0F6E56; }
+  .kpi-name { font-size: 9pt; font-weight: 700; color: #555; text-transform: uppercase; letter-spacing: 0.4px; }
+  .kpi-value { font-size: 20pt; font-weight: 700; color: #1a1a1a; margin: 4px 0; }
+  .kpi.warn .kpi-value { color: #D68910; }
+  .kpi.bad .kpi-value  { color: #C0392B; }
+  .kpi.good .kpi-value { color: #0F6E56; }
+  .kpi-target { font-size: 9pt; color: #666; }
+  .kpi-gap { font-size: 9pt; font-weight: 600; margin-top: 6px; }
+  .kpi-calc { font-size: 8.5pt; color: #888; margin-top: 8px; line-height: 1.4; }
 
-  /* Bottleneck tag */
-  .bottleneck-tag {
-    position: absolute; top: -10px; left: 12px;
-    background: #b91c1c; color: white;
-    font-size: 8px; font-weight: 700; letter-spacing: .8px;
-    text-transform: uppercase; padding: 2px 7px; border-radius: 4px;
+  /* ── Scenario bars ── */
+  .scenario-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 0;
+    border: 1px solid #ccc;
+    margin: 14px 0 0;
+  }
+  .scenario {
+    padding: 14px 16px;
+    border-right: 1px solid #ddd;
+  }
+  .scenario:last-child { border-right: none; }
+  .scenario.today { background: #fdecec; border-top: 3px solid #C0392B; }
+  .scenario.operational { background: #fdf4e3; border-top: 3px solid #D68910; }
+  .scenario.structural { background: #e9f5ec; border-top: 3px solid #0F6E56; }
+  .scenario-label { font-size: 9pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: #555; margin-bottom: 6px; }
+  .scenario-pct { font-size: 26pt; font-weight: 700; line-height: 1; }
+  .scenario.today .scenario-pct { color: #C0392B; }
+  .scenario.operational .scenario-pct { color: #D68910; }
+  .scenario.structural .scenario-pct { color: #0F6E56; }
+  .scenario-bar { height: 6px; background: #eee; border-radius: 2px; overflow: hidden; margin: 10px 0 10px; }
+  .scenario-bar-fill { height: 100%; }
+  .scenario.today .scenario-bar-fill { width: 51%; background: #C0392B; }
+  .scenario.operational .scenario-bar-fill { width: 64%; background: #D68910; }
+  .scenario.structural .scenario-bar-fill { width: 70%; background: #0F6E56; }
+  .scenario-meta { font-size: 9pt; color: #555; }
+  .scenario-meta-strong { font-size: 10pt; font-weight: 600; color: #1a1a1a; margin-top: 3px; }
+
+  .scenario-table {
+    border: 1px solid #ccc;
+    border-top: none;
+    margin: 0 0 18px;
+  }
+  .scenario-table td:first-child { color: #555; font-size: 9pt; }
+  .gain-cell { font-weight: 700; color: #0F6E56; }
+  .recovery-cell { font-weight: 600; color: #1e5f3a; }
+
+  /* ── Bridge sentence ── */
+  .bridge {
+    font-size: 10.5pt;
+    color: #444;
+    font-style: italic;
+    padding: 12px 14px;
+    background: #fafafa;
+    border-left: 3px solid #0F6E56;
+    margin: 16px 0 20px;
+    line-height: 1.6;
   }
 
-  /* Box internals */
-  .kpi-label { font-size: 9px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; color: #9ca3af; }
-  .kpi-value { font-size: 18px; font-weight: 800; font-family: 'Courier New', monospace; line-height: 1.1; }
-  .kpi-target { font-size: 10px; color: #9ca3af; }
+  /* ── Compounded cost grid ── */
+  .cost-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+    margin: 14px 0 18px;
+  }
+  .cost-card {
+    border: 1px solid #ddd;
+    padding: 12px 14px;
+    background: #fafafa;
+  }
+  .cost-label { font-size: 9pt; color: #666; text-transform: uppercase; letter-spacing: 0.4px; font-weight: 700; }
+  .cost-value { font-size: 16pt; font-weight: 700; color: #1a1a1a; margin-top: 4px; }
 
-  /* Progress bar inside box */
-  .kpi-bar-wrap { margin-top: 2px; }
-  .kpi-bar-track { height: 5px; background: #e5e7eb; border-radius: 3px; position: relative; overflow: visible; }
-  .kpi-bar-fill { height: 5px; border-radius: 3px; position: absolute; left: 0; top: 0; }
-  .kpi-bar-target { position: absolute; top: -4px; width: 2px; height: 13px; background: #374151; border-radius: 1px; }
-  .kpi-gap { font-size: 9px; font-weight: 600; margin-top: 4px; }
+  /* ── Tags for transparency column ── */
+  .tag {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 8pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin-right: 4px;
+  }
+  .tag-reported    { background: #d4edda; color: #155724; }
+  .tag-calculated  { background: #e8eef9; color: #1e3a8a; }
+  .tag-interpreted { background: #fff3cd; color: #856404; }
+  .tag-midpoint    { background: #f4ecf7; color: #6a1b9a; }
 
-  /* ── RECOVERY BARS ───────────────────────────── */
-  .rec-row { margin-bottom: 9px; }
-  .rec-top { display: flex; justify-content: space-between; margin-bottom: 3px; align-items: baseline; }
-  .rec-name { font-size: 11px; color: #374151; }
-  .rec-amount { font-size: 11px; font-weight: 700; font-family: 'Courier New', monospace; }
-  .rec-track { height: 8px; background: #f3f4f6; border-radius: 4px; overflow: hidden; }
-  .rec-fill { height: 100%; border-radius: 4px; }
-  .rec-total { margin-top: 12px; padding-top: 10px; border-top: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: baseline; }
+  /* ── Appendix ── */
+  .appendix { margin-top: 36px; padding-top: 20px; border-top: 2px solid #ccc; }
+  .appendix h2 { border-bottom-color: #0F6E56; color: #0F6E56; }
+  .appendix h3 { color: #0F6E56; margin-top: 22px; }
+  .appendix table th { background: #eef5f2; color: #0F6E56; }
 
-  /* ── NARRATIVE ────────────────────────────────── */
-  .narrative { font-size: 13px; color: #374151; line-height: 1.85; }
+  /* ── Comment bubbles (design notes) ── */
+  .note {
+    margin: 24px 0;
+    padding: 14px 18px;
+    background: #0f2748;
+    color: #fff;
+    border-radius: 4px;
+    font-size: 10pt;
+    line-height: 1.6;
+  }
+  .note strong { color: #9ecbff; }
+  .note-header {
+    display: inline-block;
+    font-size: 8pt;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    background: #3b6ab0;
+    color: #fff;
+    padding: 2px 8px;
+    border-radius: 3px;
+    margin-bottom: 8px;
+  }
 
-  /* ── FINDINGS ─────────────────────────────────── */
-  .finding { display: grid; grid-template-columns: 18px 1fr auto; gap: 12px; padding: 11px 0; border-bottom: 1px solid #f3f4f6; align-items: start; }
-  .finding:last-child { border-bottom: none; }
-  .finding-num { font-size: 10px; font-family: 'Courier New', monospace; color: #d1d5db; padding-top: 2px; }
-  .finding-title { font-size: 12px; font-weight: 600; color: #1a2e3b; line-height: 1.4; }
-  .finding-action { font-size: 11px; color: #0F6E56; margin-top: 3px; }
-  .finding-amount { font-size: 12px; font-weight: 700; font-family: 'Courier New', monospace; text-align: right; white-space: nowrap; }
-  .finding-tag { font-size: 9px; color: #9ca3af; text-align: right; margin-top: 2px; }
-
-  /* ── NEXT STEP ────────────────────────────────── */
-  .nextstep { border-left: 3px solid #0F6E56; padding: 14px 18px; background: #f0faf6; border-radius: 0 6px 6px 0; }
-  .nextstep p { font-size: 13px; color: #374151; line-height: 1.8; }
-
-  /* Footer */
-  .footer { margin-top: 32px; padding-top: 14px; border-top: 1px solid #e5e7eb; display: flex; justify-content: space-between; }
-  .footer span { font-size: 10px; color: #c4c4c4; }
+  /* ── Footer ── */
+  .footer {
+    margin-top: 40px; padding-top: 14px;
+    border-top: 1px solid #e5e7eb;
+    display: flex; justify-content: space-between;
+    font-size: 9pt; color: #999;
+  }
 </style>
 </head>
 <body>
+
+<!-- ═════════════════════════════════════════════════════════════════════════ -->
+<!-- PAGE 1: TITLE, HERO, DISCLAIMER, PURPOSE                                  -->
+<!-- ═════════════════════════════════════════════════════════════════════════ -->
 <div class="page">
 
-  <!-- Header -->
-  <div class="header">
-    <div>
-      <div class="logo">Al<em>-</em>RMX</div>
-      <div class="header-sub">PLANT INTELLIGENCE REPORT</div>
+  <div class="note">
+    <div class="note-header">Bible v4, Al-Omran structure</div>
+    This is the authoritative reference for <strong>pre-assessment report output</strong>. The platform (<code>ExportWord.tsx</code>, <code>reportAssembly.ts</code>) must render a Word document that matches this structure section by section. Placeholder data throughout is drawn from the Al-Omran Riyadh Region case. Editor fields are marked with an amber bar. Fully auto-generated sections have no marker.
+  </div>
+
+  <h1>Pre-Assessment Report, Ready mix operations</h1>
+  <div class="subtitle">Prepared for Mr. Abdul Aziz O Al-Omran, Riyadh Region, Saudi Arabia</div>
+  <div class="date-row">16 April 2026</div>
+
+  <div class="prepared-by">
+    <div class="pb-name">Prepared by Louis Hellmann</div>
+    <div class="pb-role">Operational Excellence Consultant</div>
+  </div>
+
+  <!-- HERO RECOVERY BOX -->
+  <div class="hero">
+    <div class="hero-lead">
+      Your operation is estimated to be leaving a minimum of
+      <span class="hero-figure">$218,000, $355,000</span>
+      in recoverable margin every month.
     </div>
-    <div>
-      <div class="plant-name">testplant1</div>
-      <div class="plant-meta">Saudi Arabia · 29 March 2026</div>
+    <div class="hero-footnote">
+      Based on reported data. 40, 65% realistic improvement target of a $547,000 theoretical monthly gap that opens when turnaround time drops from 170 to 135 min, the benchmark for your average 25 km delivery radius. Recoverable with your current 87-truck fleet.
+    </div>
+    <div class="hero-footnote">
+      Based on material cost only. Fuel, labour and overhead not included.
     </div>
   </div>
 
-  <!-- KPI PYRAMID -->
-  <div class="section-label">Key Metrics</div>
-  <div class="pyramid">
+  <h3>Disclaimer</h3>
+  <p style="font-size: 10pt; color: #444;">
+    This analysis represents an indicative estimate of operational performance and financial impact based on your self-reported data. Actual results may vary depending on data accuracy and operational conditions. The actual performance gap, root causes, the specific interventions, operator behavior etc. can only be established through a structured on-site assessment with direct observation of dispatch patterns, loading sequences, driver behavior, and site coordination in real operating conditions.
+  </p>
 
-    <!-- Row 1: Financial -->
-    <div class="pyramid-row">
-      <div class="kpi-box kpi-financial">
-        <div>
-          <div class="kpi-label">Potential Monthly Loss</div>
-          <div class="kpi-value">$922,913</div>
-          <div class="kpi-sub">$11,074,956/year · assumes sufficient demand</div>
-        </div>
-        <div class="kpi-financial-right">
-          <div class="kpi-label">Per Working Day</div>
-          <div class="kpi-value">$41,950</div>
-          <div class="kpi-sub" style="margin-top:3px;">based on 22 working days/mo</div>
-        </div>
-      </div>
-    </div>
+  <h3>Purpose</h3>
+  <p style="font-size: 10pt; color: #444;">
+    The purpose of this pre-assessment is to identify potential areas of value and establish whether a detailed on-site assessment is justified. The on-site phase will validate key assumptions, refine the calculations, and quantify a realistic, executable recovery plan.
+  </p>
 
-    <!-- Connector -->
-    <div class="pyramid-connector"></div>
+</div>
 
-    <!-- Row 2: Primary drivers -->
-    <div class="pyramid-row">
+<!-- ═════════════════════════════════════════════════════════════════════════ -->
+<!-- PAGE 2: YOUR OPERATION TODAY (as-is snapshot with transparency column)    -->
+<!-- ═════════════════════════════════════════════════════════════════════════ -->
+<div class="page">
 
-      <!-- Utilisation — bottleneck -->
-      <div class="kpi-box kpi-critical-red" style="border-color:#fca5a5;">
-        <div class="bottleneck-tag">▼ Bottleneck</div>
-        <div class="kpi-label">Plant Utilisation</div>
-        <div class="kpi-value" style="color:#b91c1c;">75%</div>
-        <div class="kpi-target">target 85%</div>
-        <div class="kpi-bar-wrap">
-          <div class="kpi-bar-track">
-            <div class="kpi-bar-fill" style="width:75%;background:#ef4444;opacity:.75;"></div>
-            <div class="kpi-bar-target" style="left:85%;"></div>
-          </div>
-          <div class="kpi-gap" style="color:#b91c1c;">−10 percentage points</div>
-        </div>
-      </div>
-
-      <!-- Turnaround -->
-      <div class="kpi-box kpi-critical">
-        <div class="kpi-label">Turnaround Time</div>
-        <div class="kpi-value" style="color:#d97706;">110 min</div>
-        <div class="kpi-target">target 80 min</div>
-        <div class="kpi-bar-wrap">
-          <div class="kpi-bar-track" style="overflow:hidden;">
-            <div style="display:flex;height:5px;border-radius:3px;overflow:hidden;">
-              <div style="width:73%;background:#0F6E56;opacity:.55;height:5px;"></div>
-              <div style="width:27%;background:#d97706;opacity:.85;height:5px;"></div>
-            </div>
-          </div>
-          <div class="kpi-gap" style="color:#d97706;">+30 min over target</div>
-        </div>
-      </div>
-
-    </div>
-
-    <!-- Connector -->
-    <div class="pyramid-connector"></div>
-
-    <!-- Row 3: Supporting metrics -->
-    <div class="pyramid-row">
-
-      <!-- Rejection rate -->
-      <div class="kpi-box kpi-supporting">
-        <div class="kpi-label">Rejection Rate</div>
-        <div class="kpi-value" style="color:#d97706;font-size:16px;">4%</div>
-        <div class="kpi-target">target &lt;3%</div>
-        <div class="kpi-bar-wrap">
-          <div class="kpi-bar-track">
-            <div class="kpi-bar-fill" style="width:100%;background:#f59e0b;opacity:.65;"></div>
-            <div class="kpi-bar-target" style="left:75%;"></div>
-          </div>
-          <div class="kpi-gap" style="color:#d97706;">+1 pp</div>
-        </div>
-      </div>
-
-      <!-- Dispatch time -->
-      <div class="kpi-box kpi-supporting">
-        <div class="kpi-label">Dispatch Time</div>
-        <div class="kpi-value" style="color:#6b7280;font-size:16px;">28 min</div>
-        <div class="kpi-target">target 15 min</div>
-        <div class="kpi-bar-wrap">
-          <div class="kpi-bar-track" style="overflow:hidden;">
-            <div style="display:flex;height:5px;border-radius:3px;overflow:hidden;">
-              <div style="width:54%;background:#0F6E56;opacity:.45;height:5px;"></div>
-              <div style="width:46%;background:#9ca3af;opacity:.7;height:5px;"></div>
-            </div>
-          </div>
-          <div class="kpi-gap" style="color:#6b7280;">+13 min over target</div>
-        </div>
-      </div>
-
-      <!-- Deliveries per truck -->
-      <div class="kpi-box kpi-supporting">
-        <div class="kpi-label">Deliveries / truck / day</div>
-        <div class="kpi-value" style="color:#6b7280;font-size:16px;">4.4</div>
-        <div class="kpi-target">target 5.8</div>
-        <div class="kpi-bar-wrap">
-          <div class="kpi-bar-track">
-            <div class="kpi-bar-fill" style="width:76%;background:#9ca3af;opacity:.75;"></div>
-            <div class="kpi-bar-target" style="left:100%;"></div>
-          </div>
-          <div class="kpi-gap" style="color:#6b7280;">−1.4 per dag</div>
-        </div>
-      </div>
-
-    </div>
+  <div class="note">
+    <div class="note-header">Section 1, auto-generated from inputs</div>
+    This table is rendered entirely from the customer data sheet. The <strong>Source / Calculation</strong> column must show provenance for every row: <em>Reported</em>, <em>Calculated (with formula)</em>, <em>Midpoint of reported X, Y</em>, or <em>Customer answer "X", interpreted as Y</em>. Tags below are optional but recommended for visual scanning.
   </div>
 
-  <hr>
+  <h2>Your operation today, based on reported data</h2>
 
-  <!-- Recovery breakdown -->
-  <div class="section-label">Potential Recovery Breakdown</div>
-  <div style="margin-bottom:28px;">
-    <div class="rec-row">
-      <div class="rec-top">
-        <span class="rec-name">Utilisation gap</span>
-        <span class="rec-amount" style="color:#b91c1c;">$797,333/md</span>
-      </div>
-      <div class="rec-track"><div class="rec-fill" style="width:86%;background:#ef4444;opacity:.7;"></div></div>
-    </div>
-    <div class="rec-row">
-      <div class="rec-top">
-        <span class="rec-name">Turnaround excess</span>
-        <span class="rec-amount" style="color:#d97706;">$582,235/md</span>
-      </div>
-      <div class="rec-track"><div class="rec-fill" style="width:63%;background:#f59e0b;opacity:.75;"></div></div>
-    </div>
-    <div class="rec-row">
-      <div class="rec-top">
-        <span class="rec-name">Rejected loads</span>
-        <span class="rec-amount" style="color:#d97706;">$125,580/md</span>
-      </div>
-      <div class="rec-track"><div class="rec-fill" style="width:14%;background:#f59e0b;opacity:.6;"></div></div>
-    </div>
-    <div class="rec-row">
-      <div class="rec-top">
-        <span class="rec-name">Fleet underutilisation</span>
-        <span class="rec-amount" style="color:#9ca3af;">$41,860/md</span>
-      </div>
-      <div class="rec-track"><div class="rec-fill" style="width:5%;background:#9ca3af;opacity:.7;"></div></div>
-    </div>
-    <div class="rec-total">
-      <span style="font-size:9px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:#9ca3af;">Total potential / month</span>
-      <span style="font-size:15px;font-weight:800;font-family:'Courier New',monospace;color:#b91c1c;">$922,913</span>
-    </div>
-  </div>
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 38%;">Metric</th>
+        <th style="width: 20%;" class="num">Value</th>
+        <th style="width: 42%;">Source / Calculation</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr class="group-header"><td colspan="3">Fleet and output</td></tr>
+      <tr>
+        <td>Trucks assigned</td>
+        <td class="num value">87</td>
+        <td><span class="tag tag-reported">Reported</span></td>
+      </tr>
+      <tr>
+        <td>Monthly output</td>
+        <td class="num value">81,049 m³</td>
+        <td><span class="tag tag-reported">Reported</span></td>
+      </tr>
+      <tr>
+        <td>Monthly material contribution</td>
+        <td class="num value">~$2.21M</td>
+        <td class="calc"><span class="tag tag-calculated">Calculated</span> 81,049 m³ × $27.25 margin</td>
+      </tr>
+      <tr>
+        <td>Trips per truck per day</td>
+        <td class="num value">5.0</td>
+        <td class="calc"><span class="tag tag-interpreted">Interpreted</span> Customer answer: "5 Trips", interpreted as trips/truck/day</td>
+      </tr>
+      <tr>
+        <td>Average load per trip</td>
+        <td class="num value">7.45 m³</td>
+        <td class="calc"><span class="tag tag-calculated">Calculated</span> 81,049 m³ ÷ 10,875 implied monthly trips (5 × 87 × 25)</td>
+      </tr>
 
-  <hr>
+      <tr class="group-header"><td colspan="3">Plant capacity</td></tr>
+      <tr>
+        <td>Plant capacity (5 plants)</td>
+        <td class="num value">450 m³/hr</td>
+        <td class="calc"><span class="tag tag-interpreted">Interpreted</span> 5 × 90 m³/hr reported, to verify on-site</td>
+      </tr>
+      <tr>
+        <td>Monthly plant capacity</td>
+        <td class="num value">157,500 m³</td>
+        <td class="calc"><span class="tag tag-calculated">Calculated</span> 450 m³/hr × 14 hrs/day × 25 days</td>
+      </tr>
+      <tr>
+        <td>Capacity utilisation</td>
+        <td class="num value">51%</td>
+        <td class="calc"><span class="tag tag-calculated">Calculated</span> 81,049 ÷ 157,500</td>
+      </tr>
 
-  <!-- Executive Summary -->
-  <div class="section-label">Executive Summary</div>
-  <div style="margin-bottom:28px;">
-    <p class="narrative">Testplant1 is a mid-sized ready-mix operation running well below its potential. Quality control is the primary drag — a score of 52 against an overall 72 — and it is pulling down what would otherwise be a solid production and dispatch setup. The plant has the fleet and the batching capacity to perform significantly better; the constraint is operational, not structural.</p>
-  </div>
+      <tr class="group-header"><td colspan="3">Logistics and quality</td></tr>
+      <tr>
+        <td>Turnaround time</td>
+        <td class="num value">170 min</td>
+        <td><span class="tag tag-reported">Reported</span></td>
+      </tr>
+      <tr>
+        <td>Rejection rate</td>
+        <td class="num value">1.5%</td>
+        <td class="calc"><span class="tag tag-midpoint">Midpoint</span> of reported 1, 2% range</td>
+      </tr>
+    </tbody>
+  </table>
 
-  <hr>
+  <h2>3 chosen KPIs and improvement targets</h2>
 
-  <!-- Findings -->
-  <div class="section-label">Findings (4)</div>
-  <div style="margin-bottom:28px;">
-    <div class="finding">
-      <div class="finding-num">#1</div>
-      <div>
-        <div class="finding-title">Plant running at 75% — 10 points below 85% best-practice target</div>
-        <div class="finding-action">Map peak demand window and pre-stage batching 30 min before</div>
-      </div>
-      <div>
-        <div class="finding-amount" style="color:#b91c1c;">$797,333/md</div>
-        <div class="finding-tag">potential</div>
-      </div>
+  <div class="kpi-grid">
+    <div class="kpi bad">
+      <div class="kpi-name">Turnaround time</div>
+      <div class="kpi-value">170 min</div>
+      <div class="kpi-target">Calculated target: 135 min</div>
+      <div class="kpi-gap" style="color:#C0392B;">26% above target</div>
+      <div class="kpi-calc">60 min plant/site handling + (25 km × 1.5 min/km × 2 = 75 min) = 135 min. Handling = wait/queue, weighbridge, load, unload, washout.</div>
     </div>
-    <div class="finding">
-      <div class="finding-num">#2</div>
-      <div>
-        <div class="finding-title">Truck turnaround 110 min — 38% above 80-min target</div>
-        <div class="finding-action">Require site readiness confirmation before trucks depart</div>
-      </div>
-      <div>
-        <div class="finding-amount" style="color:#d97706;">$582,235/md</div>
-        <div class="finding-tag">potential</div>
-      </div>
+    <div class="kpi warn">
+      <div class="kpi-name">Capacity utilisation</div>
+      <div class="kpi-value">51%</div>
+      <div class="kpi-target">Calculated target: 70%</div>
+      <div class="kpi-gap" style="color:#D68910;">19 percentage points below</div>
+      <div class="kpi-calc">81,049 m³/month ÷ 25 days = 3,242 m³/day. Plant max = 450 m³/hr × 14 hr = 6,300 m³/day. 3,242 ÷ 6,300 = 51%.</div>
     </div>
-    <div class="finding">
-      <div class="finding-num">#3</div>
-      <div>
-        <div class="finding-title">4% of loads rejected — every rejection is a 100% write-off</div>
-        <div class="finding-action">Run slump test on every load before dispatch</div>
-      </div>
-      <div>
-        <div class="finding-amount" style="color:#d97706;">$125,580/md</div>
-        <div class="finding-tag">potential</div>
-      </div>
+    <div class="kpi good">
+      <div class="kpi-name">Rejection rate</div>
+      <div class="kpi-value">1.5%</div>
+      <div class="kpi-target">Target: &lt; 3%</div>
+      <div class="kpi-gap" style="color:#0F6E56;">Within target</div>
+      <div class="kpi-calc">Industry benchmark threshold for acceptable rejection rate.</div>
     </div>
-    <div class="finding">
-      <div class="finding-num">#4</div>
-      <div>
-        <div class="finding-title">3 deliveries/day unrealised — fleet target 153, actual 150</div>
-        <div class="finding-action">Fix dispatch and turnaround first — no new trucks needed</div>
-      </div>
-      <div>
-        <div class="finding-amount" style="color:#9ca3af;">$41,860/md</div>
-        <div class="finding-tag">potential</div>
-      </div>
-    </div>
-  </div>
-
-  <hr>
-
-  <!-- Next Step -->
-  <div class="section-label">Next step</div>
-  <div class="nextstep">
-    <p>This pre-assessment has established the financial picture based on what the plant reports about itself. What it cannot tell us is whether those numbers match reality — and more importantly, why the gaps exist. A physical visit would examine actual batching accuracy against what is logged, how trucks physically move through the plant versus how the process is described, and whether the reject causes are plant-side, driver-side, or customer-side.</p>
-  </div>
-
-  <!-- Footer -->
-  <div class="footer">
-    <span>Generated by Al-RMX Plant Intelligence Platform</span>
-    <span>29 March 2026</span>
   </div>
 
 </div>
+
+<!-- ═════════════════════════════════════════════════════════════════════════ -->
+<!-- PAGE 3: TRIPS ANALYSIS + SCENARIOS + BRIDGE                               -->
+<!-- ═════════════════════════════════════════════════════════════════════════ -->
+<div class="page">
+
+  <div class="note">
+    <div class="note-header">Section 2, auto-generated</div>
+    The trips comparison table and the 51 → 64 → 70 scenario block are the financial core of the report. The recovery range (theoretical and realistic) is shown inside the scenario table, not in a separate "where the gap sits" section. The bridge sentence replaces the old 3-box allocation (Production / Dispatch / Quality).
+  </div>
+
+  <h2>Lost daily trips, 170 min TAT vs 135 min TAT, same 87 trucks</h2>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 30%;">Scenario</th>
+        <th style="width: 30%;" class="num">Trips / truck / day</th>
+        <th style="width: 20%;" class="num">Fleet trips / day</th>
+        <th style="width: 20%;">Note</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Today, 170 min TAT</strong></td>
+        <td class="num value">5.0</td>
+        <td class="num value">435</td>
+        <td class="calc">10,875 trips/month ÷ 25 days = 435</td>
+      </tr>
+      <tr>
+        <td><strong>Target, 135 min TAT</strong></td>
+        <td class="num value">6.2</td>
+        <td class="num value">541</td>
+        <td class="calc">840 min ÷ 135 min = 6.22, × 87 trucks = 541</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Scenarios, from current 51% utilisation to 70%</h2>
+
+  <div class="scenario-grid">
+    <div class="scenario today">
+      <div class="scenario-label">Today</div>
+      <div class="scenario-pct">51%</div>
+      <div class="scenario-bar"><div class="scenario-bar-fill"></div></div>
+      <div class="scenario-meta">25 km radius, 170 min TAT</div>
+      <div class="scenario-meta-strong">5.0 trips/truck/day</div>
+    </div>
+    <div class="scenario operational">
+      <div class="scenario-label">With operational improvements</div>
+      <div class="scenario-pct">64%</div>
+      <div class="scenario-bar"><div class="scenario-bar-fill"></div></div>
+      <div class="scenario-meta">25 km radius, 135 min TAT</div>
+      <div class="scenario-meta-strong">6.2 trips/truck/day</div>
+    </div>
+    <div class="scenario structural">
+      <div class="scenario-label">With modest structural adjustments</div>
+      <div class="scenario-pct">70%</div>
+      <div class="scenario-bar"><div class="scenario-bar-fill"></div></div>
+      <div class="scenario-meta">21 km radius, 123 min TAT</div>
+      <div class="scenario-meta-strong">6.2, 6.8 trips/truck/day</div>
+    </div>
+  </div>
+
+  <table class="scenario-table">
+    <thead>
+      <tr>
+        <th style="width: 40%;"></th>
+        <th style="width: 20%;">Today (51%)</th>
+        <th style="width: 20%;">Operational (64%)</th>
+        <th style="width: 20%;">Target (70%)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Daily output</td>
+        <td class="num">3,242 m³</td>
+        <td class="num">4,031 m³</td>
+        <td class="num">4,410 m³</td>
+      </tr>
+      <tr>
+        <td>Monthly output</td>
+        <td class="num">82,401 m³</td>
+        <td class="num">102,455 m³</td>
+        <td class="num">112,088 m³</td>
+      </tr>
+      <tr>
+        <td>Monthly contribution</td>
+        <td class="num">$2,245,000</td>
+        <td class="num">$2,792,000</td>
+        <td class="num">$3,054,000</td>
+      </tr>
+      <tr>
+        <td>Monthly recoverable margin (theoretical)</td>
+        <td class="num">—</td>
+        <td class="num gain-cell">+$547,000</td>
+        <td class="num gain-cell">+$809,000</td>
+      </tr>
+      <tr>
+        <td>Monthly recoverable margin (realistic, 40, 65%)<br><span style="font-size: 8.5pt; color: #888; font-style: italic;">Margin = selling price per m³ − raw material cost per m³</span></td>
+        <td class="num">—</td>
+        <td class="num recovery-cell">$218K, $355K</td>
+        <td class="num recovery-cell">$324K, $526K</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="bridge">
+    The operational gap is assumed to be primarily driven by turnaround time. Dispatch coordination and quality rejection contribute secondary losses. At the on-site assessment I will quantify each driver precisely and prioritise the most addressable improvements first.
+  </div>
+
+  <h3>How each scenario is calculated</h3>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 33%;">Today, 51%</th>
+        <th style="width: 33%;">Operational, 64%</th>
+        <th style="width: 34%;">Target, 70%</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="calc">3,242 m³/day ÷ 6,300 plant capacity = 51%. 87 trucks × 5.0 trips × 7.45 m³ avg load. Actual TAT: 170 min.</td>
+        <td class="calc">At 135 min TAT the fleet delivers 4,031 m³/day. 4,031 ÷ 6,300 plant capacity = 64%. This is the ceiling for the current fleet at 25 km radius. No additional trucks required.</td>
+        <td class="calc">4,410 m³/day (= 6,300 × 70%) ÷ 6,300 = 70%. Requires 379 m³/day more than fleet ceiling. Achieved via: 8 trucks added, OR 8 m³ avg load, OR 21 km avg delivery radius (TAT 123 min = 6.8 trips/truck).</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p style="font-size: 10pt; color: #444;">
+    Reaching 70% utilisation requires modest structural adjustments beyond operational improvements. Three viable paths: 8 additional trucks (brings fleet to 95), larger average mixer load (from 7.45 m³ to ~8 m³), or shorter delivery radius (from 25 km to 21 km). The on-site assessment will establish which lever is most feasible for your operation.
+  </p>
+
+</div>
+
+<!-- ═════════════════════════════════════════════════════════════════════════ -->
+<!-- PAGE 4: COMPOUNDED COST + EDITOR FIELDS (regulatory, timeline, commercial)-->
+<!-- ═════════════════════════════════════════════════════════════════════════ -->
+<div class="page">
+
+  <h2>Compounded cost of inaction, short term 51% vs 64% utilisation</h2>
+
+  <div class="cost-grid">
+    <div class="cost-card">
+      <div class="cost-label">Per month</div>
+      <div class="cost-value">$218K, $355K</div>
+    </div>
+    <div class="cost-card">
+      <div class="cost-label">Per quarter</div>
+      <div class="cost-value">$654K, $1.1M</div>
+    </div>
+    <div class="cost-card">
+      <div class="cost-label">Per year</div>
+      <div class="cost-value">$2.6M, $4.3M</div>
+    </div>
+  </div>
+
+  <h2>Current regulatory environment</h2>
+  <div class="editor-field">
+    <span class="editor-field-tag">Editor field</span>
+    Free-text section for market-specific regulatory constraints the customer has reported. Typically operator input from the "Biggest operational challenge" question. Example content:
+    <br><br>
+    <em>"Riyadh's truck movement restrictions currently reduce your daily operating capacity. Near-term margin recovery under current restrictions will expectedly be lower than the full $218,000, $355,000 range. The on-site assessment will conclude a realistic near-term figure and identify which improvements can be implemented immediately versus those contingent on the current restrictions. Estimates 7-hour daily movement restriction reducing effective operating capacity. Recovery range reflects operational improvements within current regulatory constraints."</em>
+  </div>
+
+  <h2>Proposed timeline for on-site assessment</h2>
+  <div class="editor-field">
+    <span class="editor-field-tag">Editor field</span>
+    Case-specific commercial timeline, entered by the consultant at report generation. Template rows:
+    <ul style="margin: 8px 0 0 22px;">
+      <li><strong>As soon as possible:</strong> Your approval</li>
+      <li><strong>[Date]:</strong> Project plan prepared</li>
+      <li><strong>[Date]:</strong> Arrive [city], on-site assessment begins</li>
+      <li><strong>3, 4 weeks:</strong> Assessment period (measurements, findings, recommendations)</li>
+    </ul>
+  </div>
+
+  <h2>To make the visit as effective as possible, please prepare</h2>
+  <div class="editor-field">
+    <span class="editor-field-tag">Boilerplate list</span>
+    Standard checklist, mostly stable across engagements. Consultant can edit per case.
+    <ol style="margin: 8px 0 0 22px; font-size: 10pt; color: #1a1a1a;">
+      <li>Delivery tickets from the last 30 days, any format is acceptable</li>
+      <li>Rejection and return records from the last 3 months</li>
+      <li>Movement restriction schedule, zones and any internal delay logs</li>
+      <li>Access at plants</li>
+      <li>Contact details for operators and supervisors I should meet</li>
+      <li>Addresses and location of plants</li>
+      <li>Customer zones and locations</li>
+    </ol>
+  </div>
+
+  <h2>Commercial setup, transparent and simple</h2>
+  <div class="editor-field">
+    <span class="editor-field-tag">Editor field</span>
+    Case-specific commercial offer. Example structure:
+    <table style="margin-top: 10px;">
+      <tr>
+        <td style="width: 30%;"><strong>Cost coverage</strong></td>
+        <td style="width: 20%;">$15,000</td>
+        <td>All travel and living expenses for one month: return flight, accommodation, daily allowance, visa and insurance. Local transportation arranged by customer.</td>
+      </tr>
+      <tr>
+        <td><strong>Performance-based success fee</strong></td>
+        <td>Customer's decision</td>
+        <td>Based on the value the customer sees in the outcome. No fixed number or expectations.</td>
+      </tr>
+    </table>
+  </div>
+
+</div>
+
+<!-- ═════════════════════════════════════════════════════════════════════════ -->
+<!-- PAGE 5: APPENDIX                                                          -->
+<!-- ═════════════════════════════════════════════════════════════════════════ -->
+<div class="page appendix">
+
+  <div class="note">
+    <div class="note-header">Section 3, appendix, auto-generated</div>
+    Step-by-step calculation basis. Every number in the report must be traceable through these six steps. If the main body shows a gap of $547,000, the appendix must show the exact arithmetic. <strong>Single canonical calculation path:</strong> gap in m³ computed unrounded, multiplied by margin once, rounded only at display. Subtraction displays ($2,792K minus $2,245K) are consistency checks, not new sources.
+  </div>
+
+  <h2>Appendix, calculation basis</h2>
+  <p style="font-size: 10pt; color: #555;">
+    All figures marked <em>Reported</em> are sourced from the customer data sheet. All figures marked <em>Calculated</em> are derived from reported inputs using the methodology below.
+  </p>
+
+  <h3>Step 1, material contribution per m³</h3>
+  <table>
+    <thead><tr><th>Description</th><th class="num">Value</th><th>Source</th></tr></thead>
+    <tbody>
+      <tr><td>Selling price per m³</td><td class="num value">$64.83</td><td>Reported</td></tr>
+      <tr><td>Raw material cost per m³</td><td class="num value">$37.58</td><td class="calc">Reported. Cement, aggregates, admixtures, water. Excludes labour, fuel, overhead.</td></tr>
+      <tr><td>Material contribution per m³</td><td class="num value">$27.25</td><td class="calc">Calculated: $64.83 − $37.58</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Step 2, target trips</h3>
+  <table>
+    <thead><tr><th>Description</th><th class="num">Value</th><th>Source</th></tr></thead>
+    <tbody>
+      <tr><td>Operating hours per day</td><td class="num value">14 hours</td><td class="calc">Midpoint of reported 12, 16 hours range: (12+16) ÷ 2 = 14</td></tr>
+      <tr><td>Total operating minutes per day</td><td class="num value">840 min</td><td class="calc">Calculated: 14 × 60 = 840</td></tr>
+      <tr><td>Average delivery radius</td><td class="num value">25 km</td><td class="calc">Midpoint of reported 5, 45 km range: (5+45) ÷ 2 = 25 km</td></tr>
+      <tr><td>Travel time one-way</td><td class="num value">37.5 min</td><td class="calc">Calculated: 25 km × 1.5 min/km. Speed assumption: urban GCC traffic conditions.</td></tr>
+      <tr><td>Round-trip travel time</td><td class="num value">75 min</td><td class="calc">Calculated: 37.5 × 2 = 75</td></tr>
+      <tr><td>Fixed plant and site handling</td><td class="num value">60 min</td><td class="calc">Benchmark: loading, site wait, unloading, washout, queue. To be measured on-site.</td></tr>
+      <tr><td>Target turnaround time</td><td class="num value">135 min</td><td class="calc">Calculated: 60 + 75 = 135</td></tr>
+      <tr><td>Target trips per truck per day</td><td class="num value">6.22</td><td class="calc">Calculated: 840 ÷ 135 = 6.222, rounded. Theoretical maximum at continuous target TAT.</td></tr>
+      <tr><td>Trucks assigned</td><td class="num value">87</td><td>Reported</td></tr>
+      <tr><td>Target trips per day, full fleet</td><td class="num value">541</td><td class="calc">Calculated: 6.22 × 87 = 541.14, rounded to 541</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Step 3, actual delivery</h3>
+  <table>
+    <thead><tr><th>Description</th><th class="num">Value</th><th>Source</th></tr></thead>
+    <tbody>
+      <tr><td>Actual monthly output</td><td class="num value">81,049 m³</td><td>Reported</td></tr>
+      <tr><td>Trips per truck per day</td><td class="num value">5.0</td><td class="calc">Customer answer: "5 Trips". Interpreted as trips/truck/day.</td></tr>
+      <tr><td>Total implied monthly trips</td><td class="num value">10,875</td><td class="calc">Calculated: 5 × 87 × 25 = 10,875</td></tr>
+      <tr><td>Operating days per year</td><td class="num value">305</td><td>Reported</td></tr>
+      <tr><td>Operating days per month</td><td class="num value">25</td><td class="calc">Calculated: 305 ÷ 12 = 25.42, rounded to 25</td></tr>
+      <tr><td>Trips per day, full fleet</td><td class="num value">435</td><td class="calc">Calculated: 10,875 ÷ 25 = 435</td></tr>
+      <tr><td>Average load per trip</td><td class="num value">7.45 m³</td><td class="calc">Calculated: 81,049 ÷ 10,875 = 7.4528, rounded</td></tr>
+      <tr><td>Daily output</td><td class="num value">~3,242 m³</td><td class="calc">Calculated: 81,049 ÷ 25 = 3,241.96, rounded</td></tr>
+      <tr><td>Actual turnaround time</td><td class="num value">170 min</td><td>Reported</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Step 4, the gap</h3>
+  <table>
+    <thead><tr><th>Description</th><th class="num">Value</th><th>Source</th></tr></thead>
+    <tbody>
+      <tr><td>Target daily output</td><td class="num value">4,031 m³</td><td class="calc">Calculated: 541 × 7.45 = 4,030.45, rounded. Assumes avg load held constant.</td></tr>
+      <tr><td>Actual daily output</td><td class="num value">~3,242 m³</td><td class="calc">From Step 3</td></tr>
+      <tr><td>Daily output gap</td><td class="num value">789 m³</td><td class="calc">Calculated: 4,031 − 3,242 = 789</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Step 5, annualise and convert to monthly</h3>
+  <table>
+    <thead><tr><th>Description</th><th class="num">Value</th><th>Source</th></tr></thead>
+    <tbody>
+      <tr><td>Operating days per year</td><td class="num value">305</td><td>Reported</td></tr>
+      <tr><td>Annual output gap</td><td class="num value">240,645 m³</td><td class="calc">Calculated: 789 × 305 = 240,645</td></tr>
+      <tr><td>Monthly output gap</td><td class="num value">~20,054 m³</td><td class="calc">Calculated: 240,645 ÷ 12 = 20,053.75, rounded. Monthly figure is an annual average.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Step 6, financial impact</h3>
+  <table>
+    <thead><tr><th>Description</th><th class="num">Value</th><th>Source</th></tr></thead>
+    <tbody>
+      <tr><td>Monthly output gap</td><td class="num value">~20,054 m³</td><td class="calc">From Step 5</td></tr>
+      <tr><td>Material contribution per m³</td><td class="num value">$27.25</td><td class="calc">From Step 1</td></tr>
+      <tr><td>Full monthly gap</td><td class="num value">~$547,000</td><td class="calc">Calculated: 20,054 × $27.25 = $546,471, rounded to nearest $1,000. Canonical path, all other displays must reconcile to this.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Recovery range</h3>
+  <table>
+    <thead><tr><th>Description</th><th class="num">Value</th><th>Source</th></tr></thead>
+    <tbody>
+      <tr><td>Full monthly gap</td><td class="num value">~$547,000</td><td class="calc">From Step 6</td></tr>
+      <tr><td>Execution range</td><td class="num value">40, 65%</td><td class="calc">Professional judgement. Accounts for theoretical-vs-achievable trip gap, structural constraints, customer dependencies, regulatory restrictions, implementation time.</td></tr>
+      <tr><td>Recovery low</td><td class="num value">~$218,000</td><td class="calc">Calculated: $547,000 × 0.40 = $218,800, rounded</td></tr>
+      <tr><td>Recovery high</td><td class="num value">~$355,000</td><td class="calc">Calculated: $547,000 × 0.65 = $355,550, rounded</td></tr>
+      <tr><td>Recoverable range</td><td class="num value">~$218,000, ~$355,000 / month</td><td class="calc">Planning estimate. Material cost only. Full cost structure and realistic trip target to be validated on-site.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="footer">
+    <span>Al-RMX, Report Bible v4, Al-Omran structure</span>
+    <span>Updated 16 April 2026</span>
+  </div>
+
+</div>
+
 </body>
 </html>

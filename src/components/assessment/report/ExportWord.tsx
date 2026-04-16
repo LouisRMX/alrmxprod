@@ -12,6 +12,7 @@ import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
 
 import type { ReportCalculations, ReportInput } from '@/lib/reportCalculations'
 import { assembleBoldSummaryLine } from '@/lib/reportAssembly'
+import { renderProvenance, getProvenance, type ProvenanceMap } from '@/lib/reportProvenance'
 
 interface ExportWordProps {
   calcResult: CalcResult
@@ -353,6 +354,214 @@ const QUADRANT_LABELS: Record<string, string> = {
   DONT_DO: 'Not Recommended Now (Lower impact, High complexity)',
 }
 
+// ── Provenance tag palette for "Your operation today" ───────────────────
+// Matches the colors used in the HTML bible (report-draft.html).
+const TAG_COLORS: Record<string, { bg: string; text: string }> = {
+  Reported:    { bg: 'D4EDDA', text: '155724' },
+  Calculated:  { bg: 'E8EEF9', text: '1E3A8A' },
+  Interpreted: { bg: 'FFF3CD', text: '856404' },
+  Midpoint:    { bg: 'F4ECF7', text: '6A1B9A' },
+}
+
+/**
+ * Build the Source / Calculation cell for a snapshot row.
+ *
+ * Renders a small colored tag (e.g. "REPORTED") followed by the provenance
+ * description text. Uses renderProvenance() from reportProvenance.ts to
+ * guarantee consistency between the Word output and the HTML bible.
+ */
+function provenanceCell(map: ProvenanceMap, field: string, width: number, overrideDescription?: string): TableCell {
+  const rendered = renderProvenance(getProvenance(map, field))
+  const tagColors = TAG_COLORS[rendered.tag] || TAG_COLORS.Reported
+  const description = overrideDescription ?? rendered.description
+
+  const runs: TextRun[] = []
+  runs.push(new TextRun({ text: ` ${rendered.tag.toUpperCase()} `, bold: true, size: 16, font: FONT, color: tagColors.text, shading: { fill: tagColors.bg, type: ShadingType.CLEAR } }))
+  if (description) {
+    runs.push(new TextRun({ text: '  ' + description, size: SZ_SMALL, font: FONT, color: GRAY }))
+  }
+
+  return new TableCell({
+    borders,
+    width: { size: width, type: WidthType.DXA },
+    margins: CELL_MARGINS,
+    children: [new Paragraph({ spacing: { line: LINE_TABLE }, children: runs })],
+  })
+}
+
+/**
+ * Group header row for the snapshot table (e.g. "FLEET & OUTPUT").
+ * Spans all 3 columns with a subtle gray background.
+ */
+function snapshotGroupRow(label: string, totalWidth: number): TableRow {
+  return new TableRow({
+    children: [new TableCell({
+      borders,
+      width: { size: totalWidth, type: WidthType.DXA },
+      columnSpan: 3,
+      shading: { fill: 'EEF2F5', type: ShadingType.CLEAR },
+      margins: CELL_MARGINS,
+      children: [new Paragraph({
+        spacing: { line: LINE_TABLE },
+        children: [new TextRun({ text: label.toUpperCase(), bold: true, size: SZ_SMALL, font: FONT, color: '333333' })],
+      })],
+    })],
+  })
+}
+
+/**
+ * Data row for the snapshot table.
+ */
+function snapshotDataRow(
+  metric: string,
+  value: string,
+  map: ProvenanceMap,
+  field: string,
+  widths: [number, number, number],
+  overrideDescription?: string
+): TableRow {
+  return new TableRow({
+    children: [
+      cell(metric, { width: widths[0] }),
+      cell(value, { width: widths[1], bold: true, align: AlignmentType.RIGHT }),
+      provenanceCell(map, field, widths[2], overrideDescription),
+    ],
+  })
+}
+
+/**
+ * Build the "Your operation today" snapshot table. Matches report-draft.html
+ * bible v4 section for section:
+ *   - Three groups: Fleet & output / Plant capacity / Logistics & quality
+ *   - Three columns: Metric, Value, Source / Calculation
+ *   - Provenance tags rendered automatically from rc.provenance
+ *
+ * Auto-generated from reportInput + rc. Not editor-configurable.
+ */
+function buildOperationTodaySnapshot(rc: ReportCalculations, reportInput: ReportInput): (Paragraph | Table)[] {
+  const out: (Paragraph | Table)[] = []
+  const map = rc.provenance ?? {}
+
+  // Column widths (DXA): 3800 + 2000 + 4040 = 9840
+  const widths: [number, number, number] = [3800, 2000, 4040]
+  const totalWidth = widths[0] + widths[1] + widths[2]
+
+  // Section header
+  out.push(...sectionHeader('Your operation today, based on reported data', ''))
+
+  // Derived values (for display)
+  const monthlyContribution = reportInput.actual_production_last_month_m3 * rc.contribution_margin_per_m3
+  const monthlyContribDisplay = monthlyContribution >= 1_000_000
+    ? `~$${(monthlyContribution / 1_000_000).toFixed(2)}M`
+    : `~$${Math.round(monthlyContribution / 1000)}k`
+  const monthlyPlantCap = reportInput.plant_capacity_m3_per_hour * reportInput.operating_hours_per_day * rc.op_days_per_month
+
+  const rows: TableRow[] = []
+
+  // Header row
+  rows.push(new TableRow({
+    tableHeader: true,
+    children: [
+      cell('METRIC', { width: widths[0], bold: true, color: '555555', size: SZ_SMALL, bg: 'F5F5F5' }),
+      cell('VALUE', { width: widths[1], bold: true, color: '555555', size: SZ_SMALL, bg: 'F5F5F5', align: AlignmentType.RIGHT }),
+      cell('SOURCE / CALCULATION', { width: widths[2], bold: true, color: '555555', size: SZ_SMALL, bg: 'F5F5F5' }),
+    ],
+  }))
+
+  // ── Group 1: Fleet & output ──
+  rows.push(snapshotGroupRow('Fleet and output', totalWidth))
+  rows.push(snapshotDataRow('Trucks assigned', reportInput.trucks_assigned.toLocaleString('en-US'), map, 'trucks_assigned', widths))
+  rows.push(snapshotDataRow(
+    'Monthly output',
+    `${reportInput.actual_production_last_month_m3.toLocaleString('en-US')} m\u00B3`,
+    map,
+    'actual_production_last_month_m3',
+    widths
+  ))
+  rows.push(snapshotDataRow(
+    'Monthly material contribution',
+    monthlyContribDisplay,
+    map,
+    'monthly_material_contribution',
+    widths
+  ))
+  rows.push(snapshotDataRow(
+    'Trips per truck per day',
+    rc.actual_trips_per_truck_per_day.toFixed(1),
+    map,
+    'total_trips_last_month',
+    widths
+  ))
+  rows.push(snapshotDataRow(
+    'Average load per trip',
+    `${rc.avg_load_m3.toFixed(2)} m\u00B3`,
+    map,
+    'avg_load_m3',
+    widths
+  ))
+
+  // ── Group 2: Plant capacity ──
+  rows.push(snapshotGroupRow('Plant capacity', totalWidth))
+  const plantLabel = (reportInput.number_of_plants ?? 1) > 1
+    ? `Plant capacity (${reportInput.number_of_plants} plants)`
+    : 'Plant capacity'
+  rows.push(snapshotDataRow(
+    plantLabel,
+    `${reportInput.plant_capacity_m3_per_hour.toLocaleString('en-US')} m\u00B3/hr`,
+    map,
+    'plant_capacity_m3_per_hour',
+    widths
+  ))
+  rows.push(snapshotDataRow(
+    'Monthly plant capacity',
+    `${monthlyPlantCap.toLocaleString('en-US')} m\u00B3`,
+    map,
+    'monthly_plant_capacity_m3',
+    widths
+  ))
+  rows.push(snapshotDataRow(
+    'Capacity utilisation',
+    `${rc.utilisation_actual_pct}%`,
+    map,
+    'utilisation_actual_pct',
+    widths
+  ))
+
+  // ── Group 3: Logistics & quality ──
+  rows.push(snapshotGroupRow('Logistics and quality', totalWidth))
+  rows.push(snapshotDataRow(
+    'Turnaround time',
+    `${reportInput.avg_turnaround_min} min`,
+    map,
+    'avg_turnaround_min',
+    widths
+  ))
+  rows.push(snapshotDataRow(
+    'Rejection rate',
+    `${reportInput.rejection_rate_pct}%`,
+    map,
+    'rejection_rate_pct',
+    widths
+  ))
+
+  out.push(new Table({
+    width: { size: totalWidth, type: WidthType.DXA },
+    columnWidths: widths,
+    rows,
+  }))
+
+  // Caption
+  out.push(new Paragraph({
+    spacing: { before: 60, after: 160 },
+    children: [new TextRun({
+      text: 'Reported figures from customer data sheet. Calculated figures derived from reported inputs. Full methodology in the appendix.',
+      size: SZ_SMALL, font: FONT, color: GRAY, italics: true,
+    })],
+  }))
+
+  return out
+}
+
 // ── Main Component ───────────────────────────────────────────────────────
 
 export default function ExportWord({ calcResult, meta, report, dx, issues, matrix, fieldLogContext, phase, rc, reportInput }: ExportWordProps) {
@@ -481,9 +690,18 @@ export default function ExportWord({ calcResult, meta, report, dx, issues, matri
     }
 
     // ════════════════════════════════════════════════════════════════════
+    // NEW SECTION: YOUR OPERATION TODAY (pre-assessment snapshot)
+    // Auto-generated from reportInput + rc. Renders the "Source / Calculation"
+    // column directly from rc.provenance. Matches report-draft.html bible v4.
+    // ════════════════════════════════════════════════════════════════════
+    if (isPre && rc && reportInput) {
+      children.push(...buildOperationTodaySnapshot(rc, reportInput))
+    }
+
+    // ════════════════════════════════════════════════════════════════════
     // SECTION 1: EXECUTIVE SUMMARY (all financial content in one flow)
     // ════════════════════════════════════════════════════════════════════
-    children.push(...sectionHeader(isPre ? 'What the Data Suggests' : 'Executive Summary', ''))
+    children.push(...sectionHeader(isPre ? '3 chosen KPIs and improvement targets' : 'Executive Summary', ''))
 
     // KPI values: use rc when available, fall back to dx
     const kpiTatTarget = rc?.target_tat_min ?? dx.tat_target
