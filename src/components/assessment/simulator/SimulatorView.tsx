@@ -300,14 +300,14 @@ export default function SimulatorView({ calcResult, readOnly, reportInput, rc }:
             <Slider label="Turnaround time" value={sTurnaround} min={60} max={240} step={1} baselineValue={baseline.turnaround || 90} unit="min" onChange={setSTurnaround} />
             {marginalTA > MARGINAL_THRESHOLD && (
               <div style={{ fontSize: '11px', color: 'var(--gray-400)', marginTop: '-10px', marginBottom: '10px', textAlign: 'right' }}>
-                −1 min → +{fmtMarginal(marginalTA)}/yr contribution
+                −1 min → +{fmtMarginal(marginalTA / 12)}/mo contribution
               </div>
             )}
 
             <Slider label="Delivery radius" value={sRadius} min={3} max={50} step={1} baselineValue={baseline.deliveryRadius || 15} unit="km" onChange={setSRadius} />
             {marginalRadius > MARGINAL_THRESHOLD && (
               <div style={{ fontSize: '11px', color: 'var(--gray-400)', marginTop: '-10px', marginBottom: '10px', textAlign: 'right' }}>
-                −1 km → +{fmtMarginal(marginalRadius)}/yr contribution
+                −1 km → +{fmtMarginal(marginalRadius / 12)}/mo contribution
               </div>
             )}
 
@@ -320,14 +320,14 @@ export default function SimulatorView({ calcResult, readOnly, reportInput, rc }:
             <Slider label="Fleet size" value={sTrucks} min={1} max={Math.max(baseline.trucks * 2, 20)} step={1} baselineValue={baseline.trucks || 10} unit="trucks" onChange={setSTrucks} />
             {marginalTrucks > MARGINAL_THRESHOLD && (
               <div style={{ fontSize: '11px', color: 'var(--gray-400)', marginTop: '-10px', marginBottom: '10px', textAlign: 'right' }}>
-                +1 truck → +{fmtMarginal(marginalTrucks)}/yr contribution
+                +1 truck → +{fmtMarginal(marginalTrucks / 12)}/mo contribution
               </div>
             )}
 
             <Slider label="Avg load per trip" value={sAvgLoad} min={5} max={10} step={0.1} baselineValue={baseline.avgLoadM3 || 7} unit="m³" onChange={setSAvgLoad} />
             {marginalLoad > MARGINAL_THRESHOLD && (
               <div style={{ fontSize: '11px', color: 'var(--gray-400)', marginTop: '-10px', marginBottom: '10px', textAlign: 'right' }}>
-                +0.5 m³ → +{fmtMarginal(marginalLoad)}/yr contribution
+                +0.5 m³ → +{fmtMarginal(marginalLoad / 12)}/mo contribution
               </div>
             )}
           </div>
@@ -339,14 +339,14 @@ export default function SimulatorView({ calcResult, readOnly, reportInput, rc }:
             <Slider label="Selling price" value={sPrice} min={20} max={150} step={0.5} baselineValue={baseline.price || 65} unit="$/m³" onChange={setSPrice} />
             {Math.abs(marginalPrice) > MARGINAL_THRESHOLD && (
               <div style={{ fontSize: '11px', color: 'var(--gray-400)', marginTop: '-10px', marginBottom: '10px', textAlign: 'right' }}>
-                +$1/m³ → +{fmtMarginal(marginalPrice)}/yr contribution
+                +$1/m³ → +{fmtMarginal(marginalPrice / 12)}/mo contribution
               </div>
             )}
 
             <Slider label="Material cost" value={sMaterialCost} min={10} max={100} step={0.5} baselineValue={baseline.materialCost || 35} unit="$/m³" onChange={setSMaterialCost} />
             {marginalMaterial > MARGINAL_THRESHOLD && (
               <div style={{ fontSize: '11px', color: 'var(--gray-400)', marginTop: '-10px', marginBottom: '10px', textAlign: 'right' }}>
-                −$1/m³ → +{fmtMarginal(marginalMaterial)}/yr contribution
+                −$1/m³ → +{fmtMarginal(marginalMaterial / 12)}/mo contribution
               </div>
             )}
 
@@ -370,7 +370,7 @@ export default function SimulatorView({ calcResult, readOnly, reportInput, rc }:
             <Slider label="Rejection rate" value={sReject} min={0} max={10} step={0.1} baselineValue={baseline.rejectPct || 0} unit="%" onChange={setSReject} />
             {marginalReject > MARGINAL_THRESHOLD && (
               <div style={{ fontSize: '11px', color: 'var(--gray-400)', marginTop: '-10px', marginBottom: '10px', textAlign: 'right' }}>
-                −0.5pp → +{fmtMarginal(marginalReject)}/yr savings
+                −0.5pp → +{fmtMarginal(marginalReject / 12)}/mo savings
               </div>
             )}
           </div>
@@ -391,49 +391,74 @@ export default function SimulatorView({ calcResult, readOnly, reportInput, rc }:
             </div>
           )}
 
-          {/* Volume delta */}
-          <div style={{
-            background: deltaPositive ? 'var(--green-light)' : result.deltaVol < 0 ? '#FDE8E6' : 'var(--gray-100)',
-            border: `1px solid ${deltaPositive ? 'var(--tooltip-border)' : result.deltaVol < 0 ? 'var(--error-border)' : 'var(--border)'}`,
-            borderRadius: 'var(--radius)', padding: '16px', marginBottom: '12px', textAlign: 'center',
-          }}>
-            <div style={{ fontSize: '10px', color: 'var(--gray-500)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '.3px' }}>
-              Annual volume change
-            </div>
-            <div style={{
-              fontSize: '26px', fontWeight: 600, fontFamily: 'var(--mono)', marginTop: '4px',
-              color: deltaPositive ? 'var(--green)' : result.deltaVol < 0 ? 'var(--red)' : 'var(--gray-500)',
-            }}>
-              {result.deltaVol > 0 ? '+' : ''}{result.deltaVol.toLocaleString()} m³
-            </div>
-            <div style={{ fontSize: '12px', color: 'var(--gray-500)', marginTop: '4px' }}>
-              Scenario: {result.scenarioAnnual.toLocaleString()} m³/year \u00B7 {result.scenarioMonthly.toLocaleString()} m³/month
-            </div>
-          </div>
+          {/* Volume delta, monthly primary */}
+          {(() => {
+            const deltaMonthly = Math.round(result.deltaVol / 12)
+            const deltaQuarterly = Math.round(result.deltaVol / 4)
+            const scenarioQuarterly = Math.round(result.scenarioAnnual / 4)
+            return (
+              <div style={{
+                background: deltaPositive ? 'var(--green-light)' : result.deltaVol < 0 ? '#FDE8E6' : 'var(--gray-100)',
+                border: `1px solid ${deltaPositive ? 'var(--tooltip-border)' : result.deltaVol < 0 ? 'var(--error-border)' : 'var(--border)'}`,
+                borderRadius: 'var(--radius)', padding: '16px', marginBottom: '12px', textAlign: 'center',
+              }}>
+                <div style={{ fontSize: '10px', color: 'var(--gray-500)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '.3px' }}>
+                  Monthly volume change
+                </div>
+                <div style={{
+                  fontSize: '26px', fontWeight: 600, fontFamily: 'var(--mono)', marginTop: '4px',
+                  color: deltaPositive ? 'var(--green)' : result.deltaVol < 0 ? 'var(--red)' : 'var(--gray-500)',
+                }}>
+                  {deltaMonthly > 0 ? '+' : ''}{deltaMonthly.toLocaleString()} m³
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--gray-500)', marginTop: '6px', display: 'flex', justifyContent: 'center', gap: '14px' }}>
+                  <span>Quarterly: {deltaQuarterly > 0 ? '+' : ''}{deltaQuarterly.toLocaleString()} m³</span>
+                  <span>Annual: {result.deltaVol > 0 ? '+' : ''}{result.deltaVol.toLocaleString()} m³</span>
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--gray-400)', marginTop: '6px' }}>
+                  Scenario output: {result.scenarioMonthly.toLocaleString()} m³/mo · {scenarioQuarterly.toLocaleString()} m³/qtr · {result.scenarioAnnual.toLocaleString()} m³/yr
+                </div>
+              </div>
+            )
+          })()}
 
-          {/* Financial impact */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '12px' }}>
-            <div style={{
-              background: 'var(--white)', border: '1px solid var(--border)',
-              borderRadius: '8px', padding: '12px', textAlign: 'center',
-            }}>
-              <div style={{ fontSize: '10px', color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '.3px' }}>Revenue impact</div>
-              <div style={{ fontSize: '16px', fontWeight: 600, fontFamily: 'var(--mono)', color: result.revenueUpside > 0 ? 'var(--green)' : result.revenueUpside < 0 ? 'var(--red)' : 'var(--gray-500)', marginTop: '2px' }}>
-                {result.revenueUpside > 0 ? '+' : ''}{fmt(result.revenueUpside)}
+          {/* Financial impact: monthly primary, quarterly + annual secondary */}
+          {(() => {
+            const revenueMonthly = Math.round(result.revenueUpside / 12)
+            const revenueQuarterly = Math.round(result.revenueUpside / 4)
+            const contribMonthly = Math.round(result.contribUpside / 12)
+            const contribQuarterly = Math.round(result.contribUpside / 4)
+            return (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '12px' }}>
+                <div style={{
+                  background: 'var(--white)', border: '1px solid var(--border)',
+                  borderRadius: '8px', padding: '12px', textAlign: 'center',
+                }}>
+                  <div style={{ fontSize: '10px', color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '.3px' }}>Revenue impact</div>
+                  <div style={{ fontSize: '18px', fontWeight: 600, fontFamily: 'var(--mono)', color: result.revenueUpside > 0 ? 'var(--green)' : result.revenueUpside < 0 ? 'var(--red)' : 'var(--gray-500)', marginTop: '4px' }}>
+                    {revenueMonthly > 0 ? '+' : ''}{fmt(revenueMonthly)}/mo
+                  </div>
+                  <div style={{ fontSize: '10px', color: 'var(--gray-500)', marginTop: '4px', lineHeight: 1.5 }}>
+                    <div>{revenueQuarterly > 0 ? '+' : ''}{fmt(revenueQuarterly)}/qtr</div>
+                    <div>{result.revenueUpside > 0 ? '+' : ''}{fmt(result.revenueUpside)}/yr</div>
+                  </div>
+                </div>
+                <div style={{
+                  background: 'var(--white)', border: '1px solid var(--border)',
+                  borderRadius: '8px', padding: '12px', textAlign: 'center',
+                }}>
+                  <div style={{ fontSize: '10px', color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '.3px' }}>Contrib. impact</div>
+                  <div style={{ fontSize: '18px', fontWeight: 600, fontFamily: 'var(--mono)', color: result.contribUpside > 0 ? 'var(--green)' : result.contribUpside < 0 ? 'var(--red)' : 'var(--gray-500)', marginTop: '4px' }}>
+                    {contribMonthly > 0 ? '+' : ''}{fmt(contribMonthly)}/mo
+                  </div>
+                  <div style={{ fontSize: '10px', color: 'var(--gray-500)', marginTop: '4px', lineHeight: 1.5 }}>
+                    <div>{contribQuarterly > 0 ? '+' : ''}{fmt(contribQuarterly)}/qtr</div>
+                    <div>{result.contribUpside > 0 ? '+' : ''}{fmt(result.contribUpside)}/yr</div>
+                  </div>
+                </div>
               </div>
-              <div style={{ fontSize: '10px', color: 'var(--gray-400)', marginTop: '2px' }}>/yr vs baseline</div>
-            </div>
-            <div style={{
-              background: 'var(--white)', border: '1px solid var(--border)',
-              borderRadius: '8px', padding: '12px', textAlign: 'center',
-            }}>
-              <div style={{ fontSize: '10px', color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '.3px' }}>Contrib. impact</div>
-              <div style={{ fontSize: '16px', fontWeight: 600, fontFamily: 'var(--mono)', color: result.contribUpside > 0 ? 'var(--green)' : result.contribUpside < 0 ? 'var(--red)' : 'var(--gray-500)', marginTop: '2px' }}>
-                {result.contribUpside > 0 ? '+' : ''}{fmt(result.contribUpside)}
-              </div>
-              <div style={{ fontSize: '10px', color: 'var(--gray-400)', marginTop: '2px' }}>/yr vs baseline</div>
-            </div>
-          </div>
+            )
+          })()}
 
           {/* Rejection delta (only shown when slider moved) */}
           {Math.abs(result.rejectDelta) > 500 && (
