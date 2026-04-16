@@ -96,6 +96,38 @@ export default function SimulatorView({ calcResult, readOnly, reportInput, rc }:
   // Quality
   const [sReject, setSReject] = useState(baseline.rejectPct || 0)
 
+  // ── TAT value-stream breakdown (advanced) ──
+  // Components sum to plant/site handling time (= TAT − travel).
+  // Initialized proportionally from customer's current handling time using
+  // GCC ready-mix benchmark ratios. Owner can adjust to reflect reality.
+  const [showAdvancedTAT, setShowAdvancedTAT] = useState(false)
+  const initialHandling = Math.max(30, (baseline.turnaround || 90) - (baseline.deliveryRadius || 15) * 3)
+  // Benchmark ratios for plant/site handling components (sum = 1.00)
+  const BENCHMARK_RATIOS = {
+    plantQueue: 0.14,    // waiting to load at plant
+    weighbridge: 0.04,   // weighing in + out
+    loading: 0.23,       // concrete batched and loaded into mixer
+    siteQueue: 0.21,     // waiting at site to pour
+    unloading: 0.29,     // actual pour/discharge
+    washout: 0.09,       // clean drum after pour
+  }
+  const [sPlantQueue, setSPlantQueue] = useState(Math.round(initialHandling * BENCHMARK_RATIOS.plantQueue))
+  const [sWeighbridge, setSWeighbridge] = useState(Math.round(initialHandling * BENCHMARK_RATIOS.weighbridge))
+  const [sLoading, setSLoading] = useState(Math.round(initialHandling * BENCHMARK_RATIOS.loading))
+  const [sSiteQueue, setSSiteQueue] = useState(Math.round(initialHandling * BENCHMARK_RATIOS.siteQueue))
+  const [sUnloading, setSUnloading] = useState(Math.round(initialHandling * BENCHMARK_RATIOS.unloading))
+  const [sWashout, setSWashout] = useState(Math.round(initialHandling * BENCHMARK_RATIOS.washout))
+
+  // Sum of components = current handling time
+  const handlingSum = sPlantQueue + sWeighbridge + sLoading + sSiteQueue + sUnloading + sWashout
+
+  // When a component changes, update TAT = handling + travel
+  const handleComponentChange = (setter: (v: number) => void, newValue: number, oldValue: number) => {
+    setter(newValue)
+    const delta = newValue - oldValue
+    setSTurnaround(prev => Math.max(60, prev + delta))
+  }
+
   const scenario: SimScenario = useMemo(() => ({
     turnaround: sTurnaround,
     deliveryRadius: sRadius,
@@ -197,6 +229,14 @@ export default function SimulatorView({ calcResult, readOnly, reportInput, rc }:
     setSPrice(baseline.price || 65)
     setSMaterialCost(baseline.materialCost || 35)
     setSReject(baseline.rejectPct || 0)
+    // Reset TAT breakdown to benchmark ratios of baseline handling
+    const h = Math.max(30, (baseline.turnaround || 90) - (baseline.deliveryRadius || 15) * 3)
+    setSPlantQueue(Math.round(h * BENCHMARK_RATIOS.plantQueue))
+    setSWeighbridge(Math.round(h * BENCHMARK_RATIOS.weighbridge))
+    setSLoading(Math.round(h * BENCHMARK_RATIOS.loading))
+    setSSiteQueue(Math.round(h * BENCHMARK_RATIOS.siteQueue))
+    setSUnloading(Math.round(h * BENCHMARK_RATIOS.unloading))
+    setSWashout(Math.round(h * BENCHMARK_RATIOS.washout))
   }
 
   if (!result || baseline.cap === 0) {
@@ -323,6 +363,71 @@ export default function SimulatorView({ calcResult, readOnly, reportInput, rc }:
                 −1 min → +{fmtMarginal(marginalTA / 12)}/mo contribution
               </div>
             )}
+
+            {/* ── Advanced: TAT value-stream breakdown ── */}
+            <button
+              type="button"
+              onClick={() => setShowAdvancedTAT(v => !v)}
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                fontSize: '11px', color: 'var(--green)', padding: '4px 0',
+                marginTop: '-6px', marginBottom: '8px', fontFamily: 'var(--font)',
+                display: 'flex', alignItems: 'center', gap: '4px',
+              }}
+            >
+              <span style={{ transition: 'transform 0.15s', transform: showAdvancedTAT ? 'rotate(90deg)' : 'rotate(0deg)', display: 'inline-block', fontSize: '10px' }}>▸</span>
+              {showAdvancedTAT ? 'Hide' : 'Break down'} turnaround into value-stream components
+            </button>
+
+            {showAdvancedTAT && (() => {
+              const travel = sRadius * 3
+              const sumMismatch = Math.abs(handlingSum + travel - sTurnaround) > 1
+              return (
+                <div style={{
+                  background: 'var(--gray-50)', border: '1px solid var(--gray-100)',
+                  borderRadius: '6px', padding: '10px 12px', marginBottom: '12px',
+                }}>
+                  <div style={{ fontSize: '10px', color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '.3px', marginBottom: '8px', fontWeight: 600 }}>
+                    TAT breakdown (plant + site handling)
+                  </div>
+
+                  <BreakdownSlider label="Plant queue" hint="Wait to enter loading bay"
+                    value={sPlantQueue} onChange={v => handleComponentChange(setSPlantQueue, v, sPlantQueue)} />
+                  <BreakdownSlider label="Weighbridge" hint="Weigh in and out"
+                    value={sWeighbridge} onChange={v => handleComponentChange(setSWeighbridge, v, sWeighbridge)} />
+                  <BreakdownSlider label="Loading" hint="Batching and loading the mixer"
+                    value={sLoading} onChange={v => handleComponentChange(setSLoading, v, sLoading)} />
+                  <BreakdownSlider label="Site queue" hint="Wait at site to pour"
+                    value={sSiteQueue} onChange={v => handleComponentChange(setSSiteQueue, v, sSiteQueue)} />
+                  <BreakdownSlider label="Unloading / pour" hint="Actual concrete discharge"
+                    value={sUnloading} onChange={v => handleComponentChange(setSUnloading, v, sUnloading)} />
+                  <BreakdownSlider label="Washout" hint="Clean drum after pour"
+                    value={sWashout} onChange={v => handleComponentChange(setSWashout, v, sWashout)} />
+
+                  <div style={{
+                    marginTop: '10px', paddingTop: '8px', borderTop: '1px solid var(--gray-200)',
+                    display: 'grid', gridTemplateColumns: '1fr auto', gap: '4px', fontSize: '11px',
+                  }}>
+                    <span style={{ color: 'var(--gray-600)' }}>Handling subtotal</span>
+                    <span style={{ fontFamily: 'var(--mono)', fontWeight: 600 }}>{handlingSum} min</span>
+                    <span style={{ color: 'var(--gray-600)' }}>Transport round-trip ({sRadius} km × 3)</span>
+                    <span style={{ fontFamily: 'var(--mono)' }}>{travel} min</span>
+                    <span style={{ color: 'var(--gray-800)', fontWeight: 600, borderTop: '1px solid var(--gray-200)', paddingTop: '4px', marginTop: '2px' }}>Total TAT</span>
+                    <span style={{ fontFamily: 'var(--mono)', fontWeight: 700, color: 'var(--green)', borderTop: '1px solid var(--gray-200)', paddingTop: '4px', marginTop: '2px' }}>{handlingSum + travel} min</span>
+                  </div>
+
+                  {sumMismatch && (
+                    <div style={{
+                      marginTop: '8px', padding: '6px 8px',
+                      background: '#FFF4E5', border: '1px solid #FAD7A0',
+                      borderRadius: '4px', fontSize: '10px', color: '#7a5a00', lineHeight: 1.5,
+                    }}>
+                      ⚠ TAT slider shows {sTurnaround} min but components sum to {handlingSum + travel} min. Adjust a component or the TAT slider to reconcile.
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
 
             <Slider label="Delivery radius" value={sRadius} min={3} max={50} step={1} baselineValue={baseline.deliveryRadius || 15} unit="km" onChange={handleRadiusChange} />
             {marginalRadius > MARGINAL_THRESHOLD && (
@@ -760,6 +865,35 @@ export default function SimulatorView({ calcResult, readOnly, reportInput, rc }:
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+// ── TAT breakdown component slider ─────────────────────────────────────────
+function BreakdownSlider({ label, hint, value, onChange }: {
+  label: string
+  hint: string
+  value: number
+  onChange: (v: number) => void
+}) {
+  return (
+    <div style={{ marginBottom: '8px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '2px' }}>
+        <div>
+          <span style={{ fontSize: '11px', color: 'var(--gray-700)', fontWeight: 500 }}>{label}</span>
+          <span style={{ fontSize: '10px', color: 'var(--gray-400)', marginLeft: '6px' }}>{hint}</span>
+        </div>
+        <span style={{ fontSize: '12px', fontFamily: 'var(--mono)', fontWeight: 600, color: 'var(--gray-800)' }}>{value} min</span>
+      </div>
+      <input
+        type="range"
+        min={0}
+        max={60}
+        step={1}
+        value={value}
+        onChange={e => onChange(+e.target.value)}
+        style={{ width: '100%', accentColor: 'var(--green)' }}
+      />
     </div>
   )
 }
