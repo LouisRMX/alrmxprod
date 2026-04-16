@@ -24,7 +24,6 @@ const AL_OMRAN: SimBaseline = {
   deliveryRadius: 25,
   avgLoadM3: 7.45,
   materialCost: 37.58,
-  plantSiteHandlingMin: 60,
   numberOfPlants: 5,
   truckBanHours: 7,
   demandStatus: 'constrained',
@@ -37,7 +36,6 @@ function baselineScenario(b: SimBaseline): SimScenario {
   return {
     turnaround: b.turnaround,
     deliveryRadius: b.deliveryRadius,
-    plantSiteHandlingMin: b.plantSiteHandlingMin,
     trucks: b.trucks,
     avgLoadM3: b.avgLoadM3,
     price: b.price,
@@ -96,11 +94,11 @@ describe('simCalc v2: operational scenarios', () => {
     expect(result.contribUpside).toBeGreaterThan(0)
   })
 
-  it('plant/site handling 60 \u2192 80 min pushes target TAT up', () => {
-    const scenario = { ...baselineScenario(AL_OMRAN), plantSiteHandlingMin: 80 }
+  it('target TAT = 60 + radius \u00D7 3 (no handling slider in v2.1)', () => {
+    const scenario = { ...baselineScenario(AL_OMRAN), deliveryRadius: 25 }
     const result = simCalc(AL_OMRAN, scenario)
-    // New target TAT = 80 + 25×3 = 155 min
-    expect(result.scenarioTargetTA).toBe(155)
+    // Target TAT = 60 (fixed handling benchmark) + 25×3 = 135 min
+    expect(result.scenarioTargetTA).toBe(135)
   })
 })
 
@@ -164,7 +162,6 @@ describe('simCalc v2: combined scenarios', () => {
     const scenario: SimScenario = {
       turnaround: 123,
       deliveryRadius: 21,
-      plantSiteHandlingMin: 60,
       trucks: 95,
       avgLoadM3: 8.0,
       price: AL_OMRAN.price,

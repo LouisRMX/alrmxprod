@@ -147,11 +147,10 @@ export interface SimBaseline {
   contrib: number                   // $/m³, baseline price minus baseline material cost
   TARGET_TA: number
 
-  // ── Extended for v2 simulator (8 sliders, 4 groups) ──
+  // ── Extended for v2 simulator (7 sliders, 4 groups) ──
   deliveryRadius: number            // km, drives target TAT via 60 + radius × 3
   avgLoadM3: number                 // actual avg load per trip from reportCalculations
   materialCost: number              // $/m³, reported raw material cost
-  plantSiteHandlingMin: number      // fixed plant + site handling floor, typically 60 min
 
   // ── Context for transparency panel (not sliders) ──
   numberOfPlants: number            // typically 1, can be >1 (Al-Omran: 5)
@@ -166,7 +165,6 @@ export interface SimScenario {
   // Operational
   turnaround: number                // min
   deliveryRadius: number            // km
-  plantSiteHandlingMin: number      // min (rarely moved but available)
 
   // Structural
   trucks: number
@@ -194,7 +192,7 @@ export interface SimResult {
   maxUtilPct: number
   sUtil: number
   // ── v2 additions ──
-  scenarioTargetTA: number          // recomputed from deliveryRadius + plantSiteHandlingMin
+  scenarioTargetTA: number          // recomputed from deliveryRadius: 60 + radius × 3
   scenarioMonthly: number           // m³/mo at this scenario
   rejectSavings: number             // $/mo saved from rejection drop (absolute, not delta vs baseline)
   rejectDelta: number               // $/mo difference vs baseline rejection loss
@@ -1030,10 +1028,11 @@ export function simCalc(baseline: SimBaseline, scenario: SimScenario): SimResult
   const plantMaxDaily = cap * 0.92 * opH
   const prodDaily = plantMaxDaily
 
-  // ── Scenario target TAT is recomputed from radius + handling ──
-  // This allows the radius/handling sliders to feed back into TAT,
-  // while the TAT slider still drives the actual cycle time directly.
-  const scenarioTargetTA = Math.max(60, Math.round(scenario.plantSiteHandlingMin + scenario.deliveryRadius * 3))
+  // ── Scenario target TAT is recomputed from radius ──
+  // Formula: 60 min plant/site handling benchmark + 2 × travel time (radius × 1.5 min/km)
+  // = 60 + radius × 3. The 60-min benchmark is implicit (industry floor for loading,
+  // weighbridge, unload, washout). The TAT slider drives actual cycle time directly.
+  const scenarioTargetTA = Math.max(60, Math.round(60 + scenario.deliveryRadius * 3))
 
   // Fleet-limited daily capacity using scenario avg load (not baseline mixCap)
   const delsPerTruck = scenario.turnaround > 0 ? (opH * 60 / scenario.turnaround) : 0
@@ -1159,7 +1158,6 @@ export function buildSimBaseline(
     deliveryRadius: Math.round((r.TARGET_TA - 60) / 3),       // back-derive from TARGET_TA
     avgLoadM3: rc?.avg_load_m3 ?? r.mixCap,
     materialCost: reportInput?.material_cost_per_m3 ?? Math.max(0, r.price - r.contrib),
-    plantSiteHandlingMin: 60,                                  // benchmark floor; moveable in advanced
 
     // ── context for transparency panel ──
     numberOfPlants: reportInput?.number_of_plants ?? 1,

@@ -87,7 +87,6 @@ export default function SimulatorView({ calcResult, readOnly, reportInput, rc }:
   // Operational
   const [sTurnaround, setSTurnaround] = useState(baseline.turnaround || 90)
   const [sRadius, setSRadius] = useState(baseline.deliveryRadius || 15)
-  const [sHandling, setSHandling] = useState(baseline.plantSiteHandlingMin || 60)
   // Structural
   const [sTrucks, setSTrucks] = useState(baseline.trucks || 10)
   const [sAvgLoad, setSAvgLoad] = useState(baseline.avgLoadM3 || 7)
@@ -100,13 +99,12 @@ export default function SimulatorView({ calcResult, readOnly, reportInput, rc }:
   const scenario: SimScenario = useMemo(() => ({
     turnaround: sTurnaround,
     deliveryRadius: sRadius,
-    plantSiteHandlingMin: sHandling,
     trucks: sTrucks,
     avgLoadM3: sAvgLoad,
     price: sPrice,
     materialCost: sMaterialCost,
     rejectPct: sReject,
-  }), [sTurnaround, sRadius, sHandling, sTrucks, sAvgLoad, sPrice, sMaterialCost, sReject])
+  }), [sTurnaround, sRadius, sTrucks, sAvgLoad, sPrice, sMaterialCost, sReject])
 
   const result = useMemo(() => {
     if (baseline.cap === 0) return null
@@ -174,7 +172,6 @@ export default function SimulatorView({ calcResult, readOnly, reportInput, rc }:
   const resetAll = () => {
     setSTurnaround(baseline.turnaround || 90)
     setSRadius(baseline.deliveryRadius || 15)
-    setSHandling(baseline.plantSiteHandlingMin || 60)
     setSTrucks(baseline.trucks || 10)
     setSAvgLoad(baseline.avgLoadM3 || 7)
     setSPrice(baseline.price || 65)
@@ -314,10 +311,6 @@ export default function SimulatorView({ calcResult, readOnly, reportInput, rc }:
               </div>
             )}
 
-            <Slider label="Plant / site handling" value={sHandling} min={30} max={120} step={1} baselineValue={baseline.plantSiteHandlingMin || 60} unit="min" onChange={setSHandling} />
-            <div style={{ fontSize: '10px', color: 'var(--gray-400)', marginTop: '-8px', marginBottom: '6px', fontStyle: 'italic' }}>
-              Loading, site wait, unloading, washout. Industry benchmark: 60 min.
-            </div>
           </div>
 
           {/* ── STRUCTURAL ── */}
@@ -615,7 +608,7 @@ export default function SimulatorView({ calcResult, readOnly, reportInput, rc }:
                 <strong>Scenario output:</strong> min(fleet, plant) = {Math.round(result.effFleetDaily < result.prodDaily ? result.effFleetDaily : result.prodDaily).toLocaleString()} m\u00B3/day \u00D7 {baseline.opD} days = {result.scenarioAnnual.toLocaleString()} m\u00B3/yr.
               </p>
               <p style={{ marginBottom: '10px' }}>
-                <strong>Scenario target TAT:</strong> {sHandling} min handling + ({sRadius} km \u00D7 1.5 min/km \u00D7 2) = {result.scenarioTargetTA} min.
+                <strong>Scenario target TAT:</strong> 60 min handling + ({sRadius} km \u00D7 1.5 min/km \u00D7 2) = {result.scenarioTargetTA} min.
               </p>
               <p style={{ marginBottom: '10px' }}>
                 <strong>Scenario contribution:</strong> ${sPrice.toFixed(2)} \u2212 ${sMaterialCost.toFixed(2)} = ${sContrib.toFixed(2)}/m\u00B3.
