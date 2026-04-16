@@ -411,45 +411,58 @@ export default function SimulatorView({ calcResult, readOnly, reportInput, rc }:
             </div>
           )}
 
-          {/* Volume delta, monthly primary */}
+          {/* ── HERO: Contribution impact (matches report's $X/mo framing) ── */}
           {(() => {
-            const deltaMonthly = Math.round(result.deltaVol / 12)
-            const deltaQuarterly = Math.round(result.deltaVol / 4)
-            const scenarioQuarterly = Math.round(result.scenarioAnnual / 4)
+            const contribMonthly = Math.round(result.contribUpside / 12)
+            const contribQuarterly = Math.round(result.contribUpside / 4)
+            const contribPositive = result.contribUpside > 0
             return (
               <div style={{
-                background: deltaPositive ? 'var(--green-light)' : result.deltaVol < 0 ? '#FDE8E6' : 'var(--gray-100)',
-                border: `1px solid ${deltaPositive ? 'var(--tooltip-border)' : result.deltaVol < 0 ? 'var(--error-border)' : 'var(--border)'}`,
+                background: contribPositive ? 'var(--green-light)' : result.contribUpside < 0 ? '#FDE8E6' : 'var(--gray-100)',
+                border: `1px solid ${contribPositive ? 'var(--tooltip-border)' : result.contribUpside < 0 ? 'var(--error-border)' : 'var(--border)'}`,
                 borderRadius: 'var(--radius)', padding: '16px', marginBottom: '12px', textAlign: 'center',
               }}>
                 <div style={{ fontSize: '10px', color: 'var(--gray-500)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '.3px' }}>
-                  Monthly volume change
+                  Monthly contribution impact
                 </div>
                 <div style={{
                   fontSize: '26px', fontWeight: 600, fontFamily: 'var(--mono)', marginTop: '4px',
-                  color: deltaPositive ? 'var(--green)' : result.deltaVol < 0 ? 'var(--red)' : 'var(--gray-500)',
+                  color: contribPositive ? 'var(--green)' : result.contribUpside < 0 ? 'var(--red)' : 'var(--gray-500)',
                 }}>
-                  {deltaMonthly > 0 ? '+' : ''}{deltaMonthly.toLocaleString()} m³
+                  {contribMonthly > 0 ? '+' : ''}{fmt(contribMonthly)}/mo
                 </div>
                 <div style={{ fontSize: '11px', color: 'var(--gray-500)', marginTop: '6px', display: 'flex', justifyContent: 'center', gap: '14px' }}>
-                  <span>Quarterly: {deltaQuarterly > 0 ? '+' : ''}{deltaQuarterly.toLocaleString()} m³</span>
-                  <span>Annual: {result.deltaVol > 0 ? '+' : ''}{result.deltaVol.toLocaleString()} m³</span>
+                  <span>Quarterly: {contribQuarterly > 0 ? '+' : ''}{fmt(contribQuarterly)}</span>
+                  <span>Annual: {result.contribUpside > 0 ? '+' : ''}{fmt(result.contribUpside)}</span>
                 </div>
                 <div style={{ fontSize: '11px', color: 'var(--gray-400)', marginTop: '6px' }}>
-                  Scenario output: {result.scenarioMonthly.toLocaleString()} m³/mo · {scenarioQuarterly.toLocaleString()} m³/qtr · {result.scenarioAnnual.toLocaleString()} m³/yr
+                  At ${sContrib.toFixed(2)}/m³ contribution margin (${sPrice.toFixed(2)} − ${sMaterialCost.toFixed(2)})
                 </div>
               </div>
             )
           })()}
 
-          {/* Financial impact: monthly primary, quarterly + annual secondary */}
+          {/* Secondary cards: volume change + revenue impact */}
           {(() => {
+            const deltaMonthly = Math.round(result.deltaVol / 12)
+            const deltaQuarterly = Math.round(result.deltaVol / 4)
             const revenueMonthly = Math.round(result.revenueUpside / 12)
             const revenueQuarterly = Math.round(result.revenueUpside / 4)
-            const contribMonthly = Math.round(result.contribUpside / 12)
-            const contribQuarterly = Math.round(result.contribUpside / 4)
             return (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '12px' }}>
+                <div style={{
+                  background: 'var(--white)', border: '1px solid var(--border)',
+                  borderRadius: '8px', padding: '12px', textAlign: 'center',
+                }}>
+                  <div style={{ fontSize: '10px', color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '.3px' }}>Volume change</div>
+                  <div style={{ fontSize: '18px', fontWeight: 600, fontFamily: 'var(--mono)', color: deltaPositive ? 'var(--green)' : result.deltaVol < 0 ? 'var(--red)' : 'var(--gray-500)', marginTop: '4px' }}>
+                    {deltaMonthly > 0 ? '+' : ''}{deltaMonthly.toLocaleString()} m³/mo
+                  </div>
+                  <div style={{ fontSize: '10px', color: 'var(--gray-500)', marginTop: '4px', lineHeight: 1.5 }}>
+                    <div>{deltaQuarterly > 0 ? '+' : ''}{deltaQuarterly.toLocaleString()} m³/qtr</div>
+                    <div>{result.deltaVol > 0 ? '+' : ''}{result.deltaVol.toLocaleString()} m³/yr</div>
+                  </div>
+                </div>
                 <div style={{
                   background: 'var(--white)', border: '1px solid var(--border)',
                   borderRadius: '8px', padding: '12px', textAlign: 'center',
@@ -461,19 +474,6 @@ export default function SimulatorView({ calcResult, readOnly, reportInput, rc }:
                   <div style={{ fontSize: '10px', color: 'var(--gray-500)', marginTop: '4px', lineHeight: 1.5 }}>
                     <div>{revenueQuarterly > 0 ? '+' : ''}{fmt(revenueQuarterly)}/qtr</div>
                     <div>{result.revenueUpside > 0 ? '+' : ''}{fmt(result.revenueUpside)}/yr</div>
-                  </div>
-                </div>
-                <div style={{
-                  background: 'var(--white)', border: '1px solid var(--border)',
-                  borderRadius: '8px', padding: '12px', textAlign: 'center',
-                }}>
-                  <div style={{ fontSize: '10px', color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '.3px' }}>Contrib. impact</div>
-                  <div style={{ fontSize: '18px', fontWeight: 600, fontFamily: 'var(--mono)', color: result.contribUpside > 0 ? 'var(--green)' : result.contribUpside < 0 ? 'var(--red)' : 'var(--gray-500)', marginTop: '4px' }}>
-                    {contribMonthly > 0 ? '+' : ''}{fmt(contribMonthly)}/mo
-                  </div>
-                  <div style={{ fontSize: '10px', color: 'var(--gray-500)', marginTop: '4px', lineHeight: 1.5 }}>
-                    <div>{contribQuarterly > 0 ? '+' : ''}{fmt(contribQuarterly)}/qtr</div>
-                    <div>{result.contribUpside > 0 ? '+' : ''}{fmt(result.contribUpside)}/yr</div>
                   </div>
                 </div>
               </div>
@@ -496,69 +496,124 @@ export default function SimulatorView({ calcResult, readOnly, reportInput, rc }:
           )}
 
           {/* Constraint analysis */}
-          <div style={{
-            background: 'var(--white)', border: '1px solid var(--border)',
-            borderRadius: '8px', padding: '12px',
-          }}>
-            <div style={{ fontSize: '10px', color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '.3px', marginBottom: '8px' }}>
-              Constraint analysis
-            </div>
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '6px' }}>
-              <span style={{ fontSize: '12px', color: 'var(--gray-500)', width: '110px' }}>Bottleneck:</span>
-              <span style={{
-                fontSize: '12px', fontWeight: 500,
-                padding: '2px 8px', borderRadius: '4px',
-                background: result.scenarioBottleneck === 'Production' ? '#E8F8F5' : 'var(--error-bg)',
-                color: result.scenarioBottleneck === 'Production' ? 'var(--green)' : 'var(--red)',
-              }}>
-                {result.scenarioBottleneck}
-              </span>
-            </div>
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '4px' }}>
-              <span style={{ fontSize: '12px', color: 'var(--gray-500)', width: '110px' }}>Utilisation:</span>
-              <span style={{ fontSize: '12px', fontFamily: 'var(--mono)', fontWeight: 600, color: result.sUtil >= 88 ? 'var(--green)' : result.sUtil >= 70 ? 'var(--warning)' : 'var(--red)' }}>{result.sUtil}%</span>
-            </div>
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '4px' }}>
-              <span style={{ fontSize: '12px', color: 'var(--gray-500)', width: '110px' }}>Target TAT:</span>
-              <span style={{ fontSize: '12px', fontFamily: 'var(--mono)' }}>{result.scenarioTargetTA} min</span>
-            </div>
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '4px' }}>
-              <span style={{ fontSize: '12px', color: 'var(--gray-500)', width: '110px' }}>Production:</span>
-              <span style={{ fontSize: '12px', fontFamily: 'var(--mono)' }}>{Math.round(result.prodDaily).toLocaleString()} m³/day</span>
-            </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <span style={{ fontSize: '12px', color: 'var(--gray-500)', width: '110px' }}>Fleet cap:</span>
-              <span style={{ fontSize: '12px', fontFamily: 'var(--mono)' }}>{Math.round(result.effFleetDaily).toLocaleString()} m³/day</span>
-            </div>
+          {(() => {
+            // ── Trip counters: derived from TAT + trucks + op hours ──
+            // Baseline: what the reported TAT produces
+            const baselineDelsPerTruck = baseline.turnaround > 0 ? (baseline.opH * 60 / baseline.turnaround) : 0
+            const baselineFleetTrips = baselineDelsPerTruck * baseline.trucks
+            // Scenario: live values
+            const scenarioDelsPerTruck = scenario.turnaround > 0 ? (baseline.opH * 60 / scenario.turnaround) : 0
+            const scenarioFleetTrips = scenarioDelsPerTruck * scenario.trucks
+            // Monthly counts
+            const opDaysMonth = Math.round(baseline.opD / 12)
+            const baselineMonthlyTrips = Math.round(baselineFleetTrips * opDaysMonth)
+            const scenarioMonthlyTrips = Math.round(scenarioFleetTrips * opDaysMonth)
+            const deltaMonthlyTrips = scenarioMonthlyTrips - baselineMonthlyTrips
+            const tripsColour = deltaMonthlyTrips > 0 ? 'var(--green)' : deltaMonthlyTrips < 0 ? 'var(--red)' : 'var(--gray-600)'
 
-            {result.maxUtilPct < result.sUtil ? (
+            return (
               <div style={{
-                marginTop: '10px', padding: '8px 10px', borderRadius: '6px',
-                background: 'var(--warning-bg)', border: '1px solid var(--warning-border)',
-                fontSize: '11px', color: 'var(--warning-dark)', lineHeight: 1.5,
+                background: 'var(--white)', border: '1px solid var(--border)',
+                borderRadius: '8px', padding: '12px',
               }}>
-                ⚠ Fleet limits utilisation to {result.maxUtilPct}% at this turnaround, shorten turnaround or add trucks to raise it
-              </div>
-            ) : result.maxUtilPct > result.sUtil ? (
-              <div style={{
-                marginTop: '10px', padding: '8px 10px', borderRadius: '6px',
-                background: 'var(--phase-complete-bg)', border: '1px solid var(--tooltip-border)',
-                fontSize: '11px', color: 'var(--phase-complete)', lineHeight: 1.5,
-              }}>
-                ✓ Fleet can support up to {result.maxUtilPct}% utilisation at this turnaround, plant is the binding constraint
-              </div>
-            ) : null}
+                <div style={{ fontSize: '10px', color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '.3px', marginBottom: '8px' }}>
+                  Constraint analysis
+                </div>
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '6px' }}>
+                  <span style={{ fontSize: '12px', color: 'var(--gray-500)', width: '130px' }}>Bottleneck:</span>
+                  <span style={{
+                    fontSize: '12px', fontWeight: 500,
+                    padding: '2px 8px', borderRadius: '4px',
+                    background: result.scenarioBottleneck === 'Production' ? '#E8F8F5' : 'var(--error-bg)',
+                    color: result.scenarioBottleneck === 'Production' ? 'var(--green)' : 'var(--red)',
+                  }}>
+                    {result.scenarioBottleneck}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '4px' }}>
+                  <span style={{ fontSize: '12px', color: 'var(--gray-500)', width: '130px' }}>Utilisation:</span>
+                  <span style={{ fontSize: '12px', fontFamily: 'var(--mono)', fontWeight: 600, color: result.sUtil >= 88 ? 'var(--green)' : result.sUtil >= 70 ? 'var(--warning)' : 'var(--red)' }}>{result.sUtil}%</span>
+                </div>
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '4px' }}>
+                  <span style={{ fontSize: '12px', color: 'var(--gray-500)', width: '130px' }}>Target TAT:</span>
+                  <span style={{ fontSize: '12px', fontFamily: 'var(--mono)' }}>{result.scenarioTargetTA} min</span>
+                </div>
 
-            {insight && (
-              <div style={{
-                marginTop: '10px', paddingTop: '10px',
-                borderTop: '1px solid var(--gray-100)',
-                fontSize: '11px', color: 'var(--gray-600)', lineHeight: 1.6,
-              }}>
-                {insight}
+                {/* ── Trip metrics ── */}
+                <div style={{ display: 'flex', gap: '8px', marginTop: '8px', marginBottom: '4px', paddingTop: '8px', borderTop: '1px solid var(--gray-100)' }}>
+                  <span style={{ fontSize: '12px', color: 'var(--gray-500)', width: '130px' }}>Trips/truck/day:</span>
+                  <span style={{ fontSize: '12px', fontFamily: 'var(--mono)' }}>
+                    <span style={{ color: 'var(--gray-500)' }}>{baselineDelsPerTruck.toFixed(1)}</span>
+                    <span style={{ margin: '0 6px', color: 'var(--gray-400)' }}>→</span>
+                    <span style={{ fontWeight: 600 }}>{scenarioDelsPerTruck.toFixed(1)}</span>
+                    <span style={{ marginLeft: '8px', color: tripsColour, fontWeight: 600 }}>
+                      ({deltaMonthlyTrips > 0 ? '+' : ''}{(scenarioDelsPerTruck - baselineDelsPerTruck).toFixed(1)})
+                    </span>
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '4px' }}>
+                  <span style={{ fontSize: '12px', color: 'var(--gray-500)', width: '130px' }}>Fleet trips/day:</span>
+                  <span style={{ fontSize: '12px', fontFamily: 'var(--mono)' }}>
+                    <span style={{ color: 'var(--gray-500)' }}>{Math.round(baselineFleetTrips).toLocaleString()}</span>
+                    <span style={{ margin: '0 6px', color: 'var(--gray-400)' }}>→</span>
+                    <span style={{ fontWeight: 600 }}>{Math.round(scenarioFleetTrips).toLocaleString()}</span>
+                    <span style={{ marginLeft: '8px', color: tripsColour, fontWeight: 600 }}>
+                      ({Math.round(scenarioFleetTrips - baselineFleetTrips) > 0 ? '+' : ''}{Math.round(scenarioFleetTrips - baselineFleetTrips).toLocaleString()})
+                    </span>
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '4px' }}>
+                  <span style={{ fontSize: '12px', color: 'var(--gray-500)', width: '130px' }}>Fleet trips/month:</span>
+                  <span style={{ fontSize: '12px', fontFamily: 'var(--mono)' }}>
+                    <span style={{ color: 'var(--gray-500)' }}>{baselineMonthlyTrips.toLocaleString()}</span>
+                    <span style={{ margin: '0 6px', color: 'var(--gray-400)' }}>→</span>
+                    <span style={{ fontWeight: 600 }}>{scenarioMonthlyTrips.toLocaleString()}</span>
+                    <span style={{ marginLeft: '8px', color: tripsColour, fontWeight: 600 }}>
+                      ({deltaMonthlyTrips > 0 ? '+' : ''}{deltaMonthlyTrips.toLocaleString()})
+                    </span>
+                  </span>
+                </div>
+
+                {/* ── Daily output (kept for context) ── */}
+                <div style={{ display: 'flex', gap: '8px', marginTop: '8px', marginBottom: '4px', paddingTop: '8px', borderTop: '1px solid var(--gray-100)' }}>
+                  <span style={{ fontSize: '12px', color: 'var(--gray-500)', width: '130px' }}>Production (plant):</span>
+                  <span style={{ fontSize: '12px', fontFamily: 'var(--mono)' }}>{Math.round(result.prodDaily).toLocaleString()} m³/day</span>
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <span style={{ fontSize: '12px', color: 'var(--gray-500)', width: '130px' }}>Fleet cap:</span>
+                  <span style={{ fontSize: '12px', fontFamily: 'var(--mono)' }}>{Math.round(result.effFleetDaily).toLocaleString()} m³/day</span>
+                </div>
+
+                {result.maxUtilPct < result.sUtil ? (
+                  <div style={{
+                    marginTop: '10px', padding: '8px 10px', borderRadius: '6px',
+                    background: 'var(--warning-bg)', border: '1px solid var(--warning-border)',
+                    fontSize: '11px', color: 'var(--warning-dark)', lineHeight: 1.5,
+                  }}>
+                    ⚠ Fleet limits utilisation to {result.maxUtilPct}% at this turnaround, shorten turnaround or add trucks to raise it
+                  </div>
+                ) : result.maxUtilPct > result.sUtil ? (
+                  <div style={{
+                    marginTop: '10px', padding: '8px 10px', borderRadius: '6px',
+                    background: 'var(--phase-complete-bg)', border: '1px solid var(--tooltip-border)',
+                    fontSize: '11px', color: 'var(--phase-complete)', lineHeight: 1.5,
+                  }}>
+                    ✓ Fleet can support up to {result.maxUtilPct}% utilisation at this turnaround, plant is the binding constraint
+                  </div>
+                ) : null}
+
+                {insight && (
+                  <div style={{
+                    marginTop: '10px', paddingTop: '10px',
+                    borderTop: '1px solid var(--gray-100)',
+                    fontSize: '11px', color: 'var(--gray-600)', lineHeight: 1.6,
+                  }}>
+                    {insight}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            )
+          })()}
 
           {/* ── TRANSPARENCY PANEL ── */}
           {showTransparency && (
