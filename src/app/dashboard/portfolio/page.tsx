@@ -151,11 +151,20 @@ export default async function PortfolioPage() {
                   borderBottom: i < assessments.length - 1 ? '1px solid var(--border)' : 'none',
                   transition: 'background .1s'
                 }}>
-                  <td style={{ padding: '12px 16px' }}>
-                    <div style={{ fontSize: '13px', fontWeight: '500', color: 'var(--gray-900)' }}>
-                      {(a.plant as { name: string })?.name || '-'}
-                    </div>
-                    <div style={{ fontSize: '11px', color: 'var(--gray-500)' }}>{a.plant?.country}</div>
+                  <td style={{ padding: 0 }}>
+                    <Link href={`/dashboard/assess/${a.id}`} style={{
+                      display: 'block', padding: '12px 16px',
+                      color: 'inherit', textDecoration: 'none',
+                      minHeight: '44px',
+                    }}>
+                      <div style={{ fontSize: '13px', fontWeight: '500', color: 'var(--gray-900)' }}>
+                        {(a.plant as { name: string })?.name || '-'}
+                      </div>
+                      <div style={{ fontSize: '11px', color: 'var(--gray-500)' }}>{a.plant?.country}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--green)', fontWeight: 500, marginTop: '2px' }}>
+                        Open →
+                      </div>
+                    </Link>
                   </td>
                   <td style={{ padding: '12px 16px', fontSize: '13px', color: 'var(--gray-700)' }}>
                     {(a.plant as { customer?: { name: string } })?.customer?.name || '-'}
