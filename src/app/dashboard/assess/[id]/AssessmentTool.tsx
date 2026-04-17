@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import AssessmentShell from '@/components/assessment/AssessmentShell'
+import type { AssessmentMode } from '@/components/assessment/ModeTabs'
 import type { Phase } from '@/lib/questions'
 import type { Answers, CalcScores } from '@/lib/calculations'
 import { useIsMobile } from '@/hooks/useIsMobile'
@@ -50,7 +51,17 @@ export default function AssessmentTool({
   const [deleting, setDeleting] = useState(false)
   const [lastSaved, setLastSaved] = useState<string | null>(null)
   const [phase, setPhase] = useState(assessment.phase || 'workshop')
-  const [requestedMode, setRequestedMode] = useState<string | undefined>()
+  const [requestedMode, setRequestedMode] = useState<AssessmentMode | undefined>()
+
+  // Pre-select mode tab from URL query param, e.g. ?mode=fieldlog
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const param = new URLSearchParams(window.location.search).get('mode')
+    const valid: AssessmentMode[] = ['questions', 'report', 'decision', 'simulator', 'track', 'gps', 'fieldlog', 'submit']
+    if (param && (valid as string[]).includes(param)) {
+      setRequestedMode(param as AssessmentMode)
+    }
+  }, [])
   const savingRef = useRef(false)
   const pendingSaveRef = useRef<Parameters<typeof handleSave>[0] | null>(null)
   const isMobile = useIsMobile()
@@ -210,7 +221,7 @@ export default function AssessmentTool({
     : { color: 'var(--phase-complete)', bg: 'var(--phase-complete-bg)', border: 'var(--tooltip-border)' }
 
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative' }}>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative', minWidth: 0 }}>
       {/* Save status bar */}
       <div style={{
         background: 'var(--white)', borderBottom: '1px solid var(--border)',
@@ -379,7 +390,7 @@ export default function AssessmentTool({
           isAdmin={isAdmin}
           userRole={userRole}
           onSave={handleSave}
-          requestMode={requestedMode as import('@/components/assessment/ModeTabs').AssessmentMode | undefined}
+          requestMode={requestedMode}
           focusActions={assessment.focus_actions}
           baselineData={baselineAssessment ? { answers: baselineAssessment.answers as Answers, date: baselineAssessment.date } : undefined}
           savedDiagnosis={assessment.validated_diagnosis}

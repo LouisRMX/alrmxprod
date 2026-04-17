@@ -274,7 +274,7 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
 
 
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
       {!hideModeTabs && <ModeTabs activeMode={mode} onSwitch={setMode} allowedModes={allowedModes} extraTab={extraTab} />}
 
 

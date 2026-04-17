@@ -54,7 +54,7 @@ export default async function DashboardLayout({
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', overflowX: 'hidden' }}>
       <NavBar user={user} profile={profile} memberRole={effectiveRole} isAdmin={isAdmin} />
-      <main className="dashboard-main" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <main className="dashboard-main" style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         {children}
       </main>
       {/* Always mounted, component fetches own role client-side and hides if not system_admin */}
