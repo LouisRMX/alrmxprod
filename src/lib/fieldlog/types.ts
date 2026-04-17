@@ -28,6 +28,11 @@ export interface DailyLogRow {
   upload_id: string | null
   created_at: string
   updated_at: string
+  // Live Trip Timer additions (2026-04-17 migration)
+  plant_queue_start?: string | null
+  measurer_name?: string | null
+  is_partial?: boolean | null
+  stage_notes?: Record<string, string> | null
 }
 
 export interface DailyLogTripComputed extends DailyLogRow {

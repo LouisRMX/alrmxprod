@@ -1,10 +1,12 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
 /**
  * Server-side only. Uses the service role key which bypasses RLS.
- * Only use for admin checks that must not be blocked by RLS policies.
+ * Only use for admin checks that must not be blocked by RLS policies,
+ * and for token-validated field capture writes where the token itself
+ * is the authorisation boundary.
  */
-function createAdminClient() {
+export function createAdminClient(): SupabaseClient {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SECRET_KEY!,

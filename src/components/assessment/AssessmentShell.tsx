@@ -559,13 +559,34 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
         )
       })()}
 
-      {mode === 'fieldlog' && (
-        <FieldLogView
-          assessmentId={assessmentId}
-          plantId={plantId ?? ''}
-          isAdmin={isAdmin}
-        />
-      )}
+      {mode === 'fieldlog' && (() => {
+        // Compute reported and target TAT for the Diagnostics expected-vs-measured banner.
+        // Falls back silently if reportInput/rc cannot be built.
+        let reportedTAT: number | null = null
+        let targetTAT: number | null = null
+        try {
+          const dxLite = {
+            tat_actual: calcResult.ta,
+            reject_pct: calcResult.rejectPct ?? 0,
+            management_context: String(answers.biggest_pain ?? ''),
+          }
+          const input = mapToReportInput(dxLite, answers as Record<string, unknown>)
+          const rcFull = calculateReport(input)
+          reportedTAT = input.avg_turnaround_min
+          targetTAT = rcFull.target_tat_min
+        } catch {
+          // ignore, banner will show a fallback message
+        }
+        return (
+          <FieldLogView
+            assessmentId={assessmentId}
+            plantId={plantId ?? ''}
+            isAdmin={isAdmin}
+            reportedTAT={reportedTAT}
+            targetTAT={targetTAT}
+          />
+        )
+      })()}
 
     </div>
   )

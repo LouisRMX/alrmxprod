@@ -7,21 +7,28 @@ import ManualEntryForm from './ManualEntryForm'
 import TripTable from './TripTable'
 import UploadParseView from './UploadParseView'
 import AudioCaptureView from './AudioCaptureView'
+import LiveTripTimer from './live-timer/LiveTripTimer'
+import FieldCaptureTokenButton from './FieldCaptureTokenButton'
+import FieldLogDiagnostics from './diagnostics/FieldLogDiagnostics'
 
-type SubTab = 'manual' | 'upload' | 'audio'
+type SubTab = 'live' | 'diagnostics' | 'manual' | 'upload' | 'audio'
 
 interface FieldLogViewProps {
   assessmentId: string
   plantId: string
   isAdmin?: boolean
+  /** TAT from pre-assessment report, for the expected-vs-measured banner */
+  reportedTAT?: number | null
+  /** Target TAT from pre-assessment calculations */
+  targetTAT?: number | null
 }
 
-export default function FieldLogView({ assessmentId, plantId, isAdmin }: FieldLogViewProps) {
+export default function FieldLogView({ assessmentId, plantId, isAdmin, reportedTAT, targetTAT }: FieldLogViewProps) {
   const supabase = createClient()
   const today = new Date().toISOString().slice(0, 10)
 
   const [logDate, setLogDate] = useState(today)
-  const [subTab, setSubTab] = useState<SubTab>('manual')
+  const [subTab, setSubTab] = useState<SubTab>('live')
   const [trips, setTrips] = useState<DailyLogRow[]>([])
   const [computed, setComputed] = useState<ComputedSummary | null>(null)
   const [audioEnabled, setAudioEnabled] = useState(false)
@@ -123,14 +130,17 @@ export default function FieldLogView({ assessmentId, plantId, isAdmin }: FieldLo
 
   return (
     <div style={{ padding: '16px', maxWidth: '800px' }}>
-      {/* Date picker */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-        <label style={{ fontSize: '12px', fontWeight: 600, color: '#888' }}>Date</label>
-        <input type="date" value={logDate} onChange={e => setLogDate(e.target.value)}
-          style={{
-            padding: '6px 10px', border: '1px solid #d1d5db', borderRadius: '6px',
-            fontSize: '14px', background: '#fff',
-          }} />
+      {/* Date picker + token share */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <label style={{ fontSize: '12px', fontWeight: 600, color: '#888' }}>Date</label>
+          <input type="date" value={logDate} onChange={e => setLogDate(e.target.value)}
+            style={{
+              padding: '6px 10px', border: '1px solid #d1d5db', borderRadius: '6px',
+              fontSize: '14px', background: '#fff',
+            }} />
+        </div>
+        {isAdmin && <FieldCaptureTokenButton assessmentId={assessmentId} plantId={plantId} />}
       </div>
 
       {/* Summary cards */}
@@ -142,13 +152,33 @@ export default function FieldLogView({ assessmentId, plantId, isAdmin }: FieldLo
       </div>
 
       {/* Sub-tabs */}
-      <div style={{ display: 'flex', gap: '6px', marginBottom: '16px' }}>
+      <div style={{ display: 'flex', gap: '6px', marginBottom: '16px', flexWrap: 'wrap' }}>
+        {tabBtn('live', '⏱ Live')}
+        {tabBtn('diagnostics', '📊 Diagnostics')}
         {tabBtn('manual', 'Manual')}
         {tabBtn('upload', 'Upload')}
         {audioEnabled && tabBtn('audio', 'Audio')}
       </div>
 
       {/* Active sub-tab */}
+      {subTab === 'live' && (
+        <div style={{ height: 'calc(100vh - 280px)', minHeight: '500px', background: '#fafafa', borderRadius: '12px', overflow: 'hidden' }}>
+          <LiveTripTimer
+            assessmentId={assessmentId}
+            plantId={plantId}
+            syncMode="authed"
+          />
+        </div>
+      )}
+
+      {subTab === 'diagnostics' && (
+        <FieldLogDiagnostics
+          assessmentId={assessmentId}
+          reportedTAT={reportedTAT ?? null}
+          targetTAT={targetTAT ?? null}
+        />
+      )}
+
       {subTab === 'manual' && (
         <ManualEntryForm
           assessmentId={assessmentId}
