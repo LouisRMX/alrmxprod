@@ -398,15 +398,27 @@ function ImpactSummary({ config, entries, coeffDispatch, currentWeek }: {
   const isMobile = useIsMobile()
   const sortedEntries = [...entries].sort((a, b) => b.week_number - a.week_number)
   const latest = sortedEntries[0] ?? null
-  const currentMonthlyRecovery = latest ? calcMonthlyRecovery(latest, config, coeffDispatch) : 0
+  // Baseline AND target are both required to compute recovery dollars.
+  // Before baseline is locked, or before target is set post-baseline,
+  // we show only the absolute numbers without target trajectory.
+  const hasBaselineAndTarget = config.baseline_turnaround != null && config.target_turnaround != null
+  const currentMonthlyRecovery = hasBaselineAndTarget && latest
+    ? calcMonthlyRecovery(latest, config, coeffDispatch)
+    : 0
 
-  const predictedTotal = Math.round(
+  const predictedTotal = hasBaselineAndTarget ? Math.round(
     Math.max(0, (config.baseline_turnaround ?? 0) - (config.target_turnaround ?? 0)) * config.coeff_turnaround
-    + Math.max(0, (config.baseline_dispatch_min ?? 0) - (config.target_dispatch_min ?? 15)) * coeffDispatch
-  )
+    + Math.max(0, (config.baseline_dispatch_min ?? 0) - (config.target_dispatch_min ?? 0)) * coeffDispatch
+  ) : 0
 
   const pct = predictedTotal > 0 ? Math.min(100, Math.round(currentMonthlyRecovery / predictedTotal * 100)) : 0
   const onTrack = pct >= 40
+
+  // Don't render anything until baseline + target are set. Before that,
+  // there's no meaningful "value recovered" to show.
+  if (!hasBaselineAndTarget) {
+    return null
+  }
 
   return (
     <div style={{
@@ -432,7 +444,7 @@ function ImpactSummary({ config, entries, coeffDispatch, currentWeek }: {
         </div>
         <div style={{ textAlign: 'right' }}>
           <div style={{ fontSize: '12px', color: 'var(--gray-500)', marginBottom: '8px', fontWeight: 500 }}>
-            Week {currentWeek} of 12
+            Week {currentWeek}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'flex-end' }}>
             <StatusBadge pct={pct} />
@@ -461,10 +473,15 @@ function MonthlyMilestones({ config, entries, coeffDispatch }: {
   coeffDispatch: number
 }) {
   const isMobile = useIsMobile()
+  // Milestones compare against a predicted trajectory which needs BOTH
+  // a locked baseline and a target. Skip rendering until both exist.
+  if (config.baseline_turnaround == null || config.target_turnaround == null) {
+    return null
+  }
   const CHECKPOINTS = [
     { label: 'Month 1', week: 4 },
     { label: 'Month 2', week: 8 },
-    { label: 'Month 3', week: 13 },
+    { label: 'Month 3', week: 12 },
   ]
   const currentWeek = getWeekNumber(config.started_at)
 
@@ -577,7 +594,7 @@ function ImpactChart({ config, entries, interventions = [] }: {
     <div style={{ background: 'var(--white)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '20px 24px', marginBottom: '16px' }}>
       {/* Header + toggle */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-        <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--gray-700)' }}>{label}, 12-week trajectory</div>
+        <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--gray-700)' }}>{label} over time</div>
         {showDispatch && (
           <div style={{ display: 'flex', gap: '2px', background: 'var(--gray-100)', borderRadius: '6px', padding: '2px' }}>
             {(['turnaround', 'dispatch'] as const).map(m => (
@@ -1121,7 +1138,7 @@ function CaseStudyCard({ config, entries, coeffDispatch }: { config: TrackingCon
         {monthlyRecovery > 0 && (
           <CaseStudyStat label="Monthly recovery" value={fmt(monthlyRecovery)} sub={`${fmt(monthlyRecovery * 12)}/year`} highlight />
         )}
-        <CaseStudyStat label="Weeks tracked" value={`${entries.length} / 13`} sub={`${entries.length * 7} days of data`} />
+        <CaseStudyStat label="Weeks tracked" value={`${entries.length}`} sub={`${entries.length * 7} days of data`} />
       </div>
     </div>
   )
@@ -1818,7 +1835,7 @@ function CurrentSnapshot({
       {/* This week row */}
       <div style={{ paddingTop: '10px' }}>
         <div style={{ fontSize: '11px', color: 'var(--gray-500)', fontWeight: 600, marginBottom: '6px' }}>
-          This week · Week {currentWeek} of 13
+          This week · Week {currentWeek}
         </div>
         {currentWeekAgg ? (
           inlineStats([
@@ -2213,7 +2230,10 @@ function ProgressView({ assessmentId, config, entries, aggregates, dailyEntries,
   const latest = sortedEntries[0] ?? null
   const weeksWithNoData = currentWeek > 2 && entries.filter(e => e.week_number <= currentWeek - 1).length < currentWeek - 2
   const canExport = config.consent_case_study && entries.length >= 8
-  const isComplete = currentWeek >= 13
+  // Tracking is an ongoing activity with no fixed endpoint. Previously
+  // we showed a "program complete" view at week 13 based on a hardcoded
+  // duration. Removed to match the "tracking is open-ended" model.
+  const isComplete = false
   const hasAnyData = entries.length > 0 || aggregates.length > 0 || dailyEntries.length > 0
 
   // Load intervention markers to overlay on the chart
@@ -2600,15 +2620,19 @@ export default function TrackingTab(props: TrackingProps) {
       // Chart baseline is the locked value when phase = complete,
       // otherwise null (during onsite the chart shows only actual,
       // not a comparison line).
+      //
+      // Targets are NOT set here. Pre-assessment numbers are estimates
+      // and must not seed the live tracker. Target is set by the
+      // analyst after baseline is locked (separate UI action).
       baseline_turnaround: lockedBaseline,
-      baseline_reject_pct: baselineRejectPct,
-      baseline_dispatch_min: baselineDispatchMin,
-      target_turnaround: targetTA,
+      baseline_reject_pct: null,
+      baseline_dispatch_min: null,
+      target_turnaround: null,
       target_reject_pct: null,
-      target_dispatch_min: baselineDispatchMin != null ? 15 : null,
+      target_dispatch_min: null,
       track_turnaround: true,
       track_reject: false,
-      track_dispatch: baselineDispatchMin != null,
+      track_dispatch: false,
       coeff_turnaround: coeffTurnaround,
       coeff_reject: coeffDispatch,  // repurposed column
       baseline_monthly_loss: baselineMonthlyLoss,
