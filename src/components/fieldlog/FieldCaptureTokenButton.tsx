@@ -42,7 +42,7 @@ export default function FieldCaptureTokenButton({ assessmentId, plantId }: Props
   const [open, setOpen] = useState(false)
   const [tokens, setTokens] = useState<Token[]>([])
   const [label, setLabel] = useState('')
-  const [expiryDays, setExpiryDays] = useState(30)
+  const [expiryDays, setExpiryDays] = useState(90)
   const [loading, setLoading] = useState(false)
   const [appUrl, setAppUrl] = useState('')
 
@@ -171,10 +171,12 @@ export default function FieldCaptureTokenButton({ assessmentId, plantId }: Props
                   onChange={e => setExpiryDays(+e.target.value)}
                   style={{ padding: '8px 10px', border: '1px solid #ddd', borderRadius: '6px', fontSize: '13px', background: '#fff' }}
                 >
-                  <option value={7}>7 days</option>
+                  <option value={7}>7 days (onsite week)</option>
                   <option value={30}>30 days</option>
                   <option value={60}>60 days</option>
-                  <option value={90}>90 days</option>
+                  <option value={90}>90 days (tracking)</option>
+                  <option value={120}>120 days</option>
+                  <option value={180}>180 days</option>
                 </select>
                 <button
                   type="button"

@@ -69,6 +69,11 @@ export interface ActiveTrip {
   assessmentId: string
   plantId: string
   measurerName: string
+  /**
+   * Physical plant of origin when the assessment covers multiple batching
+   * plants with shared fleet (Model A). Free-text label picked by observer.
+   */
+  originPlant?: string
   /** Optional identifiers the observer filled in at start. */
   truckId?: string
   driverName?: string
@@ -87,6 +92,12 @@ export interface ActiveTrip {
   token?: string
   /** Local creation time (for display and ordering). */
   createdAt: string
+  /**
+   * After the observer hits split on the last stage, the trip enters a
+   * "review" state. Timestamps are populated but the user can edit any of
+   * them before the row is finalised and queued for sync. Lag 2 safety net.
+   */
+  awaitingReview?: boolean
 }
 
 /**
@@ -125,6 +136,11 @@ class FieldLogDB extends Dexie {
   /** Persisted token → last-known assessmentId/plantId so the timer works
    *  immediately even before a token re-validation round-trip. */
   tokenCache!: Table<{ token: string; assessmentId: string; plantId: string; cachedAt: string }, string>
+  /**
+   * Persisted origin plant labels (multi-plant shared-fleet support).
+   * Populated when observer picks or adds a plant. Autofills on next trip.
+   */
+  originPlants!: Table<{ name: string; lastUsed: string }, string>
 
   constructor() {
     super('alrmx_fieldlog')
@@ -134,6 +150,15 @@ class FieldLogDB extends Dexie {
       syncLog: '++id, tripId, at',
       measurers: 'name, lastUsed',
       tokenCache: 'token',
+    })
+    // v2: add originPlants table for multi-plant shared-fleet (Model A) support.
+    this.version(2).stores({
+      activeTrips: 'id, assessmentId, createdAt',
+      pendingTrips: 'id, assessmentId, finalisedAt, syncAttempts',
+      syncLog: '++id, tripId, at',
+      measurers: 'name, lastUsed',
+      tokenCache: 'token',
+      originPlants: 'name, lastUsed',
     })
   }
 }
@@ -156,6 +181,7 @@ export async function startTrip(input: {
   assessmentId: string
   plantId: string
   measurerName: string
+  originPlant?: string
   truckId?: string
   driverName?: string
   siteName?: string
@@ -169,6 +195,7 @@ export async function startTrip(input: {
     assessmentId: input.assessmentId,
     plantId: input.plantId,
     measurerName: input.measurerName,
+    originPlant: input.originPlant,
     truckId: input.truckId,
     driverName: input.driverName,
     siteName: input.siteName,
@@ -183,29 +210,35 @@ export async function startTrip(input: {
   await db.activeTrips.add(trip)
   // Bump measurer last-used timestamp
   await db.measurers.put({ name: input.measurerName, lastUsed: now })
+  if (input.originPlant) {
+    await db.originPlants.put({ name: input.originPlant, lastUsed: now })
+  }
   return trip
 }
 
 /**
  * Advance a trip to the next stage. Saves the END timestamp of the current
  * stage (which is the START timestamp of the next stage). If the current
- * stage is the last one (transit_back), this call completes the trip.
+ * stage is the last one (transit_back), this call marks the trip as
+ * awaitingReview instead of immediately finalising. The caller should
+ * then show the timestamp review UI and later call finaliseWithEdits.
  */
 export async function splitStage(tripId: string): Promise<ActiveTrip | null> {
   const trip = await db.activeTrips.get(tripId)
-  if (!trip) return null
+  if (!trip || trip.awaitingReview) return null
   const now = new Date().toISOString()
   const currentIndex = STAGES.indexOf(trip.currentStage)
   const nextIndex = currentIndex + 1
 
   if (nextIndex >= STAGES.length) {
-    // Last stage done → finalise
+    // Last stage done → enter review state (Lag 2 safety net)
     const updated: ActiveTrip = {
       ...trip,
       timestamps: { ...trip.timestamps, complete: now },
+      awaitingReview: true,
     }
-    await finaliseTrip(updated, /* isPartial */ false)
-    return null
+    await db.activeTrips.put(updated)
+    return updated
   }
 
   const nextStage = STAGES[nextIndex]
@@ -216,6 +249,85 @@ export async function splitStage(tripId: string): Promise<ActiveTrip | null> {
   }
   await db.activeTrips.put(updated)
   return updated
+}
+
+/**
+ * Undo the most recent split (Lag 1 safety net). Reverts currentStage to
+ * the previous stage and deletes its timestamp. If we are in the review
+ * state (after finishing transit_back), drops the complete timestamp.
+ * Returns null if nothing to undo.
+ */
+export async function undoLastSplit(tripId: string): Promise<ActiveTrip | null> {
+  const trip = await db.activeTrips.get(tripId)
+  if (!trip) return null
+
+  // Undo review-state split: drop complete, stay on transit_back
+  if (trip.awaitingReview) {
+    const newTimestamps = { ...trip.timestamps }
+    delete newTimestamps.complete
+    const updated: ActiveTrip = {
+      ...trip,
+      timestamps: newTimestamps,
+      awaitingReview: false,
+      currentStage: 'transit_back',
+    }
+    await db.activeTrips.put(updated)
+    return updated
+  }
+
+  const currentIndex = STAGES.indexOf(trip.currentStage)
+  if (currentIndex <= 0) return null  // can't undo first split (plant_queue start)
+
+  const previousStage = STAGES[currentIndex - 1]
+  const newTimestamps = { ...trip.timestamps }
+  delete newTimestamps[trip.currentStage]
+
+  const updated: ActiveTrip = {
+    ...trip,
+    currentStage: previousStage,
+    timestamps: newTimestamps,
+  }
+  await db.activeTrips.put(updated)
+  return updated
+}
+
+/**
+ * Finalise a trip that is in review state, optionally overriding any of
+ * the 7 stage timestamps. Edits are validated (each must be after the
+ * previous) before the trip moves to the pending queue for sync.
+ */
+export async function finaliseWithEdits(
+  tripId: string,
+  editedTimestamps?: Partial<Record<StageName | 'complete', string>>,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const trip = await db.activeTrips.get(tripId)
+  if (!trip) return { ok: false, error: 'Trip not found' }
+  if (!trip.awaitingReview) return { ok: false, error: 'Trip is not in review state' }
+
+  const mergedTimestamps = { ...trip.timestamps, ...editedTimestamps }
+
+  // Validate: each non-null timestamp must be after the previous one.
+  const ordered: Array<StageName | 'complete'> = [...STAGES, 'complete']
+  let lastTime = 0
+  let lastKey: string | null = null
+  for (const key of ordered) {
+    const value = mergedTimestamps[key]
+    if (!value) continue
+    const t = new Date(value).getTime()
+    if (isNaN(t)) return { ok: false, error: `Invalid timestamp for ${key}` }
+    if (t < lastTime) {
+      return { ok: false, error: `${key} must be after ${lastKey ?? 'previous'}` }
+    }
+    lastTime = t
+    lastKey = key
+  }
+
+  const updated: ActiveTrip = {
+    ...trip,
+    timestamps: mergedTimestamps,
+  }
+  await finaliseTrip(updated, /* isPartial */ false)
+  return { ok: true }
 }
 
 /** Update note for a specific stage on an active trip. */
@@ -250,6 +362,17 @@ export async function setTripIdentity(
   }
   updated.label = updated.truckId ? `Truck ${updated.truckId}` : 'Unlabeled trip'
   await db.activeTrips.put(updated)
+}
+
+/** Update origin plant on an active trip (observer can correct mid-trip). */
+export async function setTripOriginPlant(tripId: string, originPlant: string): Promise<void> {
+  const trip = await db.activeTrips.get(tripId)
+  if (!trip) return
+  const trimmed = originPlant.trim()
+  await db.activeTrips.put({ ...trip, originPlant: trimmed || undefined })
+  if (trimmed) {
+    await db.originPlants.put({ name: trimmed, lastUsed: new Date().toISOString() })
+  }
 }
 
 /** Save a trip as partial (observer abandoned mid-cycle). */
@@ -292,6 +415,17 @@ export async function addMeasurer(name: string): Promise<void> {
   await db.measurers.put({ name: name.trim(), lastUsed: new Date().toISOString() })
 }
 
+// ── Origin plant helpers ──────────────────────────────────────────────────
+export async function getAllOriginPlants(): Promise<string[]> {
+  const rows = await db.originPlants.orderBy('lastUsed').reverse().toArray()
+  return rows.map((r) => r.name)
+}
+
+export async function addOriginPlant(name: string): Promise<void> {
+  if (!name.trim()) return
+  await db.originPlants.put({ name: name.trim(), lastUsed: new Date().toISOString() })
+}
+
 // ── Token cache helpers ───────────────────────────────────────────────────
 export async function cacheTokenContext(
   token: string,
@@ -329,6 +463,7 @@ export function buildDailyLogPayload(trip: PendingTrip): Record<string, unknown>
     truck_id: trip.truckId ?? null,
     driver_name: trip.driverName ?? null,
     site_name: trip.siteName ?? null,
+    origin_plant: trip.originPlant ?? null,
     plant_queue_start: ts.plant_queue ?? null,
     loading_start: ts.loading ?? null,
     departure_loaded: ts.transit_out ?? null,

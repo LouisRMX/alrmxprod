@@ -26,6 +26,7 @@ interface TripPayload {
   truck_id?: string | null
   driver_name?: string | null
   site_name?: string | null
+  origin_plant?: string | null
   plant_queue_start?: string | null
   loading_start?: string | null
   departure_loaded?: string | null
@@ -80,6 +81,7 @@ export async function POST(req: NextRequest) {
     truck_id: payload.truck_id ?? null,
     driver_name: payload.driver_name ?? null,
     site_name: payload.site_name ?? null,
+    origin_plant: typeof payload.origin_plant === 'string' ? payload.origin_plant : null,
     plant_queue_start: payload.plant_queue_start ?? null,
     loading_start: payload.loading_start ?? null,
     departure_loaded: payload.departure_loaded ?? null,

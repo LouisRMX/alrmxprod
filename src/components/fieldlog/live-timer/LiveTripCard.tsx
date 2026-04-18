@@ -3,18 +3,19 @@
 /**
  * Single-trip timer view, optimised for iPhone one-handed use.
  *
- * Layout (portrait, vertically stacked):
- *   - Header: label + close (×) button
- *   - Total elapsed (big mono), Stage elapsed (medium)
- *   - Current stage name + hint
- *   - Giant green split button (primary action)
- *   - Stage timeline (compact row of 7 dots, filled so far)
- *   - Identity fields (truck, driver, site) collapsible
- *   - Notes (collapsible)
- *   - Secondary actions (save partial, cancel)
+ * Modes:
+ *   - Normal: stopwatch view with big split button (stages 1-7)
+ *   - Review: shown after last split, lets user edit timestamps before save
+ *
+ * Safety nets:
+ *   - Lag 1 (transient undo): for ~8s after a split, a small "UNDO" bar
+ *     appears at the bottom. Tap to revert the last split.
+ *   - Lag 2 (pre-save review): after completing transit_back, the trip
+ *     doesn't finalise immediately. Observer sees a review screen with
+ *     all 7 timestamps and can edit any before saving.
  */
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ActiveTrip, StageName } from '@/lib/fieldlog/offline-trip-queue'
 import { STAGES } from '@/lib/fieldlog/offline-trip-queue'
 import { STAGE_LABELS, STAGE_HINTS, NEXT_ACTION_LABEL } from './StageNames'
@@ -26,25 +27,35 @@ interface LiveTripCardProps {
   recentTrucks: string[]
   recentDrivers: string[]
   recentSites: string[]
+  originPlantSuggestions: string[]
   onSplit: (tripId: string) => void
+  onUndoSplit: (tripId: string) => void
+  onConfirmSave: (tripId: string, editedTimestamps?: Partial<Record<StageName | 'complete', string>>) => void
   onSavePartial: (tripId: string) => void
   onCancel: (tripId: string) => void
   onClose: () => void
   onUpdateIdentity: (tripId: string, ids: { truckId?: string; driverName?: string; siteName?: string }) => void
+  onUpdateOriginPlant: (tripId: string, plant: string) => void
   onUpdateNotes: (tripId: string, notes: string) => void
   onUpdateStageNote: (tripId: string, stage: StageName, text: string) => void
 }
+
+const UNDO_WINDOW_MS = 8000
 
 export default function LiveTripCard({
   trip,
   recentTrucks,
   recentDrivers,
   recentSites,
+  originPlantSuggestions,
   onSplit,
+  onUndoSplit,
+  onConfirmSave,
   onSavePartial,
   onCancel,
   onClose,
   onUpdateIdentity,
+  onUpdateOriginPlant,
   onUpdateNotes,
   onUpdateStageNote,
 }: LiveTripCardProps) {
@@ -52,6 +63,59 @@ export default function LiveTripCard({
   const [showIdentity, setShowIdentity] = useState(!trip.truckId)
   const [showNotes, setShowNotes] = useState(false)
   const [showStageNote, setShowStageNote] = useState(false)
+
+  // Transient undo state
+  const [undoVisible, setUndoVisible] = useState(false)
+  const [undoLabel, setUndoLabel] = useState('')
+  const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastSeenStageRef = useRef<StageName>(trip.currentStage)
+  const lastSeenReviewRef = useRef<boolean>(Boolean(trip.awaitingReview))
+
+  // Detect split events: whenever currentStage changes (or awaitingReview flips
+  // true), show the undo bar for UNDO_WINDOW_MS then auto-hide.
+  useEffect(() => {
+    const stageChanged = trip.currentStage !== lastSeenStageRef.current
+    const reviewEntered = trip.awaitingReview && !lastSeenReviewRef.current
+
+    if (stageChanged || reviewEntered) {
+      const label = reviewEntered
+        ? 'Trip complete'
+        : `${STAGE_LABELS[trip.currentStage]} started`
+      setUndoLabel(label)
+      setUndoVisible(true)
+      if (undoTimerRef.current) clearTimeout(undoTimerRef.current)
+      undoTimerRef.current = setTimeout(() => setUndoVisible(false), UNDO_WINDOW_MS)
+    }
+    lastSeenStageRef.current = trip.currentStage
+    lastSeenReviewRef.current = Boolean(trip.awaitingReview)
+
+    return () => {
+      if (undoTimerRef.current) clearTimeout(undoTimerRef.current)
+    }
+  }, [trip.currentStage, trip.awaitingReview])
+
+  const handleUndoClick = () => {
+    setUndoVisible(false)
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current)
+    onUndoSplit(trip.id)
+  }
+
+  // Review state: show timestamp editor instead of normal timer UI
+  if (trip.awaitingReview) {
+    return (
+      <TripReviewView
+        trip={trip}
+        onUndoSplit={() => onUndoSplit(trip.id)}
+        onConfirmSave={(edits) => onConfirmSave(trip.id, edits)}
+        onCancel={() => {
+          if (confirm('Discard this trip? Data cannot be recovered.')) {
+            onCancel(trip.id)
+          }
+        }}
+        onClose={onClose}
+      />
+    )
+  }
 
   const currentIndex = STAGES.indexOf(trip.currentStage)
   const stageLabel = STAGE_LABELS[trip.currentStage]
@@ -64,6 +128,7 @@ export default function LiveTripCard({
       display: 'flex', flexDirection: 'column', height: '100%',
       background: '#fafafa', padding: '16px', gap: '14px',
       paddingBottom: 'max(16px, env(safe-area-inset-bottom))',
+      position: 'relative',
     }}>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -86,6 +151,13 @@ export default function LiveTripCard({
           aria-label="Back to trip list"
         >←</button>
       </div>
+
+      {/* Origin plant chip (editable) */}
+      <OriginPlantChip
+        value={trip.originPlant ?? ''}
+        suggestions={originPlantSuggestions}
+        onChange={(v) => onUpdateOriginPlant(trip.id, v)}
+      />
 
       {/* Timers */}
       <div style={{
@@ -286,6 +358,305 @@ export default function LiveTripCard({
           Cancel
         </button>
       </div>
+
+      {/* Transient Undo bar (Lag 1 safety net) */}
+      {undoVisible && currentIndex > 0 && (
+        <div style={{
+          position: 'fixed',
+          bottom: 'max(16px, env(safe-area-inset-bottom))',
+          left: '16px', right: '16px',
+          background: '#1a1a1a', color: '#fff',
+          borderRadius: '12px', padding: '12px 16px',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          gap: '12px', boxShadow: '0 8px 24px rgba(0,0,0,.25)',
+          fontSize: '14px', zIndex: 1000,
+        }}>
+          <span>{undoLabel}</span>
+          <button
+            type="button"
+            onClick={handleUndoClick}
+            style={{
+              background: 'none', color: '#5AD39A', border: 'none',
+              fontSize: '14px', fontWeight: 700, cursor: 'pointer',
+              textTransform: 'uppercase', letterSpacing: '.5px',
+              padding: '6px 10px',
+            }}
+          >
+            UNDO
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Trip review view (Lag 2 pre-save editor) ─────────────────────────────
+
+interface TripReviewViewProps {
+  trip: ActiveTrip
+  onUndoSplit: () => void
+  onConfirmSave: (edits?: Partial<Record<StageName | 'complete', string>>) => void
+  onCancel: () => void
+  onClose: () => void
+}
+
+function TripReviewView({ trip, onUndoSplit, onConfirmSave, onCancel, onClose }: TripReviewViewProps) {
+  // Local edited map, one entry per stage timestamp that the user has modified.
+  // Unmodified entries stay out of this map so they inherit trip.timestamps.
+  const [edits, setEdits] = useState<Partial<Record<StageName | 'complete', string>>>({})
+  const [error, setError] = useState<string | null>(null)
+
+  const orderedKeys: Array<{ key: StageName | 'complete'; label: string }> = [
+    { key: 'plant_queue', label: 'Plant queue start' },
+    { key: 'loading', label: 'Loading start' },
+    { key: 'transit_out', label: 'Departure (loaded)' },
+    { key: 'site_wait', label: 'Arrival on site' },
+    { key: 'pouring', label: 'Discharge start' },
+    { key: 'washout', label: 'Discharge end' },
+    { key: 'transit_back', label: 'Departure from site' },
+    { key: 'complete', label: 'Arrival at plant' },
+  ]
+
+  const timestampFor = (key: StageName | 'complete'): string | undefined => {
+    return edits[key] ?? trip.timestamps[key] ?? undefined
+  }
+
+  const handleEdit = (key: StageName | 'complete', hhmm: string) => {
+    // hhmm is a "HH:MM" string from <input type="time">. We combine with the
+    // trip's date (from plant_queue) to get an ISO timestamp.
+    const base = trip.timestamps.plant_queue ?? trip.createdAt
+    const baseDate = new Date(base)
+    const [h, m] = hhmm.split(':').map(Number)
+    if (isNaN(h) || isNaN(m)) return
+    const d = new Date(baseDate)
+    d.setHours(h, m, 0, 0)
+    // If the resulting time is earlier than plant_queue, assume next day
+    // (trip straddled midnight). Only adjust when editing a later stage.
+    if (key !== 'plant_queue' && d.getTime() < baseDate.getTime()) {
+      d.setDate(d.getDate() + 1)
+    }
+    setEdits(prev => ({ ...prev, [key]: d.toISOString() }))
+    setError(null)
+  }
+
+  const handleSave = () => {
+    setError(null)
+    onConfirmSave(Object.keys(edits).length > 0 ? edits : undefined)
+  }
+
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column', height: '100%',
+      background: '#fafafa', padding: '16px', gap: '14px',
+      paddingBottom: 'max(16px, env(safe-area-inset-bottom))',
+    }}>
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <div style={{ fontSize: '11px', fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: '.5px' }}>
+            Review · {trip.measurerName}
+          </div>
+          <div style={{ fontSize: '16px', fontWeight: 600, color: '#1a1a1a', marginTop: '2px' }}>
+            {trip.label}
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          style={{
+            width: '44px', height: '44px', borderRadius: '50%',
+            border: '1px solid #ddd', background: '#fff',
+            fontSize: '20px', color: '#666', cursor: 'pointer',
+          }}
+          aria-label="Back to trip list"
+        >←</button>
+      </div>
+
+      <div style={{
+        background: '#E1F5EE', border: '1px solid #A8D9C5',
+        borderRadius: '10px', padding: '10px 12px', fontSize: '12px', color: '#0F6E56',
+      }}>
+        ✓ Trip complete. Review the timestamps below. Tap any time to correct it before saving.
+      </div>
+
+      {/* Timestamp list */}
+      <div style={{
+        flex: 1, overflowY: 'auto',
+        background: '#fff', border: '1px solid #e5e5e5', borderRadius: '12px',
+        padding: '8px 0',
+      }}>
+        {orderedKeys.map((item, idx) => {
+          const iso = timestampFor(item.key)
+          const hhmm = iso ? formatHHMM(iso) : ''
+          const edited = Boolean(edits[item.key])
+          const missing = !iso
+          return (
+            <div
+              key={item.key}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '10px 16px', gap: '12px',
+                borderBottom: idx < orderedKeys.length - 1 ? '1px solid #f0f0f0' : 'none',
+              }}
+            >
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: '#333' }}>
+                  {item.label}
+                </div>
+                {missing && (
+                  <div style={{ fontSize: '11px', color: '#C0392B', marginTop: '2px' }}>
+                    Not recorded
+                  </div>
+                )}
+                {edited && !missing && (
+                  <div style={{ fontSize: '11px', color: '#D68910', marginTop: '2px' }}>
+                    Edited
+                  </div>
+                )}
+              </div>
+              <input
+                type="time"
+                value={hhmm}
+                onChange={(e) => handleEdit(item.key, e.target.value)}
+                style={{
+                  padding: '8px 10px', minHeight: '40px',
+                  border: '1px solid #ddd', borderRadius: '8px',
+                  fontSize: '15px', fontFamily: 'ui-monospace, SF Mono, Menlo, monospace',
+                  background: edited ? '#FFF7E6' : '#fff',
+                }}
+              />
+            </div>
+          )
+        })}
+      </div>
+
+      {error && (
+        <div style={{
+          background: '#FDEDEC', border: '1px solid #E8A39B',
+          borderRadius: '8px', padding: '10px 12px', fontSize: '13px', color: '#8B3A2E',
+        }}>
+          {error}
+        </div>
+      )}
+
+      {/* Action row */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <button
+          type="button"
+          onClick={handleSave}
+          style={{
+            width: '100%', minHeight: '56px',
+            background: '#0F6E56', color: '#fff',
+            border: 'none', borderRadius: '14px',
+            fontSize: '16px', fontWeight: 700, cursor: 'pointer',
+            boxShadow: '0 4px 14px rgba(15, 110, 86, 0.25)',
+          }}
+        >
+          Save trip
+        </button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button
+            type="button"
+            onClick={onUndoSplit}
+            style={{
+              flex: 1, minHeight: '44px',
+              background: '#fff', color: '#333',
+              border: '1px solid #ddd', borderRadius: '10px',
+              fontSize: '13px', fontWeight: 600, cursor: 'pointer',
+            }}
+          >
+            ← Back to timer
+          </button>
+          <button
+            type="button"
+            onClick={onCancel}
+            style={{
+              flex: 1, minHeight: '44px',
+              background: '#fff', color: '#C0392B',
+              border: '1px solid #C0392B', borderRadius: '10px',
+              fontSize: '13px', fontWeight: 600, cursor: 'pointer',
+            }}
+          >
+            Discard trip
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function formatHHMM(iso: string): string {
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return ''
+  const h = String(d.getHours()).padStart(2, '0')
+  const m = String(d.getMinutes()).padStart(2, '0')
+  return `${h}:${m}`
+}
+
+// ── Origin plant chip (inline picker on the active trip view) ────────────
+function OriginPlantChip({ value, suggestions, onChange }: {
+  value: string
+  suggestions: string[]
+  onChange: (v: string) => void
+}) {
+  const [editing, setEditing] = useState(false)
+  const [local, setLocal] = useState(value)
+
+  useEffect(() => { setLocal(value) }, [value])
+
+  if (!editing) {
+    return (
+      <button
+        type="button"
+        onClick={() => setEditing(true)}
+        style={{
+          alignSelf: 'flex-start',
+          padding: '6px 12px', background: value ? '#E1F5EE' : '#F5F5F5',
+          border: `1px solid ${value ? '#A8D9C5' : '#ddd'}`,
+          borderRadius: '999px', fontSize: '12px', fontWeight: 600,
+          color: value ? '#0F6E56' : '#888', cursor: 'pointer',
+        }}
+      >
+        📍 {value || 'Set plant'} · Edit
+      </button>
+    )
+  }
+
+  return (
+    <div style={{
+      display: 'flex', gap: '6px', alignItems: 'center',
+      background: '#fff', border: '1px solid #e5e5e5', borderRadius: '10px', padding: '8px',
+    }}>
+      <select
+        value={local}
+        onChange={(e) => setLocal(e.target.value)}
+        style={{
+          flex: 1, minHeight: '40px', padding: '0 10px',
+          border: '1px solid #ddd', borderRadius: '8px', fontSize: '14px',
+        }}
+      >
+        <option value="">(not specified)</option>
+        {suggestions.map(s => <option key={s} value={s}>{s}</option>)}
+      </select>
+      <button
+        type="button"
+        onClick={() => { onChange(local); setEditing(false) }}
+        style={{
+          minWidth: '60px', minHeight: '40px',
+          background: '#0F6E56', color: '#fff', border: 'none',
+          borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer',
+        }}
+      >Save</button>
+      <button
+        type="button"
+        onClick={() => { setLocal(value); setEditing(false) }}
+        style={{
+          minWidth: '40px', minHeight: '40px',
+          background: '#fff', color: '#666',
+          border: '1px solid #ddd', borderRadius: '8px',
+          fontSize: '13px', cursor: 'pointer',
+        }}
+      >×</button>
     </div>
   )
 }

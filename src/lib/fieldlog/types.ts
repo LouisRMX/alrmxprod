@@ -33,6 +33,8 @@ export interface DailyLogRow {
   measurer_name?: string | null
   is_partial?: boolean | null
   stage_notes?: Record<string, string> | null
+  // Multi-plant shared-fleet support (2026-04-18 migration)
+  origin_plant?: string | null
 }
 
 export interface DailyLogTripComputed extends DailyLogRow {

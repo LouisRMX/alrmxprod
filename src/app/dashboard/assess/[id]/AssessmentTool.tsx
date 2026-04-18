@@ -295,6 +295,34 @@ export default function AssessmentTool({
         </span>
       </div>
 
+      {/* Admin: Mark pre-assessment complete (admin-controlled flow when admin fills workshop) */}
+      {isAdmin && phase === 'workshop' && (
+        <div style={{
+          padding: '12px 16px', background: 'var(--info-bg)', borderBottom: '1px solid var(--info-border)',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px',
+        }}>
+          <div>
+            <div style={{ fontSize: '13px', color: 'var(--phase-workshop)', fontWeight: 500 }}>
+              Pre-assessment in progress.
+            </div>
+            <div style={{ fontSize: '11px', color: 'var(--gray-500)', marginTop: '2px' }}>
+              When you have reviewed parsed data and released the report, mark pre-assessment complete to unlock onsite transition.
+            </div>
+          </div>
+          <button
+            onClick={() => transitionPhase('workshop_complete')}
+            style={{
+              padding: '8px 16px', background: 'var(--white)', color: 'var(--phase-workshop)',
+              border: '1px solid var(--phase-workshop)', borderRadius: '8px',
+              fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font)',
+              flexShrink: 0,
+            }}
+          >
+            Mark pre-assessment complete →
+          </button>
+        </div>
+      )}
+
       {/* Admin: Start on-site diagnostic button when pre-assessment is complete */}
       {isAdmin && phase === 'workshop_complete' && (
         <div style={{

@@ -24,13 +24,18 @@ import {
   db,
   startTrip,
   splitStage,
+  undoLastSplit,
+  finaliseWithEdits,
   savePartial,
   cancelTrip,
   setStageNote,
   setTripIdentity,
+  setTripOriginPlant,
   setTripNotes,
   getAllMeasurers,
   addMeasurer,
+  getAllOriginPlants,
+  addOriginPlant,
   drainPending,
   type ActiveTrip,
   type PendingTrip,
@@ -58,6 +63,10 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
   const [currentMeasurer, setCurrentMeasurer] = useState<string>('')
   const [showAddMeasurer, setShowAddMeasurer] = useState(false)
   const [newMeasurerName, setNewMeasurerName] = useState('')
+  const [originPlants, setOriginPlants] = useState<string[]>([])
+  const [currentOriginPlant, setCurrentOriginPlant] = useState<string>('')
+  const [showAddOriginPlant, setShowAddOriginPlant] = useState(false)
+  const [newOriginPlantName, setNewOriginPlantName] = useState('')
   const [focusedTripId, setFocusedTripId] = useState<string | null>(null)
   const [syncingNow, setSyncingNow] = useState(false)
 
@@ -84,6 +93,10 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
     getAllMeasurers().then(list => {
       setMeasurers(list)
       if (list.length > 0 && !currentMeasurer) setCurrentMeasurer(list[0])
+    })
+    getAllOriginPlants().then(list => {
+      setOriginPlants(list)
+      if (list.length > 0 && !currentOriginPlant) setCurrentOriginPlant(list[0])
     })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -160,6 +173,7 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
       assessmentId,
       plantId,
       measurerName: currentMeasurer,
+      originPlant: currentOriginPlant || undefined,
       viaToken: syncMode === 'token',
       token,
     })
@@ -177,14 +191,38 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
     setShowAddMeasurer(false)
   }
 
+  const handleAddOriginPlant = async () => {
+    const name = newOriginPlantName.trim()
+    if (!name) return
+    await addOriginPlant(name)
+    const list = await getAllOriginPlants()
+    setOriginPlants(list)
+    setCurrentOriginPlant(name)
+    setNewOriginPlantName('')
+    setShowAddOriginPlant(false)
+  }
+
   const handleSplit = async (tripId: string) => {
-    const result = await splitStage(tripId)
-    if (result === null) {
-      // Trip finalised, return to list
-      setFocusedTripId(null)
-      // Immediate sync attempt when online
-      if (online) runSync()
+    // splitStage now keeps trip in activeTrips (awaitingReview) on last stage.
+    // The card surfaces the review UI; finalisation happens via handleConfirmSave.
+    await splitStage(tripId)
+  }
+
+  const handleUndoSplit = async (tripId: string) => {
+    await undoLastSplit(tripId)
+  }
+
+  const handleConfirmSave = async (
+    tripId: string,
+    editedTimestamps?: Partial<Record<StageName | 'complete', string>>,
+  ) => {
+    const result = await finaliseWithEdits(tripId, editedTimestamps)
+    if (!result.ok) {
+      alert(result.error)
+      return
     }
+    setFocusedTripId(null)
+    if (online) runSync()
   }
 
   const handleSavePartial = async (tripId: string) => {
@@ -214,11 +252,15 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
         recentTrucks={recentTrucks}
         recentDrivers={recentDrivers}
         recentSites={recentSites}
+        originPlantSuggestions={originPlants}
         onSplit={handleSplit}
+        onUndoSplit={handleUndoSplit}
+        onConfirmSave={handleConfirmSave}
         onSavePartial={handleSavePartial}
         onCancel={handleCancel}
         onClose={() => setFocusedTripId(null)}
         onUpdateIdentity={(id, ids) => setTripIdentity(id, ids)}
+        onUpdateOriginPlant={(id, v) => setTripOriginPlant(id, v)}
         onUpdateNotes={(id, n) => setTripNotes(id, n)}
         onUpdateStageNote={(id, s, txt) => setStageNote(id, s, txt)}
       />
@@ -321,6 +363,77 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
             <button
               type="button"
               onClick={() => { setShowAddMeasurer(false); setNewMeasurerName('') }}
+              style={{
+                minWidth: '44px', minHeight: '44px',
+                background: '#fff', color: '#666',
+                border: '1px solid #ddd', borderRadius: '8px',
+                fontSize: '14px', cursor: 'pointer',
+              }}
+            >×</button>
+          </div>
+        )}
+      </div>
+
+      {/* Origin plant selector (optional, for multi-plant shared-fleet assessments) */}
+      <div style={{
+        background: '#fff', border: '1px solid #e5e5e5', borderRadius: '12px', padding: '12px',
+      }}>
+        <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '8px' }}>
+          Current plant
+        </label>
+        {!showAddOriginPlant && (
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <select
+              value={currentOriginPlant}
+              onChange={(e) => setCurrentOriginPlant(e.target.value)}
+              style={{
+                flex: 1, minHeight: '44px', padding: '0 12px',
+                border: '1px solid #ddd', borderRadius: '8px',
+                fontSize: '15px', background: '#fff',
+              }}
+            >
+              <option value="">(not specified)</option>
+              {originPlants.map(p => <option key={p} value={p}>{p}</option>)}
+            </select>
+            <button
+              type="button"
+              onClick={() => setShowAddOriginPlant(true)}
+              style={{
+                minWidth: '44px', minHeight: '44px',
+                background: '#fff', color: '#0F6E56',
+                border: '1px solid #0F6E56', borderRadius: '8px',
+                fontSize: '20px', fontWeight: 700, cursor: 'pointer',
+              }}
+              aria-label="Add plant"
+            >+</button>
+          </div>
+        )}
+        {showAddOriginPlant && (
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <input
+              type="text"
+              value={newOriginPlantName}
+              onChange={(e) => setNewOriginPlantName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleAddOriginPlant() }}
+              placeholder="Plant 1, Plant 2, etc."
+              autoFocus
+              style={{
+                flex: 1, minHeight: '44px', padding: '0 12px',
+                border: '1px solid #ddd', borderRadius: '8px', fontSize: '15px',
+              }}
+            />
+            <button
+              type="button"
+              onClick={handleAddOriginPlant}
+              style={{
+                minWidth: '70px', minHeight: '44px',
+                background: '#0F6E56', color: '#fff', border: 'none',
+                borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer',
+              }}
+            >Add</button>
+            <button
+              type="button"
+              onClick={() => { setShowAddOriginPlant(false); setNewOriginPlantName('') }}
               style={{
                 minWidth: '44px', minHeight: '44px',
                 background: '#fff', color: '#666',
