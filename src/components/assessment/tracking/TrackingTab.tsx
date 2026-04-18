@@ -7,7 +7,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts'
 import { useIsMobile } from '@/hooks/useIsMobile'
-import TripUploadShell from '@/components/trips/TripUploadShell'
+import { InterventionsList } from '@/components/fieldlog/InterventionsView'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -1145,7 +1145,7 @@ function DailyInput({ configId, isDemo, onLogged }: { configId: string; isDemo: 
   )
 }
 
-function DailyOpsView({ configId, isDemo, dailyEntries, onLogged, viewOnly }: {
+function DailyOpsView({ dailyEntries }: {
   configId: string
   isDemo: boolean
   dailyEntries: DailyEntry[]
@@ -1153,18 +1153,20 @@ function DailyOpsView({ configId, isDemo, dailyEntries, onLogged, viewOnly }: {
   viewOnly?: boolean
 }) {
   const alert = calcTrendAlert(dailyEntries)
+  // Dashboard-only: data-entry has moved to the Log tab. Kept here for
+  // historical display of daily deliveries/rejects trend chart.
   return (
     <div>
       {alert && <TrendAlertBanner message={alert} />}
       <DailyOpsChart entries={dailyEntries} />
-      {!viewOnly && <DailyInput configId={configId} isDemo={isDemo} onLogged={onLogged} />}
     </div>
   )
 }
 
 // ── Progress View (admin) ──────────────────────────────────────────────────
 
-function ProgressView({ config, entries, dailyEntries, onEntryLogged, coeffDispatch, viewOnly, isDemo }: {
+function ProgressView({ assessmentId, config, entries, dailyEntries, onEntryLogged, coeffDispatch, viewOnly, isDemo }: {
+  assessmentId: string
   config: TrackingConfig
   entries: TrackingEntry[]
   dailyEntries: DailyEntry[]
@@ -1237,18 +1239,8 @@ function ProgressView({ config, entries, dailyEntries, onEntryLogged, coeffDispa
         )}
       </div>
 
-      {/* D: Weekly Input, hidden for owners (view-only) and in print */}
-      {!viewOnly && (
-        <div data-hide-print>
-          <WeeklyInput
-            config={config}
-            entries={entries}
-            currentWeek={currentWeek}
-            isAdmin={true}
-            onLogged={onEntryLogged}
-          />
-        </div>
-      )}
+      {/* Interventions timeline (read-only, managed from Log tab) */}
+      <InterventionsList assessmentId={assessmentId} />
 
       {/* Case study, hidden once program is complete (ProgramCompleteView takes over) */}
       <div style={{ marginTop: '16px' }}>
@@ -1327,7 +1319,8 @@ function OperatorProgressHeader({ config, latest, currentWeek }: {
 
 // ── Customer Log ───────────────────────────────────────────────────────────
 
-function CustomerLog({ config, entries, dailyEntries, onLogged, coeffDispatch, isDemo }: {
+function CustomerLog({ assessmentId, config, entries, dailyEntries, onLogged, coeffDispatch, isDemo }: {
+  assessmentId: string
   config: TrackingConfig
   entries: TrackingEntry[]
   dailyEntries: DailyEntry[]
@@ -1373,13 +1366,7 @@ function CustomerLog({ config, entries, dailyEntries, onLogged, coeffDispatch, i
               />
             )}
           </div>
-          <WeeklyInput
-            config={config}
-            entries={entries}
-            currentWeek={currentWeek}
-            isAdmin={false}
-            onLogged={onLogged}
-          />
+          <InterventionsList assessmentId={assessmentId} />
         </>
       )}
     </div>
@@ -1398,7 +1385,6 @@ export default function TrackingTab(props: TrackingProps) {
   const [config, setConfig] = useState<TrackingConfig | null | undefined>(undefined)
   const [entries, setEntries] = useState<TrackingEntry[]>([])
   const [dailyEntries, setDailyEntries] = useState<DailyEntry[]>([])
-  const [subTab, setSubTab] = useState<'weekly' | 'trips'>('weekly')
   const isDemo = assessmentId === 'demo'
 
   const fetchData = useCallback(async () => {
@@ -1491,46 +1477,9 @@ export default function TrackingTab(props: TrackingProps) {
 
   useEffect(() => { fetchData() }, [fetchData])
 
-  const segControl = (
-    <div style={{ display: 'flex', gap: '2px', padding: '10px 20px 0', borderBottom: '1px solid var(--border)', background: 'var(--white)', flexShrink: 0 }}>
-      {(['weekly', 'trips'] as const).map(tab => {
-        const active = subTab === tab
-        const label = tab === 'weekly' ? 'Weekly KPIs' : 'Daily Trips'
-        return (
-          <button
-            key={tab}
-            type="button"
-            onClick={() => setSubTab(tab)}
-            style={{
-              padding: '7px 14px', fontSize: '12px', fontWeight: active ? 500 : 400,
-              fontFamily: 'var(--font)', color: active ? 'var(--green)' : 'var(--gray-500)',
-              background: 'none', border: 'none',
-              borderBottom: active ? '2px solid var(--green)' : '2px solid transparent',
-              cursor: 'pointer', transition: 'all .15s', whiteSpace: 'nowrap',
-              marginBottom: '-1px',
-            }}
-          >
-            {label}
-          </button>
-        )
-      })}
-    </div>
-  )
-
-  if (subTab === 'trips') {
-    return (
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-        {segControl}
-        <div style={{ flex: 1, overflow: 'auto', padding: '20px 20px' }}>
-          <TripUploadShell
-            assessmentId={assessmentId}
-            targetTAMin={targetTA}
-            perMinTACoeff={perMinTACoeff ?? 0}
-          />
-        </div>
-      </div>
-    )
-  }
+  // Dashboard-only: all logging has moved to the Log tab (Field Log).
+  // This tab is now a read-only view of weekly progress + interventions.
+  const segControl = null
 
   if (config === undefined) {
     return (
@@ -1569,6 +1518,7 @@ export default function TrackingTab(props: TrackingProps) {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         {segControl}
         <ProgressView
+          assessmentId={assessmentId}
           config={config} entries={entries} dailyEntries={dailyEntries}
           onEntryLogged={fetchData} coeffDispatch={coeffDispatch}
           viewOnly={viewOnly} isDemo={isDemo}
@@ -1581,6 +1531,7 @@ export default function TrackingTab(props: TrackingProps) {
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
       {segControl}
       <CustomerLog
+        assessmentId={assessmentId}
         config={config} entries={entries} dailyEntries={dailyEntries}
         onLogged={fetchData} coeffDispatch={coeffDispatch} isDemo={isDemo}
       />
