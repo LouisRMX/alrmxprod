@@ -1703,6 +1703,141 @@ function WeeklyDetailRow({ a }: { a: WeeklyAggregate }) {
   )
 }
 
+// ── CurrentSnapshot ────────────────────────────────────────────────────────
+// Compact at-a-glance summary of today and this week. Replaces the big
+// "TRIPS / AVG TAT / REJECT / TRUCKS" cards that used to live in the Log
+// tab (which should be capture-focused, not dashboard-focused).
+//
+// Data sources:
+//   - Today: direct query to daily_logs filtered on today's date.
+//   - This week: pulled from the aggregates prop (already fetched via
+//     get_weekly_kpis_from_daily_logs RPC at TrackingTab level).
+
+function CurrentSnapshot({
+  assessmentId,
+  aggregates,
+  currentWeek,
+}: {
+  assessmentId: string
+  aggregates: WeeklyAggregate[]
+  currentWeek: number
+}) {
+  const supabase = createClient()
+  const isMobile = useIsMobile()
+  const [today, setToday] = useState<{
+    trips: number
+    avgTat: number | null
+    rejectPct: number | null
+    trucks: number
+  } | null>(null)
+
+  useEffect(() => {
+    async function load() {
+      const todayStr = new Date().toISOString().slice(0, 10)
+      const { data } = await supabase
+        .from('daily_logs')
+        .select('plant_queue_start, departure_loaded, arrival_plant, rejected, truck_id, review_status')
+        .eq('assessment_id', assessmentId)
+        .eq('log_date', todayStr)
+      const rows = (data ?? []).filter(r =>
+        r.review_status !== 'flagged' && r.review_status !== 'reviewed_exclude'
+      )
+      const trips = rows.length
+      const rejectCount = rows.filter(r => r.rejected).length
+      const trucks = new Set(rows.map(r => r.truck_id).filter(Boolean)).size
+      // Average TAT from rows with complete timestamps
+      const tats = rows
+        .map(r => {
+          const start = r.plant_queue_start ?? r.departure_loaded
+          if (!start || !r.arrival_plant) return null
+          const diff = (new Date(r.arrival_plant).getTime() - new Date(start).getTime()) / 60000
+          return diff > 0 && diff < 720 ? diff : null
+        })
+        .filter((v): v is number => v !== null)
+      const avgTat = tats.length > 0 ? Math.round(tats.reduce((a, b) => a + b, 0) / tats.length) : null
+      const rejectPct = trips > 0 ? Math.round((rejectCount * 100) / trips) : null
+      setToday({ trips, avgTat, rejectPct, trucks })
+    }
+    load()
+  }, [supabase, assessmentId])
+
+  const currentWeekAgg = aggregates.find(a => a.week_number === currentWeek)
+
+  const inlineStats = (stats: Array<{ value: string | number; label: string }>) => (
+    <div style={{
+      display: 'flex',
+      gap: isMobile ? '12px' : '20px',
+      flexWrap: 'wrap',
+      alignItems: 'baseline',
+    }}>
+      {stats.map((s, i) => (
+        <div key={i} style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+          <span style={{ fontSize: '18px', fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--gray-900)' }}>
+            {s.value}
+          </span>
+          <span style={{ fontSize: '11px', color: 'var(--gray-500)' }}>{s.label}</span>
+        </div>
+      ))}
+    </div>
+  )
+
+  const todayDateLabel = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+
+  return (
+    <div style={{
+      background: 'var(--white)',
+      border: '1px solid var(--border)',
+      borderRadius: 'var(--radius)',
+      padding: isMobile ? '14px 14px' : '18px 20px',
+      marginBottom: '16px',
+    }}>
+      <div style={{
+        fontSize: '10px', fontWeight: 700, color: 'var(--gray-400)',
+        textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '10px',
+      }}>
+        Current snapshot
+      </div>
+
+      {/* Today row */}
+      <div style={{ paddingBottom: '10px', borderBottom: '1px solid var(--border)' }}>
+        <div style={{ fontSize: '11px', color: 'var(--gray-500)', fontWeight: 600, marginBottom: '6px' }}>
+          Today · {todayDateLabel}
+        </div>
+        {today ? (
+          inlineStats([
+            { value: today.trips, label: 'trips' },
+            { value: today.avgTat ?? '-', label: today.avgTat ? 'min avg' : 'avg' },
+            { value: today.rejectPct != null ? `${today.rejectPct}%` : '-', label: 'reject' },
+            { value: today.trucks, label: today.trucks === 1 ? 'truck' : 'trucks' },
+          ])
+        ) : (
+          <div style={{ fontSize: '12px', color: 'var(--gray-400)' }}>Loading...</div>
+        )}
+      </div>
+
+      {/* This week row */}
+      <div style={{ paddingTop: '10px' }}>
+        <div style={{ fontSize: '11px', color: 'var(--gray-500)', fontWeight: 600, marginBottom: '6px' }}>
+          This week · Week {currentWeek} of 13
+        </div>
+        {currentWeekAgg ? (
+          inlineStats([
+            { value: currentWeekAgg.trip_count, label: 'trips' },
+            { value: currentWeekAgg.avg_tat_min != null ? Math.round(currentWeekAgg.avg_tat_min) : '-', label: currentWeekAgg.avg_tat_min != null ? 'min avg' : 'avg' },
+            { value: currentWeekAgg.reject_pct != null ? `${Math.round(currentWeekAgg.reject_pct)}%` : '-', label: 'reject' },
+            { value: currentWeekAgg.unique_trucks, label: currentWeekAgg.unique_trucks === 1 ? 'truck' : 'trucks' },
+            { value: currentWeekAgg.avg_trips_per_truck_per_day != null ? currentWeekAgg.avg_trips_per_truck_per_day.toFixed(1) : '-', label: 'trips/truck/day' },
+          ])
+        ) : (
+          <div style={{ fontSize: '12px', color: 'var(--gray-400)' }}>
+            No data logged yet this week
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── BaselineEditor ─────────────────────────────────────────────────────────
 // Baseline TAT has three phase-tied states:
 //
@@ -2138,6 +2273,14 @@ function ProgressView({ assessmentId, config, entries, aggregates, dailyEntries,
         />
       ) : (
         <>
+      {/* Current snapshot: today + this week at a glance. Moved here
+          from the Log tab where it was cluttering the capture flow. */}
+      <CurrentSnapshot
+        assessmentId={assessmentId}
+        aggregates={aggregates}
+        currentWeek={currentWeek}
+      />
+
       {/* Baseline editor, admin only. Phase-aware:
            - workshop: hidden
            - onsite: shows forming baseline with "Lock at X min" option

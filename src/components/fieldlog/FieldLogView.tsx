@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import type { DailyLogRow, ComputedSummary } from '@/lib/fieldlog/types'
+import type { DailyLogRow } from '@/lib/fieldlog/types'
 import ManualEntryForm from './ManualEntryForm'
 import TripTable from './TripTable'
 import UploadParseView from './UploadParseView'
@@ -32,7 +32,6 @@ export default function FieldLogView({ assessmentId, plantId, isAdmin, reportedT
   const [logDate, setLogDate] = useState(today)
   const [subTab, setSubTab] = useState<SubTab>('live')
   const [trips, setTrips] = useState<DailyLogRow[]>([])
-  const [computed, setComputed] = useState<ComputedSummary | null>(null)
   const [audioEnabled, setAudioEnabled] = useState(false)
   const [loading, setLoading] = useState(true)
 
@@ -44,7 +43,8 @@ export default function FieldLogView({ assessmentId, plantId, isAdmin, reportedT
   const loadData = useCallback(async () => {
     setLoading(true)
 
-    // Load trips for selected date
+    // Load trips for selected date. Aggregated KPIs (avg TAT, reject %,
+    // truck count) moved to the Track dashboard where they belong.
     const { data: tripData } = await supabase
       .from('daily_logs')
       .select('*')
@@ -53,16 +53,6 @@ export default function FieldLogView({ assessmentId, plantId, isAdmin, reportedT
       .order('departure_loaded', { ascending: true })
 
     setTrips((tripData ?? []) as DailyLogRow[])
-
-    // Load computed summary for selected date
-    const { data: summaryData } = await supabase
-      .from('daily_logs_computed')
-      .select('*')
-      .eq('assessment_id', assessmentId)
-      .eq('log_date', logDate)
-      .maybeSingle()
-
-    setComputed(summaryData as ComputedSummary | null)
     setLoading(false)
   }, [supabase, assessmentId, logDate])
 
@@ -95,18 +85,6 @@ export default function FieldLogView({ assessmentId, plantId, isAdmin, reportedT
     loadData()
     loadAutocomplete()
   }, [loadData, loadAutocomplete])
-
-  const summaryCard = (label: string, value: string | number | null, unit?: string) => (
-    <div style={{
-      flex: 1, background: '#f9faf9', border: '1px solid #e8e8e6', borderRadius: '10px',
-      padding: '12px 14px', textAlign: 'center', minWidth: '90px',
-    }}>
-      <div style={{ fontSize: '10px', fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: '.04em' }}>{label}</div>
-      <div style={{ fontSize: '22px', fontWeight: 700, color: '#1a1a1a', marginTop: '2px' }}>
-        {value ?? '-'}{unit && <span style={{ fontSize: '12px', color: '#888', marginLeft: '3px' }}>{unit}</span>}
-      </div>
-    </div>
-  )
 
   const tabBtn = (tab: SubTab, label: string) => (
     <button type="button" onClick={() => setSubTab(tab)}
@@ -143,14 +121,6 @@ export default function FieldLogView({ assessmentId, plantId, isAdmin, reportedT
             }} />
         </div>
         {isAdmin && <FieldCaptureTokenButton assessmentId={assessmentId} plantId={plantId} />}
-      </div>
-
-      {/* Summary cards */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
-        {summaryCard('Trips', computed?.total_trips ?? trips.length)}
-        {summaryCard('Avg TAT', computed?.avg_tat_minutes ? Math.round(computed.avg_tat_minutes) : null, 'min')}
-        {summaryCard('Reject', computed?.reject_pct != null ? `${computed.reject_pct}` : null, '%')}
-        {summaryCard('Trucks', computed?.trucks_active ?? null)}
       </div>
 
       {/* Sub-tabs */}
