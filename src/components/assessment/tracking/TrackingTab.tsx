@@ -498,9 +498,15 @@ function ImpactChart({ config, entries, interventions = [] }: {
 
   const showDispatch = config.baseline_dispatch_min != null && config.target_dispatch_min != null
 
+  // Baseline determines whether the baseline + predicted lines render.
+  // When null (pending confirmation), only actual is drawn.
+  const activeBaseline = metric === 'turnaround' ? config.baseline_turnaround : config.baseline_dispatch_min
+  const activeTarget = metric === 'turnaround' ? config.target_turnaround : config.target_dispatch_min
+  const hasBaseline = activeBaseline != null
+
   const points = metric === 'turnaround'
-    ? buildChartPoints(entries, config.baseline_turnaround ?? 95, config.target_turnaround ?? 78, 'turnaround_min')
-    : buildChartPoints(entries, config.baseline_dispatch_min ?? 32, config.target_dispatch_min ?? 15, 'dispatch_min')
+    ? buildChartPoints(entries, config.baseline_turnaround ?? 0, config.target_turnaround ?? 0, 'turnaround_min')
+    : buildChartPoints(entries, config.baseline_dispatch_min ?? 0, config.target_dispatch_min ?? 0, 'dispatch_min')
 
   const label = metric === 'turnaround' ? 'Turnaround' : 'Dispatch Time'
 
@@ -535,11 +541,11 @@ function ImpactChart({ config, entries, interventions = [] }: {
         )}
       </div>
 
-      {/* Legend */}
-      <div style={{ display: 'flex', gap: '16px', marginBottom: '12px' }}>
+      {/* Legend. Baseline/predicted entries hidden when baseline pending. */}
+      <div style={{ display: 'flex', gap: '16px', marginBottom: '12px', flexWrap: 'wrap' }}>
         {[
-          { color: '#C0392B', dash: true, label: 'Baseline' },
-          { color: '#b0b0b0', dash: true, label: 'Predicted' },
+          ...(hasBaseline ? [{ color: '#C0392B', dash: true, label: 'Baseline' }] : []),
+          ...(hasBaseline && activeTarget != null ? [{ color: '#b0b0b0', dash: true, label: 'Predicted' }] : []),
           { color: '#0F6E56', dash: false, label: 'Actual' },
         ].map(l => (
           <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
@@ -549,6 +555,11 @@ function ImpactChart({ config, entries, interventions = [] }: {
             <span style={{ fontSize: '10px', color: 'var(--gray-500)' }}>{l.label}</span>
           </div>
         ))}
+        {!hasBaseline && metric === 'turnaround' && (
+          <span style={{ fontSize: '10px', color: 'var(--warning-dark, #B7950B)', fontStyle: 'italic' }}>
+            Baseline pending confirmation. Use the editor above to set it.
+          </span>
+        )}
       </div>
 
       {/* Chart */}
@@ -577,8 +588,12 @@ function ImpactChart({ config, entries, interventions = [] }: {
               labelFormatter={(w: unknown) => w === 0 ? 'Start' : `Week ${w}`}
               contentStyle={{ fontSize: '12px', borderRadius: '8px', border: '1px solid #e5e7eb' }}
             />
-            <Line dataKey="baseline" stroke="#C0392B" strokeDasharray="5 4" dot={false} strokeWidth={1.5} name="baseline" connectNulls />
-            <Line dataKey="predicted" stroke="#b0b0b0" strokeDasharray="5 4" dot={false} strokeWidth={1.5} name="predicted" connectNulls />
+            {hasBaseline && (
+              <Line dataKey="baseline" stroke="#C0392B" strokeDasharray="5 4" dot={false} strokeWidth={1.5} name="baseline" connectNulls />
+            )}
+            {hasBaseline && activeTarget != null && (
+              <Line dataKey="predicted" stroke="#b0b0b0" strokeDasharray="5 4" dot={false} strokeWidth={1.5} name="predicted" connectNulls />
+            )}
             <Line dataKey="actual" stroke="#0F6E56" strokeWidth={2.5} dot={{ r: 3.5, fill: '#0F6E56', strokeWidth: 0 }} connectNulls={false} name="actual" />
             {/* Intervention markers. Active-metric markers are solid orange,
                 others are dim gray so focus stays on relevant changes. */}
@@ -1629,6 +1644,216 @@ function WeeklyDetailRow({ a }: { a: WeeklyAggregate }) {
   )
 }
 
+// ── BaselineEditor ─────────────────────────────────────────────────────────
+// Lets the admin confirm or override the Baseline TAT. Pre-assessment
+// numbers are estimates and must be replaced by either a customer-
+// provided value (what the plant actually measured before engagement)
+// or a data-derived value from Week 1 of logged trips.
+
+function BaselineEditor({
+  assessmentId,
+  config,
+  derivedFromWeek1,
+  onSaved,
+}: {
+  assessmentId: string
+  config: TrackingConfig
+  derivedFromWeek1: number | null
+  onSaved: () => void
+}) {
+  const supabase = createClient()
+  const [editing, setEditing] = useState(false)
+  const [value, setValue] = useState<string>(
+    config.baseline_turnaround != null ? String(config.baseline_turnaround) : ''
+  )
+  const [saving, setSaving] = useState(false)
+
+  const isVirtualConfig = config.id === 'virtual'
+  const hasConfirmed = !isVirtualConfig && config.baseline_turnaround != null
+  const baselineValue = config.baseline_turnaround
+
+  const save = async (rawValue: number | null) => {
+    setSaving(true)
+    if (isVirtualConfig) {
+      // No tracking_configs row yet. Create one with the minimal fields
+      // required to persist the baseline confirmation.
+      await supabase.from('tracking_configs').upsert({
+        assessment_id: assessmentId,
+        started_at: config.started_at,
+        baseline_turnaround: rawValue,
+        baseline_reject_pct: config.baseline_reject_pct,
+        baseline_dispatch_min: config.baseline_dispatch_min,
+        target_turnaround: config.target_turnaround,
+        target_dispatch_min: config.target_dispatch_min,
+        track_turnaround: true,
+        track_reject: false,
+        track_dispatch: config.baseline_dispatch_min != null,
+        coeff_turnaround: config.coeff_turnaround,
+        coeff_reject: config.coeff_reject,
+        baseline_monthly_loss: config.baseline_monthly_loss,
+        consent_case_study: false,
+      }, { onConflict: 'assessment_id' })
+    } else {
+      await supabase
+        .from('tracking_configs')
+        .update({ baseline_turnaround: rawValue })
+        .eq('id', config.id)
+    }
+    setSaving(false)
+    setEditing(false)
+    onSaved()
+  }
+
+  const handleSaveManual = () => {
+    const n = parseFloat(value)
+    if (isNaN(n) || n <= 0) {
+      alert('Enter a positive number in minutes')
+      return
+    }
+    save(Math.round(n))
+  }
+
+  const handleUseDerived = () => {
+    if (derivedFromWeek1 == null) return
+    save(derivedFromWeek1)
+  }
+
+  const handleClear = () => {
+    if (!confirm('Clear the baseline? It will revert to data-derived if Week 1 has data, or pending otherwise.')) return
+    save(null)
+  }
+
+  return (
+    <div style={{
+      background: hasConfirmed ? 'var(--green-pale, #F0FAF6)' : 'var(--warning-bg)',
+      border: `1px solid ${hasConfirmed ? 'var(--tooltip-border, #9FE1CB)' : 'var(--warning-border)'}`,
+      borderRadius: 'var(--radius)', padding: '14px 16px', marginBottom: '16px',
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: '12px', flexWrap: 'wrap' }}>
+        <div style={{ flex: '1 1 200px', minWidth: 0 }}>
+          <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: '4px' }}>
+            Baseline TAT
+          </div>
+          {baselineValue != null ? (
+            <div>
+              <div style={{ fontSize: '20px', fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--gray-900)' }}>
+                {baselineValue} min
+              </div>
+              <div style={{ fontSize: '11px', color: 'var(--gray-500)', marginTop: '2px' }}>
+                {hasConfirmed
+                  ? 'Confirmed by analyst'
+                  : derivedFromWeek1 != null
+                    ? `Derived from Week 1 data. Confirm with customer when you arrive on-site.`
+                    : ''}
+              </div>
+            </div>
+          ) : (
+            <div>
+              <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--warning-dark, #B7950B)' }}>
+                Pending confirmation
+              </div>
+              <div style={{ fontSize: '11px', color: 'var(--gray-600)', marginTop: '4px', lineHeight: 1.5 }}>
+                Confirm with customer on arrival, or log at least 5 trips to auto-derive from Week 1 data.
+              </div>
+            </div>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={() => setEditing(v => !v)}
+          style={{
+            padding: '8px 14px', background: 'var(--white)',
+            border: '1px solid var(--border)', borderRadius: '8px',
+            fontSize: '12px', fontWeight: 600, cursor: 'pointer',
+            color: 'var(--gray-700)', minHeight: '40px', flexShrink: 0,
+          }}
+        >
+          {editing ? 'Cancel' : hasConfirmed ? 'Edit' : 'Confirm'}
+        </button>
+      </div>
+
+      {editing && (
+        <div style={{
+          marginTop: '12px', paddingTop: '12px',
+          borderTop: '1px solid var(--border)',
+          display: 'flex', flexDirection: 'column', gap: '10px',
+        }}>
+          <div>
+            <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '.3px', marginBottom: '4px', display: 'block' }}>
+              Customer-provided baseline (minutes)
+            </label>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <input
+                type="number"
+                value={value}
+                onChange={e => setValue(e.target.value)}
+                placeholder="e.g. 170"
+                style={{
+                  width: '120px', padding: '10px 12px',
+                  border: '1px solid var(--border)', borderRadius: '8px',
+                  fontSize: '14px', fontFamily: 'var(--mono)',
+                  minHeight: '44px',
+                }}
+              />
+              <button
+                type="button"
+                onClick={handleSaveManual}
+                disabled={saving || !value}
+                style={{
+                  padding: '10px 16px', background: 'var(--green)',
+                  color: '#fff', border: 'none', borderRadius: '8px',
+                  fontSize: '13px', fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer',
+                  minHeight: '44px', opacity: saving ? 0.6 : 1,
+                }}
+              >
+                {saving ? 'Saving...' : 'Save manual baseline'}
+              </button>
+            </div>
+          </div>
+
+          {derivedFromWeek1 != null && (
+            <div>
+              <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '.3px', marginBottom: '4px', display: 'block' }}>
+                Or use Week 1 field log data
+              </label>
+              <button
+                type="button"
+                onClick={handleUseDerived}
+                disabled={saving}
+                style={{
+                  padding: '10px 16px', background: 'var(--white)',
+                  color: 'var(--gray-900)', border: '1px solid var(--green)',
+                  borderRadius: '8px', fontSize: '13px', fontWeight: 600,
+                  cursor: saving ? 'not-allowed' : 'pointer', minHeight: '44px',
+                }}
+              >
+                Use {derivedFromWeek1} min (Week 1 average)
+              </button>
+            </div>
+          )}
+
+          {hasConfirmed && (
+            <div>
+              <button
+                type="button"
+                onClick={handleClear}
+                disabled={saving}
+                style={{
+                  padding: '8px 14px', background: 'transparent',
+                  color: 'var(--red)', border: 'none',
+                  fontSize: '12px', cursor: 'pointer', textDecoration: 'underline',
+                }}
+              >
+                Clear confirmed baseline
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Progress View (admin) ──────────────────────────────────────────────────
 
 function ProgressView({ assessmentId, config, entries, aggregates, dailyEntries, onEntryLogged, coeffDispatch, viewOnly, isDemo }: {
@@ -1701,6 +1926,24 @@ function ProgressView({ assessmentId, config, entries, aggregates, dailyEntries,
         />
       ) : (
         <>
+      {/* Baseline editor, admin only. Lets Louis confirm the baseline
+          with the customer on arrival, or derive from Week 1 data. */}
+      {!viewOnly && (
+        <BaselineEditor
+          assessmentId={assessmentId}
+          config={config}
+          derivedFromWeek1={
+            (() => {
+              const w1 = aggregates.find(a => a.week_number === 1)
+              return w1 && w1.trip_count >= 5 && w1.avg_tat_min != null
+                ? Math.round(w1.avg_tat_min)
+                : null
+            })()
+          }
+          onSaved={onEntryLogged}
+        />
+      )}
+
       {/* A: Impact Summary */}
       <ImpactSummary config={config} entries={entries} coeffDispatch={coeffDispatch} currentWeek={currentWeek} />
 
@@ -1970,15 +2213,26 @@ export default function TrackingTab(props: TrackingProps) {
     const aggregates = (aggData ?? []) as WeeklyAggregate[]
     setAggregates(aggregates)
 
-    // Build the effective config: prefer DB record, else synthesize from
-    // assessment props. started_at falls back to first log date or today.
+    // Derive baseline TAT from first week of logged data. Pre-assessment
+    // numbers are estimates and must not be used as baseline. Customer
+    // confirms (or derives from Week 1 data) when the consultant arrives.
+    // Requires >= 5 trips in Week 1 for statistical stability.
+    const week1 = aggregates.find(a => a.week_number === 1)
+    const derivedBaselineTAT =
+      week1 && week1.trip_count >= 5 && week1.avg_tat_min != null
+        ? Math.round(week1.avg_tat_min)
+        : null
+
+    // Build the effective config: prefer DB record (admin has confirmed
+    // a baseline), else synthesize one where baseline_turnaround is
+    // data-derived from Week 1 or null (pending confirmation).
     const effectiveConfig: TrackingConfig = cfg ?? {
       id: 'virtual',
       assessment_id: assessmentId,
       started_at: firstLog?.log_date
         ? new Date(firstLog.log_date).toISOString()
         : new Date().toISOString(),
-      baseline_turnaround: baselineTurnaround,
+      baseline_turnaround: derivedBaselineTAT,
       baseline_reject_pct: baselineRejectPct,
       baseline_dispatch_min: baselineDispatchMin,
       target_turnaround: targetTA,
