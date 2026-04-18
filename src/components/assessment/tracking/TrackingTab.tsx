@@ -395,6 +395,7 @@ function ImpactSummary({ config, entries, coeffDispatch, currentWeek }: {
   coeffDispatch: number
   currentWeek: number
 }) {
+  const isMobile = useIsMobile()
   const sortedEntries = [...entries].sort((a, b) => b.week_number - a.week_number)
   const latest = sortedEntries[0] ?? null
   const currentMonthlyRecovery = latest ? calcMonthlyRecovery(latest, config, coeffDispatch) : 0
@@ -411,14 +412,16 @@ function ImpactSummary({ config, entries, coeffDispatch, currentWeek }: {
     <div style={{
       background: currentMonthlyRecovery > 0 ? 'linear-gradient(135deg, #f0faf6 0%, #fff 70%)' : 'var(--white)',
       border: `1px solid ${currentMonthlyRecovery > 0 ? '#b5dfc9' : 'var(--border)'}`,
-      borderRadius: 'var(--radius)', padding: '20px 24px', marginBottom: '16px',
+      borderRadius: 'var(--radius)',
+      padding: isMobile ? '16px 16px' : '20px 24px',
+      marginBottom: '16px',
     }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
         <div>
           <div style={{ fontSize: '10px', color: currentMonthlyRecovery > 0 ? '#4a9a72' : 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '6px', fontWeight: 600 }}>
             Value recovered / month
           </div>
-          <div style={{ fontSize: '48px', fontWeight: 800, fontFamily: 'var(--mono)', color: currentMonthlyRecovery > 0 ? '#1a6644' : 'var(--gray-300)', lineHeight: 1, letterSpacing: '-1px' }}>
+          <div style={{ fontSize: isMobile ? '36px' : '48px', fontWeight: 800, fontFamily: 'var(--mono)', color: currentMonthlyRecovery > 0 ? '#1a6644' : 'var(--gray-300)', lineHeight: 1, letterSpacing: '-1px' }}>
             {currentMonthlyRecovery > 0 ? fmt(currentMonthlyRecovery) : '-'}
           </div>
           {predictedTotal > 0 && (
@@ -466,7 +469,7 @@ function MonthlyMilestones({ config, entries, coeffDispatch }: {
   const currentWeek = getWeekNumber(config.started_at)
 
   return (
-    <div style={{ background: 'var(--white)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '16px 20px', marginBottom: '16px' }}>
+    <div style={{ background: 'var(--white)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: isMobile ? '14px 14px' : '16px 20px', marginBottom: '16px' }}>
       <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '14px' }}>
         Milestones
       </div>
@@ -1732,6 +1735,7 @@ function BaselineEditor({
   onSaved: () => void
 }) {
   const supabase = createClient()
+  const isMobile = useIsMobile()
   const [editing, setEditing] = useState(false)
   const [value, setValue] = useState<string>(
     config.baseline_turnaround != null ? String(config.baseline_turnaround) : ''
@@ -1802,7 +1806,7 @@ function BaselineEditor({
       <div style={{
         background: '#F0FAF6',
         border: '1px solid #9FE1CB',
-        borderRadius: 'var(--radius)', padding: '14px 16px', marginBottom: '16px',
+        borderRadius: 'var(--radius)', padding: isMobile ? '12px 14px' : '14px 16px', marginBottom: '16px',
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: '12px', flexWrap: 'wrap' }}>
           <div style={{ flex: '1 1 200px', minWidth: 0 }}>
@@ -1848,7 +1852,7 @@ function BaselineEditor({
       <div style={{
         background: 'var(--info-bg)',
         border: '1px solid var(--info-border)',
-        borderRadius: 'var(--radius)', padding: '14px 16px', marginBottom: '16px',
+        borderRadius: 'var(--radius)', padding: isMobile ? '12px 14px' : '14px 16px', marginBottom: '16px',
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: '12px', flexWrap: 'wrap' }}>
           <div style={{ flex: '1 1 200px', minWidth: 0 }}>
@@ -1928,7 +1932,7 @@ function BaselineEditor({
       <div style={{
         background: 'var(--warning-bg)',
         border: '1px solid var(--warning-border)',
-        borderRadius: 'var(--radius)', padding: '14px 16px', marginBottom: '16px',
+        borderRadius: 'var(--radius)', padding: isMobile ? '12px 14px' : '14px 16px', marginBottom: '16px',
       }}>
         <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--warning-dark, #B7950B)', marginBottom: '4px' }}>
           ⚠ Baseline not locked yet
@@ -2067,6 +2071,7 @@ function ProgressView({ assessmentId, config, entries, aggregates, dailyEntries,
   viewOnly?: boolean
   isDemo?: boolean
 }) {
+  const isMobile = useIsMobile()
   const [subTab, setSubTab] = useState<'weekly' | 'daily'>('weekly')
   const currentWeek = getWeekNumber(config.started_at)
   const sortedEntries = [...entries].sort((a, b) => b.week_number - a.week_number)
@@ -2102,7 +2107,14 @@ function ProgressView({ assessmentId, config, entries, aggregates, dailyEntries,
   }
 
   return (
-    <div style={{ padding: '24px', maxWidth: '760px', margin: '0 auto' }}>
+    <div style={{
+      padding: isMobile ? '16px 12px' : '24px',
+      maxWidth: '760px',
+      margin: '0 auto',
+      width: '100%',
+      boxSizing: 'border-box',
+      overflowX: 'hidden',
+    }}>
       {/* Program Complete banner, shown at week 13+ */}
       {isComplete && (
         <ProgramCompleteView config={config} entries={entries} coeffDispatch={coeffDispatch} />
@@ -2271,7 +2283,10 @@ function CustomerLog({ assessmentId, config, entries, dailyEntries, onLogged, co
   const latest = sortedEntries[0] ?? null
 
   return (
-    <div style={{ maxWidth: '520px', margin: '0 auto', padding: '24px 16px' }}>
+    <div style={{
+      maxWidth: '520px', margin: '0 auto', padding: '24px 16px',
+      width: '100%', boxSizing: 'border-box', overflowX: 'hidden',
+    }}>
       <SubTabToggle active={subTab} onChange={setSubTab} />
       {subTab === 'daily' ? (
         <DailyOpsView

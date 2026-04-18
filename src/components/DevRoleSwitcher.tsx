@@ -51,21 +51,24 @@ export default function DevRoleSwitcher({ viewAs, isOverridden }: DevRoleSwitche
   const returnUrl = encodeURIComponent(pathname)
   const roleReturnUrl = encodeURIComponent(pathname.startsWith('/demo') ? pathname : '/dashboard')
 
-  // On mobile: bottom-right, stacked above the floating chat so it doesn't
-  // overlap page content. On desktop: bottom-right corner.
+  // On mobile: anchored at bottom-left so it doesn't overlap page content
+  // or the floating chat (which is bottom-right). Stays in the corner
+  // above the bottom tab bar. Small and unobtrusive.
+  // On desktop: bottom-right corner as before.
   const triggerStyle: React.CSSProperties = isMobile
     ? {
         position: 'fixed',
-        bottom: 'calc(150px + env(safe-area-inset-bottom, 0px))',
-        right: '16px',
+        bottom: 'calc(78px + env(safe-area-inset-bottom, 0px))',
+        left: '10px',
         zIndex: 99999,
       }
     : { position: 'fixed', bottom: '20px', right: '16px', zIndex: 99999 }
 
   // Dropdown opens upward so menu items stay above the bottom tab bar.
-  const dropdownStyle: React.CSSProperties = {
-    position: 'absolute', bottom: 'calc(100% + 6px)', right: 0,
-  }
+  // On mobile anchor to left, on desktop to right.
+  const dropdownStyle: React.CSSProperties = isMobile
+    ? { position: 'absolute', bottom: 'calc(100% + 6px)', left: 0 }
+    : { position: 'absolute', bottom: 'calc(100% + 6px)', right: 0 }
 
   const content = (
     <div ref={ref} style={triggerStyle}>
