@@ -40,14 +40,17 @@ interface Props {
   targetTAT?: number | null
 }
 
+// ColorBrewer qualitative palette. Chosen for maximum visual distinction
+// between 7 stages and colorblind-friendly separation. No two hues are
+// close enough to confuse at a glance.
 const STAGE_COLORS: Record<StageKey, string> = {
-  plant_queue: '#C0392B',
-  loading: '#E67E22',
-  transit_out: '#F1C40F',
-  site_wait: '#8E44AD',
-  pouring: '#2980B9',
-  washout: '#16A085',
-  transit_back: '#27AE60',
+  plant_queue: '#e41a1c',  // red
+  loading: '#377eb8',      // blue
+  transit_out: '#4daf4a',  // green
+  site_wait: '#984ea3',    // purple
+  pouring: '#ff7f00',      // orange
+  washout: '#a65628',      // brown
+  transit_back: '#f781bf', // pink
 }
 
 export default function FieldLogDiagnostics({ assessmentId, reportedTAT, targetTAT }: Props) {
@@ -184,6 +187,7 @@ export default function FieldLogDiagnostics({ assessmentId, reportedTAT, targetT
               <XAxis dataKey="label" fontSize={10} angle={-30} textAnchor="end" height={60} />
               <YAxis fontSize={11} label={{ value: 'min', angle: -90, position: 'insideLeft', fontSize: 11 }} />
               <Tooltip
+                trigger="click"
                 contentStyle={{ fontSize: '12px' }}
                 formatter={(value, name) => {
                   const stage = STAGE_KEYS.find(s => s === name)

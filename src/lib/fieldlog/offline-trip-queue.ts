@@ -98,6 +98,20 @@ export interface ActiveTrip {
    * them before the row is finalised and queued for sync. Lag 2 safety net.
    */
   awaitingReview?: boolean
+  /**
+   * Measurement scope. 'full' = trip starts at plant_queue and moves
+   * through all 7 stages. 'single_stage' = observer wants to measure
+   * just one specific stage (e.g., rapid washout sampling). Partial
+   * saves work for both modes.
+   */
+  measurementMode: 'full' | 'single_stage'
+  /** When measurementMode='single_stage', the stage being measured. */
+  singleStage?: StageName
+  /**
+   * Marked rejected live during the trip. Observer taps "Mark rejected"
+   * if a load is refused. Saved on the daily_logs row.
+   */
+  rejected?: boolean
 }
 
 /**
@@ -176,7 +190,10 @@ function newTripId(): string {
   return 'trip-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10)
 }
 
-/** Start a new active trip. First tap happens here (plant_queue_start). */
+/** Start a new active trip. First tap happens here.
+ *  If startStage is provided and is not 'plant_queue', the trip is
+ *  treated as a single-stage measurement: only that stage gets a
+ *  timestamp, and the trip is marked partial on save. */
 export async function startTrip(input: {
   assessmentId: string
   plantId: string
@@ -187,8 +204,13 @@ export async function startTrip(input: {
   siteName?: string
   viaToken?: boolean
   token?: string
+  /** Defaults to 'plant_queue' (full cycle). Any other stage starts
+   *  a single-stage measurement. */
+  startStage?: StageName
 }): Promise<ActiveTrip> {
   const now = new Date().toISOString()
+  const startStage = input.startStage ?? 'plant_queue'
+  const mode: 'full' | 'single_stage' = startStage === 'plant_queue' ? 'full' : 'single_stage'
   const trip: ActiveTrip = {
     id: newTripId(),
     label: input.truckId ? `Truck ${input.truckId}` : 'Unlabeled trip',
@@ -199,13 +221,16 @@ export async function startTrip(input: {
     truckId: input.truckId,
     driverName: input.driverName,
     siteName: input.siteName,
-    timestamps: { plant_queue: now },
-    currentStage: 'plant_queue',
+    timestamps: { [startStage]: now } as Partial<Record<StageName | 'complete', string>>,
+    currentStage: startStage,
     stageNotes: {},
     notes: '',
     viaToken: input.viaToken ?? false,
     token: input.token,
     createdAt: now,
+    measurementMode: mode,
+    singleStage: mode === 'single_stage' ? startStage : undefined,
+    rejected: false,
   }
   await db.activeTrips.add(trip)
   // Bump measurer last-used timestamp
@@ -216,12 +241,22 @@ export async function startTrip(input: {
   return trip
 }
 
+/** Toggle the rejected flag on an active trip. */
+export async function setTripRejected(tripId: string, rejected: boolean): Promise<void> {
+  const trip = await db.activeTrips.get(tripId)
+  if (!trip) return
+  await db.activeTrips.put({ ...trip, rejected })
+}
+
 /**
- * Advance a trip to the next stage. Saves the END timestamp of the current
- * stage (which is the START timestamp of the next stage). If the current
- * stage is the last one (transit_back), this call marks the trip as
- * awaitingReview instead of immediately finalising. The caller should
- * then show the timestamp review UI and later call finaliseWithEdits.
+ * Advance a trip to the next stage (full mode) or finish the single-stage
+ * measurement. In full mode, saves the END timestamp of the current stage
+ * and moves on. If the current stage is the last one (transit_back), the
+ * trip enters a review state for timestamp editing.
+ *
+ * In single_stage mode, Split is the "finish measurement" action: saves
+ * the end-of-stage timestamp and finalises as partial (remaining stages
+ * null by design).
  */
 export async function splitStage(tripId: string): Promise<ActiveTrip | null> {
   const trip = await db.activeTrips.get(tripId)
@@ -230,6 +265,22 @@ export async function splitStage(tripId: string): Promise<ActiveTrip | null> {
   const currentIndex = STAGES.indexOf(trip.currentStage)
   const nextIndex = currentIndex + 1
 
+  // Single-stage mode: Split finishes the measurement. No review step.
+  // End timestamp maps to the NEXT stage's start column (or 'complete'
+  // if measuring transit_back, the last stage).
+  if (trip.measurementMode === 'single_stage') {
+    const endKey: StageName | 'complete' = nextIndex < STAGES.length
+      ? STAGES[nextIndex]
+      : 'complete'
+    const updated: ActiveTrip = {
+      ...trip,
+      timestamps: { ...trip.timestamps, [endKey]: now },
+    }
+    await finaliseTrip(updated, /* isPartial */ true)
+    return null
+  }
+
+  // Full mode: normal stage progression
   if (nextIndex >= STAGES.length) {
     // Last stage done → enter review state (Lag 2 safety net)
     const updated: ActiveTrip = {
@@ -473,7 +524,10 @@ export function buildDailyLogPayload(trip: PendingTrip): Record<string, unknown>
     departure_site: ts.transit_back ?? null,
     arrival_plant: ts.complete ?? null,
     measurer_name: trip.measurerName,
-    is_partial: trip.isPartial,
+    // Partial if explicitly saved mid-trip, OR if single-stage mode
+    // (only one stage was measured, remaining are null by design).
+    is_partial: trip.isPartial || trip.measurementMode === 'single_stage',
+    rejected: trip.rejected ?? false,
     stage_notes: Object.keys(trip.stageNotes).length > 0 ? trip.stageNotes : null,
     notes: trip.notes || null,
     data_source: 'direct_observation',

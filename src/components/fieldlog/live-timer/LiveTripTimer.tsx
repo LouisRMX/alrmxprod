@@ -32,11 +32,13 @@ import {
   setTripIdentity,
   setTripOriginPlant,
   setTripNotes,
+  setTripRejected,
   getAllMeasurers,
   addMeasurer,
   getAllOriginPlants,
   addOriginPlant,
   drainPending,
+  STAGES,
   type ActiveTrip,
   type PendingTrip,
   type StageName,
@@ -69,6 +71,10 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
   const [newOriginPlantName, setNewOriginPlantName] = useState('')
   const [focusedTripId, setFocusedTripId] = useState<string | null>(null)
   const [syncingNow, setSyncingNow] = useState(false)
+  // Selected starting stage for the next trip. plant_queue = full cycle.
+  const [startStage, setStartStage] = useState<StageName>('plant_queue')
+  // Transient "Trip saved" toast shown after a trip finalises.
+  const [saveToast, setSaveToast] = useState<string | null>(null)
 
   // Autocomplete sources (from server + from local pending trips)
   const [recentTrucks, setRecentTrucks] = useState<string[]>([])
@@ -174,10 +180,15 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
       plantId,
       measurerName: currentMeasurer,
       originPlant: currentOriginPlant || undefined,
+      startStage,
       viaToken: syncMode === 'token',
       token,
     })
     setFocusedTripId(trip.id)
+    // Haptic confirmation on Start (works in PWA-installed iOS and most Android)
+    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+      try { navigator.vibrate(75) } catch { /* ignore */ }
+    }
   }
 
   const handleAddMeasurer = async () => {
@@ -212,10 +223,16 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
     await undoLastSplit(tripId)
   }
 
+  const showSavedToast = useCallback((label: string) => {
+    setSaveToast(label)
+    setTimeout(() => setSaveToast(null), 2500)
+  }, [])
+
   const handleConfirmSave = async (
     tripId: string,
     editedTimestamps?: Partial<Record<StageName | 'complete', string>>,
   ) => {
+    const tripBefore = await db.activeTrips.get(tripId)
     const result = await finaliseWithEdits(tripId, editedTimestamps)
     if (!result.ok) {
       alert(result.error)
@@ -223,17 +240,33 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
     }
     setFocusedTripId(null)
     if (online) runSync()
+    if (tripBefore) {
+      const totalMin = computeTotalMin(tripBefore, editedTimestamps)
+      showSavedToast(
+        `✓ Trip saved${totalMin != null ? `: ${totalMin} min` : ''}${tripBefore.truckId ? ` · Truck ${tripBefore.truckId}` : ''}`
+      )
+    }
   }
 
   const handleSavePartial = async (tripId: string) => {
+    const tripBefore = await db.activeTrips.get(tripId)
     await savePartial(tripId)
     setFocusedTripId(null)
     if (online) runSync()
+    if (tripBefore) {
+      showSavedToast(
+        `✓ Partial saved${tripBefore.truckId ? ` · Truck ${tripBefore.truckId}` : ''}`
+      )
+    }
   }
 
   const handleCancel = async (tripId: string) => {
     await cancelTrip(tripId)
     setFocusedTripId(null)
+  }
+
+  const handleUpdateRejected = async (tripId: string, rejected: boolean) => {
+    await setTripRejected(tripId, rejected)
   }
 
   const focusedTrip = useMemo(
@@ -263,9 +296,16 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
         onUpdateOriginPlant={(id, v) => setTripOriginPlant(id, v)}
         onUpdateNotes={(id, n) => setTripNotes(id, n)}
         onUpdateStageNote={(id, s, txt) => setStageNote(id, s, txt)}
+        onUpdateRejected={handleUpdateRejected}
       />
     )
   }
+
+  // Sort active trips: longest-running first. Stuck trips naturally bubble
+  // to the top where they need attention.
+  const sortedActiveTrips = [...(activeTrips ?? [])].sort(
+    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+  )
 
   // Otherwise show the list + start button
   return (
@@ -445,6 +485,35 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
         )}
       </div>
 
+      {/* Measuring from selector: pick full cycle or single-stage mode */}
+      <div style={{
+        background: '#fff', border: '1px solid #e5e5e5', borderRadius: '12px', padding: '12px',
+      }}>
+        <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '8px' }}>
+          Measuring from
+        </label>
+        <select
+          value={startStage}
+          onChange={e => setStartStage(e.target.value as StageName)}
+          style={{
+            width: '100%', minHeight: '44px', padding: '0 12px',
+            border: '1px solid #ddd', borderRadius: '8px',
+            fontSize: '15px', background: '#fff',
+          }}
+        >
+          <option value="plant_queue">Plant queue (full cycle)</option>
+          {STAGES.filter(s => s !== 'plant_queue').map(s => (
+            <option key={s} value={s}>{STAGE_LABELS[s]} only</option>
+          ))}
+        </select>
+        {startStage !== 'plant_queue' && (
+          <div style={{ fontSize: '11px', color: '#888', marginTop: '6px', lineHeight: 1.4 }}>
+            Single-stage mode: tap Start when the stage begins, Finish when it ends.
+            Saved as a partial trip with just {STAGE_LABELS[startStage].toLowerCase()} timing.
+          </div>
+        )}
+      </div>
+
       {/* Start new trip button */}
       <button
         type="button"
@@ -459,7 +528,7 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
           boxShadow: currentMeasurer ? '0 4px 14px rgba(15, 110, 86, 0.25)' : 'none',
         }}
       >
-        ▶  Start new trip
+        ▶  Start {startStage === 'plant_queue' ? 'new trip' : `${STAGE_LABELS[startStage].toLowerCase()} measurement`}
       </button>
 
       {/* Active trip list */}
@@ -476,7 +545,7 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
           </div>
         )}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {(activeTrips ?? []).map(trip => (
+          {sortedActiveTrips.map(trip => (
             <ActiveTripListItem
               key={trip.id}
               trip={trip}
@@ -507,16 +576,87 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
           </div>
         )}
       </div>
+
+      {/* Save toast. Auto-dismisses after 2.5s. */}
+      {saveToast && (
+        <div style={{
+          position: 'fixed',
+          bottom: 'calc(20px + env(safe-area-inset-bottom, 0px))',
+          left: '50%', transform: 'translateX(-50%)',
+          background: '#1a1a1a', color: '#fff',
+          padding: '12px 18px', borderRadius: '10px',
+          fontSize: '14px', fontWeight: 500,
+          boxShadow: '0 6px 20px rgba(0,0,0,0.25)',
+          zIndex: 1100, maxWidth: '90vw',
+          textAlign: 'center',
+          animation: 'toast-slide-in .2s ease-out',
+        }}>
+          {saveToast}
+        </div>
+      )}
+      <style>{`
+        @keyframes toast-slide-in {
+          from { opacity: 0; transform: translate(-50%, 10px); }
+          to   { opacity: 1; transform: translate(-50%, 0); }
+        }
+      `}</style>
     </div>
   )
 }
 
+// Stage colors, must match Diagnostics palette so mode dot matches chart.
+const STAGE_DOT_COLOR: Record<StageName, string> = {
+  plant_queue: '#e41a1c',
+  loading: '#377eb8',
+  transit_out: '#4daf4a',
+  site_wait: '#984ea3',
+  pouring: '#ff7f00',
+  washout: '#a65628',
+  transit_back: '#f781bf',
+}
+
+/** Compute total TAT in minutes from a trip's timestamps, applying any
+ *  in-flight edits from the review UI. Returns null if insufficient data. */
+function computeTotalMin(
+  trip: ActiveTrip,
+  edits?: Partial<Record<StageName | 'complete', string>>,
+): number | null {
+  const ts = { ...trip.timestamps, ...edits }
+  const start = ts.plant_queue ?? ts.loading ?? ts.transit_out
+  const end = ts.complete
+  if (!start || !end) return null
+  const diff = (new Date(end).getTime() - new Date(start).getTime()) / 60000
+  return diff > 0 ? Math.round(diff) : null
+}
+
+/** Most recent split timestamp on a trip, used for stuck detection. */
+function lastSplitTime(trip: ActiveTrip): number {
+  const all = Object.values(trip.timestamps).filter(Boolean) as string[]
+  if (all.length === 0) return new Date(trip.createdAt).getTime()
+  return Math.max(...all.map(t => new Date(t).getTime()))
+}
+
 // ── Active trip list item ──
+// Shows trip label + measurement mode (full vs single-stage) + current
+// stage + elapsed minutes. When a trip has been running > 4 hours with
+// no recent split, shows a soft amber reminder.
 function ActiveTripListItem({ trip, onFocus }: { trip: ActiveTrip; onFocus: () => void }) {
   const stageLabel = STAGE_LABELS[trip.currentStage]
   const startedAt = new Date(trip.createdAt)
   const elapsedMs = Date.now() - startedAt.getTime()
   const elapsedMin = Math.floor(elapsedMs / 60000)
+  const sinceLastSplitMs = Date.now() - lastSplitTime(trip)
+  // Stuck signal: total > 4h AND no split in last hour. Very conservative.
+  const isStuck = elapsedMs > 4 * 60 * 60 * 1000 && sinceLastSplitMs > 60 * 60 * 1000
+
+  const isSingleStage = trip.measurementMode === 'single_stage'
+  const modeDotColor = isSingleStage ? STAGE_DOT_COLOR[trip.currentStage] : '#0F6E56'
+  const modeLabel = isSingleStage ? `${stageLabel} only` : 'Full cycle'
+
+  // Format elapsed time: < 60 min shows "X min", >= 60 shows "Xh Ym"
+  const elapsedDisplay = elapsedMin < 60
+    ? `${elapsedMin} min in`
+    : `${Math.floor(elapsedMin / 60)}h ${elapsedMin % 60}m`
 
   return (
     <button
@@ -524,21 +664,37 @@ function ActiveTripListItem({ trip, onFocus }: { trip: ActiveTrip; onFocus: () =
       onClick={onFocus}
       style={{
         width: '100%', textAlign: 'left',
-        background: '#fff', border: '1px solid #e5e5e5', borderRadius: '12px',
-        padding: '14px', cursor: 'pointer', minHeight: '64px',
+        background: '#fff',
+        border: `1px solid ${isStuck ? '#F1D79A' : '#e5e5e5'}`,
+        borderRadius: '12px',
+        padding: '12px 14px', cursor: 'pointer', minHeight: '64px',
         display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px',
+        boxShadow: isStuck ? '0 0 0 1px rgba(214, 137, 16, 0.1) inset' : 'none',
       }}
     >
-      <div>
-        <div style={{ fontSize: '15px', fontWeight: 600, color: '#1a1a1a' }}>{trip.label}</div>
-        <div style={{ fontSize: '12px', color: '#888', marginTop: '2px' }}>
-          {stageLabel} · {trip.measurerName} · {elapsedMin} min in
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '4px' }}>
+          <span style={{ fontSize: '15px', fontWeight: 600, color: '#1a1a1a' }}>{trip.label}</span>
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: '4px',
+            fontSize: '10px', fontWeight: 600, color: '#666',
+            textTransform: 'uppercase', letterSpacing: '.3px',
+          }}>
+            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: modeDotColor, display: 'inline-block' }} />
+            {modeLabel}
+          </span>
+        </div>
+        <div style={{ fontSize: '12px', color: '#888' }}>
+          {isSingleStage ? stageLabel : stageLabel} · {trip.measurerName} · {elapsedDisplay}
+          {isStuck && (
+            <span style={{ color: '#B7950B', marginLeft: '6px' }}>⏳</span>
+          )}
         </div>
       </div>
       <div style={{
         padding: '6px 10px', borderRadius: '6px',
         background: '#E1F5EE', color: '#0F6E56',
-        fontSize: '12px', fontWeight: 600,
+        fontSize: '12px', fontWeight: 600, flexShrink: 0,
       }}>
         Open →
       </div>

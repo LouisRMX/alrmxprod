@@ -11,8 +11,9 @@ import LiveTripTimer from './live-timer/LiveTripTimer'
 import FieldCaptureTokenButton from './FieldCaptureTokenButton'
 import FieldLogDiagnostics from './diagnostics/FieldLogDiagnostics'
 import { InterventionsEditor } from './InterventionsView'
+import ReviewQueue from './ReviewQueue'
 
-type SubTab = 'live' | 'diagnostics' | 'interventions' | 'manual' | 'upload' | 'audio'
+type SubTab = 'live' | 'diagnostics' | 'interventions' | 'review' | 'manual' | 'upload' | 'audio'
 
 interface FieldLogViewProps {
   assessmentId: string
@@ -157,6 +158,7 @@ export default function FieldLogView({ assessmentId, plantId, isAdmin, reportedT
         {tabBtn('live', '⏱ Live')}
         {tabBtn('diagnostics', '📊 Diagnostics')}
         {tabBtn('interventions', '⚙ Interventions')}
+        {tabBtn('review', '⚠ Review')}
         {tabBtn('manual', 'Manual')}
         {tabBtn('upload', 'Upload')}
         {audioEnabled && tabBtn('audio', 'Audio')}
@@ -183,6 +185,10 @@ export default function FieldLogView({ assessmentId, plantId, isAdmin, reportedT
 
       {subTab === 'interventions' && (
         <InterventionsEditor assessmentId={assessmentId} plantId={plantId} />
+      )}
+
+      {subTab === 'review' && (
+        <ReviewQueue assessmentId={assessmentId} />
       )}
 
       {subTab === 'manual' && (

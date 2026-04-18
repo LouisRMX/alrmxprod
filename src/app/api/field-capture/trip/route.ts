@@ -37,6 +37,7 @@ interface TripPayload {
   arrival_plant?: string | null
   measurer_name?: string
   is_partial?: boolean
+  rejected?: boolean
   stage_notes?: Record<string, string> | null
   notes?: string | null
   data_source?: string
@@ -92,6 +93,7 @@ export async function POST(req: NextRequest) {
     arrival_plant: payload.arrival_plant ?? null,
     measurer_name: typeof payload.measurer_name === 'string' ? payload.measurer_name : 'anonymous',
     is_partial: Boolean(payload.is_partial),
+    rejected: Boolean(payload.rejected),
     stage_notes: payload.stage_notes ?? null,
     notes: payload.notes ?? null,
     data_source: 'direct_observation' as const,

@@ -38,6 +38,7 @@ interface LiveTripCardProps {
   onUpdateOriginPlant: (tripId: string, plant: string) => void
   onUpdateNotes: (tripId: string, notes: string) => void
   onUpdateStageNote: (tripId: string, stage: StageName, text: string) => void
+  onUpdateRejected: (tripId: string, rejected: boolean) => void
 }
 
 const UNDO_WINDOW_MS = 8000
@@ -58,11 +59,20 @@ export default function LiveTripCard({
   onUpdateOriginPlant,
   onUpdateNotes,
   onUpdateStageNote,
+  onUpdateRejected,
 }: LiveTripCardProps) {
   const { totalElapsed, stageElapsed } = useStopwatch(trip)
   const [showIdentity, setShowIdentity] = useState(!trip.truckId)
   const [showNotes, setShowNotes] = useState(false)
   const [showStageNote, setShowStageNote] = useState(false)
+
+  // Vibrate on card mount so the observer gets haptic confirmation that
+  // measurement started. Silently no-op on platforms without support.
+  useEffect(() => {
+    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+      try { navigator.vibrate(50) } catch { /* ignore */ }
+    }
+  }, [])
 
   // Transient undo state
   const [undoVisible, setUndoVisible] = useState(false)
@@ -120,7 +130,10 @@ export default function LiveTripCard({
   const currentIndex = STAGES.indexOf(trip.currentStage)
   const stageLabel = STAGE_LABELS[trip.currentStage]
   const stageHint = STAGE_HINTS[trip.currentStage]
-  const splitLabel = NEXT_ACTION_LABEL[trip.currentStage]
+  const isSingleStage = trip.measurementMode === 'single_stage'
+  const splitLabel = isSingleStage
+    ? `Finish ${stageLabel.toLowerCase()}`
+    : NEXT_ACTION_LABEL[trip.currentStage]
   const isLastStage = currentIndex === STAGES.length - 1
 
   return (
@@ -130,13 +143,22 @@ export default function LiveTripCard({
       paddingBottom: 'max(16px, env(safe-area-inset-bottom))',
       position: 'relative',
     }}>
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <div style={{ fontSize: '11px', fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: '.5px' }}>
-            Active trip · {trip.measurerName}
+      {/* Header with REC indicator, back button, and stop button */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: '11px', fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: '.5px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span className="rec-pulse" style={{
+              display: 'inline-block', width: '8px', height: '8px',
+              borderRadius: '50%', background: '#C0392B',
+            }} />
+            <span>REC · {trip.measurerName}</span>
+            {isSingleStage && (
+              <span style={{ padding: '1px 6px', background: '#FFF4D6', border: '1px solid #F1D79A', color: '#B7950B', borderRadius: '3px', fontSize: '9px' }}>
+                {stageLabel.toUpperCase()} ONLY
+              </span>
+            )}
           </div>
-          <div style={{ fontSize: '16px', fontWeight: 600, color: '#1a1a1a', marginTop: '2px' }}>
+          <div style={{ fontSize: '16px', fontWeight: 600, color: '#1a1a1a', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {trip.label}
           </div>
         </div>
@@ -146,11 +168,40 @@ export default function LiveTripCard({
           style={{
             width: '44px', height: '44px', borderRadius: '50%',
             border: '1px solid #ddd', background: '#fff',
-            fontSize: '20px', color: '#666', cursor: 'pointer',
+            fontSize: '20px', color: '#666', cursor: 'pointer', flexShrink: 0,
           }}
-          aria-label="Back to trip list"
+          aria-label="Back to trip list (trip keeps running)"
+          title="Back to list"
         >←</button>
+        <button
+          type="button"
+          onClick={() => {
+            if (confirm('Stop this trip?\n\nOK = Save partial with current timestamps.\nCancel = Keep running, or use Discard below.')) {
+              onSavePartial(trip.id)
+            }
+          }}
+          style={{
+            width: '44px', height: '44px', borderRadius: '50%',
+            border: '1px solid #C0392B', background: '#fff',
+            fontSize: '16px', color: '#C0392B', cursor: 'pointer', flexShrink: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+          aria-label="Stop trip and save partial"
+          title="Stop and save partial"
+        >
+          <span style={{ width: '14px', height: '14px', background: '#C0392B', borderRadius: '2px', display: 'inline-block' }} />
+        </button>
       </div>
+      {/* CSS-in-JS keyframe for REC dot pulse */}
+      <style>{`
+        @keyframes rec-pulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.5; transform: scale(0.85); }
+        }
+        .rec-pulse {
+          animation: rec-pulse 1.2s ease-in-out infinite;
+        }
+      `}</style>
 
       {/* Origin plant chip (editable) */}
       <OriginPlantChip
@@ -323,8 +374,37 @@ export default function LiveTripCard({
         )}
       </div>
 
+      {/* Mark rejected toggle. Live flag for refused loads. Observer can
+          toggle on/off during the trip if the customer rejects a batch. */}
+      <button
+        type="button"
+        onClick={() => onUpdateRejected(trip.id, !trip.rejected)}
+        style={{
+          width: '100%', minHeight: '44px',
+          background: trip.rejected ? '#FDEDEC' : '#fff',
+          color: trip.rejected ? '#C0392B' : '#555',
+          border: `1px solid ${trip.rejected ? '#C0392B' : '#ddd'}`,
+          borderRadius: '10px', fontSize: '13px', fontWeight: 600,
+          cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+        }}
+      >
+        {trip.rejected ? (
+          <>
+            <span>✕</span>
+            <span>Load rejected</span>
+            <span style={{ fontSize: '11px', opacity: 0.7 }}>· Tap to unmark</span>
+          </>
+        ) : (
+          <>
+            <span style={{ fontSize: '14px' }}>○</span>
+            <span>Mark rejected</span>
+          </>
+        )}
+      </button>
+
       {/* Secondary actions */}
-      <div style={{ display: 'flex', gap: '8px', marginTop: 'auto' }}>
+      <div style={{ display: 'flex', gap: '8px' }}>
         <button
           type="button"
           onClick={() => {
@@ -355,7 +435,7 @@ export default function LiveTripCard({
             fontSize: '13px', fontWeight: 600, cursor: 'pointer',
           }}
         >
-          Cancel
+          Discard
         </button>
       </div>
 
