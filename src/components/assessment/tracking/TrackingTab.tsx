@@ -306,7 +306,7 @@ function calcTrendAlert(entries: DailyEntry[]): string | null {
   if (avgPrev === 0) return null
   const drop = (avgPrev - avgLast) / avgPrev
   if (drop >= 0.10) {
-    return `Deliveries down ~${Math.round(drop * 100)}% vs prior 7 days — check fleet availability or order intake`
+    return `Deliveries down ~${Math.round(drop * 100)}% vs prior 7 days. Check fleet availability or order intake.`
   }
   return null
 }
@@ -896,28 +896,59 @@ function SetupForm({
     if (!error && data) onCreated(data as TrackingConfig)
   }
 
-  const row = (label: string, baseline: number | null, unit: string, val: string, setVal: (v: string) => void) => (
-    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : '160px 120px 1fr', gap: isMobile ? '8px' : '12px', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
-      <div style={{ fontSize: '13px', color: 'var(--gray-700)' }}>{label}</div>
-      <div style={{ fontSize: '13px', fontFamily: 'var(--mono)', color: 'var(--gray-500)' }}>
-        {baseline != null ? `${baseline} ${unit}` : '-'}
+  const row = (label: string, baseline: number | null, unit: string, val: string, setVal: (v: string) => void) => {
+    if (isMobile) {
+      // Mobile: stack label above the baseline/target pair so all three
+      // values are clearly labeled. No grid clipping, no "Target" header
+      // pointing at a baseline cell.
+      return (
+        <div style={{ padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
+          <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--gray-700)', marginBottom: '8px' }}>{label}</div>
+          <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ fontSize: '10px', color: 'var(--gray-400)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.3px', marginBottom: '2px' }}>Baseline</div>
+              <div style={{ fontSize: '13px', fontFamily: 'var(--mono)', color: 'var(--gray-500)' }}>
+                {baseline != null ? `${baseline} ${unit}` : '-'}
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: '10px', color: 'var(--gray-400)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.3px', marginBottom: '2px' }}>90-day target</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <input
+                  type="number" value={val} onChange={e => setVal(e.target.value)}
+                  style={{ width: '80px', padding: '6px 10px', border: '1px solid var(--border)', borderRadius: '6px', fontSize: '13px', fontFamily: 'var(--mono)', background: 'var(--white)', color: 'var(--gray-900)' }}
+                />
+                <span style={{ fontSize: '12px', color: 'var(--gray-400)' }}>{unit}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )
+    }
+    return (
+      <div style={{ display: 'grid', gridTemplateColumns: '160px 120px 1fr', gap: '12px', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
+        <div style={{ fontSize: '13px', color: 'var(--gray-700)' }}>{label}</div>
+        <div style={{ fontSize: '13px', fontFamily: 'var(--mono)', color: 'var(--gray-500)' }}>
+          {baseline != null ? `${baseline} ${unit}` : '-'}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <input
+            type="number" value={val} onChange={e => setVal(e.target.value)}
+            style={{ width: '80px', padding: '6px 10px', border: '1px solid var(--border)', borderRadius: '6px', fontSize: '13px', fontFamily: 'var(--mono)', background: 'var(--white)', color: 'var(--gray-900)' }}
+          />
+          <span style={{ fontSize: '12px', color: 'var(--gray-400)' }}>{unit}</span>
+        </div>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <input
-          type="number" value={val} onChange={e => setVal(e.target.value)}
-          style={{ width: '80px', padding: '6px 10px', border: '1px solid var(--border)', borderRadius: '6px', fontSize: '13px', fontFamily: 'var(--mono)', background: 'var(--white)', color: 'var(--gray-900)' }}
-        />
-        <span style={{ fontSize: '12px', color: 'var(--gray-400)' }}>{unit}</span>
-      </div>
-    </div>
-  )
+    )
+  }
 
+  const kpiCount = 1 + (baselineDispatchMin != null ? 1 : 0)
   return (
     <div style={{ maxWidth: '600px', margin: '0 auto', padding: '32px 24px' }}>
       <div style={{ marginBottom: '24px' }}>
         <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--gray-900)', marginBottom: '4px' }}>Start 90-day tracking</div>
         <div style={{ fontSize: '13px', color: 'var(--gray-500)', lineHeight: 1.5 }}>
-          Set targets for the 2 KPIs. The plant logs weekly numbers, you see actual vs predicted in real time.
+          Set {kpiCount === 1 ? 'the target' : `targets for the ${kpiCount} KPIs`}. Trips logged in the Log tab roll up into weekly numbers automatically, so you see actual vs predicted in real time.
         </div>
       </div>
 
@@ -934,16 +965,18 @@ function SetupForm({
           </div>
           <div style={{ fontSize: '11px', color: 'var(--gray-600)', lineHeight: 1.55 }}>
             Logging starts immediately so the plant records baseline weeks before interventions begin.
-            By the time of the on-site visit you already have 2–4 weeks of real data, making the before/after comparison far stronger.
+            By the time of the on-site visit you already have 2 to 4 weeks of real data, making the before/after comparison far stronger.
           </div>
         </div>
       </div>
       <div style={{ background: 'var(--white)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '0 20px', marginBottom: '20px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : '160px 120px 1fr', gap: isMobile ? '8px' : '12px', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
-          {(isMobile ? ['Metric', 'Target'] : ['Metric', 'Baseline', '90-day target']).map(h => (
-            <div key={h} style={{ fontSize: '11px', fontWeight: 600, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '.4px' }}>{h}</div>
-          ))}
-        </div>
+        {!isMobile && (
+          <div style={{ display: 'grid', gridTemplateColumns: '160px 120px 1fr', gap: '12px', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
+            {['Metric', 'Baseline', '90-day target'].map(h => (
+              <div key={h} style={{ fontSize: '11px', fontWeight: 600, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '.4px' }}>{h}</div>
+            ))}
+          </div>
+        )}
         {row('Turnaround', baselineTurnaround, 'min', ta, setTa)}
         {baselineDispatchMin != null && row('Dispatch Time', baselineDispatchMin, 'min', di, setDi)}
       </div>
@@ -1209,7 +1242,7 @@ function DailyOpsChart({ entries }: { entries: DailyEntry[] }) {
   return (
     <div style={{ background: 'var(--white)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '16px 20px', marginBottom: '16px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-        <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--gray-700)' }}>Daily deliveries — 30 days</div>
+        <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--gray-700)' }}>Daily deliveries, 30 days</div>
         <div style={{ display: 'flex', gap: '14px' }}>
           {[
             { color: '#d1d5db', label: 'Daily' },
