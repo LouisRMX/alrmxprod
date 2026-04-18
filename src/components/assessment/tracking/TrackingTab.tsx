@@ -39,6 +39,91 @@ interface TrackingEntry {
   reject_pct: number | null
   dispatch_min: number | null
   notes: string | null
+  /** Populated when the entry was synthesised from daily_logs aggregation
+   *  (not manually entered). Client uses this to show a 'auto' badge. */
+  source?: 'manual' | 'auto'
+  /** Trip count behind the synthesis (auto entries only). */
+  trip_count?: number
+}
+
+/** One row per week returned by get_weekly_kpis_from_daily_logs RPC. */
+interface WeeklyAggregate {
+  week_number: number
+  trip_count: number
+  complete_trip_count: number
+  partial_trip_count: number
+  total_m3: number | null
+  avg_load_m3: number | null
+  avg_tat_min: number | null
+  avg_plant_queue_min: number | null
+  avg_loading_min: number | null
+  avg_transit_out_min: number | null
+  avg_site_wait_min: number | null
+  avg_pouring_min: number | null
+  avg_washout_min: number | null
+  avg_transit_back_min: number | null
+  reject_count: number
+  reject_pct: number | null
+  reject_plant_side_count: number
+  reject_customer_side_count: number
+  slump_tested_count: number
+  slump_pass_count: number
+  slump_pass_pct: number | null
+  unique_trucks: number
+  unique_drivers: number
+  unique_sites: number
+  days_with_trips: number
+  avg_trips_per_truck_per_day: number | null
+  avg_m3_per_truck_per_day: number | null
+  week_start_date: string
+  week_end_date: string
+  origin_plant_breakdown: Record<string, number>
+  site_type_breakdown: Record<string, number>
+  reject_cause_breakdown: Record<string, number>
+}
+
+/** Minimum trips per week required before we synthesise a weekly KPI
+ *  entry from daily_logs. Below this the numbers aren't statistically
+ *  meaningful and we'd rather show "no data" than misleading averages. */
+const MIN_TRIPS_FOR_AUTO_ENTRY = 3
+
+/** Merge manual tracking_entries with daily_logs aggregates.
+ *  Manual entries always win; auto entries fill in gaps when enough
+ *  trips are logged for the week. */
+function mergeEntries(manual: TrackingEntry[], aggregates: WeeklyAggregate[], configId: string): TrackingEntry[] {
+  const manualByWeek = new Map(manual.map(e => [e.week_number, e]))
+  const aggregateByWeek = new Map(aggregates.map(a => [a.week_number, a]))
+
+  const weeks = new Set<number>()
+  manual.forEach(e => weeks.add(e.week_number))
+  aggregates.forEach(a => weeks.add(a.week_number))
+
+  const merged: TrackingEntry[] = []
+  for (const w of Array.from(weeks).sort((a, b) => a - b)) {
+    const m = manualByWeek.get(w)
+    if (m) {
+      merged.push({ ...m, source: 'manual' })
+      continue
+    }
+    const agg = aggregateByWeek.get(w)
+    if (agg && agg.trip_count >= MIN_TRIPS_FOR_AUTO_ENTRY) {
+      merged.push({
+        id: `auto-${w}`,
+        config_id: configId,
+        week_number: w,
+        logged_at: agg.week_end_date,
+        turnaround_min: agg.avg_tat_min != null ? Math.round(agg.avg_tat_min) : null,
+        // "Dispatch" in Track = plant queue time (time from truck arriving
+        // at plant queue to loading start). Closest daily_logs equivalent.
+        dispatch_min: agg.avg_plant_queue_min != null ? Math.round(agg.avg_plant_queue_min) : null,
+        reject_pct: agg.reject_pct != null ? Math.round(agg.reject_pct * 10) / 10 : null,
+        notes: null,
+        source: 'auto',
+        trip_count: agg.trip_count,
+      })
+    }
+  }
+  return merged
 }
 
 interface DailyEntry {
@@ -419,6 +504,10 @@ function ImpactChart({ config, entries, interventions = [] }: {
 
   const label = metric === 'turnaround' ? 'Turnaround' : 'Dispatch Time'
 
+  // Count auto vs manual entries for transparency footer
+  const autoCount = entries.filter(e => e.source === 'auto').length
+  const manualCount = entries.filter(e => e.source === 'manual').length
+
   return (
     <div style={{ background: 'var(--white)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '20px 24px', marginBottom: '16px' }}>
       {/* Header + toggle */}
@@ -515,6 +604,26 @@ function ImpactChart({ config, entries, interventions = [] }: {
         </ResponsiveContainer>
       ) : (
         <div style={{ height: 220 }} />
+      )}
+
+      {/* Data source footer: how many weeks are auto-derived vs manual */}
+      {(autoCount > 0 || manualCount > 0) && (
+        <div style={{
+          marginTop: '12px', paddingTop: '10px', borderTop: '1px solid var(--gray-100)',
+          fontSize: '10px', color: 'var(--gray-400)',
+          display: 'flex', gap: '14px', flexWrap: 'wrap',
+        }}>
+          {autoCount > 0 && (
+            <span>
+              <span style={{ color: 'var(--green)', fontWeight: 600 }}>●</span> {autoCount} week{autoCount !== 1 ? 's' : ''} derived from field log
+            </span>
+          )}
+          {manualCount > 0 && (
+            <span>
+              <span style={{ color: 'var(--gray-400)', fontWeight: 600 }}>●</span> {manualCount} week{manualCount !== 1 ? 's' : ''} manually entered
+            </span>
+          )}
+        </div>
       )}
     </div>
   )
@@ -1245,12 +1354,255 @@ function DailyOpsView({ dailyEntries }: {
   )
 }
 
+// ── WeeklyFieldLogAggregates ──────────────────────────────────────────────
+// Rich per-week panel showing all parameters aggregated from daily_logs
+// that aren't represented by the headline KPI cards. Lets Louis drill
+// into volumes, stage breakdown, throughput, and quality without leaving
+// the Track dashboard.
+
+function WeeklyFieldLogAggregates({ aggregates, currentWeek }: {
+  aggregates: WeeklyAggregate[]
+  currentWeek: number
+}) {
+  const [expandedWeek, setExpandedWeek] = useState<number | null>(null)
+
+  if (aggregates.length === 0) {
+    return null  // no field-log data yet, nothing to show
+  }
+
+  // Show latest 4 weeks by default, sorted desc
+  const sorted = [...aggregates].sort((a, b) => b.week_number - a.week_number)
+
+  const metricCell = (value: number | null, unit: string, decimals = 0) => {
+    if (value === null || value === undefined || isNaN(value)) return <span style={{ color: 'var(--gray-300)' }}>-</span>
+    return <span style={{ fontFamily: 'var(--mono)', fontWeight: 500 }}>
+      {value.toFixed(decimals)}
+      <span style={{ fontSize: '10px', color: 'var(--gray-400)', marginLeft: '2px' }}>{unit}</span>
+    </span>
+  }
+
+  return (
+    <div style={{
+      background: 'var(--white)', border: '1px solid var(--border)',
+      borderRadius: 'var(--radius)', padding: '16px 20px', marginBottom: '16px',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+        <div>
+          <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--gray-700)' }}>Weekly field log aggregates</div>
+          <div style={{ fontSize: '11px', color: 'var(--gray-500)', marginTop: '2px' }}>
+            Volume, stage breakdown, quality and throughput, derived from {aggregates.length} week{aggregates.length !== 1 ? 's' : ''} of logged trips
+          </div>
+        </div>
+      </div>
+
+      <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' as React.CSSProperties['WebkitOverflowScrolling'] }}>
+        <div style={{ minWidth: '720px' }}>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: '60px 80px 70px 80px 80px 80px 80px 80px 60px',
+            fontSize: '10px', fontWeight: 700, color: 'var(--gray-400)',
+            textTransform: 'uppercase', letterSpacing: '.3px',
+            padding: '8px 0', borderBottom: '1px solid var(--border)',
+          }}>
+            <div>Week</div>
+            <div style={{ textAlign: 'right' }}>Trips</div>
+            <div style={{ textAlign: 'right' }}>m³</div>
+            <div style={{ textAlign: 'right' }}>TAT</div>
+            <div style={{ textAlign: 'right' }}>Site wait</div>
+            <div style={{ textAlign: 'right' }}>Reject</div>
+            <div style={{ textAlign: 'right' }}>Trucks</div>
+            <div style={{ textAlign: 'right' }}>Trips/tr/d</div>
+            <div style={{ textAlign: 'right' }}></div>
+          </div>
+          {sorted.map(a => {
+            const isExpanded = expandedWeek === a.week_number
+            const isCurrent = a.week_number === currentWeek
+            return (
+              <div key={a.week_number}>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: '60px 80px 70px 80px 80px 80px 80px 80px 60px',
+                  fontSize: '12px', padding: '10px 0',
+                  borderBottom: isExpanded ? 'none' : '1px solid var(--border)',
+                  alignItems: 'center',
+                  background: isCurrent ? 'var(--phase-workshop-bg)' : 'transparent',
+                }}>
+                  <div style={{ fontWeight: 600, color: isCurrent ? 'var(--phase-workshop)' : 'var(--gray-700)' }}>
+                    W{a.week_number}{isCurrent ? ' ·' : ''}
+                  </div>
+                  <div style={{ textAlign: 'right' }}>{metricCell(a.trip_count, '', 0)}</div>
+                  <div style={{ textAlign: 'right' }}>{metricCell(a.total_m3, '', 0)}</div>
+                  <div style={{ textAlign: 'right' }}>{metricCell(a.avg_tat_min, 'm', 0)}</div>
+                  <div style={{ textAlign: 'right' }}>{metricCell(a.avg_site_wait_min, 'm', 0)}</div>
+                  <div style={{ textAlign: 'right' }}>{metricCell(a.reject_pct, '%', 1)}</div>
+                  <div style={{ textAlign: 'right' }}>{metricCell(a.unique_trucks, '', 0)}</div>
+                  <div style={{ textAlign: 'right' }}>{metricCell(a.avg_trips_per_truck_per_day, '', 1)}</div>
+                  <div style={{ textAlign: 'right' }}>
+                    <button
+                      type="button"
+                      onClick={() => setExpandedWeek(isExpanded ? null : a.week_number)}
+                      style={{
+                        background: 'none', border: 'none', color: 'var(--green)',
+                        fontSize: '11px', fontWeight: 600, cursor: 'pointer',
+                        padding: '4px 6px',
+                      }}
+                    >
+                      {isExpanded ? '▲' : '▼'}
+                    </button>
+                  </div>
+                </div>
+                {isExpanded && (
+                  <WeeklyDetailRow a={a} />
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function WeeklyDetailRow({ a }: { a: WeeklyAggregate }) {
+  const stageRow = (label: string, v: number | null) => (
+    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', padding: '3px 0' }}>
+      <span style={{ color: 'var(--gray-500)' }}>{label}</span>
+      <span style={{ fontFamily: 'var(--mono)', fontWeight: 500, color: v !== null ? 'var(--gray-900)' : 'var(--gray-300)' }}>
+        {v !== null && !isNaN(v) ? `${v.toFixed(1)} min` : '-'}
+      </span>
+    </div>
+  )
+
+  const breakdownList = (title: string, breakdown: Record<string, number>) => {
+    const entries = Object.entries(breakdown)
+    if (entries.length === 0) return null
+    return (
+      <div>
+        <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '.3px', marginBottom: '4px' }}>
+          {title}
+        </div>
+        {entries.map(([k, v]) => (
+          <div key={k} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', padding: '2px 0' }}>
+            <span style={{ color: 'var(--gray-500)' }}>{k}</span>
+            <span style={{ fontFamily: 'var(--mono)', fontWeight: 500 }}>{v}</span>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  return (
+    <div style={{
+      padding: '12px 0 16px',
+      borderBottom: '1px solid var(--border)',
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+      gap: '20px',
+      background: 'var(--gray-50)',
+      marginLeft: '-20px', marginRight: '-20px',
+      paddingLeft: '20px', paddingRight: '20px',
+    }}>
+      {/* Stage breakdown */}
+      <div>
+        <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '.3px', marginBottom: '6px' }}>
+          Stage breakdown (avg)
+        </div>
+        {stageRow('Plant queue', a.avg_plant_queue_min)}
+        {stageRow('Loading', a.avg_loading_min)}
+        {stageRow('Transit out', a.avg_transit_out_min)}
+        {stageRow('Site wait', a.avg_site_wait_min)}
+        {stageRow('Pouring', a.avg_pouring_min)}
+        {stageRow('Washout', a.avg_washout_min)}
+        {stageRow('Transit back', a.avg_transit_back_min)}
+      </div>
+
+      {/* Volume + throughput */}
+      <div>
+        <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '.3px', marginBottom: '6px' }}>
+          Volume and throughput
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', padding: '3px 0' }}>
+          <span style={{ color: 'var(--gray-500)' }}>Total m³</span>
+          <span style={{ fontFamily: 'var(--mono)', fontWeight: 500 }}>{a.total_m3 != null ? a.total_m3.toFixed(0) : '-'}</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', padding: '3px 0' }}>
+          <span style={{ color: 'var(--gray-500)' }}>Avg load m³</span>
+          <span style={{ fontFamily: 'var(--mono)', fontWeight: 500 }}>{a.avg_load_m3 != null ? a.avg_load_m3.toFixed(1) : '-'}</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', padding: '3px 0' }}>
+          <span style={{ color: 'var(--gray-500)' }}>Trips / truck / day</span>
+          <span style={{ fontFamily: 'var(--mono)', fontWeight: 500 }}>{a.avg_trips_per_truck_per_day != null ? a.avg_trips_per_truck_per_day.toFixed(1) : '-'}</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', padding: '3px 0' }}>
+          <span style={{ color: 'var(--gray-500)' }}>m³ / truck / day</span>
+          <span style={{ fontFamily: 'var(--mono)', fontWeight: 500 }}>{a.avg_m3_per_truck_per_day != null ? a.avg_m3_per_truck_per_day.toFixed(1) : '-'}</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', padding: '3px 0' }}>
+          <span style={{ color: 'var(--gray-500)' }}>Unique drivers</span>
+          <span style={{ fontFamily: 'var(--mono)', fontWeight: 500 }}>{a.unique_drivers}</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', padding: '3px 0' }}>
+          <span style={{ color: 'var(--gray-500)' }}>Unique sites</span>
+          <span style={{ fontFamily: 'var(--mono)', fontWeight: 500 }}>{a.unique_sites}</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', padding: '3px 0' }}>
+          <span style={{ color: 'var(--gray-500)' }}>Days with trips</span>
+          <span style={{ fontFamily: 'var(--mono)', fontWeight: 500 }}>{a.days_with_trips}</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', padding: '3px 0' }}>
+          <span style={{ color: 'var(--gray-500)' }}>Partial trips</span>
+          <span style={{ fontFamily: 'var(--mono)', fontWeight: 500 }}>{a.partial_trip_count}</span>
+        </div>
+      </div>
+
+      {/* Quality */}
+      <div>
+        <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '.3px', marginBottom: '6px' }}>
+          Quality
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', padding: '3px 0' }}>
+          <span style={{ color: 'var(--gray-500)' }}>Rejects (plant side)</span>
+          <span style={{ fontFamily: 'var(--mono)', fontWeight: 500 }}>{a.reject_plant_side_count}</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', padding: '3px 0' }}>
+          <span style={{ color: 'var(--gray-500)' }}>Rejects (customer side)</span>
+          <span style={{ fontFamily: 'var(--mono)', fontWeight: 500 }}>{a.reject_customer_side_count}</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', padding: '3px 0' }}>
+          <span style={{ color: 'var(--gray-500)' }}>Slump tested</span>
+          <span style={{ fontFamily: 'var(--mono)', fontWeight: 500 }}>{a.slump_tested_count}</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', padding: '3px 0' }}>
+          <span style={{ color: 'var(--gray-500)' }}>Slump pass %</span>
+          <span style={{ fontFamily: 'var(--mono)', fontWeight: 500 }}>{a.slump_pass_pct != null ? `${a.slump_pass_pct.toFixed(0)}%` : '-'}</span>
+        </div>
+
+        {Object.keys(a.reject_cause_breakdown).length > 0 && (
+          <div style={{ marginTop: '10px' }}>
+            {breakdownList('Reject causes', a.reject_cause_breakdown)}
+          </div>
+        )}
+      </div>
+
+      {/* Breakdowns (origin plant, site type) */}
+      {(Object.keys(a.origin_plant_breakdown).length > 0 || Object.keys(a.site_type_breakdown).length > 0) && (
+        <div>
+          {breakdownList('Origin plant', a.origin_plant_breakdown)}
+          {Object.keys(a.origin_plant_breakdown).length > 0 && Object.keys(a.site_type_breakdown).length > 0 && <div style={{ height: '10px' }} />}
+          {breakdownList('Site type', a.site_type_breakdown)}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Progress View (admin) ──────────────────────────────────────────────────
 
-function ProgressView({ assessmentId, config, entries, dailyEntries, onEntryLogged, coeffDispatch, viewOnly, isDemo }: {
+function ProgressView({ assessmentId, config, entries, aggregates, dailyEntries, onEntryLogged, coeffDispatch, viewOnly, isDemo }: {
   assessmentId: string
   config: TrackingConfig
   entries: TrackingEntry[]
+  aggregates: WeeklyAggregate[]
   dailyEntries: DailyEntry[]
   onEntryLogged: () => void
   coeffDispatch: number
@@ -1323,6 +1675,10 @@ function ProgressView({ assessmentId, config, entries, dailyEntries, onEntryLogg
           />
         )}
       </div>
+
+      {/* Weekly field log aggregates - stage breakdown, volumes,
+          throughput, quality breakdown. All derived from daily_logs. */}
+      <WeeklyFieldLogAggregates aggregates={aggregates} currentWeek={currentWeek} />
 
       {/* Interventions timeline (read-only, managed from Log tab) */}
       <InterventionsList assessmentId={assessmentId} />
@@ -1469,6 +1825,7 @@ export default function TrackingTab(props: TrackingProps) {
   const supabase = createClient()
   const [config, setConfig] = useState<TrackingConfig | null | undefined>(undefined)
   const [entries, setEntries] = useState<TrackingEntry[]>([])
+  const [aggregates, setAggregates] = useState<WeeklyAggregate[]>([])
   const [dailyEntries, setDailyEntries] = useState<DailyEntry[]>([])
   const isDemo = assessmentId === 'demo'
 
@@ -1542,7 +1899,11 @@ export default function TrackingTab(props: TrackingProps) {
     setConfig(cfg ?? null)
 
     if (cfg) {
-      const [{ data: ents }, { data: dailyData }] = await Promise.all([
+      // Fetch three sources in parallel:
+      //   1. Manual weekly entries (tracking_entries) - legacy flow
+      //   2. Manual daily entries (daily_entries) - for DailyOpsChart
+      //   3. Aggregated daily_logs via RPC - auto-synthesised weekly KPIs
+      const [{ data: ents }, { data: dailyData }, { data: aggData }] = await Promise.all([
         supabase
           .from('tracking_entries')
           .select('*')
@@ -1554,8 +1915,13 @@ export default function TrackingTab(props: TrackingProps) {
           .eq('config_id', cfg.id)
           .order('logged_date', { ascending: false })
           .limit(60),
+        supabase.rpc('get_weekly_kpis_from_daily_logs', { p_assessment_id: assessmentId }),
       ])
-      setEntries(ents ?? [])
+      const manualEntries = (ents ?? []) as TrackingEntry[]
+      const aggregates = (aggData ?? []) as WeeklyAggregate[]
+      // Manual entries win; auto entries fill gaps where daily_logs had enough data
+      setEntries(mergeEntries(manualEntries, aggregates, cfg.id))
+      setAggregates(aggregates)
       setDailyEntries(dailyData ?? [])
     }
   }, [assessmentId, isDemo, supabase, baselineTurnaround, baselineRejectPct, baselineDispatchMin, targetTA, coeffTurnaround, coeffDispatch, baselineMonthlyLoss])
@@ -1604,7 +1970,7 @@ export default function TrackingTab(props: TrackingProps) {
         {segControl}
         <ProgressView
           assessmentId={assessmentId}
-          config={config} entries={entries} dailyEntries={dailyEntries}
+          config={config} entries={entries} aggregates={aggregates} dailyEntries={dailyEntries}
           onEntryLogged={fetchData} coeffDispatch={coeffDispatch}
           viewOnly={viewOnly} isDemo={isDemo}
         />
