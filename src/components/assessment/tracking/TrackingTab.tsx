@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import {
-  LineChart, Line, ComposedChart, Bar,
+  LineChart, Line, ComposedChart, Bar, ReferenceLine,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts'
 import { useIsMobile } from '@/hooks/useIsMobile'
@@ -99,6 +99,60 @@ function progressPct(baseline: number | null, latest: number | null, target: num
   if (baseline == null || latest == null || target == null) return 0
   if (baseline <= target) return 100
   return Math.min(100, Math.max(0, Math.round((baseline - latest) / (baseline - target) * 100)))
+}
+
+// ── Intervention helpers ───────────────────────────────────────────────────
+export interface InterventionMarker {
+  id: string
+  title: string
+  date: string
+  targetMetric: string | null
+  week: number  // 0 if before tracking started, else 1-13
+}
+
+/** Convert an intervention's intervention_date to a week number based on
+ *  the tracking_config's started_at. Returns 0 if before tracking start. */
+function interventionToWeek(interventionDate: string, trackingStartedAt: string): number {
+  const diffMs = new Date(interventionDate).getTime() - new Date(trackingStartedAt).getTime()
+  const days = Math.floor(diffMs / 86_400_000)
+  if (days < 0) return 0
+  return Math.min(13, Math.max(1, Math.ceil((days + 1) / 7)))
+}
+
+/** React hook that loads intervention markers for a given assessment,
+ *  mapped to week numbers relative to tracking start. Returns empty
+ *  in demo mode or before tracking has started. */
+function useInterventionMarkers(
+  assessmentId: string,
+  trackingStartedAt: string,
+  isDemo: boolean,
+): InterventionMarker[] {
+  const [markers, setMarkers] = useState<InterventionMarker[]>([])
+  useEffect(() => {
+    if (isDemo) return
+    const supabase = createClient()
+    supabase
+      .from('intervention_logs')
+      .select('id, title, intervention_date, target_metric')
+      .eq('assessment_id', assessmentId)
+      .order('intervention_date', { ascending: true })
+      .then(({ data }) => {
+        const rows = (data ?? []) as Array<{
+          id: string
+          title: string
+          intervention_date: string
+          target_metric: string | null
+        }>
+        setMarkers(rows.map(r => ({
+          id: r.id,
+          title: r.title,
+          date: r.intervention_date,
+          targetMetric: r.target_metric,
+          week: interventionToWeek(r.intervention_date, trackingStartedAt),
+        })))
+      })
+  }, [assessmentId, trackingStartedAt, isDemo])
+  return markers
 }
 
 function calcMonthlyRecovery(entry: TrackingEntry, cfg: TrackingConfig, coeffDispatch: number): number {
@@ -344,10 +398,18 @@ function MonthlyMilestones({ config, entries, coeffDispatch }: {
 
 // ── ImpactChart (Section B) ────────────────────────────────────────────────
 
-function ImpactChart({ config, entries }: { config: TrackingConfig; entries: TrackingEntry[] }) {
+function ImpactChart({ config, entries, interventions = [] }: {
+  config: TrackingConfig
+  entries: TrackingEntry[]
+  interventions?: InterventionMarker[]
+}) {
   const [mounted, setMounted] = useState(false)
   const [metric, setMetric] = useState<'turnaround' | 'dispatch'>('turnaround')
   useEffect(() => setMounted(true), [])
+
+  // Filter interventions: show all, but highlight ones targeting the active
+  // metric. Dimmed markers for unrelated interventions.
+  const activeMetricKey = metric === 'turnaround' ? 'tat' : 'dispatch'
 
   const showDispatch = config.baseline_dispatch_min != null && config.target_dispatch_min != null
 
@@ -429,6 +491,26 @@ function ImpactChart({ config, entries }: { config: TrackingConfig; entries: Tra
             <Line dataKey="baseline" stroke="#C0392B" strokeDasharray="5 4" dot={false} strokeWidth={1.5} name="baseline" connectNulls />
             <Line dataKey="predicted" stroke="#b0b0b0" strokeDasharray="5 4" dot={false} strokeWidth={1.5} name="predicted" connectNulls />
             <Line dataKey="actual" stroke="#0F6E56" strokeWidth={2.5} dot={{ r: 3.5, fill: '#0F6E56', strokeWidth: 0 }} connectNulls={false} name="actual" />
+            {/* Intervention markers. Active-metric markers are solid orange,
+                others are dim gray so focus stays on relevant changes. */}
+            {interventions.map(iv => {
+              const isRelevant = !iv.targetMetric || iv.targetMetric === activeMetricKey
+              return (
+                <ReferenceLine
+                  key={iv.id}
+                  x={iv.week}
+                  stroke={isRelevant ? '#E67E22' : '#cccccc'}
+                  strokeDasharray="3 3"
+                  strokeWidth={isRelevant ? 2 : 1}
+                  label={{
+                    value: isRelevant ? `⚙ ${iv.title.slice(0, 24)}${iv.title.length > 24 ? '…' : ''}` : '',
+                    position: 'top',
+                    fill: '#E67E22',
+                    fontSize: 10,
+                  }}
+                />
+              )
+            })}
           </LineChart>
         </ResponsiveContainer>
       ) : (
@@ -1183,6 +1265,9 @@ function ProgressView({ assessmentId, config, entries, dailyEntries, onEntryLogg
   const canExport = config.consent_case_study && entries.length >= 8
   const isComplete = currentWeek >= 13
 
+  // Load intervention markers to overlay on the chart
+  const interventions = useInterventionMarkers(assessmentId, config.started_at, isDemo ?? false)
+
   return (
     <div style={{ padding: '24px', maxWidth: '760px', margin: '0 auto' }}>
       {/* Program Complete banner, shown at week 13+ */}
@@ -1214,8 +1299,8 @@ function ProgressView({ assessmentId, config, entries, dailyEntries, onEntryLogg
       {/* A2: Monthly milestones */}
       <MonthlyMilestones config={config} entries={entries} coeffDispatch={coeffDispatch} />
 
-      {/* B: Chart */}
-      <ImpactChart config={config} entries={entries} />
+      {/* B: Chart with intervention overlays */}
+      <ImpactChart config={config} entries={entries} interventions={interventions} />
 
       {/* C: KPI Cards */}
       <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '16px' }}>

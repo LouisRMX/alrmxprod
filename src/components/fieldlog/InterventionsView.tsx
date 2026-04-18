@@ -337,6 +337,87 @@ function InterventionForm({ assessmentId, plantId, existing, onSaved, onCancel }
   )
 }
 
+// ── Before/After impact calculation ───────────────────────────────────────
+
+export interface WeeklyKpiEntry {
+  week_number: number
+  turnaround_min: number | null
+  dispatch_min: number | null
+  reject_pct: number | null
+  logged_at: string
+}
+
+interface BeforeAfter {
+  before: number | null
+  after: number | null
+  delta: number | null
+  deltaPct: number | null
+  direction: 'improved' | 'worsened' | 'flat' | 'insufficient'
+  metricLabel: string
+  unit: string
+  weeksAfter: number
+}
+
+/** Compute before/after delta for a given intervention by comparing
+ *  weekly entries on either side of the intervention_date. Uses up to 3
+ *  weeks of data on each side. Direction is "improved" when the metric
+ *  moves toward zero (lower is better for TAT, dispatch, reject_pct). */
+function computeBeforeAfter(
+  intervention: InterventionRow,
+  entries: WeeklyKpiEntry[],
+  trackingStartedAt: string | null,
+): BeforeAfter {
+  const metric = intervention.target_metric
+  const key: keyof WeeklyKpiEntry | null =
+    metric === 'tat' ? 'turnaround_min'
+    : metric === 'dispatch' ? 'dispatch_min'
+    : metric === 'reject_pct' ? 'reject_pct'
+    : null
+
+  const unit = metric === 'reject_pct' ? '%' : 'min'
+  const label = labelForMetric(metric)
+
+  if (!key || entries.length === 0 || !trackingStartedAt) {
+    return { before: null, after: null, delta: null, deltaPct: null, direction: 'insufficient', metricLabel: label, unit, weeksAfter: 0 }
+  }
+
+  // Map intervention_date to a week number via tracking start
+  const interventionMs = new Date(intervention.intervention_date).getTime()
+  const startMs = new Date(trackingStartedAt).getTime()
+  const interventionWeek = Math.max(1, Math.ceil((interventionMs - startMs) / 86_400_000 / 7))
+
+  const toNum = (v: WeeklyKpiEntry[typeof key]): number | null =>
+    typeof v === 'number' ? v : null
+
+  const beforeValues = entries
+    .filter(e => e.week_number < interventionWeek && e.week_number >= interventionWeek - 3)
+    .map(e => toNum(e[key]))
+    .filter((v): v is number => v !== null)
+
+  const afterValues = entries
+    .filter(e => e.week_number >= interventionWeek && e.week_number <= interventionWeek + 3)
+    .map(e => toNum(e[key]))
+    .filter((v): v is number => v !== null)
+
+  if (beforeValues.length === 0 || afterValues.length === 0) {
+    return { before: null, after: null, delta: null, deltaPct: null, direction: 'insufficient', metricLabel: label, unit, weeksAfter: afterValues.length }
+  }
+
+  const before = beforeValues.reduce((a, b) => a + b, 0) / beforeValues.length
+  const after = afterValues.reduce((a, b) => a + b, 0) / afterValues.length
+  const delta = after - before
+  const deltaPct = before > 0 ? (delta / before) * 100 : null
+
+  // Lower = better for all supported metrics (tat, dispatch, reject_pct).
+  const threshold = 1  // min absolute change to avoid noise
+  const direction: BeforeAfter['direction'] =
+    Math.abs(delta) < threshold ? 'flat'
+    : delta < 0 ? 'improved'
+    : 'worsened'
+
+  return { before, after, delta, deltaPct, direction, metricLabel: label, unit, weeksAfter: afterValues.length }
+}
+
 // ── Read-only list for Track dashboard ───────────────────────────────────
 
 interface InterventionsListProps {
@@ -346,17 +427,38 @@ interface InterventionsListProps {
 export function InterventionsList({ assessmentId }: InterventionsListProps) {
   const supabase = createClient()
   const [rows, setRows] = useState<InterventionRow[]>([])
+  const [entries, setEntries] = useState<WeeklyKpiEntry[]>([])
+  const [trackingStartedAt, setTrackingStartedAt] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     async function load() {
-      const { data } = await supabase
+      // Load interventions
+      const { data: iv } = await supabase
         .from('intervention_logs')
         .select('id, assessment_id, plant_id, intervention_date, title, description, target_metric, implemented_by, created_at')
         .eq('assessment_id', assessmentId)
         .order('intervention_date', { ascending: false })
         .limit(20)
-      setRows((data ?? []) as InterventionRow[])
+      setRows((iv ?? []) as InterventionRow[])
+
+      // Load weekly KPI entries for before/after math
+      const { data: cfg } = await supabase
+        .from('tracking_configs')
+        .select('id, started_at')
+        .eq('assessment_id', assessmentId)
+        .maybeSingle()
+
+      if (cfg) {
+        setTrackingStartedAt((cfg as { started_at: string }).started_at)
+        const { data: en } = await supabase
+          .from('tracking_entries')
+          .select('week_number, turnaround_min, dispatch_min, reject_pct, logged_at')
+          .eq('config_id', (cfg as { id: string }).id)
+          .order('week_number', { ascending: true })
+        setEntries((en ?? []) as WeeklyKpiEntry[])
+      }
+
       setLoading(false)
     }
     load()
@@ -378,46 +480,131 @@ export function InterventionsList({ assessmentId }: InterventionsListProps) {
   return (
     <div style={{ marginTop: '16px' }}>
       <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: '8px' }}>
-        Interventions
+        Interventions &amp; impact
       </div>
       <div style={{
         background: 'var(--white)', border: '1px solid var(--border)',
         borderRadius: '10px', overflow: 'hidden',
       }}>
-        {rows.map((row, i) => (
-          <div key={row.id} style={{
-            padding: '12px 14px',
-            borderBottom: i < rows.length - 1 ? '1px solid var(--border)' : 'none',
-            display: 'flex', justifyContent: 'space-between', alignItems: 'start',
-            gap: '12px', flexWrap: 'wrap',
-          }}>
-            <div style={{ flex: '1 1 200px', minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '2px' }}>
-                <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--gray-900)' }}>
-                  {row.title}
-                </span>
-                {row.target_metric && (
-                  <span style={{
-                    padding: '2px 8px', background: 'var(--green-light, #E1F5EE)',
-                    color: 'var(--green)', borderRadius: '4px', fontSize: '10px',
-                    fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.3px',
-                  }}>
-                    {labelForMetric(row.target_metric)}
-                  </span>
-                )}
-              </div>
-              {row.description && (
-                <div style={{ fontSize: '12px', color: 'var(--gray-600)', marginTop: '4px', lineHeight: 1.4 }}>
-                  {row.description}
+        {rows.map((row, i) => {
+          const impact = computeBeforeAfter(row, entries, trackingStartedAt)
+          return (
+            <div key={row.id} style={{
+              padding: '14px',
+              borderBottom: i < rows.length - 1 ? '1px solid var(--border)' : 'none',
+            }}>
+              <div style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'start',
+                gap: '12px', flexWrap: 'wrap',
+              }}>
+                <div style={{ flex: '1 1 200px', minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '2px' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--gray-900)' }}>
+                      {row.title}
+                    </span>
+                    {row.target_metric && (
+                      <span style={{
+                        padding: '2px 8px', background: '#E1F5EE',
+                        color: '#0F6E56', borderRadius: '4px', fontSize: '10px',
+                        fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.3px',
+                      }}>
+                        {labelForMetric(row.target_metric)}
+                      </span>
+                    )}
+                  </div>
+                  {row.description && (
+                    <div style={{ fontSize: '12px', color: 'var(--gray-600)', marginTop: '4px', lineHeight: 1.4 }}>
+                      {row.description}
+                    </div>
+                  )}
                 </div>
-              )}
+                <div style={{ fontSize: '11px', color: 'var(--gray-400)', fontFamily: 'var(--mono)', textAlign: 'right', flexShrink: 0 }}>
+                  {new Date(row.intervention_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                  {row.implemented_by && <div style={{ marginTop: '2px' }}>{row.implemented_by}</div>}
+                </div>
+              </div>
+
+              {/* Impact strip: before vs after */}
+              <ImpactStrip impact={impact} />
             </div>
-            <div style={{ fontSize: '11px', color: 'var(--gray-400)', fontFamily: 'var(--mono)', textAlign: 'right', flexShrink: 0 }}>
-              {new Date(row.intervention_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-              {row.implemented_by && <div style={{ marginTop: '2px' }}>{row.implemented_by}</div>}
-            </div>
-          </div>
-        ))}
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ── Impact strip (before / after / delta) ────────────────────────────────
+function ImpactStrip({ impact }: { impact: BeforeAfter }) {
+  if (impact.direction === 'insufficient') {
+    return (
+      <div style={{
+        marginTop: '10px', padding: '8px 12px', background: '#fafafa',
+        border: '1px dashed #e0e0e0', borderRadius: '6px',
+        fontSize: '11px', color: '#888',
+      }}>
+        {impact.weeksAfter === 0
+          ? 'Waiting for post-intervention data to assess impact.'
+          : 'Not enough weekly data yet to compute impact.'}
+      </div>
+    )
+  }
+
+  const color = impact.direction === 'improved' ? '#0F6E56'
+    : impact.direction === 'worsened' ? '#C0392B'
+    : '#B7950B'
+  const bg = impact.direction === 'improved' ? '#E1F5EE'
+    : impact.direction === 'worsened' ? '#FDEDEC'
+    : '#FEF9E7'
+  const border = impact.direction === 'improved' ? '#A8D9C5'
+    : impact.direction === 'worsened' ? '#E8A39B'
+    : '#F1D79A'
+  const arrow = impact.direction === 'improved' ? '▼'
+    : impact.direction === 'worsened' ? '▲'
+    : '■'
+  const verb = impact.direction === 'improved' ? 'improved'
+    : impact.direction === 'worsened' ? 'worsened'
+    : 'unchanged'
+
+  const before = impact.before != null ? `${impact.before.toFixed(1)}${impact.unit}` : '-'
+  const after = impact.after != null ? `${impact.after.toFixed(1)}${impact.unit}` : '-'
+  const delta = impact.delta != null
+    ? `${impact.delta > 0 ? '+' : ''}${impact.delta.toFixed(1)}${impact.unit}`
+    : '-'
+  const deltaPct = impact.deltaPct != null
+    ? ` (${impact.deltaPct > 0 ? '+' : ''}${impact.deltaPct.toFixed(0)}%)`
+    : ''
+
+  return (
+    <div style={{
+      marginTop: '10px', padding: '10px 12px', background: bg,
+      border: `1px solid ${border}`, borderRadius: '8px',
+      display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap',
+      fontSize: '12px',
+    }}>
+      <div>
+        <div style={{ fontSize: '9px', color: '#888', fontWeight: 700, letterSpacing: '.3px', textTransform: 'uppercase' }}>
+          Before (3w avg)
+        </div>
+        <div style={{ fontFamily: 'var(--mono)', fontWeight: 600, color: '#333' }}>{before}</div>
+      </div>
+      <div style={{ color: '#888' }}>→</div>
+      <div>
+        <div style={{ fontSize: '9px', color: '#888', fontWeight: 700, letterSpacing: '.3px', textTransform: 'uppercase' }}>
+          After (3w avg)
+        </div>
+        <div style={{ fontFamily: 'var(--mono)', fontWeight: 600, color: '#333' }}>{after}</div>
+      </div>
+      <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <span style={{ color, fontSize: '11px', fontWeight: 700 }}>{arrow}</span>
+        <span style={{
+          color, fontFamily: 'var(--mono)', fontWeight: 700, fontSize: '13px',
+        }}>
+          {delta}{deltaPct}
+        </span>
+        <span style={{ color: '#888', fontSize: '11px', fontStyle: 'italic' }}>
+          {impact.metricLabel} {verb}
+        </span>
       </div>
     </div>
   )
