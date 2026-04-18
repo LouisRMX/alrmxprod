@@ -212,49 +212,54 @@ export default function FieldLogDiagnostics({ assessmentId, reportedTAT, targetT
         </div>
       )}
 
-      {/* Stage summary table */}
+      {/* Stage summary table. Horizontal scroll on narrow screens to keep
+          all 6 columns readable without squashing. */}
       <SectionHeader title="Stage summary" />
       <div style={{ background: '#fff', border: '1px solid #e5e5e5', borderRadius: '10px', overflow: 'hidden', marginBottom: '18px' }}>
-        <div style={{
-          display: 'grid', gridTemplateColumns: '1.2fr 0.8fr 0.8fr 0.8fr 0.8fr 0.8fr',
-          fontSize: '11px', fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: '.3px',
-          padding: '10px 14px', background: '#f9fafb', borderBottom: '1px solid #e5e5e5',
-        }}>
-          <div>Stage</div>
-          <div style={{ textAlign: 'right' }}>Median</div>
-          <div style={{ textAlign: 'right' }}>P25</div>
-          <div style={{ textAlign: 'right' }}>P75</div>
-          <div style={{ textAlign: 'right' }}>n</div>
-          <div style={{ textAlign: 'right' }}>% of TAT</div>
-        </div>
-        {stageSummaries.map(s => (
-          <div key={s.stage} style={{
-            display: 'grid', gridTemplateColumns: '1.2fr 0.8fr 0.8fr 0.8fr 0.8fr 0.8fr',
-            fontSize: '13px', padding: '10px 14px',
-            borderBottom: '1px solid #f5f5f5',
-            fontFamily: 'ui-monospace, SF Mono, Menlo, monospace',
-          }}>
-            <div style={{ fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div style={{ width: '10px', height: '10px', borderRadius: '2px', background: STAGE_COLORS[s.stage] }} />
-              <span style={{ color: '#333' }}>{formatStageName(s.stage)}</span>
+        <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' as React.CSSProperties['WebkitOverflowScrolling'] }}>
+          <div style={{ minWidth: '520px' }}>
+            <div style={{
+              display: 'grid', gridTemplateColumns: '1.2fr 0.8fr 0.8fr 0.8fr 0.8fr 0.8fr',
+              fontSize: '11px', fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: '.3px',
+              padding: '10px 14px', background: '#f9fafb', borderBottom: '1px solid #e5e5e5',
+            }}>
+              <div>Stage</div>
+              <div style={{ textAlign: 'right' }}>Median</div>
+              <div style={{ textAlign: 'right' }}>P25</div>
+              <div style={{ textAlign: 'right' }}>P75</div>
+              <div style={{ textAlign: 'right' }}>n</div>
+              <div style={{ textAlign: 'right' }}>% of TAT</div>
             </div>
-            <div style={{ textAlign: 'right', color: '#1a1a1a', fontWeight: 600 }}>{s.median?.toFixed(1) ?? '—'}</div>
-            <div style={{ textAlign: 'right', color: '#888' }}>{s.p25?.toFixed(1) ?? '—'}</div>
-            <div style={{ textAlign: 'right', color: '#888' }}>{s.p75?.toFixed(1) ?? '—'}</div>
-            <div style={{ textAlign: 'right', color: '#888' }}>{s.count}</div>
-            <div style={{ textAlign: 'right', color: s.shareOfTotalPct !== null && s.shareOfTotalPct >= 25 ? '#C0392B' : '#666', fontWeight: s.shareOfTotalPct !== null && s.shareOfTotalPct >= 25 ? 600 : 400 }}>
-              {s.shareOfTotalPct !== null ? `${s.shareOfTotalPct}%` : '—'}
+            {stageSummaries.map(s => (
+              <div key={s.stage} style={{
+                display: 'grid', gridTemplateColumns: '1.2fr 0.8fr 0.8fr 0.8fr 0.8fr 0.8fr',
+                fontSize: '13px', padding: '10px 14px',
+                borderBottom: '1px solid #f5f5f5',
+                fontFamily: 'ui-monospace, SF Mono, Menlo, monospace',
+              }}>
+                <div style={{ fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ width: '10px', height: '10px', borderRadius: '2px', background: STAGE_COLORS[s.stage], flexShrink: 0 }} />
+                  <span style={{ color: '#333' }}>{formatStageName(s.stage)}</span>
+                </div>
+                <div style={{ textAlign: 'right', color: '#1a1a1a', fontWeight: 600 }}>{s.median?.toFixed(1) ?? '—'}</div>
+                <div style={{ textAlign: 'right', color: '#888' }}>{s.p25?.toFixed(1) ?? '—'}</div>
+                <div style={{ textAlign: 'right', color: '#888' }}>{s.p75?.toFixed(1) ?? '—'}</div>
+                <div style={{ textAlign: 'right', color: '#888' }}>{s.count}</div>
+                <div style={{ textAlign: 'right', color: s.shareOfTotalPct !== null && s.shareOfTotalPct >= 25 ? '#C0392B' : '#666', fontWeight: s.shareOfTotalPct !== null && s.shareOfTotalPct >= 25 ? 600 : 400 }}>
+                  {s.shareOfTotalPct !== null ? `${s.shareOfTotalPct}%` : '—'}
+                </div>
+              </div>
+            ))}
+            <div style={{
+              display: 'grid', gridTemplateColumns: '1.2fr 0.8fr 0.8fr 0.8fr 0.8fr 0.8fr',
+              fontSize: '13px', padding: '10px 14px', background: '#f9fafb',
+              fontFamily: 'ui-monospace, SF Mono, Menlo, monospace', fontWeight: 700,
+            }}>
+              <div style={{ fontFamily: 'inherit' }}>Total TAT (median)</div>
+              <div style={{ textAlign: 'right', color: '#0F6E56' }}>{totalStageMedian > 0 ? totalStageMedian.toFixed(1) : '—'}</div>
+              <div style={{ gridColumn: 'span 4' }} />
             </div>
           </div>
-        ))}
-        <div style={{
-          display: 'grid', gridTemplateColumns: '1.2fr 0.8fr 0.8fr 0.8fr 0.8fr 0.8fr',
-          fontSize: '13px', padding: '10px 14px', background: '#f9fafb',
-          fontFamily: 'ui-monospace, SF Mono, Menlo, monospace', fontWeight: 700,
-        }}>
-          <div style={{ fontFamily: 'inherit' }}>Total TAT (median)</div>
-          <div style={{ textAlign: 'right', color: '#0F6E56' }}>{totalStageMedian > 0 ? totalStageMedian.toFixed(1) : '—'}</div>
-          <div style={{ gridColumn: 'span 4' }} />
         </div>
       </div>
 

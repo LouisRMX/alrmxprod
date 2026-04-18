@@ -52,8 +52,11 @@ export default function TripTable({ trips, isAdmin, onDelete }: TripTableProps) 
   }
 
   return (
-    <div style={{ overflowX: 'auto' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+    <div style={{
+      overflowX: 'auto',
+      WebkitOverflowScrolling: 'touch' as React.CSSProperties['WebkitOverflowScrolling'],
+    }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '640px' }}>
         <thead>
           <tr>
             <th style={th}>#</th>

@@ -190,16 +190,27 @@ export default function FloatingChat({ userRole, isAdmin }: FloatingChatProps) {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 9999 }}>
+    <div
+      className="floating-chat-root"
+      style={{
+        position: 'fixed',
+        bottom: 'calc(24px + env(safe-area-inset-bottom, 0px))',
+        right: '16px',
+        zIndex: 9999,
+      }}
+    >
 
-      {/* Expanded panel */}
+      {/* Expanded panel. On mobile the viewport is narrower than the
+          380px design, so we clamp to min(380px, 92vw) and let the panel
+          shrink gracefully. Height also uses min() so it doesn't exceed
+          the viewport minus the tab bar. */}
       {open && (
         <div style={{
           position: 'absolute',
           bottom: 'calc(52px + 12px)',
           right: 0,
-          width: '380px',
-          height: '520px',
+          width: 'min(380px, calc(100vw - 24px))',
+          height: 'min(520px, calc(100vh - 160px))',
           background: 'var(--white)',
           border: '1px solid var(--border)',
           borderRadius: '16px',

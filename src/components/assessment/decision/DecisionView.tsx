@@ -391,7 +391,7 @@ export default function DecisionView({ calcResult, answers, meta, phase, savedDi
 
               {/* TAT breakdown if available */}
               {tatComponents && (
-                <div style={{ marginTop: '16px', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+                <div style={{ marginTop: '16px', display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: '8px' }}>
                   {tatComponents.map(c => {
                     const excess = Math.max(0, c.actual - c.benchmark)
                     const isPrim = c === primaryComponent && excess > 0

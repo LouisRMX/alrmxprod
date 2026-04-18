@@ -31,7 +31,10 @@ export default function SectionView({ sectionIndex, answers, phase, onAnswer, on
   const isLast = sectionIndex === totalSections - 1
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', paddingBottom: '60px' }}>
+    <div style={{
+      flex: 1, overflowY: 'auto', padding: '16px 20px',
+      paddingBottom: 'calc(60px + env(safe-area-inset-bottom, 0px))',
+    }}>
       {/* Section header */}
       <div style={{ marginBottom: '12px' }}>
         <h2 style={{ fontSize: '16px', fontWeight: 500, marginBottom: '6px' }}>{section.label}</h2>

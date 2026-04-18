@@ -84,11 +84,12 @@ export default async function ReportsPage() {
           {withReports.map(a => (
             <div key={a.id} style={{
               background: 'var(--white)', border: '1px solid var(--border)',
-              borderRadius: 'var(--radius)', padding: '20px',
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+              borderRadius: 'var(--radius)', padding: '16px',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              flexWrap: 'wrap', gap: '12px',
             }}>
-              <div style={{ minWidth: 0, flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+              <div style={{ minWidth: 0, flex: '1 1 240px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
                   <div style={{ fontSize: '15px', fontWeight: '500' }}>
                     {(a.plant as { name: string })?.name}
                   </div>
@@ -115,7 +116,7 @@ export default async function ReportsPage() {
                   </div>
                 )}
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexShrink: 0, marginLeft: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0, flexWrap: 'wrap' }}>
                 {a.overall !== null && (
                   <div style={{ textAlign: 'center' }}>
                     <div style={{ fontSize: '14px', fontWeight: '700', color: a.bottleneck ? '#c96a00' : 'var(--gray-400)' }}>
@@ -124,9 +125,10 @@ export default async function ReportsPage() {
                   </div>
                 )}
                 <Link href={`/dashboard/assess/${a.id}`} style={{
-                  padding: '8px 16px', background: 'var(--green)', color: '#fff',
+                  padding: '10px 16px', background: 'var(--green)', color: '#fff',
                   borderRadius: '8px', fontSize: '13px', fontWeight: '500',
-                  textDecoration: 'none', whiteSpace: 'nowrap'
+                  textDecoration: 'none', whiteSpace: 'nowrap', minHeight: '44px',
+                  display: 'inline-flex', alignItems: 'center',
                 }}>
                   View report →
                 </Link>

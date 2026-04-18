@@ -38,8 +38,11 @@ export default function ParsePreviewTable({ rows, onRowChange, onRowDelete, onAp
       <div style={{ fontSize: '12px', color: '#888', marginBottom: '10px' }}>
         {rows.length} trip{rows.length !== 1 ? 's' : ''} parsed. Review and edit before saving.
       </div>
-      <div style={{ overflowX: 'auto', marginBottom: '12px' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+      <div style={{
+        overflowX: 'auto', marginBottom: '12px',
+        WebkitOverflowScrolling: 'touch' as React.CSSProperties['WebkitOverflowScrolling'],
+      }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', minWidth: '720px' }}>
           <thead>
             <tr>
               <th style={th}>#</th>

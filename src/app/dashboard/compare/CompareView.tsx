@@ -229,9 +229,11 @@ function ActionPanel({ panel, isDemo, onClose }: { panel: PanelState; isDemo?: b
           zIndex: 200, cursor: 'pointer',
         }}
       />
-      {/* Panel */}
+      {/* Panel. On mobile the side panel expands to near-full width so
+          its content doesn't get clipped to 340px on a 390px viewport. */}
       <div style={{
-        position: 'fixed', top: 0, right: 0, bottom: 0, width: '340px',
+        position: 'fixed', top: 0, right: 0, bottom: 0,
+        width: 'min(340px, 92vw)',
         background: 'var(--white)', borderLeft: '1px solid var(--border)',
         zIndex: 201, display: 'flex', flexDirection: 'column',
         boxShadow: '-4px 0 24px rgba(0,0,0,0.1)',

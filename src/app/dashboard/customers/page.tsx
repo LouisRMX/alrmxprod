@@ -49,14 +49,16 @@ export default async function CustomersPage() {
             No customers yet. Add your first customer above.
           </div>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <div style={{ overflowX: 'auto', width: '100%', WebkitOverflowScrolling: 'touch' as React.CSSProperties['WebkitOverflowScrolling'] }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '600px' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--gray-50)' }}>
                 {['Customer', 'Country', 'Contact', 'Plants', ''].map(h => (
                   <th key={h} style={{
                     padding: '10px 16px', fontSize: '11px', fontWeight: '500',
                     color: 'var(--gray-500)', textAlign: 'left',
-                    textTransform: 'uppercase', letterSpacing: '.4px'
+                    textTransform: 'uppercase', letterSpacing: '.4px',
+                    whiteSpace: 'nowrap',
                   }}>{h}</th>
                 ))}
               </tr>
@@ -64,10 +66,18 @@ export default async function CustomersPage() {
             <tbody>
               {customers.map((c, i) => (
                 <tr key={c.id} style={{ borderBottom: i < customers.length - 1 ? '1px solid var(--border)' : 'none' }}>
-                  <td style={{ padding: '12px 16px' }}>
-                    <div style={{ fontSize: '13px', fontWeight: '500' }}>{c.name}</div>
+                  <td style={{ padding: 0 }}>
+                    <Link href={`/dashboard/customers/${c.id}`} style={{
+                      display: 'block', padding: '12px 16px', color: 'inherit',
+                      textDecoration: 'none', minHeight: '44px',
+                    }}>
+                      <div style={{ fontSize: '13px', fontWeight: '500', color: 'var(--gray-900)' }}>{c.name}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--green)', fontWeight: 500, marginTop: '2px' }}>
+                        Open →
+                      </div>
+                    </Link>
                   </td>
-                  <td style={{ padding: '12px 16px', fontSize: '13px', color: 'var(--gray-500)' }}>{c.country}</td>
+                  <td style={{ padding: '12px 16px', fontSize: '13px', color: 'var(--gray-500)', whiteSpace: 'nowrap' }}>{c.country}</td>
                   <td style={{ padding: '12px 16px' }}>
                     <div style={{ fontSize: '13px', color: 'var(--gray-700)' }}>{c.contact_name || '-'}</div>
                     <div style={{ fontSize: '11px', color: 'var(--gray-400)' }}>{c.contact_email || ''}</div>
@@ -77,7 +87,8 @@ export default async function CustomersPage() {
                   </td>
                   <td style={{ padding: '12px 16px' }}>
                     <Link href={`/dashboard/customers/${c.id}`} style={{
-                      fontSize: '12px', color: 'var(--green)', textDecoration: 'none', fontWeight: '500'
+                      fontSize: '12px', color: 'var(--green)', textDecoration: 'none', fontWeight: '500',
+                      whiteSpace: 'nowrap',
                     }}>
                       Manage →
                     </Link>
@@ -86,6 +97,7 @@ export default async function CustomersPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </div>

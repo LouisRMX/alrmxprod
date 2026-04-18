@@ -927,25 +927,35 @@ function ProgramCompleteView({ config, entries, coeffDispatch }: {
         </div>
       )}
 
-      {/* Before / After table */}
+      {/* Before / After table. Horizontal scroll on narrow viewports so
+          the 4 columns don't squash. */}
       {rows.length > 0 && (
-        <div style={{ background: 'var(--white)', borderRadius: '10px', overflow: 'hidden' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', padding: '8px 16px', background: 'var(--gray-50)', borderBottom: '1px solid var(--border)' }}>
-            {['Metric', 'Before', 'After', 'Change'].map(h => (
-              <div key={h} style={{ fontSize: '10px', fontWeight: 600, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '.4px' }}>{h}</div>
-            ))}
-          </div>
-          {rows.map((row, i) => (
-            <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', padding: '12px 16px', borderBottom: i < rows.length - 1 ? '1px solid var(--border)' : 'none', alignItems: 'center' }}>
-              <div style={{ fontSize: '13px', color: 'var(--gray-700)', fontWeight: 500 }}>{row.label}</div>
-              <div style={{ fontSize: '13px', fontFamily: 'var(--mono)', color: 'var(--gray-400)' }}>{row.before}</div>
-              <div style={{ fontSize: '13px', fontFamily: 'var(--mono)', color: 'var(--gray-900)', fontWeight: 600 }}>
-                {row.after}
-                {row.hit && <span style={{ marginLeft: '5px', fontSize: '10px', color: 'var(--phase-complete)' }}>✓</span>}
+        <div style={{
+          background: 'var(--white)', borderRadius: '10px', overflow: 'hidden',
+        }}>
+          <div style={{
+            overflowX: 'auto',
+            WebkitOverflowScrolling: 'touch' as React.CSSProperties['WebkitOverflowScrolling'],
+          }}>
+            <div style={{ minWidth: isMobile ? '440px' : 'auto' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', padding: '8px 16px', background: 'var(--gray-50)', borderBottom: '1px solid var(--border)' }}>
+                {['Metric', 'Before', 'After', 'Change'].map(h => (
+                  <div key={h} style={{ fontSize: '10px', fontWeight: 600, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '.4px' }}>{h}</div>
+                ))}
               </div>
-              <div style={{ fontSize: '12px', fontWeight: 700, color: row.delta !== '-' ? 'var(--phase-complete)' : 'var(--gray-300)' }}>{row.delta}</div>
+              {rows.map((row, i) => (
+                <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', padding: '12px 16px', borderBottom: i < rows.length - 1 ? '1px solid var(--border)' : 'none', alignItems: 'center' }}>
+                  <div style={{ fontSize: '13px', color: 'var(--gray-700)', fontWeight: 500 }}>{row.label}</div>
+                  <div style={{ fontSize: '13px', fontFamily: 'var(--mono)', color: 'var(--gray-400)' }}>{row.before}</div>
+                  <div style={{ fontSize: '13px', fontFamily: 'var(--mono)', color: 'var(--gray-900)', fontWeight: 600 }}>
+                    {row.after}
+                    {row.hit && <span style={{ marginLeft: '5px', fontSize: '10px', color: 'var(--phase-complete)' }}>✓</span>}
+                  </div>
+                  <div style={{ fontSize: '12px', fontWeight: 700, color: row.delta !== '-' ? 'var(--phase-complete)' : 'var(--gray-300)' }}>{row.delta}</div>
+                </div>
+              ))}
             </div>
-          ))}
+          </div>
         </div>
       )}
     </div>
