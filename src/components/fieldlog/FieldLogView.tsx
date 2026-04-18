@@ -12,6 +12,8 @@ import FieldCaptureTokenButton from './FieldCaptureTokenButton'
 import FieldLogDiagnostics from './diagnostics/FieldLogDiagnostics'
 import { InterventionsEditor } from './InterventionsView'
 import ReviewQueue from './ReviewQueue'
+import SyncStatusBar from './SyncStatusBar'
+import DailyBriefingExport from './DailyBriefingExport'
 
 type SubTab = 'live' | 'diagnostics' | 'interventions' | 'review' | 'manual' | 'upload' | 'audio'
 
@@ -110,7 +112,11 @@ export default function FieldLogView({ assessmentId, plantId, isAdmin, reportedT
 
   return (
     <div style={{ padding: '16px', maxWidth: '800px' }}>
-      {/* Date picker + token share */}
+      {/* Sync health indicator, always visible at top. Observer/analyst
+          sees live sync state, age of oldest pending trip, retry button. */}
+      <SyncStatusBar assessmentId={assessmentId} />
+
+      {/* Date picker + token share + daily briefing export */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <label style={{ fontSize: '12px', fontWeight: 600, color: '#888' }}>Date</label>
@@ -120,7 +126,10 @@ export default function FieldLogView({ assessmentId, plantId, isAdmin, reportedT
               fontSize: '14px', background: '#fff',
             }} />
         </div>
-        {isAdmin && <FieldCaptureTokenButton assessmentId={assessmentId} plantId={plantId} />}
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          {isAdmin && <DailyBriefingExport assessmentId={assessmentId} />}
+          {isAdmin && <FieldCaptureTokenButton assessmentId={assessmentId} plantId={plantId} />}
+        </div>
       </div>
 
       {/* Sub-tabs */}
