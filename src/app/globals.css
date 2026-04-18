@@ -112,6 +112,29 @@ body {
   }
 }
 
+/* ── RTL support for Arabic Log tab ────────────────────────────────────
+   When a parent sets dir="rtl" the browser flips flex and inline layouts
+   automatically, but decorative arrows stay unchanged. These rules flip
+   chevrons and open/close arrows so they point the right way in RTL. */
+[dir="rtl"] .rtl-flip-arrow {
+  display: inline-block;
+  transform: scaleX(-1);
+}
+
+/* Arabic-specific font stack for better rendering of MSA text.
+   DM Sans falls back; Segoe UI Arabic and Geeza Pro are native on
+   Windows and iOS respectively. */
+[dir="rtl"] {
+  font-family: 'DM Sans', 'Segoe UI Arabic', 'Geeza Pro', 'Tahoma', sans-serif;
+}
+
+/* Text inputs in RTL should not auto-align to ltr when content is empty.
+   Browser usually handles this but iOS Safari is inconsistent. */
+[dir="rtl"] input[type="text"],
+[dir="rtl"] textarea {
+  text-align: start;
+}
+
 /* AI report prose — rendered with react-markdown */
 .ai-prose p { margin: 0 0 0.8em 0; }
 .ai-prose p:last-child { margin-bottom: 0; }
