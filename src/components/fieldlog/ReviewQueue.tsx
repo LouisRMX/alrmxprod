@@ -14,6 +14,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useLogT } from '@/lib/i18n/LogLocaleContext'
 
 interface OutlierRow {
   id: string
@@ -50,6 +51,7 @@ interface Props {
 
 export default function ReviewQueue({ assessmentId }: Props) {
   const supabase = createClient()
+  const { t } = useLogT()
   const [rows, setRows] = useState<OutlierRow[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'pending' | 'all'>('pending')
@@ -86,11 +88,10 @@ export default function ReviewQueue({ assessmentId }: Props) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '14px' }}>
         <div>
           <div style={{ fontSize: '14px', fontWeight: 600, color: '#1a1a1a' }}>
-            Review queue
+            {t('reviewq.title')}
           </div>
           <div style={{ fontSize: '12px', color: '#666', marginTop: '2px', lineHeight: 1.4 }}>
-            Trips flagged as outliers are excluded from weekly aggregates until reviewed.
-            Include if the trip is real, Exclude if it&apos;s observer error or one-off breakdown.
+            {t('reviewq.subtitle')}
           </div>
         </div>
         <div style={{ display: 'flex', gap: '4px', background: '#f4f4f4', padding: '3px', borderRadius: '8px' }}>
@@ -108,21 +109,19 @@ export default function ReviewQueue({ assessmentId }: Props) {
                 boxShadow: filter === f ? '0 1px 3px rgba(0,0,0,.1)' : 'none',
               }}
             >
-              {f === 'pending' ? `Pending (${pending.length})` : `All (${rows.length})`}
+              {f === 'pending' ? `${t('reviewq.pending')} (${pending.length})` : `${t('reviewq.all')} (${rows.length})`}
             </button>
           ))}
         </div>
       </div>
 
-      {loading && <div style={{ fontSize: '12px', color: '#888', padding: '10px' }}>Loading...</div>}
+      {loading && <div style={{ fontSize: '12px', color: '#888', padding: '10px' }}>{t('token.loading')}</div>}
       {!loading && visible.length === 0 && (
         <div style={{
           padding: '32px 16px', background: '#fafafa', border: '1px dashed #ddd',
           borderRadius: '10px', textAlign: 'center', color: '#888', fontSize: '13px',
         }}>
-          {filter === 'pending'
-            ? 'No trips awaiting review. Any outlier detected by the system will appear here.'
-            : 'No outliers detected yet.'}
+          {filter === 'pending' ? t('reviewq.empty_pending') : t('reviewq.empty_all')}
         </div>
       )}
 
@@ -138,14 +137,18 @@ function OutlierCard({ row, onAct }: {
   onAct: (id: string, status: 'reviewed_include' | 'reviewed_exclude', note?: string) => Promise<void>
   reviewedCount: number
 }) {
+  const { t } = useLogT()
   const [note, setNote] = useState('')
   const [acting, setActing] = useState<'include' | 'exclude' | null>(null)
 
   const isReviewed = row.review_status === 'reviewed_include' || row.review_status === 'reviewed_exclude'
   const statusLabel = row.review_status === 'reviewed_include'
-    ? 'Included' : row.review_status === 'reviewed_exclude'
-    ? 'Excluded' : row.review_status === 'flagged'
-    ? 'Auto-flagged' : 'Statistical outlier'
+    ? t('reviewq.included')
+    : row.review_status === 'reviewed_exclude'
+    ? t('reviewq.excluded')
+    : row.review_status === 'flagged'
+    ? t('reviewq.auto_flagged')
+    : t('reviewq.statistical_outlier')
   const statusColor = row.review_status === 'reviewed_include'
     ? '#0F6E56' : row.review_status === 'reviewed_exclude'
     ? '#888' : '#B7950B'
@@ -185,7 +188,7 @@ function OutlierCard({ row, onAct }: {
         <div style={{ flex: '1 1 180px', minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '2px' }}>
             <span style={{ fontSize: '13px', fontWeight: 600, color: '#1a1a1a' }}>
-              {row.truck_id ? `Truck ${row.truck_id}` : 'Unknown truck'}
+              {row.truck_id ? `${t('reviewq.truck')} ${row.truck_id}` : t('reviewq.unknown_truck')}
             </span>
             <span style={{
               padding: '2px 8px', background: statusColor + '22',
@@ -197,7 +200,7 @@ function OutlierCard({ row, onAct }: {
           </div>
           <div style={{ fontSize: '11px', color: '#888', fontFamily: 'ui-monospace, SF Mono, Menlo, monospace' }}>
             {new Date(row.log_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-            {' · Week ' + row.week_number}
+            {` · ${t('reviewq.week')} ` + row.week_number}
             {row.measurer_name && ` · ${row.measurer_name}`}
             {row.site_name && ` · ${row.site_name}`}
           </div>
@@ -207,13 +210,13 @@ function OutlierCard({ row, onAct }: {
         </div>
         <div style={{ textAlign: 'right', flexShrink: 0 }}>
           <div style={{ fontSize: '10px', color: '#888', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.3px' }}>
-            Total TAT
+            {t('reviewq.total_tat')}
           </div>
           <div style={{
             fontSize: '20px', fontWeight: 700, fontFamily: 'ui-monospace, SF Mono, Menlo, monospace',
             color: '#C0392B',
           }}>
-            {row.total_tat_min != null ? `${row.total_tat_min.toFixed(0)} min` : '-'}
+            {row.total_tat_min != null ? `${row.total_tat_min.toFixed(0)} ${t('reviewq.min')}` : '-'}
           </div>
         </div>
       </div>
@@ -224,20 +227,20 @@ function OutlierCard({ row, onAct }: {
         marginBottom: isReviewed ? 0 : '12px',
       }}>
         <div style={{ fontSize: '10px', fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: '.3px', marginBottom: '6px' }}>
-          Stage breakdown
+          {t('reviewq.stage_breakdown')}
         </div>
-        {stageBreakdown('Plant queue', row.plant_queue_min)}
-        {stageBreakdown('Loading', row.loading_min)}
-        {stageBreakdown('Transit out', row.transit_out_min)}
-        {stageBreakdown('Site wait', row.site_wait_min)}
-        {stageBreakdown('Pouring', row.pouring_min)}
-        {stageBreakdown('Washout', row.washout_min)}
-        {stageBreakdown('Transit back', row.transit_back_min)}
+        {stageBreakdown(t('stage.plant_queue'), row.plant_queue_min)}
+        {stageBreakdown(t('stage.loading'), row.loading_min)}
+        {stageBreakdown(t('stage.transit_out'), row.transit_out_min)}
+        {stageBreakdown(t('stage.site_wait'), row.site_wait_min)}
+        {stageBreakdown(t('stage.pouring'), row.pouring_min)}
+        {stageBreakdown(t('stage.washout'), row.washout_min)}
+        {stageBreakdown(t('stage.transit_back'), row.transit_back_min)}
       </div>
 
       {row.notes && (
         <div style={{ fontSize: '12px', color: '#555', marginTop: '10px', lineHeight: 1.5 }}>
-          <strong>Observer notes:</strong> {row.notes}
+          <strong>{t('reviewq.observer_notes')}:</strong> {row.notes}
         </div>
       )}
 
@@ -245,13 +248,13 @@ function OutlierCard({ row, onAct }: {
       {!isReviewed && (
         <div style={{ marginTop: '12px' }}>
           <label style={{ fontSize: '11px', color: '#888', fontWeight: 600, display: 'block', marginBottom: '4px' }}>
-            Reason (optional)
+            {t('reviewq.reason_optional')}
           </label>
           <input
             type="text"
             value={note}
             onChange={e => setNote(e.target.value)}
-            placeholder="e.g. Pump truck broke down, waited for replacement"
+            placeholder={t('reviewq.reason_placeholder')}
             style={{
               width: '100%', padding: '8px 10px',
               border: '1px solid #ddd', borderRadius: '8px',
@@ -272,7 +275,7 @@ function OutlierCard({ row, onAct }: {
                 cursor: acting ? 'not-allowed' : 'pointer', minHeight: '44px',
               }}
             >
-              {acting === 'include' ? 'Including...' : 'Include in dataset'}
+              {acting === 'include' ? t('reviewq.including') : t('reviewq.include')}
             </button>
             <button
               type="button"
@@ -286,7 +289,7 @@ function OutlierCard({ row, onAct }: {
                 cursor: acting ? 'not-allowed' : 'pointer', minHeight: '44px',
               }}
             >
-              {acting === 'exclude' ? 'Excluding...' : 'Confirm exclude'}
+              {acting === 'exclude' ? t('reviewq.excluding') : t('reviewq.exclude')}
             </button>
           </div>
         </div>
@@ -294,7 +297,7 @@ function OutlierCard({ row, onAct }: {
 
       {isReviewed && row.review_note && (
         <div style={{ fontSize: '11px', color: '#888', marginTop: '8px', fontStyle: 'italic' }}>
-          Note: {row.review_note}
+          {t('reviewq.note')}: {row.review_note}
         </div>
       )}
     </div>

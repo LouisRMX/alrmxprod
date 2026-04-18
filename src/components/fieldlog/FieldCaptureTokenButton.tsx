@@ -14,6 +14,7 @@
 
 import { useState, useCallback, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useLogT } from '@/lib/i18n/LogLocaleContext'
 
 interface Props {
   assessmentId: string
@@ -39,6 +40,7 @@ function generateTokenString(): string {
 
 export default function FieldCaptureTokenButton({ assessmentId, plantId }: Props) {
   const supabase = createClient()
+  const { t } = useLogT()
   const [open, setOpen] = useState(false)
   const [tokens, setTokens] = useState<Token[]>([])
   const [label, setLabel] = useState('')
@@ -82,7 +84,7 @@ export default function FieldCaptureTokenButton({ assessmentId, plantId }: Props
   }
 
   const revokeToken = async (token: string) => {
-    if (!confirm('Revoke this link? Anyone using it will lose access immediately.')) return
+    if (!confirm(t('token.revoke_confirm'))) return
     const { error } = await supabase
       .from('field_capture_tokens')
       .update({ revoked_at: new Date().toISOString() })
@@ -98,9 +100,9 @@ export default function FieldCaptureTokenButton({ assessmentId, plantId }: Props
     const url = `${appUrl}/fc/${token}`
     try {
       await navigator.clipboard.writeText(url)
-      alert('Link copied to clipboard')
+      alert(t('token.copied'))
     } catch {
-      prompt('Copy this link:', url)
+      prompt(t('token.copy_prompt'), url)
     }
   }
 
@@ -120,7 +122,7 @@ export default function FieldCaptureTokenButton({ assessmentId, plantId }: Props
           cursor: 'pointer',
         }}
       >
-        Share field-capture link
+        {t('token.button')}
       </button>
 
       {open && (
@@ -140,9 +142,9 @@ export default function FieldCaptureTokenButton({ assessmentId, plantId }: Props
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
               <div>
-                <div style={{ fontSize: '16px', fontWeight: 700 }}>Field-capture links</div>
+                <div style={{ fontSize: '16px', fontWeight: 700 }}>{t('token.title')}</div>
                 <div style={{ fontSize: '12px', color: '#666', marginTop: '2px' }}>
-                  Share a URL with your on-site helpers. They can log trips without needing a login.
+                  {t('token.subtitle')}
                 </div>
               </div>
               <button type="button" onClick={() => setOpen(false)} style={{
@@ -156,14 +158,14 @@ export default function FieldCaptureTokenButton({ assessmentId, plantId }: Props
               padding: '12px', marginBottom: '14px',
             }}>
               <div style={{ fontSize: '11px', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: '8px' }}>
-                Generate new link
+                {t('token.generate_title')}
               </div>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 <input
                   type="text"
                   value={label}
                   onChange={e => setLabel(e.target.value)}
-                  placeholder="Label (e.g. Ali, site helper)"
+                  placeholder={t('token.label_placeholder')}
                   style={{ flex: 1, minWidth: '200px', padding: '8px 10px', border: '1px solid #ddd', borderRadius: '6px', fontSize: '13px' }}
                 />
                 <select
@@ -171,12 +173,12 @@ export default function FieldCaptureTokenButton({ assessmentId, plantId }: Props
                   onChange={e => setExpiryDays(+e.target.value)}
                   style={{ padding: '8px 10px', border: '1px solid #ddd', borderRadius: '6px', fontSize: '13px', background: '#fff' }}
                 >
-                  <option value={7}>7 days (onsite week)</option>
-                  <option value={30}>30 days</option>
-                  <option value={60}>60 days</option>
-                  <option value={90}>90 days (tracking)</option>
-                  <option value={120}>120 days</option>
-                  <option value={180}>180 days</option>
+                  <option value={7}>{t('token.days_7')}</option>
+                  <option value={30}>{t('token.days_30')}</option>
+                  <option value={60}>{t('token.days_60')}</option>
+                  <option value={90}>{t('token.days_90')}</option>
+                  <option value={120}>{t('token.days_120')}</option>
+                  <option value={180}>{t('token.days_180')}</option>
                 </select>
                 <button
                   type="button"
@@ -186,7 +188,7 @@ export default function FieldCaptureTokenButton({ assessmentId, plantId }: Props
                     border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: 600, cursor: 'pointer',
                   }}
                 >
-                  Generate
+                  {t('token.generate')}
                 </button>
               </div>
             </div>
@@ -194,12 +196,12 @@ export default function FieldCaptureTokenButton({ assessmentId, plantId }: Props
             {/* Existing list */}
             <div>
               <div style={{ fontSize: '11px', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: '8px' }}>
-                Active links ({tokens.filter(t => !t.revoked_at && new Date(t.expires_at) > new Date()).length})
+                {t('token.active_links')} ({tokens.filter(tk => !tk.revoked_at && new Date(tk.expires_at) > new Date()).length})
               </div>
-              {loading && <div style={{ fontSize: '12px', color: '#888' }}>Loading…</div>}
+              {loading && <div style={{ fontSize: '12px', color: '#888' }}>{t('token.loading')}</div>}
               {!loading && tokens.length === 0 && (
                 <div style={{ fontSize: '12px', color: '#888', padding: '14px', textAlign: 'center', background: '#fafafa', borderRadius: '6px' }}>
-                  No links yet. Create one above.
+                  {t('token.no_links')}
                 </div>
               )}
               {tokens.map(tok => {
@@ -217,15 +219,15 @@ export default function FieldCaptureTokenButton({ assessmentId, plantId }: Props
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: '8px' }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: '13px', fontWeight: 600, color: '#1a1a1a' }}>
-                          {tok.label || <span style={{ color: '#888', fontStyle: 'italic' }}>Unlabeled</span>}
+                          {tok.label || <span style={{ color: '#888', fontStyle: 'italic' }}>{t('token.unlabeled')}</span>}
                         </div>
                         <div style={{ fontSize: '11px', color: '#888', marginTop: '2px', fontFamily: 'ui-monospace, SF Mono, Menlo, monospace', wordBreak: 'break-all' }}>
                           {url}
                         </div>
                         <div style={{ fontSize: '11px', color: '#888', marginTop: '4px' }}>
-                          {isRevoked && <span style={{ color: '#C0392B', fontWeight: 600 }}>Revoked · </span>}
-                          {!isRevoked && isExpired && <span style={{ color: '#D68910', fontWeight: 600 }}>Expired · </span>}
-                          Expires {new Date(tok.expires_at).toLocaleDateString()} · {tok.use_count} {tok.use_count === 1 ? 'use' : 'uses'}
+                          {isRevoked && <span style={{ color: '#C0392B', fontWeight: 600 }}>{t('token.revoked')} · </span>}
+                          {!isRevoked && isExpired && <span style={{ color: '#D68910', fontWeight: 600 }}>{t('token.expired')} · </span>}
+                          {t('token.expires')} {new Date(tok.expires_at).toLocaleDateString()} · {tok.use_count} {tok.use_count === 1 ? t('token.use') : t('token.uses')}
                         </div>
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -237,7 +239,7 @@ export default function FieldCaptureTokenButton({ assessmentId, plantId }: Props
                             padding: '6px 10px', background: '#f0f0f0', border: '1px solid #ddd',
                             borderRadius: '5px', fontSize: '11px', cursor: isActive ? 'pointer' : 'not-allowed', color: '#333',
                           }}
-                        >Copy</button>
+                        >{t('token.copy')}</button>
                         {isActive && (
                           <button
                             type="button"
@@ -246,7 +248,7 @@ export default function FieldCaptureTokenButton({ assessmentId, plantId }: Props
                               padding: '6px 10px', background: '#fff', border: '1px solid #C0392B',
                               borderRadius: '5px', fontSize: '11px', cursor: 'pointer', color: '#C0392B',
                             }}
-                          >Revoke</button>
+                          >{t('token.revoke')}</button>
                         )}
                       </div>
                     </div>

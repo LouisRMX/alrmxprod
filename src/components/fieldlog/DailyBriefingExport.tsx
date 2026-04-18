@@ -23,6 +23,7 @@
 
 import { useCallback, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useLogT } from '@/lib/i18n/LogLocaleContext'
 
 const STAGE_LABEL: Record<string, string> = {
   plant_queue: 'Plant queue',
@@ -87,6 +88,7 @@ function arrow(delta: number): string {
 
 export default function DailyBriefingExport({ assessmentId }: Props) {
   const supabase = createClient()
+  const { t } = useLogT()
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [briefing, setBriefing] = useState('')
@@ -309,7 +311,7 @@ export default function DailyBriefingExport({ assessmentId }: Props) {
           cursor: 'pointer',
         }}
       >
-        📋 Weekly briefing
+        📋 {t('brief.button')}
       </button>
 
       {open && (
@@ -332,9 +334,9 @@ export default function DailyBriefingExport({ assessmentId }: Props) {
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
               <div>
-                <div style={{ fontSize: '16px', fontWeight: 700 }}>Weekly briefing</div>
+                <div style={{ fontSize: '16px', fontWeight: 700 }}>{t('brief.title')}</div>
                 <div style={{ fontSize: '12px', color: '#666', marginTop: '2px' }}>
-                  Edit if needed, then copy to clipboard and paste into your stakeholder update.
+                  {t('brief.subtitle')}
                 </div>
               </div>
               <button
@@ -365,14 +367,14 @@ export default function DailyBriefingExport({ assessmentId }: Props) {
                     boxShadow: mode === m ? '0 1px 3px rgba(0,0,0,.1)' : 'none',
                   }}
                 >
-                  {m === 'executive' ? 'Executive' : 'Detailed'}
+                  {m === 'executive' ? t('brief.executive') : t('brief.detailed')}
                 </button>
               ))}
             </div>
 
             {loading ? (
               <div style={{ padding: '40px', textAlign: 'center', color: '#888', fontSize: '13px' }}>
-                Generating...
+                {t('brief.generating')}
               </div>
             ) : (
               <textarea
@@ -400,7 +402,7 @@ export default function DailyBriefingExport({ assessmentId }: Props) {
                   minHeight: '44px', opacity: loading || !briefing ? 0.6 : 1,
                 }}
               >
-                Copy to clipboard
+                {t('brief.copy')}
               </button>
               <button
                 type="button"
@@ -414,7 +416,7 @@ export default function DailyBriefingExport({ assessmentId }: Props) {
                   minHeight: '44px',
                 }}
               >
-                Regenerate
+                {t('brief.regenerate')}
               </button>
             </div>
           </div>

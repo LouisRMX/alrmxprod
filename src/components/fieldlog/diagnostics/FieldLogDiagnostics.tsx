@@ -31,6 +31,8 @@ import {
   type StageKey,
   type TripWithStageDurations,
 } from './tripAnalysis'
+import { useLogT } from '@/lib/i18n/LogLocaleContext'
+import type { LogStringKey } from '@/lib/i18n/log-catalog'
 
 interface Props {
   assessmentId: string
@@ -55,6 +57,8 @@ const STAGE_COLORS: Record<StageKey, string> = {
 
 export default function FieldLogDiagnostics({ assessmentId, reportedTAT, targetTAT }: Props) {
   const supabase = createClient()
+  const { t } = useLogT()
+  const stageLabelT = (s: StageKey) => t(`stage.${s}` as LogStringKey)
   const [trips, setTrips] = useState<TripWithStageDurations[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -119,10 +123,10 @@ export default function FieldLogDiagnostics({ assessmentId, reportedTAT, targetT
   }, [trips])
 
   if (loading) {
-    return <div style={{ padding: '24px', color: '#888', fontSize: '14px' }}>Loading trip data…</div>
+    return <div style={{ padding: '24px', color: '#888', fontSize: '14px' }}>{t('diag.loading')}</div>
   }
   if (error) {
-    return <div style={{ padding: '24px', color: '#C0392B', fontSize: '14px' }}>Error: {error}</div>
+    return <div style={{ padding: '24px', color: '#C0392B', fontSize: '14px' }}>{t('diag.error')}: {error}</div>
   }
   if (trips.length === 0) {
     return (
@@ -130,7 +134,7 @@ export default function FieldLogDiagnostics({ assessmentId, reportedTAT, targetT
         padding: '32px', textAlign: 'center', background: '#fafafa',
         border: '1px dashed #ccc', borderRadius: '10px', color: '#888', fontSize: '14px',
       }}>
-        No trips logged yet. Start capturing on the Live tab.
+        {t('diag.no_trips')}
       </div>
     )
   }
@@ -143,7 +147,7 @@ export default function FieldLogDiagnostics({ assessmentId, reportedTAT, targetT
 
       {/* Filter + counts */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
-        <span style={{ fontSize: '12px', color: '#888', fontWeight: 600 }}>Range:</span>
+        <span style={{ fontSize: '12px', color: '#888', fontWeight: 600 }}>{t('diag.range')}:</span>
         {(['today', '7d', '30d', 'all'] as const).map(r => (
           <button
             key={r}
@@ -157,11 +161,11 @@ export default function FieldLogDiagnostics({ assessmentId, reportedTAT, targetT
               fontWeight: 500, cursor: 'pointer',
             }}
           >
-            {r === 'today' ? 'Today' : r === '7d' ? 'Last 7 days' : r === '30d' ? 'Last 30 days' : 'All'}
+            {r === 'today' ? t('diag.today') : r === '7d' ? t('diag.last_7') : r === '30d' ? t('diag.last_30') : t('diag.all')}
           </button>
         ))}
-        <div style={{ marginLeft: 'auto', fontSize: '12px', color: '#666' }}>
-          <strong>{completeTripCount}</strong> complete · <strong>{partialTripCount}</strong> partial
+        <div style={{ marginInlineStart: 'auto', fontSize: '12px', color: '#666' }}>
+          <strong>{completeTripCount}</strong> {t('diag.complete')} · <strong>{partialTripCount}</strong> {t('diag.partial')}
         </div>
       </div>
 
@@ -176,9 +180,9 @@ export default function FieldLogDiagnostics({ assessmentId, reportedTAT, targetT
       )}
 
       {/* Stage breakdown chart */}
-      <SectionHeader title="Trip-by-trip TAT breakdown" />
+      <SectionHeader title={t('diag.breakdown_title')} />
       {chartData.length === 0 ? (
-        <EmptyCard text="No complete trips yet. Log a full cycle to see breakdown." />
+        <EmptyCard text={t('diag.no_complete_trips')} />
       ) : (
         <div style={{ background: '#fff', border: '1px solid #e5e5e5', borderRadius: '10px', padding: '16px', marginBottom: '18px' }}>
           <ResponsiveContainer width="100%" height={300}>
@@ -211,14 +215,14 @@ export default function FieldLogDiagnostics({ assessmentId, reportedTAT, targetT
             </ComposedChart>
           </ResponsiveContainer>
           <div style={{ fontSize: '11px', color: '#888', textAlign: 'center', marginTop: '4px' }}>
-            Showing {chartData.length} most recent complete trips
+            {t('diag.showing_recent', { n: chartData.length })}
           </div>
         </div>
       )}
 
       {/* Stage summary table. Horizontal scroll on narrow screens to keep
           all 6 columns readable without squashing. */}
-      <SectionHeader title="Stage summary" />
+      <SectionHeader title={t('diag.stage_summary')} />
       <div style={{ background: '#fff', border: '1px solid #e5e5e5', borderRadius: '10px', overflow: 'hidden', marginBottom: '18px' }}>
         <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' as React.CSSProperties['WebkitOverflowScrolling'] }}>
           <div style={{ minWidth: '520px' }}>
@@ -227,12 +231,12 @@ export default function FieldLogDiagnostics({ assessmentId, reportedTAT, targetT
               fontSize: '11px', fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: '.3px',
               padding: '10px 14px', background: '#f9fafb', borderBottom: '1px solid #e5e5e5',
             }}>
-              <div>Stage</div>
-              <div style={{ textAlign: 'right' }}>Median</div>
+              <div>{t('reviewq.stage_breakdown').split(' ')[0]}</div>
+              <div style={{ textAlign: 'right' }}>{t('diag.median')}</div>
               <div style={{ textAlign: 'right' }}>P25</div>
               <div style={{ textAlign: 'right' }}>P75</div>
-              <div style={{ textAlign: 'right' }}>n</div>
-              <div style={{ textAlign: 'right' }}>% of TAT</div>
+              <div style={{ textAlign: 'right' }}>{t('diag.n')}</div>
+              <div style={{ textAlign: 'right' }}>{t('diag.share_tat')}</div>
             </div>
             {stageSummaries.map(s => (
               <div key={s.stage} style={{
@@ -243,7 +247,7 @@ export default function FieldLogDiagnostics({ assessmentId, reportedTAT, targetT
               }}>
                 <div style={{ fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <div style={{ width: '10px', height: '10px', borderRadius: '2px', background: STAGE_COLORS[s.stage], flexShrink: 0 }} />
-                  <span style={{ color: '#333' }}>{formatStageName(s.stage)}</span>
+                  <span style={{ color: '#333' }}>{stageLabelT(s.stage)}</span>
                 </div>
                 <div style={{ textAlign: 'right', color: '#1a1a1a', fontWeight: 600 }}>{s.median?.toFixed(1) ?? '—'}</div>
                 <div style={{ textAlign: 'right', color: '#888' }}>{s.p25?.toFixed(1) ?? '—'}</div>
@@ -259,7 +263,7 @@ export default function FieldLogDiagnostics({ assessmentId, reportedTAT, targetT
               fontSize: '13px', padding: '10px 14px', background: '#f9fafb',
               fontFamily: 'ui-monospace, SF Mono, Menlo, monospace', fontWeight: 700,
             }}>
-              <div style={{ fontFamily: 'inherit' }}>Total TAT (median)</div>
+              <div style={{ fontFamily: 'inherit' }}>{t('diag.total_tat_median')}</div>
               <div style={{ textAlign: 'right', color: '#0F6E56' }}>{totalStageMedian > 0 ? totalStageMedian.toFixed(1) : '—'}</div>
               <div style={{ gridColumn: 'span 4' }} />
             </div>
@@ -268,9 +272,9 @@ export default function FieldLogDiagnostics({ assessmentId, reportedTAT, targetT
       </div>
 
       {/* Outliers */}
-      <SectionHeader title="Top outliers" />
+      <SectionHeader title={t('diag.top_outliers')} />
       {outliers.length === 0 ? (
-        <EmptyCard text="No outliers detected. Need more data or the operation is uniform." />
+        <EmptyCard text={t('diag.no_outliers')} />
       ) : (
         <div style={{ background: '#fff', border: '1px solid #e5e5e5', borderRadius: '10px', overflow: 'hidden', marginBottom: '18px' }}>
           {outliers.map((o, i) => (
@@ -324,20 +328,21 @@ function EmptyCard({ text }: { text: string }) {
 }
 
 function ExpectedVsMeasuredBanner({
-  reportedTAT, targetTAT, measuredTAT, sampleSize,
+  reportedTAT, targetTAT: _targetTAT, measuredTAT, sampleSize,
 }: {
   reportedTAT: number | null
-  targetTAT: number | null
+  targetTAT: number | null  // Reserved for future use; targets are not shown pre-baseline
   measuredTAT: number | null
   sampleSize: number
 }) {
+  const { t } = useLogT()
   if (reportedTAT === null || measuredTAT === null || sampleSize < 3) {
     return (
       <div style={{
         background: '#f9fafb', border: '1px solid #e5e5e5', borderRadius: '10px',
         padding: '12px 14px', marginBottom: '18px', fontSize: '12px', color: '#666',
       }}>
-        Log at least 3 complete trips to compare measured TAT to pre-assessment assumptions.
+        {t('diag.log_3_trips')}
       </div>
     )
   }
@@ -351,40 +356,32 @@ function ExpectedVsMeasuredBanner({
       borderRadius: '10px', padding: '14px', marginBottom: '18px',
     }}>
       <div style={{ fontSize: '11px', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: '6px' }}>
-        Reported vs measured TAT
+        {t('diag.expected_vs_measured')}
       </div>
       <div style={{
         display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '12px', fontSize: '13px',
       }}>
         <div>
-          <div style={{ fontSize: '10px', color: '#888', fontWeight: 600 }}>REPORTED (pre-assessment)</div>
+          <div style={{ fontSize: '10px', color: '#888', fontWeight: 600 }}>{t('diag.reported')}</div>
           <div style={{ fontSize: '18px', fontWeight: 700, color: '#1a1a1a', fontFamily: 'ui-monospace, SF Mono, Menlo, monospace' }}>
-            {reportedTAT} min
+            {reportedTAT} {t('reviewq.min')}
           </div>
         </div>
         <div>
-          <div style={{ fontSize: '10px', color: '#888', fontWeight: 600 }}>MEASURED (on-site)</div>
+          <div style={{ fontSize: '10px', color: '#888', fontWeight: 600 }}>{t('diag.measured')}</div>
           <div style={{ fontSize: '18px', fontWeight: 700, color: '#1a1a1a', fontFamily: 'ui-monospace, SF Mono, Menlo, monospace' }}>
-            {measuredTAT.toFixed(0)} min
+            {measuredTAT.toFixed(0)} {t('reviewq.min')}
           </div>
         </div>
         <div>
-          <div style={{ fontSize: '10px', color: '#888', fontWeight: 600 }}>DELTA</div>
+          <div style={{ fontSize: '10px', color: '#888', fontWeight: 600 }}>{t('diag.delta')}</div>
           <div style={{ fontSize: '18px', fontWeight: 700, fontFamily: 'ui-monospace, SF Mono, Menlo, monospace', color: delta > 0 ? '#C0392B' : delta < 0 ? '#0F6E56' : '#666' }}>
-            {delta > 0 ? '+' : ''}{delta.toFixed(0)} min ({deltaPct > 0 ? '+' : ''}{deltaPct.toFixed(1)}%)
+            {delta > 0 ? '+' : ''}{delta.toFixed(0)} {t('reviewq.min')} ({deltaPct > 0 ? '+' : ''}{deltaPct.toFixed(1)}%)
           </div>
         </div>
-        {targetTAT !== null && (
-          <div>
-            <div style={{ fontSize: '10px', color: '#888', fontWeight: 600 }}>TARGET</div>
-            <div style={{ fontSize: '18px', fontWeight: 700, color: '#1a1a1a', fontFamily: 'ui-monospace, SF Mono, Menlo, monospace' }}>
-              {targetTAT} min
-            </div>
-          </div>
-        )}
       </div>
       <div style={{ fontSize: '11px', color: '#666', marginTop: '10px', fontStyle: 'italic' }}>
-        Based on {sampleSize} complete trips. As the sample grows, this measurement replaces the report's assumption.
+        {t('diag.baseline_based_on', { n: sampleSize })}
       </div>
     </div>
   )

@@ -15,6 +15,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useLogT } from '@/lib/i18n/LogLocaleContext'
 
 interface InterventionRow {
   id: string
@@ -54,6 +55,7 @@ interface InterventionsEditorProps {
 
 export function InterventionsEditor({ assessmentId, plantId }: InterventionsEditorProps) {
   const supabase = createClient()
+  const { t } = useLogT()
   const [rows, setRows] = useState<InterventionRow[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -73,7 +75,7 @@ export function InterventionsEditor({ assessmentId, plantId }: InterventionsEdit
   useEffect(() => { load() }, [load])
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Delete this intervention?')) return
+    if (!confirm(t('interv.delete_confirm'))) return
     await supabase.from('intervention_logs').delete().eq('id', id)
     await load()
   }
@@ -83,10 +85,10 @@ export function InterventionsEditor({ assessmentId, plantId }: InterventionsEdit
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '14px' }}>
         <div>
           <div style={{ fontSize: '14px', fontWeight: 600, color: '#1a1a1a' }}>
-            Interventions
+            {t('interv.title')}
           </div>
           <div style={{ fontSize: '12px', color: '#666', marginTop: '2px' }}>
-            Log when operational changes are made so tracking can attribute impact.
+            {t('interv.subtitle')}
           </div>
         </div>
         <button
@@ -98,7 +100,7 @@ export function InterventionsEditor({ assessmentId, plantId }: InterventionsEdit
             cursor: 'pointer', minHeight: '44px',
           }}
         >
-          + Add intervention
+          + {t('interv.add')}
         </button>
       </div>
 
@@ -112,13 +114,13 @@ export function InterventionsEditor({ assessmentId, plantId }: InterventionsEdit
         />
       )}
 
-      {loading && <div style={{ fontSize: '12px', color: '#888', padding: '10px' }}>Loading…</div>}
+      {loading && <div style={{ fontSize: '12px', color: '#888', padding: '10px' }}>{t('token.loading')}</div>}
       {!loading && rows.length === 0 && !showForm && (
         <div style={{
           padding: '24px', background: '#fafafa', border: '1px dashed #ddd',
           borderRadius: '10px', textAlign: 'center', color: '#888', fontSize: '13px',
         }}>
-          No interventions logged yet. Add the first one when a change is implemented.
+          {t('interv.empty')}
         </div>
       )}
 
@@ -164,7 +166,7 @@ export function InterventionsEditor({ assessmentId, plantId }: InterventionsEdit
                   cursor: 'pointer', minHeight: '36px',
                 }}
               >
-                Edit
+                {t('card.edit')}
               </button>
               <button
                 type="button"
@@ -175,7 +177,7 @@ export function InterventionsEditor({ assessmentId, plantId }: InterventionsEdit
                   cursor: 'pointer', minHeight: '36px',
                 }}
               >
-                Delete
+                {t('interv.delete')}
               </button>
             </div>
           </div>
@@ -197,6 +199,7 @@ interface InterventionFormProps {
 
 function InterventionForm({ assessmentId, plantId, existing, onSaved, onCancel }: InterventionFormProps) {
   const supabase = createClient()
+  const { t } = useLogT()
   const today = new Date().toISOString().slice(0, 10)
 
   const [date, setDate] = useState(existing?.intervention_date ?? today)
@@ -207,10 +210,22 @@ function InterventionForm({ assessmentId, plantId, existing, onSaved, onCancel }
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Translated metric options
+  const metricOptions = [
+    { value: '', label: t('interv.metric_choose') },
+    { value: 'tat', label: t('interv.metric_tat') },
+    { value: 'dispatch', label: t('interv.metric_dispatch') },
+    { value: 'reject_pct', label: t('interv.metric_reject') },
+    { value: 'deliveries_per_day', label: t('interv.metric_deliveries') },
+    { value: 'site_wait', label: t('interv.metric_site_wait') },
+    { value: 'loading', label: t('interv.metric_loading') },
+    { value: 'other', label: t('interv.metric_other') },
+  ]
+
   const handleSave = async () => {
     setError(null)
     if (!title.trim()) {
-      setError('Title is required')
+      setError(t('interv.title_required'))
       return
     }
     setSaving(true)
@@ -249,19 +264,19 @@ function InterventionForm({ assessmentId, plantId, existing, onSaved, onCancel }
       padding: '18px 20px', marginBottom: '16px',
     }}>
       <div style={{ fontSize: '13px', fontWeight: 600, color: '#1a1a1a', marginBottom: '12px' }}>
-        {existing ? 'Edit intervention' : 'New intervention'}
+        {existing ? t('interv.edit') : t('interv.new')}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '12px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
           <div>
-            <label style={labelStyle}>Date</label>
+            <label style={labelStyle}>{t('interv.date')}</label>
             <input type="date" value={date} onChange={e => setDate(e.target.value)} style={inputStyle} />
           </div>
           <div>
-            <label style={labelStyle}>Target metric</label>
+            <label style={labelStyle}>{t('interv.target_metric')}</label>
             <select value={targetMetric} onChange={e => setTargetMetric(e.target.value)} style={{ ...inputStyle, background: '#fff' }}>
-              {TARGET_METRIC_OPTIONS.map(o => (
+              {metricOptions.map(o => (
                 <option key={o.value} value={o.value}>{o.label}</option>
               ))}
             </select>
@@ -269,28 +284,28 @@ function InterventionForm({ assessmentId, plantId, existing, onSaved, onCancel }
         </div>
 
         <div>
-          <label style={labelStyle}>Title</label>
+          <label style={labelStyle}>{t('interv.title_label')}</label>
           <input
             type="text" value={title} onChange={e => setTitle(e.target.value)}
-            placeholder="e.g. Tightened dispatch window from 25 to 15 min"
+            placeholder={t('interv.title_placeholder')}
             style={inputStyle}
           />
         </div>
 
         <div>
-          <label style={labelStyle}>Implemented by</label>
+          <label style={labelStyle}>{t('interv.implemented_by')}</label>
           <input
             type="text" value={implementedBy} onChange={e => setImplementedBy(e.target.value)}
-            placeholder="Name or role"
+            placeholder={t('interv.implemented_by_placeholder')}
             style={inputStyle}
           />
         </div>
 
         <div>
-          <label style={labelStyle}>Description / expected impact</label>
+          <label style={labelStyle}>{t('interv.description_label')}</label>
           <textarea
             value={description} onChange={e => setDescription(e.target.value)}
-            placeholder="What changed and what impact is expected (e.g. Expected: -10 min TAT by week 4)"
+            placeholder={t('interv.description_placeholder')}
             rows={3}
             style={{ ...inputStyle, resize: 'vertical', minHeight: '80px' }}
           />
@@ -318,7 +333,7 @@ function InterventionForm({ assessmentId, plantId, existing, onSaved, onCancel }
             opacity: saving ? 0.6 : 1,
           }}
         >
-          {saving ? 'Saving…' : existing ? 'Save changes' : 'Add intervention'}
+          {saving ? t('interv.saving') : existing ? t('interv.save_changes') : t('interv.add')}
         </button>
         <button
           type="button"
@@ -330,7 +345,7 @@ function InterventionForm({ assessmentId, plantId, existing, onSaved, onCancel }
             cursor: 'pointer', minHeight: '44px',
           }}
         >
-          Cancel
+          {t('interv.cancel')}
         </button>
       </div>
     </div>
