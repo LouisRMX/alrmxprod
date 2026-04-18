@@ -115,14 +115,18 @@ export default function DailyBriefingExport({ assessmentId }: Props) {
     const current = sortedAggs[0] ?? null
     const previous = sortedAggs[1] ?? null
 
-    // Tracking config for baseline + target (used for dollar impact)
+    // Tracking config for baseline + coefficient only.
+    // Target is intentionally NOT fetched: targets must not be displayed
+    // anywhere until the analyst has confirmed a baseline AND explicitly
+    // set a post-baseline target via a deliberate action. Even if a stale
+    // target lives in the DB (from earlier flow versions), we don't
+    // surface it here.
     const { data: cfg } = await supabase
       .from('tracking_configs')
-      .select('baseline_turnaround, target_turnaround, coeff_turnaround')
+      .select('baseline_turnaround, coeff_turnaround')
       .eq('assessment_id', assessmentId)
       .maybeSingle()
     const baseline = (cfg?.baseline_turnaround as number | null) ?? null
-    const target = (cfg?.target_turnaround as number | null) ?? null
     const coeff = (cfg?.coeff_turnaround as number | null) ?? null
 
     // Interventions this week
@@ -164,10 +168,15 @@ export default function DailyBriefingExport({ assessmentId }: Props) {
     lines.push('')
 
     // ── HEADLINE ──
+    // Two states:
+    //   1. No baseline locked: state the factual cycle time + trip count.
+    //      No gap language, no dollar figures (nothing to compare against).
+    //   2. Baseline locked: cycle time + delta from baseline. If coefficient
+    //      is set, a dollar figure can be added since this is baseline-
+    //      derived and needs no target.
+    // Target is never referenced. Setting targets is a separate deliberate
+    // action that happens after baseline is confirmed.
     const avgCycle = current.avg_tat_min
-    const gapFromTarget = baseline != null && target != null && avgCycle != null
-      ? avgCycle - target
-      : null
     const gapFromBaseline = baseline != null && avgCycle != null
       ? baseline - avgCycle
       : null
@@ -176,22 +185,15 @@ export default function DailyBriefingExport({ assessmentId }: Props) {
     if (avgCycle != null) {
       const parts: string[] = []
       parts.push(`Truck cycle averaged ${Math.round(avgCycle)} minutes across ${current.trip_count} trips this week.`)
-      if (gapFromTarget != null) {
-        if (gapFromTarget > 2) {
-          parts.push(`${Math.round(gapFromTarget)} min above target of ${target}.`)
-        } else if (gapFromTarget < -2) {
-          parts.push(`${Math.round(-gapFromTarget)} min below target, ahead of plan.`)
-        } else {
-          parts.push(`On target (${target} min).`)
-        }
-      }
       if (gapFromBaseline != null && gapFromBaseline > 2) {
         const monthlyValue = coeff && coeff > 0 ? Math.round(gapFromBaseline * coeff) : null
         if (monthlyValue && monthlyValue > 0) {
-          parts.push(`Recovering an estimated $${monthlyValue.toLocaleString()}/month versus baseline.`)
+          parts.push(`Recovering an estimated $${monthlyValue.toLocaleString()}/month versus baseline of ${baseline} min.`)
         } else {
           parts.push(`${Math.round(gapFromBaseline)} min better than baseline of ${baseline} min.`)
         }
+      } else if (baseline != null && gapFromBaseline != null && gapFromBaseline < -2) {
+        parts.push(`${Math.round(-gapFromBaseline)} min slower than baseline of ${baseline} min.`)
       }
       lines.push(parts.join(' '))
     } else {
