@@ -1649,9 +1649,32 @@ function ProgressView({ assessmentId, config, entries, aggregates, dailyEntries,
   const weeksWithNoData = currentWeek > 2 && entries.filter(e => e.week_number <= currentWeek - 1).length < currentWeek - 2
   const canExport = config.consent_case_study && entries.length >= 8
   const isComplete = currentWeek >= 13
+  const hasAnyData = entries.length > 0 || aggregates.length > 0 || dailyEntries.length > 0
 
   // Load intervention markers to overlay on the chart
   const interventions = useInterventionMarkers(assessmentId, config.started_at, isDemo ?? false)
+
+  // Empty state: no trips logged yet. Track is a dashboard of logged
+  // data, so if nothing is logged there's nothing to show. Point the
+  // user at the Log tab.
+  if (!hasAnyData && !isDemo) {
+    return (
+      <div style={{ padding: '48px 24px', maxWidth: '520px', margin: '0 auto', textAlign: 'center' }}>
+        <div style={{ fontSize: '40px', marginBottom: '16px' }}>📊</div>
+        <div style={{ fontSize: '16px', fontWeight: 600, color: 'var(--gray-900)', marginBottom: '8px' }}>
+          Dashboard waiting for data
+        </div>
+        <div style={{ fontSize: '13px', color: 'var(--gray-500)', lineHeight: 1.6, marginBottom: '20px' }}>
+          Log trips in the Log tab, either via the Live Timer, Manual entry, or CSV upload.
+          As soon as at least 3 trips are captured for a week, Track will start showing
+          weekly KPIs, trend charts, and intervention impact automatically.
+        </div>
+        <div style={{ fontSize: '12px', color: 'var(--gray-400)', fontStyle: 'italic' }}>
+          Targets and baselines come from the pre-assessment. No setup needed.
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div style={{ padding: '24px', maxWidth: '760px', margin: '0 auto' }}>
@@ -1922,21 +1945,61 @@ export default function TrackingTab(props: TrackingProps) {
       return
     }
 
-    // Normal Supabase path
-    const { data: cfg } = await supabase
-      .from('tracking_configs')
-      .select('*')
-      .eq('assessment_id', assessmentId)
-      .maybeSingle()
+    // Normal Supabase path.
+    // Track is now a pure dashboard. Tracking_config is not required for
+    // the view to work. If one exists (legacy assessments) we use its
+    // started_at as the week 1 anchor; otherwise we anchor on the first
+    // logged trip date. Targets/baselines come from the pre-assessment
+    // calc (passed as props) so there's no manual setup step.
+    const [{ data: cfg }, { data: firstLog }, { data: aggData }] = await Promise.all([
+      supabase
+        .from('tracking_configs')
+        .select('*')
+        .eq('assessment_id', assessmentId)
+        .maybeSingle(),
+      supabase
+        .from('daily_logs')
+        .select('log_date')
+        .eq('assessment_id', assessmentId)
+        .order('log_date', { ascending: true })
+        .limit(1)
+        .maybeSingle(),
+      supabase.rpc('get_weekly_kpis_from_daily_logs', { p_assessment_id: assessmentId }),
+    ])
 
-    setConfig(cfg ?? null)
+    const aggregates = (aggData ?? []) as WeeklyAggregate[]
+    setAggregates(aggregates)
 
+    // Build the effective config: prefer DB record, else synthesize from
+    // assessment props. started_at falls back to first log date or today.
+    const effectiveConfig: TrackingConfig = cfg ?? {
+      id: 'virtual',
+      assessment_id: assessmentId,
+      started_at: firstLog?.log_date
+        ? new Date(firstLog.log_date).toISOString()
+        : new Date().toISOString(),
+      baseline_turnaround: baselineTurnaround,
+      baseline_reject_pct: baselineRejectPct,
+      baseline_dispatch_min: baselineDispatchMin,
+      target_turnaround: targetTA,
+      target_reject_pct: null,
+      target_dispatch_min: baselineDispatchMin != null ? 15 : null,
+      track_turnaround: true,
+      track_reject: false,
+      track_dispatch: baselineDispatchMin != null,
+      coeff_turnaround: coeffTurnaround,
+      coeff_reject: coeffDispatch,  // repurposed column
+      baseline_monthly_loss: baselineMonthlyLoss,
+      consent_case_study: false,
+    }
+    setConfig(effectiveConfig)
+
+    // Load legacy manual entries if a real config exists (for bc with
+    // existing customers who already typed weekly numbers).
+    let manualEntries: TrackingEntry[] = []
+    let dailyData: DailyEntry[] = []
     if (cfg) {
-      // Fetch three sources in parallel:
-      //   1. Manual weekly entries (tracking_entries) - legacy flow
-      //   2. Manual daily entries (daily_entries) - for DailyOpsChart
-      //   3. Aggregated daily_logs via RPC - auto-synthesised weekly KPIs
-      const [{ data: ents }, { data: dailyData }, { data: aggData }] = await Promise.all([
+      const [{ data: ents }, { data: daily }] = await Promise.all([
         supabase
           .from('tracking_entries')
           .select('*')
@@ -1948,15 +2011,16 @@ export default function TrackingTab(props: TrackingProps) {
           .eq('config_id', cfg.id)
           .order('logged_date', { ascending: false })
           .limit(60),
-        supabase.rpc('get_weekly_kpis_from_daily_logs', { p_assessment_id: assessmentId }),
       ])
-      const manualEntries = (ents ?? []) as TrackingEntry[]
-      const aggregates = (aggData ?? []) as WeeklyAggregate[]
-      // Manual entries win; auto entries fill gaps where daily_logs had enough data
-      setEntries(mergeEntries(manualEntries, aggregates, cfg.id))
-      setAggregates(aggregates)
-      setDailyEntries(dailyData ?? [])
+      manualEntries = (ents ?? []) as TrackingEntry[]
+      dailyData = (daily ?? []) as DailyEntry[]
     }
+
+    // Manual entries win; auto entries fill gaps where daily_logs had
+    // enough data. For virtual configs (no cfg row), manualEntries is
+    // empty so we show only auto-derived weeks.
+    setEntries(mergeEntries(manualEntries, aggregates, effectiveConfig.id))
+    setDailyEntries(dailyData)
   }, [assessmentId, isDemo, supabase, baselineTurnaround, baselineRejectPct, baselineDispatchMin, targetTA, coeffTurnaround, coeffDispatch, baselineMonthlyLoss])
 
   useEffect(() => { fetchData() }, [fetchData])
@@ -1965,7 +2029,7 @@ export default function TrackingTab(props: TrackingProps) {
   // This tab is now a read-only view of weekly progress + interventions.
   const segControl = null
 
-  if (config === undefined) {
+  if (config === undefined || config === null) {
     return (
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         {segControl}
@@ -1976,26 +2040,10 @@ export default function TrackingTab(props: TrackingProps) {
     )
   }
 
-  if (config === null) {
-    if (isAdmin) {
-      return (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-          {segControl}
-          <SetupForm {...props} onCreated={cfg => setConfig(cfg)} />
-        </div>
-      )
-    }
-    return (
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-        {segControl}
-        <div style={{ padding: '60px 24px', textAlign: 'center', color: 'var(--gray-400)' }}>
-          <div style={{ fontSize: '32px', marginBottom: '16px' }}>📊</div>
-          <div style={{ fontSize: '14px', fontWeight: 500, color: 'var(--gray-600)', marginBottom: '8px' }}>90-day tracking not started yet</div>
-          <div style={{ fontSize: '13px' }}>Your consultant will activate tracking after the engagement.</div>
-        </div>
-      </div>
-    )
-  }
+  // Track is dashboard-only now. No setup step, no "activate tracking"
+  // button. Config is synthesised from assessment props when no database
+  // record exists, so ProgressView always renders. Empty state inside
+  // handles the "no trips logged yet" case.
 
   if (isAdmin) {
     return (
