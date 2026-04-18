@@ -46,7 +46,8 @@ import {
 import { useOnlineStatus } from '@/hooks/useOnlineStatus'
 import { createClient } from '@/lib/supabase/client'
 import LiveTripCard from './LiveTripCard'
-import { STAGE_LABELS } from './StageNames'
+import { useLogT } from '@/lib/i18n/LogLocaleContext'
+import type { LogStringKey } from '@/lib/i18n/log-catalog'
 
 interface LiveTripTimerProps {
   assessmentId: string
@@ -60,6 +61,9 @@ interface LiveTripTimerProps {
 export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }: LiveTripTimerProps) {
   const online = useOnlineStatus()
   const supabase = createClient()
+  const { t } = useLogT()
+  // Stage labels resolved via i18n (key prefix 'stage.')
+  const stageLabel = (stage: StageName) => t(`stage.${stage}` as LogStringKey)
 
   const [measurers, setMeasurers] = useState<string[]>([])
   const [currentMeasurer, setCurrentMeasurer] = useState<string>('')
@@ -243,7 +247,7 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
     if (tripBefore) {
       const totalMin = computeTotalMin(tripBefore, editedTimestamps)
       showSavedToast(
-        `✓ Trip saved${totalMin != null ? `: ${totalMin} min` : ''}${tripBefore.truckId ? ` · Truck ${tripBefore.truckId}` : ''}`
+        `✓ ${t('toast.trip_saved')}${totalMin != null ? `: ${totalMin} ${t('reviewq.min')}` : ''}${tripBefore.truckId ? ` · ${t('reviewq.truck')} ${tripBefore.truckId}` : ''}`
       )
     }
   }
@@ -255,7 +259,7 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
     if (online) runSync()
     if (tripBefore) {
       showSavedToast(
-        `✓ Partial saved${tripBefore.truckId ? ` · Truck ${tripBefore.truckId}` : ''}`
+        `✓ ${t('toast.partial_saved')}${tripBefore.truckId ? ` · ${t('reviewq.truck')} ${tripBefore.truckId}` : ''}`
       )
     }
   }
@@ -346,7 +350,7 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
         background: '#fff', border: '1px solid #e5e5e5', borderRadius: '12px', padding: '12px',
       }}>
         <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '8px' }}>
-          Measuring as
+          {t('live.measuring_as')}
         </label>
         {!showAddMeasurer && (
           <div style={{ display: 'flex', gap: '8px' }}>
@@ -384,7 +388,7 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
               onKeyDown={(e) => {
                 if (e.key === 'Enter') handleAddMeasurer()
               }}
-              placeholder="New measurer name"
+              placeholder={t('live.add_measurer_placeholder')}
               autoFocus
               style={{
                 flex: 1, minHeight: '44px', padding: '0 12px',
@@ -399,7 +403,7 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
                 background: '#0F6E56', color: '#fff', border: 'none',
                 borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer',
               }}
-            >Add</button>
+            >{t('live.add')}</button>
             <button
               type="button"
               onClick={() => { setShowAddMeasurer(false); setNewMeasurerName('') }}
@@ -419,7 +423,7 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
         background: '#fff', border: '1px solid #e5e5e5', borderRadius: '12px', padding: '12px',
       }}>
         <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '8px' }}>
-          Current plant
+          {t('live.current_plant')}
         </label>
         {!showAddOriginPlant && (
           <div style={{ display: 'flex', gap: '8px' }}>
@@ -432,7 +436,7 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
                 fontSize: '15px', background: '#fff',
               }}
             >
-              <option value="">(not specified)</option>
+              <option value="">{t('live.not_specified')}</option>
               {originPlants.map(p => <option key={p} value={p}>{p}</option>)}
             </select>
             <button
@@ -455,7 +459,7 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
               value={newOriginPlantName}
               onChange={(e) => setNewOriginPlantName(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') handleAddOriginPlant() }}
-              placeholder="Plant 1, Plant 2, etc."
+              placeholder={t('live.add_plant_placeholder')}
               autoFocus
               style={{
                 flex: 1, minHeight: '44px', padding: '0 12px',
@@ -470,7 +474,7 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
                 background: '#0F6E56', color: '#fff', border: 'none',
                 borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer',
               }}
-            >Add</button>
+            >{t('live.add')}</button>
             <button
               type="button"
               onClick={() => { setShowAddOriginPlant(false); setNewOriginPlantName('') }}
@@ -490,7 +494,7 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
         background: '#fff', border: '1px solid #e5e5e5', borderRadius: '12px', padding: '12px',
       }}>
         <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '8px' }}>
-          Measuring from
+          {t('live.measuring_from')}
         </label>
         <select
           value={startStage}
@@ -501,15 +505,14 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
             fontSize: '15px', background: '#fff',
           }}
         >
-          <option value="plant_queue">Plant queue (full cycle)</option>
+          <option value="plant_queue">{t('live.plant_queue_full_cycle')}</option>
           {STAGES.filter(s => s !== 'plant_queue').map(s => (
-            <option key={s} value={s}>{STAGE_LABELS[s]} only</option>
+            <option key={s} value={s}>{stageLabel(s)} · {t('live.single_stage_only_suffix')}</option>
           ))}
         </select>
         {startStage !== 'plant_queue' && (
           <div style={{ fontSize: '11px', color: '#888', marginTop: '6px', lineHeight: 1.4 }}>
-            Single-stage mode: tap Start when the stage begins, Finish when it ends.
-            Saved as a partial trip with just {STAGE_LABELS[startStage].toLowerCase()} timing.
+            {t('live.single_stage_explainer', { stage: stageLabel(startStage) })}
           </div>
         )}
       </div>
@@ -528,20 +531,20 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
           boxShadow: currentMeasurer ? '0 4px 14px rgba(15, 110, 86, 0.25)' : 'none',
         }}
       >
-        ▶  Start {startStage === 'plant_queue' ? 'new trip' : `${STAGE_LABELS[startStage].toLowerCase()} measurement`}
+        ▶  {startStage === 'plant_queue' ? t('live.start_new_trip') : t('live.start_measurement_of', { stage: stageLabel(startStage) })}
       </button>
 
       {/* Active trip list */}
       <div style={{ flex: 1, overflowY: 'auto' }}>
         <div style={{ fontSize: '11px', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '8px' }}>
-          Active trips ({activeTrips?.length ?? 0})
+          {t('live.active_trips')} ({activeTrips?.length ?? 0})
         </div>
         {(!activeTrips || activeTrips.length === 0) && (
           <div style={{
             background: '#fff', border: '1px dashed #ccc', borderRadius: '10px',
             padding: '20px', textAlign: 'center', fontSize: '13px', color: '#888',
           }}>
-            No active trips. Tap “Start new trip” when a truck enters the plant queue.
+            {t('live.no_active_trips')}
           </div>
         )}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -557,7 +560,7 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
         {pendingCount > 0 && (
           <div style={{ marginTop: '20px' }}>
             <div style={{ fontSize: '11px', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '8px' }}>
-              Pending sync ({pendingCount})
+              {t('live.pending_sync')} ({pendingCount})
             </div>
             <div style={{
               background: '#fff', border: '1px solid #e5e5e5', borderRadius: '10px',
@@ -571,7 +574,7 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
                   </span>
                 </div>
               ))}
-              {pendingCount > 5 && <div style={{ paddingTop: '4px', color: '#999', fontStyle: 'italic' }}>and {pendingCount - 5} more…</div>}
+              {pendingCount > 5 && <div style={{ paddingTop: '4px', color: '#999', fontStyle: 'italic' }}>{t('live.and_more', { n: pendingCount - 5 })}</div>}
             </div>
           </div>
         )}
@@ -641,7 +644,8 @@ function lastSplitTime(trip: ActiveTrip): number {
 // stage + elapsed minutes. When a trip has been running > 4 hours with
 // no recent split, shows a soft amber reminder.
 function ActiveTripListItem({ trip, onFocus }: { trip: ActiveTrip; onFocus: () => void }) {
-  const stageLabel = STAGE_LABELS[trip.currentStage]
+  const { t } = useLogT()
+  const stageLabel = t(`stage.${trip.currentStage}` as LogStringKey)
   const startedAt = new Date(trip.createdAt)
   const elapsedMs = Date.now() - startedAt.getTime()
   const elapsedMin = Math.floor(elapsedMs / 60000)
@@ -651,11 +655,13 @@ function ActiveTripListItem({ trip, onFocus }: { trip: ActiveTrip; onFocus: () =
 
   const isSingleStage = trip.measurementMode === 'single_stage'
   const modeDotColor = isSingleStage ? STAGE_DOT_COLOR[trip.currentStage] : '#0F6E56'
-  const modeLabel = isSingleStage ? `${stageLabel} only` : 'Full cycle'
+  const modeLabel = isSingleStage
+    ? `${stageLabel} ${t('live.single_stage_only_suffix')}`
+    : t('list.full_cycle')
 
   // Format elapsed time: < 60 min shows "X min", >= 60 shows "Xh Ym"
   const elapsedDisplay = elapsedMin < 60
-    ? `${elapsedMin} min in`
+    ? `${elapsedMin} ${t('list.min_in')}`
     : `${Math.floor(elapsedMin / 60)}h ${elapsedMin % 60}m`
 
   return (
@@ -696,7 +702,7 @@ function ActiveTripListItem({ trip, onFocus }: { trip: ActiveTrip; onFocus: () =
         background: '#E1F5EE', color: '#0F6E56',
         fontSize: '12px', fontWeight: 600, flexShrink: 0,
       }}>
-        Open →
+        {t('list.open')} →
       </div>
     </button>
   )

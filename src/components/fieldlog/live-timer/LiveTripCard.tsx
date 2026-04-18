@@ -18,8 +18,9 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ActiveTrip, StageName } from '@/lib/fieldlog/offline-trip-queue'
 import { STAGES } from '@/lib/fieldlog/offline-trip-queue'
-import { STAGE_LABELS, STAGE_HINTS, NEXT_ACTION_LABEL } from './StageNames'
 import { useStopwatch } from '@/hooks/useStopwatch'
+import { useLogT } from '@/lib/i18n/LogLocaleContext'
+import type { LogStringKey } from '@/lib/i18n/log-catalog'
 
 interface LiveTripCardProps {
   trip: ActiveTrip
@@ -62,6 +63,10 @@ export default function LiveTripCard({
   onUpdateRejected,
 }: LiveTripCardProps) {
   const { totalElapsed, stageElapsed } = useStopwatch(trip)
+  const { t } = useLogT()
+  const stageLabelT = (s: StageName) => t(`stage.${s}` as LogStringKey)
+  const stageHintT = (s: StageName) => t(`stage.hint.${s}` as LogStringKey)
+  const nextActionT = (s: StageName) => t(`stage.next.${s}` as LogStringKey)
   const [showIdentity, setShowIdentity] = useState(!trip.truckId)
   const [showNotes, setShowNotes] = useState(false)
   const [showStageNote, setShowStageNote] = useState(false)
@@ -89,8 +94,8 @@ export default function LiveTripCard({
 
     if (stageChanged || reviewEntered) {
       const label = reviewEntered
-        ? 'Trip complete'
-        : `${STAGE_LABELS[trip.currentStage]} started`
+        ? t('undo.trip_complete')
+        : t('undo.stage_started', { stage: stageLabelT(trip.currentStage) })
       setUndoLabel(label)
       setUndoVisible(true)
       if (undoTimerRef.current) clearTimeout(undoTimerRef.current)
@@ -118,7 +123,7 @@ export default function LiveTripCard({
         onUndoSplit={() => onUndoSplit(trip.id)}
         onConfirmSave={(edits) => onConfirmSave(trip.id, edits)}
         onCancel={() => {
-          if (confirm('Discard this trip? Data cannot be recovered.')) {
+          if (confirm(t('card.discard_confirm'))) {
             onCancel(trip.id)
           }
         }}
@@ -128,12 +133,12 @@ export default function LiveTripCard({
   }
 
   const currentIndex = STAGES.indexOf(trip.currentStage)
-  const stageLabel = STAGE_LABELS[trip.currentStage]
-  const stageHint = STAGE_HINTS[trip.currentStage]
+  const stageLabel = stageLabelT(trip.currentStage)
+  const stageHint = stageHintT(trip.currentStage)
   const isSingleStage = trip.measurementMode === 'single_stage'
   const splitLabel = isSingleStage
-    ? `Finish ${stageLabel.toLowerCase()}`
-    : NEXT_ACTION_LABEL[trip.currentStage]
+    ? `${t('stage.finish')} ${stageLabel}`
+    : nextActionT(trip.currentStage)
   const isLastStage = currentIndex === STAGES.length - 1
 
   return (
@@ -151,10 +156,10 @@ export default function LiveTripCard({
               display: 'inline-block', width: '8px', height: '8px',
               borderRadius: '50%', background: '#C0392B',
             }} />
-            <span>REC · {trip.measurerName}</span>
+            <span>{t('card.rec')} · {trip.measurerName}</span>
             {isSingleStage && (
               <span style={{ padding: '1px 6px', background: '#FFF4D6', border: '1px solid #F1D79A', color: '#B7950B', borderRadius: '3px', fontSize: '9px' }}>
-                {stageLabel.toUpperCase()} ONLY
+                {stageLabel} · {t('live.single_stage_only_suffix')}
               </span>
             )}
           </div>
@@ -170,13 +175,13 @@ export default function LiveTripCard({
             border: '1px solid #ddd', background: '#fff',
             fontSize: '20px', color: '#666', cursor: 'pointer', flexShrink: 0,
           }}
-          aria-label="Back to trip list (trip keeps running)"
-          title="Back to list"
+          aria-label={t('card.back_to_list')}
+          title={t('card.back_to_list_short')}
         >←</button>
         <button
           type="button"
           onClick={() => {
-            if (confirm('Stop this trip?\n\nOK = Save partial with current timestamps.\nCancel = Keep running, or use Discard below.')) {
+            if (confirm(t('card.stop_confirm'))) {
               onSavePartial(trip.id)
             }
           }}
@@ -186,8 +191,8 @@ export default function LiveTripCard({
             fontSize: '16px', color: '#C0392B', cursor: 'pointer', flexShrink: 0,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}
-          aria-label="Stop trip and save partial"
-          title="Stop and save partial"
+          aria-label={t('card.stop_save_partial')}
+          title={t('card.stop_save_partial')}
         >
           <span style={{ width: '14px', height: '14px', background: '#C0392B', borderRadius: '2px', display: 'inline-block' }} />
         </button>
@@ -216,7 +221,7 @@ export default function LiveTripCard({
         padding: '16px', textAlign: 'center',
       }}>
         <div style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', letterSpacing: '.5px', fontWeight: 600 }}>
-          Total elapsed
+          {t('card.total_elapsed')}
         </div>
         <div style={{
           fontFamily: 'ui-monospace, SF Mono, Menlo, monospace',
@@ -272,7 +277,7 @@ export default function LiveTripCard({
         })}
       </div>
       <div style={{ fontSize: '10px', color: '#888', textAlign: 'center', marginTop: '-8px' }}>
-        Stage {currentIndex + 1} of {STAGES.length}
+        {t('card.stage_of', { n: currentIndex + 1, total: STAGES.length })}
       </div>
 
       {/* Identity (collapsible) */}
@@ -286,31 +291,31 @@ export default function LiveTripCard({
             fontSize: '13px', fontWeight: 600, color: '#555', cursor: 'pointer',
           }}
         >
-          <span>Truck · Driver · Site</span>
+          <span>{t('card.truck_driver_site')}</span>
           <span style={{ fontSize: '10px', color: '#888' }}>{showIdentity ? '▲' : '▼'}</span>
         </button>
         {showIdentity && (
           <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <InputWithAutocomplete
-              label="Truck ID"
+              label={t('card.truck_id')}
               value={trip.truckId ?? ''}
               suggestions={recentTrucks}
               onChange={(v) => onUpdateIdentity(trip.id, { truckId: v })}
               placeholder="TR-14, 42, etc."
             />
             <InputWithAutocomplete
-              label="Driver"
+              label={t('card.driver')}
               value={trip.driverName ?? ''}
               suggestions={recentDrivers}
               onChange={(v) => onUpdateIdentity(trip.id, { driverName: v })}
-              placeholder="Name"
+              placeholder=""
             />
             <InputWithAutocomplete
-              label="Site"
+              label={t('card.site')}
               value={trip.siteName ?? ''}
               suggestions={recentSites}
               onChange={(v) => onUpdateIdentity(trip.id, { siteName: v })}
-              placeholder="Site name"
+              placeholder=""
             />
           </div>
         )}
@@ -327,14 +332,14 @@ export default function LiveTripCard({
             fontSize: '13px', fontWeight: 600, color: '#555', cursor: 'pointer',
           }}
         >
-          <span>Note on {stageLabel.toLowerCase()}</span>
+          <span>{t('card.note_on')} {stageLabel}</span>
           <span style={{ fontSize: '10px', color: '#888' }}>{showStageNote ? '▲' : '▼'}</span>
         </button>
         {showStageNote && (
           <textarea
             value={trip.stageNotes[trip.currentStage] ?? ''}
             onChange={(e) => onUpdateStageNote(trip.id, trip.currentStage, e.target.value)}
-            placeholder={`What happened during ${stageLabel.toLowerCase()}?`}
+            placeholder={t('card.note_placeholder', { stage: stageLabel })}
             rows={2}
             style={{
               width: '100%', marginTop: '10px', padding: '10px',
@@ -356,14 +361,14 @@ export default function LiveTripCard({
             fontSize: '13px', fontWeight: 600, color: '#555', cursor: 'pointer',
           }}
         >
-          <span>Trip notes</span>
+          <span>{t('card.trip_notes')}</span>
           <span style={{ fontSize: '10px', color: '#888' }}>{showNotes ? '▲' : '▼'}</span>
         </button>
         {showNotes && (
           <textarea
             value={trip.notes}
             onChange={(e) => onUpdateNotes(trip.id, e.target.value)}
-            placeholder="General observations about this trip"
+            placeholder={t('card.trip_notes_placeholder')}
             rows={3}
             style={{
               width: '100%', marginTop: '10px', padding: '10px',
@@ -392,13 +397,13 @@ export default function LiveTripCard({
         {trip.rejected ? (
           <>
             <span>✕</span>
-            <span>Load rejected</span>
-            <span style={{ fontSize: '11px', opacity: 0.7 }}>· Tap to unmark</span>
+            <span>{t('card.load_rejected')}</span>
+            <span style={{ fontSize: '11px', opacity: 0.7 }}>· {t('card.tap_to_unmark')}</span>
           </>
         ) : (
           <>
             <span style={{ fontSize: '14px' }}>○</span>
-            <span>Mark rejected</span>
+            <span>{t('card.mark_rejected')}</span>
           </>
         )}
       </button>
@@ -408,7 +413,7 @@ export default function LiveTripCard({
         <button
           type="button"
           onClick={() => {
-            if (confirm('Save this trip as partial? Missing stages will be marked incomplete.')) {
+            if (confirm(t('card.save_partial_confirm'))) {
               onSavePartial(trip.id)
             }
           }}
@@ -419,12 +424,12 @@ export default function LiveTripCard({
             fontSize: '13px', fontWeight: 600, cursor: 'pointer',
           }}
         >
-          Save partial
+          {t('card.save_partial')}
         </button>
         <button
           type="button"
           onClick={() => {
-            if (confirm('Discard this trip? Data cannot be recovered.')) {
+            if (confirm(t('card.discard_confirm'))) {
               onCancel(trip.id)
             }
           }}
@@ -435,7 +440,7 @@ export default function LiveTripCard({
             fontSize: '13px', fontWeight: 600, cursor: 'pointer',
           }}
         >
-          Discard
+          {t('card.discard')}
         </button>
       </div>
 
@@ -462,7 +467,7 @@ export default function LiveTripCard({
               padding: '6px 10px',
             }}
           >
-            UNDO
+            {t('undo.undo')}
           </button>
         </div>
       )}
@@ -481,20 +486,21 @@ interface TripReviewViewProps {
 }
 
 function TripReviewView({ trip, onUndoSplit, onConfirmSave, onCancel, onClose }: TripReviewViewProps) {
+  const { t } = useLogT()
   // Local edited map, one entry per stage timestamp that the user has modified.
   // Unmodified entries stay out of this map so they inherit trip.timestamps.
   const [edits, setEdits] = useState<Partial<Record<StageName | 'complete', string>>>({})
   const [error, setError] = useState<string | null>(null)
 
   const orderedKeys: Array<{ key: StageName | 'complete'; label: string }> = [
-    { key: 'plant_queue', label: 'Plant queue start' },
-    { key: 'loading', label: 'Loading start' },
-    { key: 'transit_out', label: 'Departure (loaded)' },
-    { key: 'site_wait', label: 'Arrival on site' },
-    { key: 'pouring', label: 'Discharge start' },
-    { key: 'washout', label: 'Discharge end' },
-    { key: 'transit_back', label: 'Departure from site' },
-    { key: 'complete', label: 'Arrival at plant' },
+    { key: 'plant_queue', label: t('review.ts_plant_queue') },
+    { key: 'loading', label: t('review.ts_loading') },
+    { key: 'transit_out', label: t('review.ts_departure') },
+    { key: 'site_wait', label: t('review.ts_arrival_site') },
+    { key: 'pouring', label: t('review.ts_discharge_start') },
+    { key: 'washout', label: t('review.ts_discharge_end') },
+    { key: 'transit_back', label: t('review.ts_departure_site') },
+    { key: 'complete', label: t('review.ts_arrival_plant') },
   ]
 
   const timestampFor = (key: StageName | 'complete'): string | undefined => {
@@ -534,7 +540,7 @@ function TripReviewView({ trip, onUndoSplit, onConfirmSave, onCancel, onClose }:
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <div style={{ fontSize: '11px', fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: '.5px' }}>
-            Review · {trip.measurerName}
+            {t('tab.review')} · {trip.measurerName}
           </div>
           <div style={{ fontSize: '16px', fontWeight: 600, color: '#1a1a1a', marginTop: '2px' }}>
             {trip.label}
@@ -556,7 +562,7 @@ function TripReviewView({ trip, onUndoSplit, onConfirmSave, onCancel, onClose }:
         background: '#E1F5EE', border: '1px solid #A8D9C5',
         borderRadius: '10px', padding: '10px 12px', fontSize: '12px', color: '#0F6E56',
       }}>
-        ✓ Trip complete. Review the timestamps below. Tap any time to correct it before saving.
+        {t('review.trip_complete')}
       </div>
 
       {/* Timestamp list */}
@@ -585,12 +591,12 @@ function TripReviewView({ trip, onUndoSplit, onConfirmSave, onCancel, onClose }:
                 </div>
                 {missing && (
                   <div style={{ fontSize: '11px', color: '#C0392B', marginTop: '2px' }}>
-                    Not recorded
+                    {t('review.not_recorded')}
                   </div>
                 )}
                 {edited && !missing && (
                   <div style={{ fontSize: '11px', color: '#D68910', marginTop: '2px' }}>
-                    Edited
+                    {t('review.edited')}
                   </div>
                 )}
               </div>
@@ -632,7 +638,7 @@ function TripReviewView({ trip, onUndoSplit, onConfirmSave, onCancel, onClose }:
             boxShadow: '0 4px 14px rgba(15, 110, 86, 0.25)',
           }}
         >
-          Save trip
+          {t('review.save_trip')}
         </button>
         <div style={{ display: 'flex', gap: '8px' }}>
           <button
@@ -645,7 +651,7 @@ function TripReviewView({ trip, onUndoSplit, onConfirmSave, onCancel, onClose }:
               fontSize: '13px', fontWeight: 600, cursor: 'pointer',
             }}
           >
-            ← Back to timer
+            ← {t('review.back_to_timer')}
           </button>
           <button
             type="button"
@@ -657,7 +663,7 @@ function TripReviewView({ trip, onUndoSplit, onConfirmSave, onCancel, onClose }:
               fontSize: '13px', fontWeight: 600, cursor: 'pointer',
             }}
           >
-            Discard trip
+            {t('review.discard_trip')}
           </button>
         </div>
       </div>
@@ -679,6 +685,7 @@ function OriginPlantChip({ value, suggestions, onChange }: {
   suggestions: string[]
   onChange: (v: string) => void
 }) {
+  const { t } = useLogT()
   const [editing, setEditing] = useState(false)
   const [local, setLocal] = useState(value)
 
@@ -697,7 +704,7 @@ function OriginPlantChip({ value, suggestions, onChange }: {
           color: value ? '#0F6E56' : '#888', cursor: 'pointer',
         }}
       >
-        📍 {value || 'Set plant'} · Edit
+        📍 {value || t('card.set_plant')} · {t('card.edit')}
       </button>
     )
   }
@@ -715,7 +722,7 @@ function OriginPlantChip({ value, suggestions, onChange }: {
           border: '1px solid #ddd', borderRadius: '8px', fontSize: '14px',
         }}
       >
-        <option value="">(not specified)</option>
+        <option value="">{t('live.not_specified')}</option>
         {suggestions.map(s => <option key={s} value={s}>{s}</option>)}
       </select>
       <button
@@ -726,7 +733,7 @@ function OriginPlantChip({ value, suggestions, onChange }: {
           background: '#0F6E56', color: '#fff', border: 'none',
           borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer',
         }}
-      >Save</button>
+      >{t('card.save')}</button>
       <button
         type="button"
         onClick={() => { setLocal(value); setEditing(false) }}

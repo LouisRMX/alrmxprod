@@ -21,24 +21,30 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { createClient } from '@/lib/supabase/client'
 import { db, drainPending } from '@/lib/fieldlog/offline-trip-queue'
 import { useOnlineStatus } from '@/hooks/useOnlineStatus'
+import { useLogT } from '@/lib/i18n/LogLocaleContext'
 
 interface Props {
   assessmentId: string
 }
 
-function formatRelative(iso: string): string {
-  const ms = Date.now() - new Date(iso).getTime()
-  if (ms < 60_000) return 'just now'
-  const min = Math.floor(ms / 60_000)
-  if (min < 60) return `${min} min ago`
-  const h = Math.floor(min / 60)
-  const m = min % 60
-  return `${h}h ${m}m ago`
+function useFormatRelative() {
+  const { t } = useLogT()
+  return (iso: string): string => {
+    const ms = Date.now() - new Date(iso).getTime()
+    if (ms < 60_000) return t('time.just_now')
+    const min = Math.floor(ms / 60_000)
+    if (min < 60) return `${min} ${t('time.min_ago')}`
+    const h = Math.floor(min / 60)
+    const m = min % 60
+    return t('time.h_m_ago', { h, m })
+  }
 }
 
 export default function SyncStatusBar({ assessmentId }: Props) {
   const supabase = createClient()
   const online = useOnlineStatus()
+  const { t } = useLogT()
+  const formatRelative = useFormatRelative()
   const [syncing, setSyncing] = useState(false)
   const [lastSync, setLastSync] = useState<string | null>(null)
   const [lastError, setLastError] = useState<string | null>(null)
@@ -99,9 +105,9 @@ export default function SyncStatusBar({ assessmentId }: Props) {
         display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap',
       }}>
         <span style={{ fontSize: '14px' }}>●</span>
-        <strong>Offline</strong>
+        <strong>{t('sync.offline')}</strong>
         {pendingCount > 0 && (
-          <span>· {pendingCount} trip{pendingCount !== 1 ? 's' : ''} will sync when back online</span>
+          <span>· {pendingCount} {t('sync.offline_suffix')}</span>
         )}
       </div>
     )
@@ -117,8 +123,8 @@ export default function SyncStatusBar({ assessmentId }: Props) {
         display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap',
       }}>
         <span style={{ fontSize: '14px' }}>●</span>
-        <strong>All synced</strong>
-        {lastSync && <span style={{ color: '#0F6E56aa' }}>· last sync {formatRelative(lastSync)}</span>}
+        <strong>{t('sync.online_all_synced')}</strong>
+        {lastSync && <span style={{ color: '#0F6E56aa' }}>· {t('sync.last_sync')} {formatRelative(lastSync)}</span>}
       </div>
     )
   }
@@ -135,9 +141,9 @@ export default function SyncStatusBar({ assessmentId }: Props) {
       display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap',
     }}>
       <span style={{ fontSize: '14px' }}>{stalled ? '⚠' : '⏳'}</span>
-      <strong>{pendingCount} pending</strong>
+      <strong>{pendingCount} {t('sync.pending')}</strong>
       {oldestPending && (
-        <span>· oldest {formatRelative(oldestPending.finalisedAt)}</span>
+        <span>· {t('sync.oldest')} {formatRelative(oldestPending.finalisedAt)}</span>
       )}
       {lastError && (
         <span style={{ fontStyle: 'italic' }}>· {lastError}</span>
@@ -147,14 +153,14 @@ export default function SyncStatusBar({ assessmentId }: Props) {
         onClick={handleRetry}
         disabled={syncing}
         style={{
-          marginLeft: 'auto', padding: '6px 12px',
+          marginInlineStart: 'auto', padding: '6px 12px',
           background: stalled ? '#C0392B' : '#B7950B', color: '#fff',
           border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: 600,
           cursor: syncing ? 'not-allowed' : 'pointer', minHeight: '32px',
           opacity: syncing ? 0.6 : 1,
         }}
       >
-        {syncing ? 'Syncing...' : 'Retry sync'}
+        {syncing ? t('sync.syncing') : t('sync.retry')}
       </button>
     </div>
   )

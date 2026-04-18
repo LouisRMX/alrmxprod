@@ -14,6 +14,8 @@ import { InterventionsEditor } from './InterventionsView'
 import ReviewQueue from './ReviewQueue'
 import SyncStatusBar from './SyncStatusBar'
 import DailyBriefingExport from './DailyBriefingExport'
+import LocaleToggle from './LocaleToggle'
+import { LogLocaleProvider, useLogT } from '@/lib/i18n/LogLocaleContext'
 
 type SubTab = 'live' | 'diagnostics' | 'interventions' | 'review' | 'manual' | 'upload' | 'audio'
 
@@ -27,7 +29,19 @@ interface FieldLogViewProps {
   targetTAT?: number | null
 }
 
-export default function FieldLogView({ assessmentId, plantId, isAdmin, reportedTAT, targetTAT }: FieldLogViewProps) {
+// Outer wrapper supplies the LogLocaleProvider so every child in the
+// Log tree (FieldLogView + all sub-tabs + LiveTimer etc.) can call
+// useLogT(). Locale choice persists via localStorage.
+export default function FieldLogView(props: FieldLogViewProps) {
+  return (
+    <LogLocaleProvider>
+      <FieldLogViewInner {...props} />
+    </LogLocaleProvider>
+  )
+}
+
+function FieldLogViewInner({ assessmentId, plantId, isAdmin, reportedTAT, targetTAT }: FieldLogViewProps) {
+  const { t, isRTL } = useLogT()
   const supabase = createClient()
   const today = new Date().toISOString().slice(0, 10)
 
@@ -111,20 +125,21 @@ export default function FieldLogView({ assessmentId, plantId, isAdmin, reportedT
   }
 
   return (
-    <div style={{ padding: '16px', maxWidth: '800px' }}>
+    <div dir={isRTL ? 'rtl' : 'ltr'} style={{ padding: '16px', maxWidth: '800px' }}>
       {/* Sync health indicator, always visible at top. Observer/analyst
           sees live sync state, age of oldest pending trip, retry button. */}
       <SyncStatusBar assessmentId={assessmentId} />
 
-      {/* Date picker + token share + daily briefing export */}
+      {/* Date picker + locale toggle + token share + daily briefing export */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <label style={{ fontSize: '12px', fontWeight: 600, color: '#888' }}>Date</label>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+          <label style={{ fontSize: '12px', fontWeight: 600, color: '#888' }}>{t('field.date')}</label>
           <input type="date" value={logDate} onChange={e => setLogDate(e.target.value)}
             style={{
               padding: '6px 10px', border: '1px solid #d1d5db', borderRadius: '6px',
               fontSize: '14px', background: '#fff',
             }} />
+          <LocaleToggle />
         </div>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           {isAdmin && <DailyBriefingExport assessmentId={assessmentId} />}
@@ -134,13 +149,13 @@ export default function FieldLogView({ assessmentId, plantId, isAdmin, reportedT
 
       {/* Sub-tabs */}
       <div style={{ display: 'flex', gap: '6px', marginBottom: '16px', flexWrap: 'wrap' }}>
-        {tabBtn('live', '⏱ Live')}
-        {tabBtn('diagnostics', '📊 Diagnostics')}
-        {tabBtn('interventions', '⚙ Interventions')}
-        {tabBtn('review', '⚠ Review')}
-        {tabBtn('manual', 'Manual')}
-        {tabBtn('upload', 'Upload')}
-        {audioEnabled && tabBtn('audio', 'Audio')}
+        {tabBtn('live', `⏱ ${t('tab.live')}`)}
+        {tabBtn('diagnostics', `📊 ${t('tab.diagnostics')}`)}
+        {tabBtn('interventions', `⚙ ${t('tab.interventions')}`)}
+        {tabBtn('review', `⚠ ${t('tab.review')}`)}
+        {tabBtn('manual', t('tab.manual'))}
+        {tabBtn('upload', t('tab.upload'))}
+        {audioEnabled && tabBtn('audio', t('tab.audio'))}
       </div>
 
       {/* Active sub-tab */}
@@ -204,7 +219,7 @@ export default function FieldLogView({ assessmentId, plantId, isAdmin, reportedT
       {/* Trip table */}
       <div style={{ marginTop: '24px', borderTop: '1px solid #eee', paddingTop: '16px' }}>
         <div style={{ fontSize: '11px', fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: '10px' }}>
-          Logged trips ({trips.length})
+          {t('field.logged_trips')} ({trips.length})
         </div>
         {loading ? (
           <div style={{ textAlign: 'center', padding: '20px', color: '#aaa', fontSize: '13px' }}>Loading...</div>
