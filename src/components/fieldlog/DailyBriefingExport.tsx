@@ -1,20 +1,24 @@
 'use client'
 
 /**
- * Daily briefing export.
+ * Weekly briefing export.
  *
- * One-click generation of a text summary of the day's tracking data,
- * ready to paste into email/WhatsApp/Slack for stakeholder updates.
+ * One-click generation of an executive-style summary for the current
+ * week, ready to paste into email/WhatsApp/Slack for stakeholder
+ * updates. Weekly cadence is chosen over daily to avoid stakeholder
+ * fatigue during the 13-week tracking period.
  *
- * Content pulled live from:
- *   - daily_logs for today's trip count + median TAT + rejects
- *   - get_weekly_kpis_from_daily_logs for week stats + stage breakdown
- *   - intervention_logs for this week's interventions
- *   - review queue count (flagged outliers)
- *   - tracking_configs for onsite start date (to compute "Day N")
+ * Output structure (Executive first, narrative over raw data):
  *
- * Output is editable markdown-style plain text. Analyst can tweak
- * before copying to clipboard.
+ *   HEADLINE          one-line summary with the critical gap
+ *   KEY FINDING       the #1 bottleneck with its dollar impact
+ *   WHAT WE ARE DOING interventions + next week's focus (editable)
+ *   BY THE NUMBERS    weekly metrics + week-over-week delta
+ *
+ * Data live from daily_logs aggregation, intervention_logs, and
+ * outlier review queue. GCC owner/manager readable: plain language,
+ * dominant stage singled out, dollar figure when a baseline + target
+ * are locked, no 7-stage dump front and centre.
  */
 
 import { useCallback, useState } from 'react'
@@ -24,10 +28,20 @@ const STAGE_LABEL: Record<string, string> = {
   plant_queue: 'Plant queue',
   loading: 'Loading',
   transit_out: 'Transit out',
-  site_wait: 'Site wait',
+  site_wait: 'Site waiting',
   pouring: 'Pouring',
   washout: 'Washout',
   transit_back: 'Transit back',
+}
+
+const STAGE_PLAIN: Record<string, string> = {
+  plant_queue: 'time spent waiting at the plant before loading',
+  loading: 'time to load the mixer',
+  transit_out: 'drive time from plant to site',
+  site_wait: 'time at site before pouring begins',
+  pouring: 'time discharging concrete at site',
+  washout: 'time cleaning the drum after pour',
+  transit_back: 'drive time back to plant',
 }
 
 interface Props {
@@ -50,15 +64,25 @@ interface WeeklyAggregate {
   unique_trucks: number
   avg_trips_per_truck_per_day: number | null
   outliers_excluded_count: number
+  week_start_date: string
+  week_end_date: string
 }
 
-function median(values: number[]): number | null {
-  if (values.length === 0) return null
-  const sorted = [...values].sort((a, b) => a - b)
-  const mid = Math.floor(sorted.length / 2)
-  return sorted.length % 2 === 0
-    ? (sorted[mid - 1] + sorted[mid]) / 2
-    : sorted[mid]
+function formatDateRange(start: string, end: string): string {
+  const s = new Date(start)
+  const e = new Date(end)
+  const sMonth = s.toLocaleDateString('en-GB', { month: 'short' })
+  const eMonth = e.toLocaleDateString('en-GB', { month: 'short' })
+  if (sMonth === eMonth) {
+    return `${s.getDate()}-${e.getDate()} ${sMonth}`
+  }
+  return `${s.getDate()} ${sMonth} - ${e.getDate()} ${eMonth}`
+}
+
+function arrow(delta: number): string {
+  if (delta < -0.5) return '▼'
+  if (delta > 0.5) return '▲'
+  return '='
 }
 
 export default function DailyBriefingExport({ assessmentId }: Props) {
@@ -66,19 +90,12 @@ export default function DailyBriefingExport({ assessmentId }: Props) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [briefing, setBriefing] = useState('')
+  const [mode, setMode] = useState<'executive' | 'detailed'>('executive')
 
-  const generate = useCallback(async () => {
+  const generate = useCallback(async (selectedMode: 'executive' | 'detailed') => {
     setLoading(true)
-    const today = new Date()
-    const todayStr = today.toISOString().slice(0, 10)
 
-    // Fetch tracking config for onsite day computation + plant info
-    const { data: cfg } = await supabase
-      .from('tracking_configs')
-      .select('id, started_at')
-      .eq('assessment_id', assessmentId)
-      .maybeSingle()
-
+    // Fetch plant + assessment context
     const { data: assessmentData } = await supabase
       .from('assessments')
       .select('phase, plant:plants(name, country)')
@@ -88,55 +105,33 @@ export default function DailyBriefingExport({ assessmentId }: Props) {
     const plantRow = (assessmentData?.plant ?? null) as { name?: string; country?: string } | { name?: string; country?: string }[] | null
     const plant = Array.isArray(plantRow) ? (plantRow[0] ?? null) : plantRow
     const plantName: string = plant?.name ?? 'Plant'
-    const phase: string = (assessmentData?.phase as string) ?? 'tracking'
 
-    // Day N counter based on tracking start
-    let dayLabel = todayStr
-    if (cfg?.started_at) {
-      const days = Math.floor(
-        (today.getTime() - new Date(cfg.started_at as string).getTime()) / 86_400_000
-      ) + 1
-      dayLabel = `Day ${days} · ${todayStr}`
-    }
-
-    // Today's trips
-    const { data: todayTrips } = await supabase
-      .from('daily_logs')
-      .select('plant_queue_start, departure_loaded, arrival_plant, rejected, review_status')
-      .eq('assessment_id', assessmentId)
-      .eq('log_date', todayStr)
-
-    const todayRowsIncluded = (todayTrips ?? []).filter(r =>
-      r.review_status !== 'flagged' && r.review_status !== 'reviewed_exclude'
-    )
-    const todayCount = todayRowsIncluded.length
-    const todayTats = todayRowsIncluded
-      .map(r => {
-        const start = r.plant_queue_start ?? r.departure_loaded
-        if (!start || !r.arrival_plant) return null
-        const diff = (new Date(r.arrival_plant).getTime() - new Date(start).getTime()) / 60000
-        return diff > 0 && diff < 720 ? diff : null
-      })
-      .filter((v): v is number => v !== null)
-    const todayMedianTat = median(todayTats)
-    const todayRejectCount = todayRowsIncluded.filter(r => r.rejected).length
-
-    // Current week aggregate
+    // Weekly aggregates with outlier exclusion
     const { data: aggregates } = await supabase.rpc('get_weekly_kpis_from_daily_logs', {
       p_assessment_id: assessmentId,
     })
-    const sortedAggs = ((aggregates ?? []) as WeeklyAggregate[]).sort(
-      (a, b) => b.week_number - a.week_number
-    )
-    const currentWeek = sortedAggs[0] ?? null
+    const sortedAggs = ((aggregates ?? []) as WeeklyAggregate[])
+      .sort((a, b) => b.week_number - a.week_number)
+    const current = sortedAggs[0] ?? null
+    const previous = sortedAggs[1] ?? null
+
+    // Tracking config for baseline + target (used for dollar impact)
+    const { data: cfg } = await supabase
+      .from('tracking_configs')
+      .select('baseline_turnaround, target_turnaround, coeff_turnaround')
+      .eq('assessment_id', assessmentId)
+      .maybeSingle()
+    const baseline = (cfg?.baseline_turnaround as number | null) ?? null
+    const target = (cfg?.target_turnaround as number | null) ?? null
+    const coeff = (cfg?.coeff_turnaround as number | null) ?? null
 
     // Interventions this week
-    const oneWeekAgo = new Date(today.getTime() - 7 * 86_400_000).toISOString().slice(0, 10)
+    const sevenDaysAgo = new Date(Date.now() - 7 * 86_400_000).toISOString().slice(0, 10)
     const { data: interventions } = await supabase
       .from('intervention_logs')
       .select('intervention_date, title, target_metric, implemented_by')
       .eq('assessment_id', assessmentId)
-      .gte('intervention_date', oneWeekAgo)
+      .gte('intervention_date', sevenDaysAgo)
       .order('intervention_date', { ascending: false })
 
     // Outliers pending review
@@ -147,93 +142,131 @@ export default function DailyBriefingExport({ assessmentId }: Props) {
       .filter(o => o.review_status === 'flagged' || o.review_status === 'normal')
       .length
 
-    // ── Format briefing ──
+    // ── Build ──
     const lines: string[] = []
 
-    lines.push(`${plantName} · ${phase === 'onsite' ? 'Onsite diagnostic' : 'Tracking'}`)
-    lines.push(dayLabel)
-    lines.push('')
-
-    lines.push('TODAY')
-    if (todayCount === 0) {
-      lines.push('No trips logged today yet.')
-    } else {
-      lines.push(`• ${todayCount} trips logged`)
-      if (todayMedianTat != null) {
-        lines.push(`• Median TAT: ${Math.round(todayMedianTat)} min`)
-      }
-      if (todayRejectCount > 0) {
-        const pct = Math.round((todayRejectCount / todayCount) * 100)
-        lines.push(`• ${todayRejectCount} rejects (${pct}%)`)
-      }
-    }
-    lines.push('')
-
-    if (currentWeek && currentWeek.trip_count > 0) {
-      lines.push(`THIS WEEK (Week ${currentWeek.week_number})`)
-      lines.push(`• ${currentWeek.trip_count} trips logged`)
-      if (currentWeek.avg_tat_min != null) {
-        lines.push(`• Avg TAT: ${Math.round(currentWeek.avg_tat_min)} min`)
-      }
-      if (currentWeek.reject_pct != null && currentWeek.reject_count > 0) {
-        lines.push(`• Rejects: ${currentWeek.reject_count} (${Math.round(currentWeek.reject_pct)}%)`)
-      }
-      if (currentWeek.unique_trucks > 0) {
-        lines.push(`• ${currentWeek.unique_trucks} unique trucks observed`)
-      }
-      if (currentWeek.avg_trips_per_truck_per_day != null) {
-        lines.push(`• ${currentWeek.avg_trips_per_truck_per_day.toFixed(1)} trips/truck/day`)
-      }
-      if (currentWeek.outliers_excluded_count > 0) {
-        lines.push(`• ${currentWeek.outliers_excluded_count} outliers excluded (auto-flagged for review)`)
-      }
+    if (!current || current.trip_count === 0) {
+      lines.push(`${plantName}`)
+      lines.push(`Weekly briefing · No data logged this week`)
       lines.push('')
-
-      // Stage breakdown. Highlight dominant stages.
-      const stages = [
-        { key: 'plant_queue', val: currentWeek.avg_plant_queue_min },
-        { key: 'loading', val: currentWeek.avg_loading_min },
-        { key: 'transit_out', val: currentWeek.avg_transit_out_min },
-        { key: 'site_wait', val: currentWeek.avg_site_wait_min },
-        { key: 'pouring', val: currentWeek.avg_pouring_min },
-        { key: 'washout', val: currentWeek.avg_washout_min },
-        { key: 'transit_back', val: currentWeek.avg_transit_back_min },
-      ].filter(s => s.val != null) as Array<{ key: string; val: number }>
-
-      if (stages.length > 0) {
-        lines.push('STAGE BREAKDOWN (week avg)')
-        const totalMin = stages.reduce((a, s) => a + s.val, 0)
-        for (const s of stages) {
-          const pct = totalMin > 0 ? Math.round((s.val / totalMin) * 100) : 0
-          const marker = pct >= 25 ? ' ← dominant' : ''
-          lines.push(`• ${STAGE_LABEL[s.key] ?? s.key}: ${s.val.toFixed(0)} min (${pct}%)${marker}`)
-        }
-        lines.push('')
-      }
+      lines.push('No trips have been logged in the current week.')
+      lines.push('Data collection resumes once logging is active.')
+      setBriefing(lines.join('\n'))
+      setLoading(false)
+      return
     }
 
+    const weekRange = formatDateRange(current.week_start_date, current.week_end_date)
+    const weekLabel = `Week ${current.week_number} · ${weekRange}`
+
+    lines.push(`${plantName}`)
+    lines.push(`Weekly briefing · ${weekLabel}`)
+    lines.push('')
+
+    // ── HEADLINE ──
+    const avgCycle = current.avg_tat_min
+    const gapFromTarget = baseline != null && target != null && avgCycle != null
+      ? avgCycle - target
+      : null
+    const gapFromBaseline = baseline != null && avgCycle != null
+      ? baseline - avgCycle
+      : null
+
+    lines.push('HEADLINE')
+    if (avgCycle != null) {
+      const parts: string[] = []
+      parts.push(`Truck cycle averaged ${Math.round(avgCycle)} minutes across ${current.trip_count} trips this week.`)
+      if (gapFromTarget != null) {
+        if (gapFromTarget > 2) {
+          parts.push(`${Math.round(gapFromTarget)} min above target of ${target}.`)
+        } else if (gapFromTarget < -2) {
+          parts.push(`${Math.round(-gapFromTarget)} min below target, ahead of plan.`)
+        } else {
+          parts.push(`On target (${target} min).`)
+        }
+      }
+      if (gapFromBaseline != null && gapFromBaseline > 2) {
+        const monthlyValue = coeff && coeff > 0 ? Math.round(gapFromBaseline * coeff) : null
+        if (monthlyValue && monthlyValue > 0) {
+          parts.push(`Recovering an estimated $${monthlyValue.toLocaleString()}/month versus baseline.`)
+        } else {
+          parts.push(`${Math.round(gapFromBaseline)} min better than baseline of ${baseline} min.`)
+        }
+      }
+      lines.push(parts.join(' '))
+    } else {
+      lines.push(`${current.trip_count} trips observed this week. Cycle time not yet computable (missing timestamps).`)
+    }
+    lines.push('')
+
+    // ── KEY FINDING ──
+    const stages = [
+      { key: 'plant_queue', val: current.avg_plant_queue_min },
+      { key: 'loading', val: current.avg_loading_min },
+      { key: 'transit_out', val: current.avg_transit_out_min },
+      { key: 'site_wait', val: current.avg_site_wait_min },
+      { key: 'pouring', val: current.avg_pouring_min },
+      { key: 'washout', val: current.avg_washout_min },
+      { key: 'transit_back', val: current.avg_transit_back_min },
+    ].filter(s => s.val != null) as Array<{ key: string; val: number }>
+
+    if (stages.length > 0 && avgCycle != null) {
+      const totalStageMin = stages.reduce((a, s) => a + s.val, 0)
+      const dominant = [...stages].sort((a, b) => b.val - a.val)[0]
+      const dominantPct = totalStageMin > 0 ? Math.round((dominant.val / totalStageMin) * 100) : 0
+
+      lines.push('KEY FINDING')
+      lines.push(`${STAGE_LABEL[dominant.key]} is the largest component at ${Math.round(dominant.val)} min per trip (${dominantPct}% of cycle).`)
+      lines.push(`This is ${STAGE_PLAIN[dominant.key]}.`)
+      lines.push('')
+    }
+
+    // ── WHAT WE ARE DOING ──
+    lines.push('WHAT WE ARE DOING')
     if (interventions && interventions.length > 0) {
-      lines.push('INTERVENTIONS (last 7 days)')
       for (const iv of interventions as Array<{ intervention_date: string; title: string; target_metric: string | null; implemented_by: string | null }>) {
         const dateShort = new Date(iv.intervention_date).toLocaleDateString('en-GB', {
           day: 'numeric', month: 'short'
         })
-        const parts = [`${dateShort}`, iv.title]
-        if (iv.target_metric) parts.push(`[${iv.target_metric}]`)
-        if (iv.implemented_by) parts.push(`by ${iv.implemented_by}`)
-        lines.push(`• ${parts.join(' · ')}`)
+        lines.push(`• ${dateShort}: ${iv.title}`)
       }
-      lines.push('')
+    } else {
+      lines.push('• [Add this week\'s actions and next week\'s focus]')
     }
+    lines.push('')
 
+    // ── BY THE NUMBERS ──
+    lines.push('BY THE NUMBERS')
+    lines.push(`Trips: ${current.trip_count}${previous ? ` ${arrow(current.trip_count - previous.trip_count)} ${previous.trip_count} last week` : ''}`)
+    if (avgCycle != null) {
+      const delta = previous?.avg_tat_min != null ? Math.round(avgCycle - previous.avg_tat_min) : null
+      lines.push(`Avg cycle: ${Math.round(avgCycle)} min${delta != null ? ` ${arrow(delta)} ${Math.round(previous!.avg_tat_min!)} min last week` : ''}`)
+    }
+    if (current.reject_pct != null) {
+      const deltaR = previous?.reject_pct != null ? current.reject_pct - previous.reject_pct : null
+      lines.push(`Rejects: ${current.reject_count} (${Math.round(current.reject_pct)}%)${deltaR != null ? ` ${arrow(deltaR)} ${Math.round(previous!.reject_pct!)}% last week` : ''}`)
+    }
+    lines.push(`Trucks in rotation: ${current.unique_trucks}`)
+    if (current.avg_trips_per_truck_per_day != null) {
+      lines.push(`Trips per truck per day: ${current.avg_trips_per_truck_per_day.toFixed(1)}`)
+    }
+    if (current.outliers_excluded_count > 0) {
+      lines.push(`Outliers excluded from averages: ${current.outliers_excluded_count} (reviewed separately)`)
+    }
     if (outliersPending > 0) {
-      lines.push('REVIEW QUEUE')
-      lines.push(`• ${outliersPending} trip${outliersPending !== 1 ? 's' : ''} flagged as outlier, awaiting review`)
-      lines.push('')
+      lines.push(`Trips awaiting review: ${outliersPending}`)
     }
 
-    lines.push('NEXT STEP')
-    lines.push('[Add your notes here]')
+    // ── DETAILED mode: add full stage breakdown ──
+    if (selectedMode === 'detailed' && stages.length > 0) {
+      lines.push('')
+      lines.push('STAGE BREAKDOWN')
+      const totalStageMin = stages.reduce((a, s) => a + s.val, 0)
+      for (const s of stages) {
+        const pct = totalStageMin > 0 ? Math.round((s.val / totalStageMin) * 100) : 0
+        lines.push(`• ${STAGE_LABEL[s.key] ?? s.key}: ${s.val.toFixed(0)} min (${pct}%)`)
+      }
+    }
 
     setBriefing(lines.join('\n'))
     setLoading(false)
@@ -241,14 +274,18 @@ export default function DailyBriefingExport({ assessmentId }: Props) {
 
   const handleOpen = () => {
     setOpen(true)
-    generate()
+    generate(mode)
+  }
+
+  const handleModeChange = (m: 'executive' | 'detailed') => {
+    setMode(m)
+    generate(m)
   }
 
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(briefing)
     } catch {
-      // Fallback for older browsers
       const textarea = document.createElement('textarea')
       textarea.value = briefing
       document.body.appendChild(textarea)
@@ -270,7 +307,7 @@ export default function DailyBriefingExport({ assessmentId }: Props) {
           cursor: 'pointer',
         }}
       >
-        📋 Daily briefing
+        📋 Weekly briefing
       </button>
 
       {open && (
@@ -291,9 +328,9 @@ export default function DailyBriefingExport({ assessmentId }: Props) {
               display: 'flex', flexDirection: 'column', gap: '12px',
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
               <div>
-                <div style={{ fontSize: '16px', fontWeight: 700 }}>Daily briefing</div>
+                <div style={{ fontSize: '16px', fontWeight: 700 }}>Weekly briefing</div>
                 <div style={{ fontSize: '12px', color: '#666', marginTop: '2px' }}>
                   Edit if needed, then copy to clipboard and paste into your stakeholder update.
                 </div>
@@ -308,6 +345,27 @@ export default function DailyBriefingExport({ assessmentId }: Props) {
               >
                 ×
               </button>
+            </div>
+
+            {/* Mode toggle */}
+            <div style={{ display: 'flex', gap: '4px', background: '#f4f4f4', padding: '3px', borderRadius: '8px', alignSelf: 'flex-start' }}>
+              {(['executive', 'detailed'] as const).map(m => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => handleModeChange(m)}
+                  style={{
+                    padding: '6px 14px', background: mode === m ? '#fff' : 'transparent',
+                    border: 'none', borderRadius: '6px',
+                    fontSize: '12px', fontWeight: 600,
+                    color: mode === m ? '#1a1a1a' : '#666',
+                    cursor: 'pointer',
+                    boxShadow: mode === m ? '0 1px 3px rgba(0,0,0,.1)' : 'none',
+                  }}
+                >
+                  {m === 'executive' ? 'Executive' : 'Detailed'}
+                </button>
+              ))}
             </div>
 
             {loading ? (
@@ -344,7 +402,7 @@ export default function DailyBriefingExport({ assessmentId }: Props) {
               </button>
               <button
                 type="button"
-                onClick={generate}
+                onClick={() => generate(mode)}
                 disabled={loading}
                 style={{
                   padding: '10px 18px', background: '#fff', color: '#333',
