@@ -68,10 +68,12 @@ body {
   }
 }
 
-/* Bottom tab bar spacing on mobile */
+/* Bottom tab bar spacing on mobile.
+   Tab bar is ~56-64px tall + iPhone home-indicator safe area (up to 34px).
+   Adding 80px base + env() ensures the last row is never hidden behind it. */
 @media (max-width: 640px) {
   .dashboard-main {
-    padding-bottom: 64px;
+    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
   }
 }
 

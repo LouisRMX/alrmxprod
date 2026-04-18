@@ -299,7 +299,10 @@ export default function AssessmentTool({
       {isAdmin && phase === 'workshop' && (
         <div style={{
           padding: '12px 16px', background: 'var(--info-bg)', borderBottom: '1px solid var(--info-border)',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px',
+          display: 'flex',
+          flexDirection: isMobile ? 'column' : 'row',
+          alignItems: isMobile ? 'stretch' : 'center',
+          justifyContent: 'space-between', gap: '12px',
         }}>
           <div>
             <div style={{ fontSize: '13px', color: 'var(--phase-workshop)', fontWeight: 500 }}>
@@ -312,10 +315,12 @@ export default function AssessmentTool({
           <button
             onClick={() => transitionPhase('workshop_complete')}
             style={{
-              padding: '8px 16px', background: 'var(--white)', color: 'var(--phase-workshop)',
+              padding: '10px 16px', background: 'var(--white)', color: 'var(--phase-workshop)',
               border: '1px solid var(--phase-workshop)', borderRadius: '8px',
               fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font)',
               flexShrink: 0,
+              width: isMobile ? '100%' : 'auto',
+              minHeight: '44px',
             }}
           >
             Mark pre-assessment complete →
@@ -327,7 +332,10 @@ export default function AssessmentTool({
       {isAdmin && phase === 'workshop_complete' && (
         <div style={{
           padding: '12px 16px', background: 'var(--info-bg)', borderBottom: '1px solid var(--info-border)',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px',
+          display: 'flex',
+          flexDirection: isMobile ? 'column' : 'row',
+          alignItems: isMobile ? 'stretch' : 'center',
+          justifyContent: 'space-between', gap: '12px',
         }}>
           <div>
             <div style={{ fontSize: '13px', color: 'var(--phase-workshop)', fontWeight: 500 }}>
@@ -337,13 +345,21 @@ export default function AssessmentTool({
               Set up 90-day tracking now so the customer starts logging baseline data before the on-site visit.
             </div>
           </div>
-          <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
+          <div style={{
+            display: 'flex',
+            flexDirection: isMobile ? 'column' : 'row',
+            gap: '8px',
+            flexShrink: 0,
+            width: isMobile ? '100%' : 'auto',
+          }}>
             <button
               onClick={() => setRequestedMode('track')}
               style={{
-                padding: '8px 16px', background: 'var(--white)', color: 'var(--phase-workshop)',
+                padding: '10px 16px', background: 'var(--white)', color: 'var(--phase-workshop)',
                 border: '1px solid var(--info-border)', borderRadius: '8px',
                 fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font)',
+                minHeight: '44px',
+                width: isMobile ? '100%' : 'auto',
               }}
             >
               Set up tracking →
@@ -351,9 +367,11 @@ export default function AssessmentTool({
             <button
               onClick={() => transitionPhase('onsite')}
               style={{
-                padding: '8px 20px', background: 'var(--green)', color: 'white', border: 'none',
+                padding: '10px 20px', background: 'var(--green)', color: 'white', border: 'none',
                 borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer',
                 fontFamily: 'var(--font)',
+                minHeight: '44px',
+                width: isMobile ? '100%' : 'auto',
               }}
             >
               Start on-site diagnostic

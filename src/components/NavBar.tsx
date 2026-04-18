@@ -155,20 +155,24 @@ export default function NavBar({ user, profile, memberRole, isAdmin: isAdminProp
       <div style={{
         background: 'var(--green)', padding: isMobile ? '0 12px' : '0 24px',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        height: '48px', flexShrink: 0,
+        height: '48px', flexShrink: 0, minWidth: 0, gap: '8px',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flexShrink: 1 }}>
           <div style={{
             width: '28px', height: '28px', borderRadius: '8px',
             background: 'rgba(255,255,255,0.15)', display: 'flex',
             alignItems: 'center', justifyContent: 'center',
+            flexShrink: 0,
           }}>
             <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#5DCAA5' }} />
           </div>
-          <span style={{ color: '#fff', fontSize: '15px', fontWeight: '500' }}>Al-RMX</span>
+          <span style={{
+            color: '#fff', fontSize: '15px', fontWeight: '500',
+            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+          }}>Al-RMX</span>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
           {isAdmin && memberRole && (
             <button
               onClick={handleExitRoleView}
@@ -177,9 +181,10 @@ export default function NavBar({ user, profile, memberRole, isAdmin: isAdminProp
                 background: 'rgba(255,100,100,0.25)', border: '1px solid rgba(255,100,100,0.4)',
                 borderRadius: '6px', padding: '4px 10px', cursor: 'pointer',
                 fontFamily: 'var(--font)',
+                whiteSpace: 'nowrap',
               }}
             >
-              Exit {memberRole} view
+              {isMobile ? `Exit ${memberRole}` : `Exit ${memberRole} view`}
             </button>
           )}
           {!isMobile && (
@@ -194,6 +199,7 @@ export default function NavBar({ user, profile, memberRole, isAdmin: isAdminProp
               background: 'none', border: '1px solid rgba(255,255,255,0.2)',
               borderRadius: '6px', padding: '4px 10px', cursor: 'pointer',
               fontFamily: 'var(--font)',
+              whiteSpace: 'nowrap',
             }}
           >
             Sign out
@@ -231,7 +237,10 @@ export default function NavBar({ user, profile, memberRole, isAdmin: isAdminProp
         </div>
       )}
 
-      {/* Mobile: bottom tab bar */}
+      {/* Mobile: bottom tab bar.
+          Height ~60px + safe-area. The dashboard layout adds matching
+          paddingBottom to the main container so page content isn't hidden
+          underneath this bar. */}
       {isMobile && (
         <div style={{
           position: 'fixed', bottom: 0, left: 0, right: 0,
