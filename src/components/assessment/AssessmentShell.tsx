@@ -537,6 +537,7 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
             viewOnly={userRole === 'owner'}
             plant={plant}
             country={country}
+            phase={phase}
             perMinTACoeff={calcResult.perMinTACoeff}
             baselineTurnaround={(() => {
               const TURNAROUND_MAP: Record<string, number> = {

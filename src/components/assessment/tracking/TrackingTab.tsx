@@ -147,6 +147,9 @@ export interface TrackingProps {
   viewOnly?: boolean  // owner role, sees charts but no weekly input form
   plant?: string
   country?: string
+  /** The assessment's lifecycle phase. Baseline is "forming" during
+   *  onsite, and "locked" once the analyst transitions to complete. */
+  phase?: 'workshop' | 'workshop_complete' | 'onsite' | 'complete' | 'full'
   perMinTACoeff?: number
   baselineTurnaround: number | null
   baselineRejectPct: number | null
@@ -202,6 +205,59 @@ function interventionToWeek(interventionDate: string, trackingStartedAt: string)
   const days = Math.floor(diffMs / 86_400_000)
   if (days < 0) return 0
   return Math.min(13, Math.max(1, Math.ceil((days + 1) / 7)))
+}
+
+/** Compute the "forming" baseline TAT from onsite-phase trips.
+ *  Average turnaround across all trips logged BEFORE the first
+ *  intervention_date. Returns null if fewer than 5 eligible trips.
+ *
+ *  Rationale: the onsite week IS the diagnosis phase. Trips logged
+ *  during onsite are the measurement of how the plant operates
+ *  pre-intervention. As soon as an intervention is logged, subsequent
+ *  trips are post-intervention and must not contaminate the baseline. */
+async function computeFormingBaseline(
+  supabase: ReturnType<typeof createClient>,
+  assessmentId: string,
+): Promise<{ avg: number; tripCount: number } | null> {
+  // Find the earliest intervention (if any). Trips after this are
+  // post-intervention and excluded from baseline.
+  const { data: firstIv } = await supabase
+    .from('intervention_logs')
+    .select('intervention_date')
+    .eq('assessment_id', assessmentId)
+    .order('intervention_date', { ascending: true })
+    .limit(1)
+    .maybeSingle()
+
+  const cutoff = firstIv?.intervention_date ?? null
+
+  let query = supabase
+    .from('daily_logs')
+    .select('plant_queue_start, departure_loaded, arrival_plant')
+    .eq('assessment_id', assessmentId)
+    .not('arrival_plant', 'is', null)
+
+  if (cutoff) {
+    query = query.lt('log_date', cutoff)
+  }
+
+  const { data: rows } = await query
+  if (!rows || rows.length < 5) return null
+
+  let sum = 0
+  let count = 0
+  for (const r of rows) {
+    const start = r.plant_queue_start ?? r.departure_loaded
+    const end = r.arrival_plant
+    if (!start || !end) continue
+    const diff = (new Date(end).getTime() - new Date(start).getTime()) / 60000
+    if (diff > 0 && diff < 720) {  // sanity: ignore > 12h outliers
+      sum += diff
+      count += 1
+    }
+  }
+  if (count < 5) return null
+  return { avg: Math.round(sum / count), tripCount: count }
 }
 
 /** React hook that loads intervention markers for a given assessment,
@@ -1645,20 +1701,34 @@ function WeeklyDetailRow({ a }: { a: WeeklyAggregate }) {
 }
 
 // ── BaselineEditor ─────────────────────────────────────────────────────────
-// Lets the admin confirm or override the Baseline TAT. Pre-assessment
-// numbers are estimates and must be replaced by either a customer-
-// provided value (what the plant actually measured before engagement)
-// or a data-derived value from Week 1 of logged trips.
+// Baseline TAT has three phase-tied states:
+//
+//   1. Pre-onsite (phase=workshop/workshop_complete): no tracking yet.
+//      Nothing to show. Editor renders nothing.
+//
+//   2. Onsite (phase=onsite): baseline is FORMING. Shows live avg TAT
+//      of all logged trips before the first intervention. Updates as
+//      more trips come in. Analyst can optionally lock early with a
+//      customer-provided value, but usually waits until onsite ends.
+//
+//   3. Complete (phase=complete): baseline should be LOCKED. If not yet
+//      locked, admin sees a prominent "Lock baseline" action. Once
+//      locked, shows "Baseline: X min · Locked [date]" with Edit/Clear.
+//
+// Baseline is the diagnosis-phase output. Post-onsite tracking compares
+// against this locked value to show actual vs baseline.
 
 function BaselineEditor({
   assessmentId,
   config,
-  derivedFromWeek1,
+  phase,
+  formingBaseline,
   onSaved,
 }: {
   assessmentId: string
   config: TrackingConfig
-  derivedFromWeek1: number | null
+  phase?: TrackingProps['phase']
+  formingBaseline: { avg: number; tripCount: number } | null
   onSaved: () => void
 }) {
   const supabase = createClient()
@@ -1669,14 +1739,17 @@ function BaselineEditor({
   const [saving, setSaving] = useState(false)
 
   const isVirtualConfig = config.id === 'virtual'
-  const hasConfirmed = !isVirtualConfig && config.baseline_turnaround != null
-  const baselineValue = config.baseline_turnaround
+  const hasLocked = !isVirtualConfig && config.baseline_turnaround != null
+  const lockedValue = config.baseline_turnaround
+
+  // Don't render during pre-onsite phases. Nothing to confirm yet.
+  if (phase === 'workshop' || phase === 'workshop_complete') {
+    return null
+  }
 
   const save = async (rawValue: number | null) => {
     setSaving(true)
     if (isVirtualConfig) {
-      // No tracking_configs row yet. Create one with the minimal fields
-      // required to persist the baseline confirmation.
       await supabase.from('tracking_configs').upsert({
         assessment_id: assessmentId,
         started_at: config.started_at,
@@ -1713,141 +1786,266 @@ function BaselineEditor({
     save(Math.round(n))
   }
 
-  const handleUseDerived = () => {
-    if (derivedFromWeek1 == null) return
-    save(derivedFromWeek1)
+  const handleLockForming = () => {
+    if (formingBaseline == null) return
+    save(formingBaseline.avg)
   }
 
   const handleClear = () => {
-    if (!confirm('Clear the baseline? It will revert to data-derived if Week 1 has data, or pending otherwise.')) return
+    if (!confirm('Clear the baseline? It will revert to the forming value (if onsite has data).')) return
     save(null)
   }
 
+  // ── State 1: locked baseline (phase=complete, or admin pre-locked) ──
+  if (hasLocked) {
+    return (
+      <div style={{
+        background: '#F0FAF6',
+        border: '1px solid #9FE1CB',
+        borderRadius: 'var(--radius)', padding: '14px 16px', marginBottom: '16px',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: '12px', flexWrap: 'wrap' }}>
+          <div style={{ flex: '1 1 200px', minWidth: 0 }}>
+            <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: '4px' }}>
+              Baseline TAT · Locked
+            </div>
+            <div style={{ fontSize: '20px', fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--gray-900)' }}>
+              {lockedValue} min
+            </div>
+            <div style={{ fontSize: '11px', color: 'var(--gray-500)', marginTop: '2px' }}>
+              All post-onsite trips are compared against this value
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setEditing(v => !v)}
+            style={{
+              padding: '8px 14px', background: 'var(--white)',
+              border: '1px solid var(--border)', borderRadius: '8px',
+              fontSize: '12px', fontWeight: 600, cursor: 'pointer',
+              color: 'var(--gray-700)', minHeight: '40px', flexShrink: 0,
+            }}
+          >
+            {editing ? 'Cancel' : 'Edit'}
+          </button>
+        </div>
+        {editing && (
+          <EditForm
+            value={value} setValue={setValue}
+            saving={saving}
+            onSaveManual={handleSaveManual}
+            onClear={handleClear}
+            showClear={true}
+          />
+        )}
+      </div>
+    )
+  }
+
+  // ── State 2: phase=onsite, baseline forming ──
+  if (phase === 'onsite') {
+    return (
+      <div style={{
+        background: 'var(--info-bg)',
+        border: '1px solid var(--info-border)',
+        borderRadius: 'var(--radius)', padding: '14px 16px', marginBottom: '16px',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: '12px', flexWrap: 'wrap' }}>
+          <div style={{ flex: '1 1 200px', minWidth: 0 }}>
+            <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--phase-workshop)', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: '4px' }}>
+              Baseline TAT · Forming (onsite phase)
+            </div>
+            {formingBaseline ? (
+              <div>
+                <div style={{ fontSize: '20px', fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--gray-900)' }}>
+                  {formingBaseline.avg} min
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--gray-600)', marginTop: '2px', lineHeight: 1.5 }}>
+                  Live average across {formingBaseline.tripCount} onsite trip{formingBaseline.tripCount !== 1 ? 's' : ''}
+                  {' '}(pre-intervention). Updates as you log more.
+                  Lock this value at end of onsite, or earlier if baseline is clear.
+                </div>
+              </div>
+            ) : (
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--phase-workshop)' }}>
+                  Not enough trips yet
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--gray-600)', marginTop: '4px', lineHeight: 1.5 }}>
+                  Log at least 5 trips (before any intervention) to see the forming baseline.
+                </div>
+              </div>
+            )}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flexShrink: 0 }}>
+            {formingBaseline && (
+              <button
+                type="button"
+                onClick={handleLockForming}
+                disabled={saving}
+                style={{
+                  padding: '8px 14px', background: 'var(--green)',
+                  color: '#fff', border: 'none', borderRadius: '8px',
+                  fontSize: '12px', fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer',
+                  minHeight: '40px', opacity: saving ? 0.6 : 1, whiteSpace: 'nowrap',
+                }}
+              >
+                {saving ? 'Locking...' : `Lock at ${formingBaseline.avg} min`}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setEditing(v => !v)}
+              style={{
+                padding: '8px 14px', background: 'var(--white)',
+                border: '1px solid var(--border)', borderRadius: '8px',
+                fontSize: '12px', fontWeight: 600, cursor: 'pointer',
+                color: 'var(--gray-700)', minHeight: '40px', whiteSpace: 'nowrap',
+              }}
+            >
+              {editing ? 'Cancel' : 'Custom value'}
+            </button>
+          </div>
+        </div>
+        {editing && (
+          <EditForm
+            value={value} setValue={setValue}
+            saving={saving}
+            onSaveManual={handleSaveManual}
+            onClear={handleClear}
+            showClear={false}
+          />
+        )}
+      </div>
+    )
+  }
+
+  // ── State 3: phase=complete but baseline NOT yet locked ──
+  // This happens if admin transitioned to complete without locking baseline
+  // in the onsite phase. Prompt them to lock now.
+  if (phase === 'complete') {
+    return (
+      <div style={{
+        background: 'var(--warning-bg)',
+        border: '1px solid var(--warning-border)',
+        borderRadius: 'var(--radius)', padding: '14px 16px', marginBottom: '16px',
+      }}>
+        <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--warning-dark, #B7950B)', marginBottom: '4px' }}>
+          ⚠ Baseline not locked yet
+        </div>
+        <div style={{ fontSize: '12px', color: 'var(--gray-600)', lineHeight: 1.5, marginBottom: '12px' }}>
+          The assessment is marked complete but baseline TAT was not locked during onsite.
+          {formingBaseline
+            ? ` ${formingBaseline.tripCount} onsite trip${formingBaseline.tripCount !== 1 ? 's were' : ' was'} logged with avg ${formingBaseline.avg} min.`
+            : ' No onsite trips were logged.'} Set the baseline now so tracking can compute impact.
+        </div>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          {formingBaseline && (
+            <button
+              type="button"
+              onClick={handleLockForming}
+              disabled={saving}
+              style={{
+                padding: '10px 14px', background: 'var(--green)',
+                color: '#fff', border: 'none', borderRadius: '8px',
+                fontSize: '13px', fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer',
+                minHeight: '44px',
+              }}
+            >
+              {saving ? 'Locking...' : `Lock at ${formingBaseline.avg} min (onsite data)`}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setEditing(v => !v)}
+            style={{
+              padding: '10px 14px', background: 'var(--white)',
+              border: '1px solid var(--border)', borderRadius: '8px',
+              fontSize: '13px', fontWeight: 600, cursor: 'pointer',
+              color: 'var(--gray-700)', minHeight: '44px',
+            }}
+          >
+            {editing ? 'Cancel' : 'Enter custom value'}
+          </button>
+        </div>
+        {editing && (
+          <EditForm
+            value={value} setValue={setValue}
+            saving={saving}
+            onSaveManual={handleSaveManual}
+            onClear={handleClear}
+            showClear={false}
+          />
+        )}
+      </div>
+    )
+  }
+
+  return null
+}
+
+function EditForm({
+  value, setValue, saving, onSaveManual, onClear, showClear,
+}: {
+  value: string
+  setValue: (v: string) => void
+  saving: boolean
+  onSaveManual: () => void
+  onClear: () => void
+  showClear: boolean
+}) {
   return (
     <div style={{
-      background: hasConfirmed ? 'var(--green-pale, #F0FAF6)' : 'var(--warning-bg)',
-      border: `1px solid ${hasConfirmed ? 'var(--tooltip-border, #9FE1CB)' : 'var(--warning-border)'}`,
-      borderRadius: 'var(--radius)', padding: '14px 16px', marginBottom: '16px',
+      marginTop: '12px', paddingTop: '12px',
+      borderTop: '1px solid var(--border)',
+      display: 'flex', flexDirection: 'column', gap: '10px',
     }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: '12px', flexWrap: 'wrap' }}>
-        <div style={{ flex: '1 1 200px', minWidth: 0 }}>
-          <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: '4px' }}>
-            Baseline TAT
-          </div>
-          {baselineValue != null ? (
-            <div>
-              <div style={{ fontSize: '20px', fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--gray-900)' }}>
-                {baselineValue} min
-              </div>
-              <div style={{ fontSize: '11px', color: 'var(--gray-500)', marginTop: '2px' }}>
-                {hasConfirmed
-                  ? 'Confirmed by analyst'
-                  : derivedFromWeek1 != null
-                    ? `Derived from Week 1 data. Confirm with customer when you arrive on-site.`
-                    : ''}
-              </div>
-            </div>
-          ) : (
-            <div>
-              <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--warning-dark, #B7950B)' }}>
-                Pending confirmation
-              </div>
-              <div style={{ fontSize: '11px', color: 'var(--gray-600)', marginTop: '4px', lineHeight: 1.5 }}>
-                Confirm with customer on arrival, or log at least 5 trips to auto-derive from Week 1 data.
-              </div>
-            </div>
-          )}
+      <div>
+        <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '.3px', marginBottom: '4px', display: 'block' }}>
+          Custom baseline (minutes)
+        </label>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <input
+            type="number"
+            value={value}
+            onChange={e => setValue(e.target.value)}
+            placeholder="e.g. 170"
+            style={{
+              width: '120px', padding: '10px 12px',
+              border: '1px solid var(--border)', borderRadius: '8px',
+              fontSize: '14px', fontFamily: 'var(--mono)',
+              minHeight: '44px',
+            }}
+          />
+          <button
+            type="button"
+            onClick={onSaveManual}
+            disabled={saving || !value}
+            style={{
+              padding: '10px 16px', background: 'var(--green)',
+              color: '#fff', border: 'none', borderRadius: '8px',
+              fontSize: '13px', fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer',
+              minHeight: '44px', opacity: saving ? 0.6 : 1,
+            }}
+          >
+            {saving ? 'Saving...' : 'Save'}
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={() => setEditing(v => !v)}
-          style={{
-            padding: '8px 14px', background: 'var(--white)',
-            border: '1px solid var(--border)', borderRadius: '8px',
-            fontSize: '12px', fontWeight: 600, cursor: 'pointer',
-            color: 'var(--gray-700)', minHeight: '40px', flexShrink: 0,
-          }}
-        >
-          {editing ? 'Cancel' : hasConfirmed ? 'Edit' : 'Confirm'}
-        </button>
       </div>
-
-      {editing && (
-        <div style={{
-          marginTop: '12px', paddingTop: '12px',
-          borderTop: '1px solid var(--border)',
-          display: 'flex', flexDirection: 'column', gap: '10px',
-        }}>
-          <div>
-            <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '.3px', marginBottom: '4px', display: 'block' }}>
-              Customer-provided baseline (minutes)
-            </label>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-              <input
-                type="number"
-                value={value}
-                onChange={e => setValue(e.target.value)}
-                placeholder="e.g. 170"
-                style={{
-                  width: '120px', padding: '10px 12px',
-                  border: '1px solid var(--border)', borderRadius: '8px',
-                  fontSize: '14px', fontFamily: 'var(--mono)',
-                  minHeight: '44px',
-                }}
-              />
-              <button
-                type="button"
-                onClick={handleSaveManual}
-                disabled={saving || !value}
-                style={{
-                  padding: '10px 16px', background: 'var(--green)',
-                  color: '#fff', border: 'none', borderRadius: '8px',
-                  fontSize: '13px', fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer',
-                  minHeight: '44px', opacity: saving ? 0.6 : 1,
-                }}
-              >
-                {saving ? 'Saving...' : 'Save manual baseline'}
-              </button>
-            </div>
-          </div>
-
-          {derivedFromWeek1 != null && (
-            <div>
-              <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '.3px', marginBottom: '4px', display: 'block' }}>
-                Or use Week 1 field log data
-              </label>
-              <button
-                type="button"
-                onClick={handleUseDerived}
-                disabled={saving}
-                style={{
-                  padding: '10px 16px', background: 'var(--white)',
-                  color: 'var(--gray-900)', border: '1px solid var(--green)',
-                  borderRadius: '8px', fontSize: '13px', fontWeight: 600,
-                  cursor: saving ? 'not-allowed' : 'pointer', minHeight: '44px',
-                }}
-              >
-                Use {derivedFromWeek1} min (Week 1 average)
-              </button>
-            </div>
-          )}
-
-          {hasConfirmed && (
-            <div>
-              <button
-                type="button"
-                onClick={handleClear}
-                disabled={saving}
-                style={{
-                  padding: '8px 14px', background: 'transparent',
-                  color: 'var(--red)', border: 'none',
-                  fontSize: '12px', cursor: 'pointer', textDecoration: 'underline',
-                }}
-              >
-                Clear confirmed baseline
-              </button>
-            </div>
-          )}
+      {showClear && (
+        <div>
+          <button
+            type="button"
+            onClick={onClear}
+            disabled={saving}
+            style={{
+              padding: '8px 14px', background: 'transparent',
+              color: 'var(--red)', border: 'none',
+              fontSize: '12px', cursor: 'pointer', textDecoration: 'underline',
+            }}
+          >
+            Clear locked baseline
+          </button>
         </div>
       )}
     </div>
@@ -1856,7 +2054,7 @@ function BaselineEditor({
 
 // ── Progress View (admin) ──────────────────────────────────────────────────
 
-function ProgressView({ assessmentId, config, entries, aggregates, dailyEntries, onEntryLogged, coeffDispatch, viewOnly, isDemo }: {
+function ProgressView({ assessmentId, config, entries, aggregates, dailyEntries, onEntryLogged, coeffDispatch, phase, formingBaseline, viewOnly, isDemo }: {
   assessmentId: string
   config: TrackingConfig
   entries: TrackingEntry[]
@@ -1864,6 +2062,8 @@ function ProgressView({ assessmentId, config, entries, aggregates, dailyEntries,
   dailyEntries: DailyEntry[]
   onEntryLogged: () => void
   coeffDispatch: number
+  phase?: TrackingProps['phase']
+  formingBaseline: { avg: number; tripCount: number } | null
   viewOnly?: boolean
   isDemo?: boolean
 }) {
@@ -1926,20 +2126,17 @@ function ProgressView({ assessmentId, config, entries, aggregates, dailyEntries,
         />
       ) : (
         <>
-      {/* Baseline editor, admin only. Lets Louis confirm the baseline
-          with the customer on arrival, or derive from Week 1 data. */}
+      {/* Baseline editor, admin only. Phase-aware:
+           - workshop: hidden
+           - onsite: shows forming baseline with "Lock at X min" option
+           - complete: prompts to lock if not yet done
+           - locked: shows value + edit/clear */}
       {!viewOnly && (
         <BaselineEditor
           assessmentId={assessmentId}
           config={config}
-          derivedFromWeek1={
-            (() => {
-              const w1 = aggregates.find(a => a.week_number === 1)
-              return w1 && w1.trip_count >= 5 && w1.avg_tat_min != null
-                ? Math.round(w1.avg_tat_min)
-                : null
-            })()
-          }
+          phase={phase}
+          formingBaseline={formingBaseline}
           onSaved={onEntryLogged}
         />
       )}
@@ -2117,8 +2314,9 @@ function CustomerLog({ assessmentId, config, entries, dailyEntries, onLogged, co
 
 export default function TrackingTab(props: TrackingProps) {
   const {
-    assessmentId, isAdmin, viewOnly, coeffDispatch,
-    baselineTurnaround, baselineRejectPct, baselineDispatchMin,
+    assessmentId, isAdmin, viewOnly, coeffDispatch, phase,
+    baselineTurnaround,  // only used for demo mock; real baseline is derived from logs
+    baselineRejectPct, baselineDispatchMin,
     coeffTurnaround, baselineMonthlyLoss, targetTA, perMinTACoeff,
   } = props
   const supabase = createClient()
@@ -2126,6 +2324,9 @@ export default function TrackingTab(props: TrackingProps) {
   const [entries, setEntries] = useState<TrackingEntry[]>([])
   const [aggregates, setAggregates] = useState<WeeklyAggregate[]>([])
   const [dailyEntries, setDailyEntries] = useState<DailyEntry[]>([])
+  // Live-updating preview of what the baseline would be if locked now.
+  // Avg TAT across all onsite trips before the first logged intervention.
+  const [formingBaselineValue, setFormingBaselineValue] = useState<{ avg: number; tripCount: number } | null>(null)
   const isDemo = assessmentId === 'demo'
 
   const fetchData = useCallback(async () => {
@@ -2213,26 +2414,35 @@ export default function TrackingTab(props: TrackingProps) {
     const aggregates = (aggData ?? []) as WeeklyAggregate[]
     setAggregates(aggregates)
 
-    // Derive baseline TAT from first week of logged data. Pre-assessment
-    // numbers are estimates and must not be used as baseline. Customer
-    // confirms (or derives from Week 1 data) when the consultant arrives.
-    // Requires >= 5 trips in Week 1 for statistical stability.
-    const week1 = aggregates.find(a => a.week_number === 1)
-    const derivedBaselineTAT =
-      week1 && week1.trip_count >= 5 && week1.avg_tat_min != null
-        ? Math.round(week1.avg_tat_min)
-        : null
+    // Baseline logic tied to assessment lifecycle phase:
+    //   - workshop / workshop_complete: no tracking yet, baseline N/A
+    //   - onsite: baseline is FORMING from live-logged data. Shown as a
+    //     live-updating value that the analyst sees build up during the
+    //     onsite week. Not used as chart baseline yet (still diagnosing).
+    //   - complete: baseline is LOCKED. Stored in tracking_configs once
+    //     the analyst transitions the phase (or locks manually).
+    //
+    // If a tracking_configs row exists with a confirmed baseline, that
+    // value wins in all phases (analyst may have pre-locked it).
 
-    // Build the effective config: prefer DB record (admin has confirmed
-    // a baseline), else synthesize one where baseline_turnaround is
-    // data-derived from Week 1 or null (pending confirmation).
+    const lockedBaseline = cfg?.baseline_turnaround ?? null
+
+    // "Forming" baseline = avg TAT across ALL onsite trips (excluding any
+    // logged after the first intervention). Used for the live-updating
+    // preview during onsite, and as the value to lock when phase becomes
+    // complete. Requires >= 5 trips for statistical stability.
+    const formingBaseline = await computeFormingBaseline(supabase, assessmentId)
+
     const effectiveConfig: TrackingConfig = cfg ?? {
       id: 'virtual',
       assessment_id: assessmentId,
       started_at: firstLog?.log_date
         ? new Date(firstLog.log_date).toISOString()
         : new Date().toISOString(),
-      baseline_turnaround: derivedBaselineTAT,
+      // Chart baseline is the locked value when phase = complete,
+      // otherwise null (during onsite the chart shows only actual,
+      // not a comparison line).
+      baseline_turnaround: lockedBaseline,
       baseline_reject_pct: baselineRejectPct,
       baseline_dispatch_min: baselineDispatchMin,
       target_turnaround: targetTA,
@@ -2247,6 +2457,7 @@ export default function TrackingTab(props: TrackingProps) {
       consent_case_study: false,
     }
     setConfig(effectiveConfig)
+    setFormingBaselineValue(formingBaseline)
 
     // Load legacy manual entries if a real config exists (for bc with
     // existing customers who already typed weekly numbers).
@@ -2307,6 +2518,7 @@ export default function TrackingTab(props: TrackingProps) {
           assessmentId={assessmentId}
           config={config} entries={entries} aggregates={aggregates} dailyEntries={dailyEntries}
           onEntryLogged={fetchData} coeffDispatch={coeffDispatch}
+          phase={phase} formingBaseline={formingBaselineValue}
           viewOnly={viewOnly} isDemo={isDemo}
         />
       </div>
