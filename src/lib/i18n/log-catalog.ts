@@ -239,6 +239,16 @@ export const LOG_STRINGS = {
   'todo.cancel': 'Cancel',
   'todo.delete': 'Delete',
   'todo.delete_confirm': 'Delete this to-do?',
+  'todo.upload': 'Upload Excel',
+  'todo.upload_hint': 'Columns: title, target_count, target_date (YYYY-MM-DD), metric',
+  'todo.download_template': 'Download template',
+  'todo.preview_header': '{valid} valid · {errors} errors',
+  'todo.import_button': 'Import {n} rows',
+  'todo.importing': 'Importing...',
+  'todo.err_missing_title': 'Missing title',
+  'todo.err_invalid_count': 'Invalid target count',
+  'todo.err_invalid_date': 'Invalid target date',
+  'todo.err_unknown_metric': 'Unknown metric',
 
   // ── Weekly briefing export ────────────────────────────────────────
   'brief.button': 'Weekly briefing',
@@ -538,6 +548,16 @@ export const LOG_STRINGS_AR: Record<LogStringKey, string> = {
   'todo.cancel': 'إلغاء',
   'todo.delete': 'حذف',
   'todo.delete_confirm': 'حذف هذه المهمة؟',
+  'todo.upload': 'رفع Excel',
+  'todo.upload_hint': 'الأعمدة: title, target_count, target_date (YYYY-MM-DD), metric',
+  'todo.download_template': 'تحميل قالب',
+  'todo.preview_header': '{valid} صالحة · {errors} أخطاء',
+  'todo.import_button': 'استيراد {n} صفوف',
+  'todo.importing': 'جاري الاستيراد...',
+  'todo.err_missing_title': 'العنوان مفقود',
+  'todo.err_invalid_count': 'عدد مستهدف غير صالح',
+  'todo.err_invalid_date': 'تاريخ مستهدف غير صالح',
+  'todo.err_unknown_metric': 'مقياس غير معروف',
 
   // Weekly briefing
   'brief.button': 'الإحاطة الأسبوعية',

@@ -12,7 +12,8 @@
  * pattern — admin full access, customer members scoped to their plant).
  */
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import * as XLSX from 'xlsx'
 import { createClient } from '@/lib/supabase/client'
 import { useLogT } from '@/lib/i18n/LogLocaleContext'
 import type { LogStringKey } from '@/lib/i18n/log-catalog'
@@ -20,6 +21,31 @@ import type { LogStringKey } from '@/lib/i18n/log-catalog'
 type TodoMetric = 'trips_complete' | 'loads_delivered' | 'rejected_loads'
 
 const METRIC_VALUES: TodoMetric[] = ['trips_complete', 'loads_delivered', 'rejected_loads']
+
+// Accept both machine keys and human labels in uploaded files
+const METRIC_ALIASES: Record<string, TodoMetric> = {
+  'trips_complete': 'trips_complete',
+  'complete trips': 'trips_complete',
+  'complete': 'trips_complete',
+  'trips': 'trips_complete',
+  'loads_delivered': 'loads_delivered',
+  'loads delivered': 'loads_delivered',
+  'delivered': 'loads_delivered',
+  'loads': 'loads_delivered',
+  'rejected_loads': 'rejected_loads',
+  'rejected loads': 'rejected_loads',
+  'rejected': 'rejected_loads',
+  'rejects': 'rejected_loads',
+}
+
+interface ParsedRow {
+  rowNum: number
+  title: string
+  target_count: number
+  target_date: string
+  metric: TodoMetric
+  error: string | null
+}
 
 interface TodoRow {
   id: string
@@ -45,6 +71,9 @@ export default function ToDoEditor({ assessmentId, plantId }: Props) {
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<TodoRow | null>(null)
+  const [parsedRows, setParsedRows] = useState<ParsedRow[] | null>(null)
+  const [importing, setImporting] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -95,6 +124,49 @@ export default function ToDoEditor({ assessmentId, plantId }: Props) {
     await load()
   }
 
+  const handleFile = async (file: File) => {
+    const buf = await file.arrayBuffer()
+    const wb = XLSX.read(buf, { type: 'array', cellDates: true })
+    const sheet = wb.Sheets[wb.SheetNames[0]]
+    const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' })
+    setParsedRows(raw.map((r, i) => validateRow(r, i + 2, t)))
+  }
+
+  const handleImport = async () => {
+    if (!parsedRows) return
+    const valid = parsedRows.filter(r => !r.error)
+    if (valid.length === 0) return
+    setImporting(true)
+    const payload = valid.map(r => ({
+      assessment_id: assessmentId,
+      plant_id: plantId,
+      title: r.title,
+      target_count: r.target_count,
+      target_date: r.target_date,
+      metric: r.metric,
+    }))
+    await supabase.from('fieldlog_todos').insert(payload)
+    setImporting(false)
+    setParsedRows(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+    await load()
+  }
+
+  const handleDownloadTemplate = () => {
+    const csv = [
+      'title,target_count,target_date,metric',
+      'Measure 40 complete trips,40,2026-04-27,trips_complete',
+      '50 loads delivered,50,2026-04-25,loads_delivered',
+    ].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'todos-template.csv'
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <div style={{ padding: '4px 0' }}>
       <div style={{
@@ -109,18 +181,71 @@ export default function ToDoEditor({ assessmentId, plantId }: Props) {
             {t('todo.subtitle')}
           </div>
         </div>
-        <button
-          type="button"
-          onClick={() => { setEditing(null); setShowForm(true) }}
-          style={{
-            padding: '10px 16px', background: '#0F6E56', color: '#fff',
-            border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 600,
-            cursor: 'pointer', minHeight: '44px',
-          }}
-        >
-          + {t('todo.add')}
-        </button>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            style={{ display: 'none' }}
+            onChange={e => {
+              const f = e.target.files?.[0]
+              if (f) handleFile(f)
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            style={{
+              padding: '10px 14px', background: '#fff', color: '#0F6E56',
+              border: '1.5px solid #0F6E56', borderRadius: '8px',
+              fontSize: '13px', fontWeight: 600, cursor: 'pointer', minHeight: '44px',
+            }}
+          >
+            📥 {t('todo.upload')}
+          </button>
+          <button
+            type="button"
+            onClick={() => { setEditing(null); setShowForm(true) }}
+            style={{
+              padding: '10px 16px', background: '#0F6E56', color: '#fff',
+              border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 600,
+              cursor: 'pointer', minHeight: '44px',
+            }}
+          >
+            + {t('todo.add')}
+          </button>
+        </div>
       </div>
+
+      {parsedRows && (
+        <ImportPreview
+          rows={parsedRows}
+          importing={importing}
+          onImport={handleImport}
+          onCancel={() => {
+            setParsedRows(null)
+            if (fileInputRef.current) fileInputRef.current.value = ''
+          }}
+          onDownloadTemplate={handleDownloadTemplate}
+        />
+      )}
+
+      {!parsedRows && (
+        <div style={{ fontSize: '11px', color: '#888', marginBottom: '12px' }}>
+          {t('todo.upload_hint')} ·{' '}
+          <button
+            type="button"
+            onClick={handleDownloadTemplate}
+            style={{
+              background: 'none', border: 'none', padding: 0,
+              color: '#0F6E56', textDecoration: 'underline', cursor: 'pointer',
+              font: 'inherit',
+            }}
+          >
+            {t('todo.download_template')}
+          </button>
+        </div>
+      )}
 
       {showForm && (
         <ToDoForm
@@ -441,6 +566,160 @@ function ToDoForm({ assessmentId, plantId, existing, onSaved, onCancel }: FormPr
           type="button"
           onClick={onCancel}
           disabled={saving}
+          style={{
+            padding: '10px 20px', background: '#fff', color: '#555',
+            border: '1px solid #ddd', borderRadius: '8px', fontSize: '13px',
+            cursor: 'pointer', minHeight: '44px',
+          }}
+        >
+          {t('todo.cancel')}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ── Bulk upload helpers ─────────────────────────────────────────────────
+
+type TFn = (k: LogStringKey) => string
+
+function validateRow(raw: Record<string, unknown>, rowNum: number, t: TFn): ParsedRow {
+  const title = String(raw.title ?? '').trim()
+  const countRaw = raw.target_count
+  const target_count = typeof countRaw === 'number' ? countRaw : parseInt(String(countRaw ?? ''), 10)
+  const target_date = normaliseDate(raw.target_date)
+  const metricRaw = String(raw.metric ?? 'trips_complete').trim().toLowerCase()
+  const metric = METRIC_ALIASES[metricRaw] ?? null
+
+  let error: string | null = null
+  if (!title) error = t('todo.err_missing_title')
+  else if (!Number.isFinite(target_count) || target_count < 1) error = t('todo.err_invalid_count')
+  else if (!target_date) error = t('todo.err_invalid_date')
+  else if (!metric) error = t('todo.err_unknown_metric')
+
+  return {
+    rowNum,
+    title,
+    target_count: Number.isFinite(target_count) ? target_count : 0,
+    target_date: target_date ?? '',
+    metric: metric ?? 'trips_complete',
+    error,
+  }
+}
+
+function normaliseDate(value: unknown): string | null {
+  if (!value) return null
+  if (value instanceof Date) {
+    if (isNaN(value.getTime())) return null
+    return value.toISOString().slice(0, 10)
+  }
+  const str = String(value).trim()
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str
+  const parsed = new Date(str)
+  if (isNaN(parsed.getTime())) return null
+  return parsed.toISOString().slice(0, 10)
+}
+
+// ── Import preview panel ────────────────────────────────────────────────
+
+interface PreviewProps {
+  rows: ParsedRow[]
+  importing: boolean
+  onImport: () => void
+  onCancel: () => void
+  onDownloadTemplate: () => void
+}
+
+function ImportPreview({ rows, importing, onImport, onCancel, onDownloadTemplate }: PreviewProps) {
+  const { t } = useLogT()
+  const validCount = rows.filter(r => !r.error).length
+  const errorCount = rows.length - validCount
+
+  const headerText = t('todo.preview_header')
+    .replace('{valid}', String(validCount))
+    .replace('{errors}', String(errorCount))
+
+  const importLabel = importing
+    ? t('todo.importing')
+    : t('todo.import_button').replace('{n}', String(validCount))
+
+  return (
+    <div style={{
+      background: '#fff', border: '1px solid #e5e5e5', borderRadius: '12px',
+      padding: '18px 20px', marginBottom: '16px',
+    }}>
+      <div style={{
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        marginBottom: '12px', flexWrap: 'wrap', gap: '8px',
+      }}>
+        <div style={{ fontSize: '13px', fontWeight: 600, color: '#1a1a1a' }}>
+          {headerText}
+        </div>
+        <button
+          type="button"
+          onClick={onDownloadTemplate}
+          style={{
+            background: 'none', border: 'none', padding: 0,
+            color: '#0F6E56', textDecoration: 'underline', cursor: 'pointer',
+            fontSize: '11px',
+          }}
+        >
+          {t('todo.download_template')}
+        </button>
+      </div>
+
+      <div style={{
+        display: 'flex', flexDirection: 'column', gap: '4px',
+        maxHeight: '320px', overflowY: 'auto',
+        border: '1px solid #eee', borderRadius: '8px', padding: '8px',
+        marginBottom: '12px',
+      }}>
+        {rows.map(r => (
+          <div key={r.rowNum} style={{
+            display: 'flex', alignItems: 'center', gap: '8px',
+            padding: '6px 8px', borderRadius: '6px',
+            background: r.error ? '#FDEDEC' : '#F4F9F7',
+            fontSize: '12px',
+          }}>
+            <span style={{
+              color: r.error ? '#C0392B' : '#0F6E56',
+              fontWeight: 700, fontFamily: 'var(--mono)', minWidth: '20px',
+            }}>
+              {r.error ? '✗' : '✓'}
+            </span>
+            <span style={{ fontSize: '10px', color: '#888', minWidth: '30px', fontFamily: 'var(--mono)' }}>
+              #{r.rowNum}
+            </span>
+            {r.error ? (
+              <span style={{ color: '#8B3A2E' }}>{r.error}</span>
+            ) : (
+              <span style={{ color: '#333' }}>
+                {r.title} · {r.target_count} · {r.target_date} · {r.metric}
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        <button
+          type="button"
+          onClick={onImport}
+          disabled={importing || validCount === 0}
+          style={{
+            padding: '10px 20px', background: '#0F6E56', color: '#fff',
+            border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 600,
+            cursor: importing || validCount === 0 ? 'not-allowed' : 'pointer',
+            minHeight: '44px',
+            opacity: importing || validCount === 0 ? 0.5 : 1,
+          }}
+        >
+          {importLabel}
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={importing}
           style={{
             padding: '10px 20px', background: '#fff', color: '#555',
             border: '1px solid #ddd', borderRadius: '8px', fontSize: '13px',
