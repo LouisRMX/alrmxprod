@@ -11,13 +11,14 @@ import LiveTripTimer from './live-timer/LiveTripTimer'
 import FieldCaptureTokenButton from './FieldCaptureTokenButton'
 import FieldLogDiagnostics from './diagnostics/FieldLogDiagnostics'
 import { InterventionsEditor } from './InterventionsView'
+import ToDoEditor from './ToDoEditor'
 import ReviewQueue from './ReviewQueue'
 import SyncStatusBar from './SyncStatusBar'
 import DailyBriefingExport from './DailyBriefingExport'
 import LocaleToggle from './LocaleToggle'
 import { LogLocaleProvider, useLogT } from '@/lib/i18n/LogLocaleContext'
 
-type SubTab = 'live' | 'diagnostics' | 'interventions' | 'review' | 'manual' | 'upload' | 'audio'
+type SubTab = 'live' | 'diagnostics' | 'interventions' | 'review' | 'todo' | 'manual' | 'upload' | 'audio'
 
 interface FieldLogViewProps {
   assessmentId: string
@@ -153,6 +154,7 @@ function FieldLogViewInner({ assessmentId, plantId, isAdmin, reportedTAT, target
         {tabBtn('diagnostics', `📊 ${t('tab.diagnostics')}`)}
         {tabBtn('interventions', `⚙ ${t('tab.interventions')}`)}
         {tabBtn('review', `⚠ ${t('tab.review')}`)}
+        {tabBtn('todo', `🎯 ${t('tab.todo')}`)}
         {tabBtn('manual', t('tab.manual'))}
         {tabBtn('upload', t('tab.upload'))}
         {audioEnabled && tabBtn('audio', t('tab.audio'))}
@@ -183,6 +185,10 @@ function FieldLogViewInner({ assessmentId, plantId, isAdmin, reportedTAT, target
 
       {subTab === 'review' && (
         <ReviewQueue assessmentId={assessmentId} />
+      )}
+
+      {subTab === 'todo' && (
+        <ToDoEditor assessmentId={assessmentId} plantId={plantId} />
       )}
 
       {subTab === 'manual' && (
