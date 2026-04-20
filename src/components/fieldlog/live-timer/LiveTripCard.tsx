@@ -66,8 +66,6 @@ export default function LiveTripCard({
   const { totalElapsed, stageElapsed } = useStopwatch(trip)
   const { t } = useLogT()
   const stageLabelT = (s: StageName) => t(`stage.${s}` as LogStringKey)
-  const stageHintT = (s: StageName) => t(`stage.hint.${s}` as LogStringKey)
-  const nextActionT = (s: StageName) => t(`stage.next.${s}` as LogStringKey)
   const [showIdentity, setShowIdentity] = useState(!trip.truckId)
   const [showNotes, setShowNotes] = useState(false)
   const [showStageNote, setShowStageNote] = useState(false)
@@ -135,11 +133,7 @@ export default function LiveTripCard({
 
   const currentIndex = STAGES.indexOf(trip.currentStage)
   const stageLabel = stageLabelT(trip.currentStage)
-  const stageHint = stageHintT(trip.currentStage)
   const isSingleStage = trip.measurementMode === 'single_stage'
-  const splitLabel = isSingleStage
-    ? `${t('stage.finish')} ${stageLabel}`
-    : nextActionT(trip.currentStage)
   const isLastStage = currentIndex === STAGES.length - 1
 
   return (
@@ -157,10 +151,10 @@ export default function LiveTripCard({
               display: 'inline-block', width: '8px', height: '8px',
               borderRadius: '50%', background: '#C0392B',
             }} />
-            <span>{t('card.rec')} · {trip.measurerName}</span>
+            <span><Bilingual k="card.rec" inline /> · {trip.measurerName}</span>
             {isSingleStage && (
               <span style={{ padding: '1px 6px', background: '#FFF4D6', border: '1px solid #F1D79A', color: '#B7950B', borderRadius: '3px', fontSize: '9px' }}>
-                {stageLabel} · {t('live.single_stage_only_suffix')}
+                <Bilingual k={`stage.${trip.currentStage}` as LogStringKey} inline /> · <Bilingual k="live.single_stage_only_suffix" inline />
               </span>
             )}
           </div>
@@ -233,7 +227,7 @@ export default function LiveTripCard({
         </div>
         <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #f0f0f0' }}>
           <div style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', letterSpacing: '.5px', fontWeight: 600 }}>
-            {stageLabel}
+            <Bilingual k={`stage.${trip.currentStage}` as LogStringKey} inline />
           </div>
           <div style={{
             fontFamily: 'ui-monospace, SF Mono, Menlo, monospace',
@@ -243,7 +237,7 @@ export default function LiveTripCard({
             {stageElapsed}
           </div>
           <div style={{ fontSize: '12px', color: '#888', marginTop: '4px' }}>
-            {stageHint}
+            <Bilingual k={`stage.hint.${trip.currentStage}` as LogStringKey} />
           </div>
         </div>
       </div>
@@ -261,7 +255,11 @@ export default function LiveTripCard({
           padding: '0 20px',
         }}
       >
-        {splitLabel}
+        {isSingleStage ? (
+          <><Bilingual k="stage.finish" inline />{' '}<Bilingual k={`stage.${trip.currentStage}` as LogStringKey} inline /></>
+        ) : (
+          <Bilingual k={`stage.next.${trip.currentStage}` as LogStringKey} inline />
+        )}
       </button>
 
       {/* Stage timeline */}
@@ -278,7 +276,7 @@ export default function LiveTripCard({
         })}
       </div>
       <div style={{ fontSize: '10px', color: '#888', textAlign: 'center', marginTop: '-8px' }}>
-        {t('card.stage_of', { n: currentIndex + 1, total: STAGES.length })}
+        <Bilingual k="card.stage_of" params={{ n: currentIndex + 1, total: STAGES.length }} />
       </div>
 
       {/* Identity (collapsible) */}
@@ -333,7 +331,7 @@ export default function LiveTripCard({
             fontSize: '13px', fontWeight: 600, color: '#555', cursor: 'pointer',
           }}
         >
-          <span>{t('card.note_on')} {stageLabel}</span>
+          <span><Bilingual k="card.note_on" inline /> <Bilingual k={`stage.${trip.currentStage}` as LogStringKey} inline /></span>
           <span style={{ fontSize: '10px', color: '#888' }}>{showStageNote ? '▲' : '▼'}</span>
         </button>
         {showStageNote && (
@@ -493,15 +491,15 @@ function TripReviewView({ trip, onUndoSplit, onConfirmSave, onCancel, onClose }:
   const [edits, setEdits] = useState<Partial<Record<StageName | 'complete', string>>>({})
   const [error, setError] = useState<string | null>(null)
 
-  const orderedKeys: Array<{ key: StageName | 'complete'; label: string }> = [
-    { key: 'plant_queue', label: t('review.ts_plant_queue') },
-    { key: 'loading', label: t('review.ts_loading') },
-    { key: 'transit_out', label: t('review.ts_departure') },
-    { key: 'site_wait', label: t('review.ts_arrival_site') },
-    { key: 'pouring', label: t('review.ts_discharge_start') },
-    { key: 'washout', label: t('review.ts_discharge_end') },
-    { key: 'transit_back', label: t('review.ts_departure_site') },
-    { key: 'complete', label: t('review.ts_arrival_plant') },
+  const orderedKeys: Array<{ key: StageName | 'complete'; labelKey: LogStringKey }> = [
+    { key: 'plant_queue', labelKey: 'review.ts_plant_queue' },
+    { key: 'loading', labelKey: 'review.ts_loading' },
+    { key: 'transit_out', labelKey: 'review.ts_departure' },
+    { key: 'site_wait', labelKey: 'review.ts_arrival_site' },
+    { key: 'pouring', labelKey: 'review.ts_discharge_start' },
+    { key: 'washout', labelKey: 'review.ts_discharge_end' },
+    { key: 'transit_back', labelKey: 'review.ts_departure_site' },
+    { key: 'complete', labelKey: 'review.ts_arrival_plant' },
   ]
 
   const timestampFor = (key: StageName | 'complete'): string | undefined => {
@@ -541,7 +539,7 @@ function TripReviewView({ trip, onUndoSplit, onConfirmSave, onCancel, onClose }:
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <div style={{ fontSize: '11px', fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: '.5px' }}>
-            {t('tab.review')} · {trip.measurerName}
+            <Bilingual k="tab.review" inline /> · {trip.measurerName}
           </div>
           <div style={{ fontSize: '16px', fontWeight: 600, color: '#1a1a1a', marginTop: '2px' }}>
             {trip.label}
@@ -588,7 +586,7 @@ function TripReviewView({ trip, onUndoSplit, onConfirmSave, onCancel, onClose }:
             >
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: '13px', fontWeight: 600, color: '#333' }}>
-                  {item.label}
+                  <Bilingual k={item.labelKey} />
                 </div>
                 {missing && (
                   <div style={{ fontSize: '11px', color: '#C0392B', marginTop: '2px' }}>
@@ -705,7 +703,7 @@ function OriginPlantChip({ value, suggestions, onChange }: {
           color: value ? '#0F6E56' : '#888', cursor: 'pointer',
         }}
       >
-        📍 {value || t('card.set_plant')} · {t('card.edit')}
+        📍 {value || <Bilingual k="card.set_plant" inline />} · <Bilingual k="card.edit" inline />
       </button>
     )
   }
