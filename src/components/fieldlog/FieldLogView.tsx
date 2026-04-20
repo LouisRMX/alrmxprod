@@ -162,7 +162,7 @@ function FieldLogViewInner({ assessmentId, plantId, isAdmin, reportedTAT, target
 
       {/* Active sub-tab */}
       {subTab === 'live' && (
-        <div style={{ height: 'calc(100vh - 280px)', minHeight: '500px', background: '#fafafa', borderRadius: '12px', overflow: 'hidden' }}>
+        <div style={{ background: '#fafafa', borderRadius: '12px' }}>
           <LiveTripTimer
             assessmentId={assessmentId}
             plantId={plantId}
