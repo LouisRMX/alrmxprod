@@ -28,11 +28,13 @@ interface OutlierRow {
   total_tat_min: number | null
   plant_queue_min: number | null
   loading_min: number | null
+  weighbridge_min: number | null
   transit_out_min: number | null
   site_wait_min: number | null
   pouring_min: number | null
-  washout_min: number | null
+  site_washout_min: number | null
   transit_back_min: number | null
+  plant_prep_min: number | null
   load_m3: number | null
   rejected: boolean
   reject_cause: string | null
@@ -234,11 +236,13 @@ function OutlierCard({ row, onAct }: {
         </div>
         {stageBreakdown(t('stage.plant_queue'), row.plant_queue_min)}
         {stageBreakdown(t('stage.loading'), row.loading_min)}
+        {stageBreakdown(t('stage.weighbridge'), row.weighbridge_min)}
         {stageBreakdown(t('stage.transit_out'), row.transit_out_min)}
         {stageBreakdown(t('stage.site_wait'), row.site_wait_min)}
         {stageBreakdown(t('stage.pouring'), row.pouring_min)}
-        {stageBreakdown(t('stage.washout'), row.washout_min)}
+        {stageBreakdown(t('stage.site_washout'), row.site_washout_min)}
         {stageBreakdown(t('stage.transit_back'), row.transit_back_min)}
+        {stageBreakdown(t('stage.plant_prep'), row.plant_prep_min)}
       </div>
 
       {row.notes && (

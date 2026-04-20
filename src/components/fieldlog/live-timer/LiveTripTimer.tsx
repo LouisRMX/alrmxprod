@@ -614,11 +614,13 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
 const STAGE_DOT_COLOR: Record<StageName, string> = {
   plant_queue: '#e41a1c',
   loading: '#377eb8',
+  weighbridge: '#1b7fa8',
   transit_out: '#4daf4a',
   site_wait: '#984ea3',
   pouring: '#ff7f00',
-  washout: '#a65628',
+  site_washout: '#a65628',
   transit_back: '#f781bf',
+  plant_prep: '#5a5a5a',
 }
 
 /** Compute total TAT in minutes from a trip's timestamps, applying any

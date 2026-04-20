@@ -15,10 +15,16 @@ export interface DailyLogRow {
   departure_site: string | null
   arrival_plant: string | null
   // Plant-internal timing (optional)
+  // 9-stage model (2026-04-20): loading_end = weighbridge start;
+  // plant_prep_end = truck ready for next load (was washout_end,
+  // renamed because the interval is holding water + driver break +
+  // positioning, not just washout).
   loading_start: string | null
   loading_end: string | null
-  washout_end: string | null
+  plant_prep_end: string | null
   slump_pass: boolean | null
+  slump_test_time: string | null
+  slump_test_location: 'plant' | 'site' | null
   load_m3: number | null
   rejected: boolean
   reject_side: 'plant_side' | 'customer_side' | null

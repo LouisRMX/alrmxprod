@@ -57,11 +57,13 @@ interface WeeklyAggregate {
   avg_tat_min: number | null
   avg_plant_queue_min: number | null
   avg_loading_min: number | null
+  avg_weighbridge_min: number | null
   avg_transit_out_min: number | null
   avg_site_wait_min: number | null
   avg_pouring_min: number | null
-  avg_washout_min: number | null
+  avg_site_washout_min: number | null
   avg_transit_back_min: number | null
+  avg_plant_prep_min: number | null
   reject_count: number
   reject_pct: number | null
   reject_plant_side_count: number
@@ -69,6 +71,8 @@ interface WeeklyAggregate {
   slump_tested_count: number
   slump_pass_count: number
   slump_pass_pct: number | null
+  slump_plant_tested_count: number
+  slump_site_tested_count: number
   unique_trucks: number
   unique_drivers: number
   unique_sites: number
@@ -1633,11 +1637,13 @@ function WeeklyDetailRow({ a }: { a: WeeklyAggregate }) {
         </div>
         {stageRow('Plant queue', a.avg_plant_queue_min)}
         {stageRow('Loading', a.avg_loading_min)}
+        {stageRow('Weighbridge', a.avg_weighbridge_min)}
         {stageRow('Transit out', a.avg_transit_out_min)}
         {stageRow('Site wait', a.avg_site_wait_min)}
         {stageRow('Pouring', a.avg_pouring_min)}
-        {stageRow('Washout', a.avg_washout_min)}
+        {stageRow('Site washout', a.avg_site_washout_min)}
         {stageRow('Transit back', a.avg_transit_back_min)}
+        {stageRow('Plant prep', a.avg_plant_prep_min)}
       </div>
 
       {/* Volume + throughput */}

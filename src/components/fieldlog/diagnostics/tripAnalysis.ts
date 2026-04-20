@@ -13,11 +13,13 @@ export type DailyLogWithStages = DailyLogRow
 export const STAGE_KEYS = [
   'plant_queue',
   'loading',
+  'weighbridge',
   'transit_out',
   'site_wait',
   'pouring',
-  'washout',
+  'site_washout',
   'transit_back',
+  'plant_prep',
 ] as const
 
 export type StageKey = (typeof STAGE_KEYS)[number]
@@ -42,20 +44,27 @@ function minutesBetween(a: string | null | undefined, b: string | null | undefin
   return diff >= 0 ? Math.round(diff * 10) / 10 : null
 }
 
-/** Extract the 7 stage durations from a raw daily_logs row. */
+/** Extract the 9 stage durations from a raw daily_logs row. */
 export function computeStageDurations(row: DailyLogWithStages): TripWithStageDurations {
   const stageMinutes: Record<StageKey, number | null> = {
     plant_queue: minutesBetween(row.plant_queue_start, row.loading_start),
-    loading: minutesBetween(row.loading_start, row.departure_loaded),
+    loading: minutesBetween(row.loading_start, row.loading_end),
+    weighbridge: minutesBetween(row.loading_end, row.departure_loaded),
     transit_out: minutesBetween(row.departure_loaded, row.arrival_site),
     site_wait: minutesBetween(row.arrival_site, row.discharge_start),
     pouring: minutesBetween(row.discharge_start, row.discharge_end),
-    washout: minutesBetween(row.discharge_end, row.departure_site),
+    site_washout: minutesBetween(row.discharge_end, row.departure_site),
     transit_back: minutesBetween(row.departure_site, row.arrival_plant),
+    plant_prep: minutesBetween(row.arrival_plant, row.plant_prep_end),
   }
 
-  // Total TAT is end - start (preferred), or sum of non-null stages if partial
-  const totalFromEnds = minutesBetween(row.plant_queue_start ?? row.departure_loaded, row.arrival_plant)
+  // Total TAT spans plant_queue_start → plant_prep_end (truck fully ready for
+  // next load). Falls back to arrival_plant when plant_prep_end is missing
+  // (older trip, or the observer didn't tap the final stage).
+  const totalFromEnds = minutesBetween(
+    row.plant_queue_start ?? row.departure_loaded,
+    row.plant_prep_end ?? row.arrival_plant,
+  )
   const totalFromSum = Object.values(stageMinutes).some(v => v !== null)
     ? Object.values(stageMinutes).reduce<number>((acc, v) => acc + (v ?? 0), 0)
     : null
@@ -188,10 +197,12 @@ export function formatStageName(stage: StageKey): string {
   return {
     plant_queue: 'Plant queue',
     loading: 'Loading',
+    weighbridge: 'Weighbridge',
     transit_out: 'Transit out',
     site_wait: 'Site wait',
     pouring: 'Pouring',
-    washout: 'Washout',
+    site_washout: 'Site washout',
     transit_back: 'Transit back',
+    plant_prep: 'Plant prep',
   }[stage]
 }

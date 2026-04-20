@@ -494,12 +494,14 @@ function TripReviewView({ trip, onUndoSplit, onConfirmSave, onCancel, onClose }:
   const orderedKeys: Array<{ key: StageName | 'complete'; labelKey: LogStringKey }> = [
     { key: 'plant_queue', labelKey: 'review.ts_plant_queue' },
     { key: 'loading', labelKey: 'review.ts_loading' },
+    { key: 'weighbridge', labelKey: 'review.ts_loading_end' },
     { key: 'transit_out', labelKey: 'review.ts_departure' },
     { key: 'site_wait', labelKey: 'review.ts_arrival_site' },
     { key: 'pouring', labelKey: 'review.ts_discharge_start' },
-    { key: 'washout', labelKey: 'review.ts_discharge_end' },
+    { key: 'site_washout', labelKey: 'review.ts_discharge_end' },
     { key: 'transit_back', labelKey: 'review.ts_departure_site' },
-    { key: 'complete', labelKey: 'review.ts_arrival_plant' },
+    { key: 'plant_prep', labelKey: 'review.ts_arrival_plant' },
+    { key: 'complete', labelKey: 'review.ts_plant_prep_end' },
   ]
 
   const timestampFor = (key: StageName | 'complete'): string | undefined => {

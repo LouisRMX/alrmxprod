@@ -75,32 +75,38 @@ export const LOG_STRINGS = {
   'list.open': 'Open',
   'list.min_in': 'min in',
 
-  // ── Stage names (7 stages + labels) ───────────────────────────────
+  // ── Stage names (9 stages + labels) ───────────────────────────────
   'stage.plant_queue': 'Plant queue',
   'stage.loading': 'Loading',
+  'stage.weighbridge': 'Weighbridge',
   'stage.transit_out': 'Transit out',
   'stage.site_wait': 'Site wait',
   'stage.pouring': 'Pouring',
-  'stage.washout': 'Washout',
+  'stage.site_washout': 'Site washout',
   'stage.transit_back': 'Transit back',
+  'stage.plant_prep': 'Plant prep',
 
   // Stage hints (shown below timer)
   'stage.hint.plant_queue': 'Waiting to enter loading bay',
-  'stage.hint.loading': 'Batching and filling the mixer',
+  'stage.hint.loading': 'Batching materials and filling the mixer',
+  'stage.hint.weighbridge': 'Loaded truck at weighbridge',
   'stage.hint.transit_out': 'Truck on the road to the site',
   'stage.hint.site_wait': 'At site, waiting to pour',
   'stage.hint.pouring': 'Discharging concrete',
-  'stage.hint.washout': 'Cleaning drum after pour',
+  'stage.hint.site_washout': 'Drum flush at site before return',
   'stage.hint.transit_back': 'Truck returning to plant',
+  'stage.hint.plant_prep': 'Holding water, driver break, positioning for next load',
 
   // Stage "next action" button labels (shown on big green Split button)
   'stage.next.plant_queue': 'Start loading',
-  'stage.next.loading': 'Leaves plant',
+  'stage.next.loading': 'Loading complete',
+  'stage.next.weighbridge': 'Leaves plant',
   'stage.next.transit_out': 'Arrives at site',
   'stage.next.site_wait': 'Pour starts',
   'stage.next.pouring': 'Pour complete',
-  'stage.next.washout': 'Leaves site',
-  'stage.next.transit_back': 'Back at plant · Complete trip',
+  'stage.next.site_washout': 'Leaves site',
+  'stage.next.transit_back': 'Back at plant',
+  'stage.next.plant_prep': 'Ready for next load · Complete trip',
 
   // Single-stage "finish" button
   'stage.finish': 'Finish',
@@ -132,6 +138,19 @@ export const LOG_STRINGS = {
   'card.edit': 'Edit',
   'card.save': 'Save',
 
+  // ── Slump test (in-card action) ───────────────────────────────────
+  'slump.log_button': 'Log slump test',
+  'slump.logged_prefix': 'Slump',
+  'slump.location_label': 'Where',
+  'slump.result_label': 'Result',
+  'slump.plant': 'Plant',
+  'slump.site': 'Site',
+  'slump.pass': 'Pass',
+  'slump.fail': 'Fail',
+  'slump.save': 'Save slump',
+  'slump.cancel': 'Cancel',
+  'slump.clear': 'Clear',
+
   // ── Trip Review (pre-save) ────────────────────────────────────────
   'review.trip_complete': 'Trip complete. Review the timestamps below. Tap any time to correct it before saving.',
   'review.save_trip': 'Save trip',
@@ -139,12 +158,14 @@ export const LOG_STRINGS = {
   'review.discard_trip': 'Discard trip',
   'review.ts_plant_queue': 'Plant queue start',
   'review.ts_loading': 'Loading start',
+  'review.ts_loading_end': 'Loading end (at weighbridge)',
   'review.ts_departure': 'Departure (loaded)',
   'review.ts_arrival_site': 'Arrival on site',
   'review.ts_discharge_start': 'Discharge start',
   'review.ts_discharge_end': 'Discharge end',
   'review.ts_departure_site': 'Departure from site',
   'review.ts_arrival_plant': 'Arrival at plant',
+  'review.ts_plant_prep_end': 'Ready for next load',
   'review.not_recorded': 'Not recorded',
   'review.edited': 'Edited',
 
@@ -385,32 +406,38 @@ export const LOG_STRINGS_AR: Record<LogStringKey, string> = {
   'list.open': 'فتح',
   'list.min_in': 'دقيقة داخل',
 
-  // Stage names
+  // Stage names (9 stages)
   'stage.plant_queue': 'طابور المصنع',
   'stage.loading': 'التحميل',
+  'stage.weighbridge': 'الميزان',
   'stage.transit_out': 'الذهاب إلى الموقع',
   'stage.site_wait': 'الانتظار في الموقع',
   'stage.pouring': 'الصب',
-  'stage.washout': 'الغسيل',
+  'stage.site_washout': 'الغسيل في الموقع',
   'stage.transit_back': 'العودة إلى المصنع',
+  'stage.plant_prep': 'التجهيز في المصنع',
 
   // Stage hints
   'stage.hint.plant_queue': 'في انتظار الدخول إلى منطقة التحميل',
   'stage.hint.loading': 'معايرة المواد وتعبئة الخلاطة',
+  'stage.hint.weighbridge': 'الشاحنة المحملة عند الميزان',
   'stage.hint.transit_out': 'الشاحنة في الطريق إلى الموقع',
   'stage.hint.site_wait': 'في الموقع، في انتظار الصب',
   'stage.hint.pouring': 'صب الخرسانة',
-  'stage.hint.washout': 'غسيل الخلاطة بعد الصب',
+  'stage.hint.site_washout': 'غسيل الخلاطة في الموقع قبل العودة',
   'stage.hint.transit_back': 'الشاحنة تعود إلى المصنع',
+  'stage.hint.plant_prep': 'الماء الاحتياطي، استراحة السائق، التجهيز للحمولة التالية',
 
   // Stage next action buttons
   'stage.next.plant_queue': 'بدء التحميل',
-  'stage.next.loading': 'غادر المصنع',
+  'stage.next.loading': 'انتهى التحميل',
+  'stage.next.weighbridge': 'غادر المصنع',
   'stage.next.transit_out': 'وصل إلى الموقع',
   'stage.next.site_wait': 'بدء الصب',
   'stage.next.pouring': 'انتهى الصب',
-  'stage.next.washout': 'غادر الموقع',
-  'stage.next.transit_back': 'عاد إلى المصنع · إنهاء الرحلة',
+  'stage.next.site_washout': 'غادر الموقع',
+  'stage.next.transit_back': 'عاد إلى المصنع',
+  'stage.next.plant_prep': 'جاهز للحمولة التالية · إنهاء الرحلة',
 
   'stage.finish': 'إنهاء',
 
@@ -441,6 +468,19 @@ export const LOG_STRINGS_AR: Record<LogStringKey, string> = {
   'card.edit': 'تعديل',
   'card.save': 'حفظ',
 
+  // Slump test (in-card action)
+  'slump.log_button': 'تسجيل اختبار الانسياب',
+  'slump.logged_prefix': 'الانسياب',
+  'slump.location_label': 'الموقع',
+  'slump.result_label': 'النتيجة',
+  'slump.plant': 'المصنع',
+  'slump.site': 'الموقع',
+  'slump.pass': 'نجح',
+  'slump.fail': 'فشل',
+  'slump.save': 'حفظ الاختبار',
+  'slump.cancel': 'إلغاء',
+  'slump.clear': 'مسح',
+
   // Review (pre-save)
   'review.trip_complete': '✓ اكتملت الرحلة. راجع الأوقات أدناه. اضغط أي وقت لتصحيحه قبل الحفظ.',
   'review.save_trip': 'حفظ الرحلة',
@@ -448,12 +488,14 @@ export const LOG_STRINGS_AR: Record<LogStringKey, string> = {
   'review.discard_trip': 'تجاهل الرحلة',
   'review.ts_plant_queue': 'بدء طابور المصنع',
   'review.ts_loading': 'بدء التحميل',
+  'review.ts_loading_end': 'انتهاء التحميل (عند الميزان)',
   'review.ts_departure': 'المغادرة (محملة)',
   'review.ts_arrival_site': 'الوصول إلى الموقع',
   'review.ts_discharge_start': 'بدء التفريغ',
   'review.ts_discharge_end': 'انتهاء التفريغ',
   'review.ts_departure_site': 'المغادرة من الموقع',
   'review.ts_arrival_plant': 'الوصول إلى المصنع',
+  'review.ts_plant_prep_end': 'جاهز للحمولة التالية',
   'review.not_recorded': 'غير مسجل',
   'review.edited': 'معدل',
 

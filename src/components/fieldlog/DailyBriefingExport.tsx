@@ -29,21 +29,25 @@ import Bilingual from '@/lib/i18n/Bilingual'
 const STAGE_LABEL: Record<string, string> = {
   plant_queue: 'Plant queue',
   loading: 'Loading',
+  weighbridge: 'Weighbridge',
   transit_out: 'Transit out',
   site_wait: 'Site waiting',
   pouring: 'Pouring',
-  washout: 'Washout',
+  site_washout: 'Site washout',
   transit_back: 'Transit back',
+  plant_prep: 'Plant prep',
 }
 
 const STAGE_PLAIN: Record<string, string> = {
   plant_queue: 'time spent waiting at the plant before loading',
-  loading: 'time to load the mixer',
+  loading: 'time at the batching tower to fill the mixer',
+  weighbridge: 'weighing the loaded truck before it leaves the plant',
   transit_out: 'drive time from plant to site',
   site_wait: 'time at site before pouring begins',
   pouring: 'time discharging concrete at site',
-  washout: 'time cleaning the drum after pour',
+  site_washout: 'drum flush at site before the return trip',
   transit_back: 'drive time back to plant',
+  plant_prep: 'between-cycle prep time at the plant: holding water, driver break, positioning for next load',
 }
 
 interface Props {
@@ -58,11 +62,13 @@ interface WeeklyAggregate {
   reject_count: number
   avg_plant_queue_min: number | null
   avg_loading_min: number | null
+  avg_weighbridge_min: number | null
   avg_transit_out_min: number | null
   avg_site_wait_min: number | null
   avg_pouring_min: number | null
-  avg_washout_min: number | null
+  avg_site_washout_min: number | null
   avg_transit_back_min: number | null
+  avg_plant_prep_min: number | null
   unique_trucks: number
   avg_trips_per_truck_per_day: number | null
   outliers_excluded_count: number
@@ -208,11 +214,13 @@ export default function DailyBriefingExport({ assessmentId }: Props) {
     const stages = [
       { key: 'plant_queue', val: current.avg_plant_queue_min },
       { key: 'loading', val: current.avg_loading_min },
+      { key: 'weighbridge', val: current.avg_weighbridge_min },
       { key: 'transit_out', val: current.avg_transit_out_min },
       { key: 'site_wait', val: current.avg_site_wait_min },
       { key: 'pouring', val: current.avg_pouring_min },
-      { key: 'washout', val: current.avg_washout_min },
+      { key: 'site_washout', val: current.avg_site_washout_min },
       { key: 'transit_back', val: current.avg_transit_back_min },
+      { key: 'plant_prep', val: current.avg_plant_prep_min },
     ].filter(s => s.val != null) as Array<{ key: string; val: number }>
 
     if (stages.length > 0 && avgCycle != null) {

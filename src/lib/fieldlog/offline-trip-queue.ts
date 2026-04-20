@@ -22,16 +22,21 @@
 import Dexie, { type Table } from 'dexie'
 
 // ── Stage names in canonical order ────────────────────────────────────────
-// These match the 7 stages of a ready-mix truck cycle and the timestamp
-// columns on public.daily_logs.
+// These match the 9 stages of a ready-mix truck cycle and the timestamp
+// columns on public.daily_logs. Each stage represents a real operational
+// activity with a distinct queue-able resource; conflating any two (e.g.
+// batching + weighbridge, or site-drum-flush + plant-prep) would hide the
+// actual bottleneck when diagnosing TAT.
 export const STAGES = [
-  'plant_queue',
-  'loading',
-  'transit_out',
-  'site_wait',
-  'pouring',
-  'washout',
-  'transit_back',
+  'plant_queue',     // plant_queue_start  → loading_start
+  'loading',         // loading_start      → loading_end           (batching tower)
+  'weighbridge',     // loading_end        → departure_loaded      (weighing out)
+  'transit_out',     // departure_loaded   → arrival_site
+  'site_wait',       // arrival_site       → discharge_start
+  'pouring',         // discharge_start    → discharge_end
+  'site_washout',    // discharge_end      → departure_site        (drum flush at site)
+  'transit_back',    // departure_site     → arrival_plant
+  'plant_prep',      // arrival_plant      → plant_prep_end        (holding water, break, positioning)
 ] as const
 
 export type StageName = (typeof STAGES)[number]
@@ -40,15 +45,18 @@ export type StageName = (typeof STAGES)[number]
 export const STAGE_START_COLUMN: Record<StageName, string> = {
   plant_queue: 'plant_queue_start',
   loading: 'loading_start',
+  weighbridge: 'loading_end',
   transit_out: 'departure_loaded',
   site_wait: 'arrival_site',
   pouring: 'discharge_start',
-  washout: 'discharge_end',
+  site_washout: 'discharge_end',
   transit_back: 'departure_site',
+  plant_prep: 'arrival_plant',
 }
 
-/** End-of-trip timestamp (when the truck arrives back at plant). */
-export const TRIP_END_COLUMN = 'arrival_plant'
+/** End-of-trip timestamp (when the truck is READY for the next load, not
+ *  merely when it arrived back at the plant gate — that's arrival_plant). */
+export const TRIP_END_COLUMN = 'plant_prep_end'
 
 // ── Per-stage notes shape ────────────────────────────────────────────────
 export type StageNotes = Partial<Record<StageName, string>>
@@ -100,8 +108,8 @@ export interface ActiveTrip {
   awaitingReview?: boolean
   /**
    * Measurement scope. 'full' = trip starts at plant_queue and moves
-   * through all 7 stages. 'single_stage' = observer wants to measure
-   * just one specific stage (e.g., rapid washout sampling). Partial
+   * through all 9 stages. 'single_stage' = observer wants to measure
+   * just one specific stage (e.g., rapid site_washout sampling). Partial
    * saves work for both modes.
    */
   measurementMode: 'full' | 'single_stage'
@@ -112,6 +120,17 @@ export interface ActiveTrip {
    * if a load is refused. Saved on the daily_logs row.
    */
   rejected?: boolean
+  /**
+   * Slump test result, if one was logged via the in-card action. A single
+   * test per trip: location distinguishes pre-dispatch QC (plant) from
+   * customer-side acceptance (site). Relogging overwrites. NULL when no
+   * formal slump test was recorded for this trip.
+   */
+  slumpTest?: {
+    time: string
+    location: 'plant' | 'site'
+    pass: boolean
+  }
 }
 
 /**
@@ -248,6 +267,35 @@ export async function setTripRejected(tripId: string, rejected: boolean): Promis
   await db.activeTrips.put({ ...trip, rejected })
 }
 
+/** Log the slump test result for an active trip. Overwrites any existing
+ *  slump test on the trip (one test per trip by design). Auto-timestamps. */
+export async function setTripSlumpTest(
+  tripId: string,
+  location: 'plant' | 'site',
+  pass: boolean,
+): Promise<void> {
+  const trip = await db.activeTrips.get(tripId)
+  if (!trip) return
+  await db.activeTrips.put({
+    ...trip,
+    slumpTest: {
+      time: new Date().toISOString(),
+      location,
+      pass,
+    },
+  })
+}
+
+/** Remove a previously-logged slump test from an active trip (e.g. if the
+ *  observer logged it by mistake and wants to start over). */
+export async function clearTripSlumpTest(tripId: string): Promise<void> {
+  const trip = await db.activeTrips.get(tripId)
+  if (!trip) return
+  const next: ActiveTrip = { ...trip }
+  delete next.slumpTest
+  await db.activeTrips.put(next)
+}
+
 /**
  * Advance a trip to the next stage (full mode) or finish the single-stage
  * measurement. In full mode, saves the END timestamp of the current stage
@@ -305,14 +353,14 @@ export async function splitStage(tripId: string): Promise<ActiveTrip | null> {
 /**
  * Undo the most recent split (Lag 1 safety net). Reverts currentStage to
  * the previous stage and deletes its timestamp. If we are in the review
- * state (after finishing transit_back), drops the complete timestamp.
- * Returns null if nothing to undo.
+ * state (after finishing the last stage, plant_prep), drops the complete
+ * timestamp. Returns null if nothing to undo.
  */
 export async function undoLastSplit(tripId: string): Promise<ActiveTrip | null> {
   const trip = await db.activeTrips.get(tripId)
   if (!trip) return null
 
-  // Undo review-state split: drop complete, stay on transit_back
+  // Undo review-state split: drop complete, return to the final stage.
   if (trip.awaitingReview) {
     const newTimestamps = { ...trip.timestamps }
     delete newTimestamps.complete
@@ -320,7 +368,7 @@ export async function undoLastSplit(tripId: string): Promise<ActiveTrip | null> 
       ...trip,
       timestamps: newTimestamps,
       awaitingReview: false,
-      currentStage: 'transit_back',
+      currentStage: STAGES[STAGES.length - 1],
     }
     await db.activeTrips.put(updated)
     return updated
@@ -344,8 +392,9 @@ export async function undoLastSplit(tripId: string): Promise<ActiveTrip | null> 
 
 /**
  * Finalise a trip that is in review state, optionally overriding any of
- * the 7 stage timestamps. Edits are validated (each must be after the
- * previous) before the trip moves to the pending queue for sync.
+ * the 9 stage timestamps or 'complete'. Edits are validated (each must
+ * be after the previous) before the trip moves to the pending queue for
+ * sync.
  */
 export async function finaliseWithEdits(
   tripId: string,
@@ -515,14 +564,19 @@ export function buildDailyLogPayload(trip: PendingTrip): Record<string, unknown>
     driver_name: trip.driverName ?? null,
     site_name: trip.siteName ?? null,
     origin_plant: trip.originPlant ?? null,
+    // 9-stage timing. Each line: the column on daily_logs = the Dexie key
+    // whose tap value represents the START of that stage (or the END of
+    // the previous stage — they are the same moment).
     plant_queue_start: ts.plant_queue ?? null,
     loading_start: ts.loading ?? null,
-    departure_loaded: ts.transit_out ?? null,
+    loading_end: ts.weighbridge ?? null,       // truck finished batching, entering weighbridge
+    departure_loaded: ts.transit_out ?? null,   // weighbridge done, truck leaving gate
     arrival_site: ts.site_wait ?? null,
     discharge_start: ts.pouring ?? null,
-    discharge_end: ts.washout ?? null,
-    departure_site: ts.transit_back ?? null,
-    arrival_plant: ts.complete ?? null,
+    discharge_end: ts.site_washout ?? null,     // pour ended, drum flush starting
+    departure_site: ts.transit_back ?? null,    // drum flush done, truck leaving site
+    arrival_plant: ts.plant_prep ?? null,       // truck back at plant gate, prep starting
+    plant_prep_end: ts.complete ?? null,        // prep done, truck ready for next load
     measurer_name: trip.measurerName,
     // Partial if explicitly saved mid-trip, OR if single-stage mode
     // (only one stage was measured, remaining are null by design).
@@ -531,6 +585,11 @@ export function buildDailyLogPayload(trip: PendingTrip): Record<string, unknown>
     stage_notes: Object.keys(trip.stageNotes).length > 0 ? trip.stageNotes : null,
     notes: trip.notes || null,
     data_source: 'direct_observation',
+    // Slump test metadata (logged via the in-card action; nullable when
+    // no formal slump test was run for this trip).
+    slump_pass: trip.slumpTest?.pass ?? null,
+    slump_test_time: trip.slumpTest?.time ?? null,
+    slump_test_location: trip.slumpTest?.location ?? null,
   }
 }
 

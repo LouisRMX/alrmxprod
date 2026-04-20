@@ -44,16 +44,19 @@ interface Props {
 }
 
 // ColorBrewer qualitative palette. Chosen for maximum visual distinction
-// between 7 stages and colorblind-friendly separation. No two hues are
-// close enough to confuse at a glance.
+// between 9 stages and colorblind-friendly separation. Weighbridge and
+// plant_prep use muted variants of adjacent stages to signal "support"
+// activities that happen at the same physical location (plant).
 const STAGE_COLORS: Record<StageKey, string> = {
-  plant_queue: '#e41a1c',  // red
-  loading: '#377eb8',      // blue
-  transit_out: '#4daf4a',  // green
-  site_wait: '#984ea3',    // purple
-  pouring: '#ff7f00',      // orange
-  washout: '#a65628',      // brown
-  transit_back: '#f781bf', // pink
+  plant_queue: '#e41a1c',    // red
+  loading: '#377eb8',        // blue
+  weighbridge: '#1b7fa8',    // deep teal (plant support, next to loading)
+  transit_out: '#4daf4a',    // green
+  site_wait: '#984ea3',      // purple
+  pouring: '#ff7f00',        // orange
+  site_washout: '#a65628',   // brown
+  transit_back: '#f781bf',   // pink
+  plant_prep: '#5a5a5a',     // slate (plant support, end of cycle)
 }
 
 export default function FieldLogDiagnostics({ assessmentId, reportedTAT, targetTAT }: Props) {
