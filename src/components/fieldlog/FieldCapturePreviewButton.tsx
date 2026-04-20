@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * Admin-only "Preview as helper" button.
+ * Admin-only "Helper view" button.
  *
  * Opens the /fc/[token] route in a new tab using a dedicated preview
  * token (label="__preview__") so the admin can verify exactly what a
@@ -11,6 +11,13 @@
  *
  * The preview token shows up in the regular token list — revoke it from
  * there if you want to invalidate the preview link.
+ *
+ * Mobile Safari / iOS PWA block window.open() that fires AFTER an async
+ * operation because it doesn't look like a user gesture by the time it
+ * runs. We work around this by opening a blank tab synchronously on
+ * click and then navigating it once the token is resolved. If opening
+ * is blocked outright, we fall back to navigating the current tab so
+ * the admin still gets into the helper view.
  */
 
 import { useState } from 'react'
@@ -34,49 +41,65 @@ export default function FieldCapturePreviewButton({ assessmentId, plantId }: Pro
   const supabase = createClient()
   const [loading, setLoading] = useState(false)
 
-  const openPreview = async () => {
+  const openHelperView = () => {
+    // Open the target tab SYNCHRONOUSLY inside the click handler so iOS
+    // Safari / PWA treat it as a user gesture. We load a blank URL first
+    // and navigate it once we have the token.
+    const preOpenedTab: Window | null = window.open('about:blank', '_blank', 'noopener,noreferrer')
+
     setLoading(true)
-    try {
-      // Look for an existing preview token that is still valid
-      const { data: existing } = await supabase
-        .from('field_capture_tokens')
-        .select('token, expires_at, revoked_at')
-        .eq('assessment_id', assessmentId)
-        .eq('label', PREVIEW_LABEL)
-        .is('revoked_at', null)
-        .gt('expires_at', new Date().toISOString())
-        .order('created_at', { ascending: false })
-        .limit(1)
 
-      let token = existing?.[0]?.token
+    ;(async () => {
+      try {
+        // Look for an existing preview token that is still valid
+        const { data: existing } = await supabase
+          .from('field_capture_tokens')
+          .select('token, expires_at, revoked_at')
+          .eq('assessment_id', assessmentId)
+          .eq('label', PREVIEW_LABEL)
+          .is('revoked_at', null)
+          .gt('expires_at', new Date().toISOString())
+          .order('created_at', { ascending: false })
+          .limit(1)
 
-      if (!token) {
-        token = generateTokenString()
-        const expiresAt = new Date(Date.now() + PREVIEW_EXPIRY_DAYS * 86_400_000).toISOString()
-        const { error } = await supabase.from('field_capture_tokens').insert({
-          token,
-          assessment_id: assessmentId,
-          plant_id: plantId,
-          label: PREVIEW_LABEL,
-          expires_at: expiresAt,
-        })
-        if (error) {
-          alert('Could not create preview token: ' + error.message)
-          return
+        let token = existing?.[0]?.token
+
+        if (!token) {
+          token = generateTokenString()
+          const expiresAt = new Date(Date.now() + PREVIEW_EXPIRY_DAYS * 86_400_000).toISOString()
+          const { error } = await supabase.from('field_capture_tokens').insert({
+            token,
+            assessment_id: assessmentId,
+            plant_id: plantId,
+            label: PREVIEW_LABEL,
+            expires_at: expiresAt,
+          })
+          if (error) {
+            if (preOpenedTab && !preOpenedTab.closed) preOpenedTab.close()
+            alert('Could not create helper-view token: ' + error.message)
+            return
+          }
         }
-      }
 
-      const url = `${window.location.origin}/fc/${token}`
-      window.open(url, '_blank', 'noopener,noreferrer')
-    } finally {
-      setLoading(false)
-    }
+        const url = `${window.location.origin}/fc/${token}`
+
+        if (preOpenedTab && !preOpenedTab.closed) {
+          preOpenedTab.location.href = url
+        } else {
+          // Popup blocker prevented the synchronous open. Fall back to
+          // navigating the current tab — admin still gets into the view.
+          window.location.href = url
+        }
+      } finally {
+        setLoading(false)
+      }
+    })()
   }
 
   return (
     <button
       type="button"
-      onClick={openPreview}
+      onClick={openHelperView}
       disabled={loading}
       style={{
         padding: '6px 12px',
@@ -90,9 +113,9 @@ export default function FieldCapturePreviewButton({ assessmentId, plantId }: Pro
         minHeight: '36px',
         opacity: loading ? 0.6 : 1,
       }}
-      title="Open /fc/[token] in a new tab using a dedicated preview token"
+      title="Open /fc/[token] in a new tab using a dedicated preview token (admin only)"
     >
-      {loading ? '...' : '👁 Preview as helper'}
+      {loading ? '...' : '👁 Helper view'}
     </button>
   )
 }
