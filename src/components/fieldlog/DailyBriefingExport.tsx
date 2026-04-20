@@ -74,6 +74,9 @@ interface WeeklyAggregate {
   outliers_excluded_count: number
   week_start_date: string
   week_end_date: string
+  /** Per-week site_type → count. Used to flag mix-driven variation so
+   *  week-over-week TAT shifts aren't misattributed to operations. */
+  site_type_breakdown: Record<string, number>
 }
 
 function formatDateRange(start: string, end: string): string {
@@ -262,6 +265,27 @@ export default function DailyBriefingExport({ assessmentId }: Props) {
     lines.push(`Trucks in rotation: ${current.unique_trucks}`)
     if (current.avg_trips_per_truck_per_day != null) {
       lines.push(`Trips per truck per day: ${current.avg_trips_per_truck_per_day.toFixed(1)}`)
+    }
+    // Site-type mix: spell out the composition when >1 type is present
+    // so a changed average doesn't read as an ops change when it's really
+    // a mix change.
+    if (current.site_type_breakdown && Object.keys(current.site_type_breakdown).length > 0) {
+      const mixLabel: Record<string, string> = {
+        ground_pour: 'ground pour',
+        high_rise: 'high rise',
+        infrastructure: 'infrastructure',
+        unknown: 'unclassified',
+      }
+      const totalClassified = Object.values(current.site_type_breakdown).reduce((a, b) => a + b, 0)
+      if (totalClassified > 0) {
+        const parts = Object.entries(current.site_type_breakdown)
+          .filter(([type]) => type !== 'unknown' || Object.keys(current.site_type_breakdown).length === 1)
+          .sort((a, b) => b[1] - a[1])
+          .map(([type, count]) => `${Math.round((count / totalClassified) * 100)}% ${mixLabel[type] ?? type}`)
+        if (parts.length > 0) {
+          lines.push(`Site mix: ${parts.join(', ')}`)
+        }
+      }
     }
     if (current.outliers_excluded_count > 0) {
       lines.push(`Outliers excluded from averages: ${current.outliers_excluded_count} (reviewed separately)`)

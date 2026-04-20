@@ -67,6 +67,8 @@ export default function FieldLogDiagnostics({ assessmentId, reportedTAT, targetT
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [dateRange, setDateRange] = useState<'today' | '7d' | '30d' | 'all'>('all')
+  const [siteTypeFilter, setSiteTypeFilter] = useState<'all' | 'ground_pour' | 'high_rise' | 'infrastructure' | 'unknown'>('all')
+  const [rawTrips, setRawTrips] = useState<DailyLogWithStages[]>([])
 
   useEffect(() => {
     async function load() {
@@ -98,12 +100,19 @@ export default function FieldLogDiagnostics({ assessmentId, reportedTAT, targetT
         setLoading(false)
         return
       }
-      const computed = (data as DailyLogWithStages[]).map(computeStageDurations)
-      setTrips(computed)
+      setRawTrips(data as DailyLogWithStages[])
       setLoading(false)
     }
     load()
   }, [assessmentId, dateRange, supabase])
+
+  // Apply site_type filter in memory so switching doesn't re-query.
+  useEffect(() => {
+    const filtered = siteTypeFilter === 'all'
+      ? rawTrips
+      : rawTrips.filter(r => (r.site_type ?? 'unknown') === siteTypeFilter)
+    setTrips(filtered.map(computeStageDurations))
+  }, [rawTrips, siteTypeFilter])
 
   const stageSummaries = useMemo(() => summariseStages(trips), [trips])
   const outliers = useMemo(() => findOutliers(trips, 5), [trips])
@@ -149,8 +158,8 @@ export default function FieldLogDiagnostics({ assessmentId, reportedTAT, targetT
   return (
     <div style={{ padding: '4px 0' }}>
 
-      {/* Filter + counts */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
+      {/* Date range filter + counts */}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
         <span style={{ fontSize: '12px', color: '#888', fontWeight: 600 }}><Bilingual k="diag.range" inline />:</span>
         {(['today', '7d', '30d', 'all'] as const).map(r => (
           <button
@@ -172,6 +181,41 @@ export default function FieldLogDiagnostics({ assessmentId, reportedTAT, targetT
           <strong>{completeTripCount}</strong> {t('diag.complete')} · <strong>{partialTripCount}</strong> {t('diag.partial')}
         </div>
       </div>
+
+      {/* Site type filter. Segments the stage summary, TAT breakdown, and
+          outlier list so high-rise pours are not averaged with ground-pour. */}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
+        <span style={{ fontSize: '12px', color: '#888', fontWeight: 600 }}>
+          <Bilingual k="site_type.label" inline />:
+        </span>
+        {(['all', 'ground_pour', 'high_rise', 'infrastructure', 'unknown'] as const).map(s => {
+          const active = siteTypeFilter === s
+          const labelKey: LogStringKey | null = s === 'all' ? null : `site_type.${s}` as LogStringKey
+          return (
+            <button
+              key={s}
+              type="button"
+              onClick={() => setSiteTypeFilter(s)}
+              style={{
+                padding: '5px 10px', fontSize: '12px', borderRadius: '5px',
+                border: `1px solid ${active ? '#0F6E56' : '#ddd'}`,
+                background: active ? '#E1F5EE' : '#fff',
+                color: active ? '#0F6E56' : '#666',
+                fontWeight: 500, cursor: 'pointer',
+              }}
+            >
+              {s === 'all' ? t('diag.all') : labelKey ? <Bilingual k={labelKey} inline /> : null}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Site-type TAT comparison panel (shown only when filter is 'all'
+          AND we have more than one type in the raw data). Lets the analyst
+          see at-a-glance whether one site-type is dragging up the median. */}
+      {siteTypeFilter === 'all' && (
+        <SiteTypeTATPanel rawTrips={rawTrips} />
+      )}
 
       {/* Expected vs measured banner */}
       {(reportedTAT !== undefined && reportedTAT !== null) && (
@@ -386,6 +430,70 @@ function ExpectedVsMeasuredBanner({
       </div>
       <div style={{ fontSize: '11px', color: '#666', marginTop: '10px', fontStyle: 'italic' }}>
         {t('diag.baseline_based_on', { n: sampleSize })}
+      </div>
+    </div>
+  )
+}
+
+// ── Site-type TAT comparison panel ──────────────────────────────────────
+// Shows median TAT per site_type side by side. Only renders when the
+// dataset contains ≥ 2 distinct types so it's useful, not noise. The
+// point: reveal when mix composition (not operational change) is
+// driving the week-over-week TAT movement.
+function SiteTypeTATPanel({ rawTrips }: { rawTrips: DailyLogWithStages[] }) {
+  const { t } = useLogT()
+  const perType = useMemo(() => {
+    const groups: Record<string, number[]> = {}
+    for (const r of rawTrips) {
+      const type = r.site_type ?? 'unknown'
+      const computed = computeStageDurations(r)
+      if (computed.totalMinutes == null || computed.isPartial) continue
+      if (!groups[type]) groups[type] = []
+      groups[type].push(computed.totalMinutes)
+    }
+    return (['ground_pour', 'high_rise', 'infrastructure', 'unknown'] as const)
+      .map(type => ({
+        type,
+        count: groups[type]?.length ?? 0,
+        median: median(groups[type] ?? []),
+      }))
+      .filter(e => e.count > 0)
+  }, [rawTrips])
+
+  if (perType.length < 2) return null
+
+  return (
+    <div style={{
+      background: '#fff', border: '1px solid #e5e5e5', borderRadius: '10px',
+      padding: '14px 16px', marginBottom: '16px',
+    }}>
+      <div style={{
+        fontSize: '11px', color: '#888', fontWeight: 700,
+        textTransform: 'uppercase', letterSpacing: '.3px', marginBottom: '10px',
+      }}>
+        <Bilingual k="site_type.label" /> · Median TAT
+      </div>
+      <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+        {perType.map(e => (
+          <div key={e.type} style={{
+            flex: '1 1 140px', minWidth: '120px',
+            padding: '10px 12px', background: '#fafafa',
+            borderRadius: '8px', border: '1px solid #eee',
+          }}>
+            <div style={{ fontSize: '10px', color: '#666', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.3px', marginBottom: '4px' }}>
+              <Bilingual k={`site_type.${e.type}` as LogStringKey} inline />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+              <span style={{ fontSize: '22px', fontWeight: 700, fontFamily: 'ui-monospace, SF Mono, Menlo, monospace', color: '#0F6E56' }}>
+                {e.median != null ? Math.round(e.median) : '-'}
+              </span>
+              <span style={{ fontSize: '11px', color: '#888' }}>{t('reviewq.min')}</span>
+            </div>
+            <div style={{ fontSize: '10px', color: '#aaa', marginTop: '2px' }}>
+              n={e.count}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   )

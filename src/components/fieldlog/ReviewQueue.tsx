@@ -16,6 +16,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useLogT } from '@/lib/i18n/LogLocaleContext'
 import Bilingual from '@/lib/i18n/Bilingual'
+import type { LogStringKey } from '@/lib/i18n/log-catalog'
 
 interface OutlierRow {
   id: string
@@ -23,6 +24,7 @@ interface OutlierRow {
   truck_id: string | null
   driver_name: string | null
   site_name: string | null
+  site_type: 'ground_pour' | 'high_rise' | 'infrastructure' | 'unknown' | null
   measurer_name: string | null
   origin_plant: string | null
   total_tat_min: number | null
@@ -202,6 +204,15 @@ function OutlierCard({ row, onAct }: {
             }}>
               {statusLabel}
             </span>
+            {row.site_type && row.site_type !== 'unknown' && (
+              <span style={{
+                padding: '2px 8px', background: '#E8F1FA',
+                color: '#2E5C8A', borderRadius: '4px', fontSize: '10px',
+                fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.3px',
+              }}>
+                <Bilingual k={`site_type.${row.site_type}` as LogStringKey} inline />
+              </span>
+            )}
           </div>
           <div style={{ fontSize: '11px', color: '#888', fontFamily: 'ui-monospace, SF Mono, Menlo, monospace' }}>
             {new Date(row.log_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}

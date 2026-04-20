@@ -61,6 +61,7 @@ export default function TripTable({ trips, isAdmin, onDelete }: TripTableProps) 
           <tr>
             <th style={th}>#</th>
             <th style={th}>Truck</th>
+            <th style={th}>Site type</th>
             <th style={th}>Depart</th>
             <th style={th}>Arrive</th>
             <th style={th}>Disch.</th>
@@ -77,6 +78,16 @@ export default function TripTable({ trips, isAdmin, onDelete }: TripTableProps) 
             <tr key={t.id} style={{ background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
               <td style={{ ...td, color: '#aaa' }}>{i + 1}</td>
               <td style={{ ...td, fontWeight: 500 }}>{t.truck_id || '-'}</td>
+              <td style={td}>
+                {t.site_type && t.site_type !== 'unknown' ? (
+                  <span style={{
+                    padding: '2px 6px', background: '#E8F1FA', color: '#2E5C8A',
+                    borderRadius: '4px', fontSize: '10px', fontWeight: 600,
+                  }}>
+                    {t.site_type === 'ground_pour' ? 'Ground' : t.site_type === 'high_rise' ? 'High rise' : 'Infra'}
+                  </span>
+                ) : <span style={{ color: '#ccc' }}>-</span>}
+              </td>
               <td style={td}>{fmtTime(t.departure_loaded)}</td>
               <td style={td}>{fmtTime(t.arrival_site)}</td>
               <td style={td}>{fmtTime(t.discharge_start)}</td>
