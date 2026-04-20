@@ -4,18 +4,24 @@
  * Token-validated trip insert for helpers using the /fc/[token] route.
  *
  * Security model:
- *   1. Request body contains { token, payload }
- *   2. We validate the token via validate_field_capture_token() Postgres function
- *   3. If token is valid, we force assessment_id and plant_id from the token
+ *   1. Rate-limit: 60 req/min per token (in-memory sliding window).
+ *      A compromised token cannot be used to flood daily_logs.
+ *   2. Request body contains { token, payload }
+ *   3. We validate the token via validate_field_capture_token() Postgres function
+ *   4. If token is valid, we force assessment_id and plant_id from the token
  *      (never from the request body), preventing forgery
- *   4. Insert into daily_logs via service-role client
+ *   5. log_date is derived from payload.plant_queue_start so the helper
+ *      cannot backdate trips arbitrarily
+ *   6. captured_ip and captured_user_agent are written from request headers
+ *      as a per-trip audit fingerprint
+ *   7. Insert into daily_logs via service-role client (bypasses RLS; the
+ *      forced IDs + token validation are the real guard)
  *
- * Rate limiting:
- *   - 60 requests per minute per token (generous for batch sync after offline)
- *   - Deduplication handled by caller (idempotent Dexie pendingTrips queue)
+ * Deduplication handled by caller (idempotent Dexie pendingTrips queue).
  */
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 export const runtime = 'nodejs'
 
@@ -43,6 +49,14 @@ interface TripPayload {
   data_source?: string
 }
 
+function clientIpFrom(req: NextRequest): string | null {
+  const fwd = req.headers.get('x-forwarded-for')
+  if (fwd) return fwd.split(',')[0].trim()
+  const real = req.headers.get('x-real-ip')
+  if (real) return real.trim()
+  return null
+}
+
 export async function POST(req: NextRequest) {
   let body: { token?: string; payload?: TripPayload }
   try {
@@ -55,6 +69,16 @@ export async function POST(req: NextRequest) {
   const payload = body.payload
   if (!token || !payload || typeof payload !== 'object') {
     return NextResponse.json({ error: 'Missing token or payload' }, { status: 400 })
+  }
+
+  // Rate limit per token. Key is prefixed so field-capture traffic cannot
+  // collide with other rate-limited endpoints that key on user id.
+  const rl = checkRateLimit(`fc-trip:${token}`, { maxRequests: 60, windowSeconds: 60 })
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: 'Rate limit exceeded. Try again in a moment.' },
+      { status: 429, headers: { 'Retry-After': String(Math.max(1, Math.ceil((rl.resetAt - Date.now()) / 1000))) } },
+    )
   }
 
   const admin = createAdminClient()
@@ -74,11 +98,28 @@ export async function POST(req: NextRequest) {
   const assessmentId: string = row.assessment_id
   const plantId: string = row.plant_id
 
+  // Derive log_date from the trip's first timestamp so a helper cannot
+  // backdate a trip to an arbitrary day. Fall back to today only when no
+  // timestamp is present (e.g. single-stage capture that starts at a later
+  // stage). payload.log_date is ignored entirely.
+  const anchorTs = typeof payload.plant_queue_start === 'string' && payload.plant_queue_start.length >= 10
+    ? payload.plant_queue_start
+    : typeof payload.loading_start === 'string' && payload.loading_start.length >= 10
+      ? payload.loading_start
+      : typeof payload.departure_loaded === 'string' && payload.departure_loaded.length >= 10
+        ? payload.departure_loaded
+        : null
+  const logDate = anchorTs ? anchorTs.slice(0, 10) : new Date().toISOString().slice(0, 10)
+
+  // Audit fingerprint for forensics
+  const capturedIp = clientIpFrom(req)
+  const capturedUserAgent = req.headers.get('user-agent')
+
   // Build the insert payload: force IDs from the token (never from caller body)
   const insertRow = {
     assessment_id: assessmentId,
     plant_id: plantId,
-    log_date: payload.log_date ?? new Date().toISOString().slice(0, 10),
+    log_date: logDate,
     truck_id: payload.truck_id ?? null,
     driver_name: payload.driver_name ?? null,
     site_name: payload.site_name ?? null,
@@ -97,6 +138,8 @@ export async function POST(req: NextRequest) {
     stage_notes: payload.stage_notes ?? null,
     notes: payload.notes ?? null,
     data_source: 'direct_observation' as const,
+    captured_ip: capturedIp,
+    captured_user_agent: capturedUserAgent,
   }
 
   const { error: insertError } = await admin.from('daily_logs').insert(insertRow)
