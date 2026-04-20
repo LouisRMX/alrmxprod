@@ -138,6 +138,14 @@ export const LOG_STRINGS = {
   'card.edit': 'Edit',
   'card.save': 'Save',
 
+  // ── Site type classification ──────────────────────────────────────
+  'site_type.label': 'Site type',
+  'site_type.ground_pour': 'Ground pour',
+  'site_type.high_rise': 'High rise',
+  'site_type.infrastructure': 'Infrastructure',
+  'site_type.unknown': 'Unknown',
+  'site_type.help': 'Drives TAT benchmarking. Cached per site name.',
+
   // ── Slump test (in-card action) ───────────────────────────────────
   'slump.log_button': 'Log slump test',
   'slump.logged_prefix': 'Slump',
@@ -467,6 +475,14 @@ export const LOG_STRINGS_AR: Record<LogStringKey, string> = {
   'card.set_plant': 'تحديد المصنع',
   'card.edit': 'تعديل',
   'card.save': 'حفظ',
+
+  // Site type classification
+  'site_type.label': 'نوع الموقع',
+  'site_type.ground_pour': 'صب أرضي',
+  'site_type.high_rise': 'مبنى شاهق',
+  'site_type.infrastructure': 'بنية تحتية',
+  'site_type.unknown': 'غير معروف',
+  'site_type.help': 'يوجّه مقارنة TAT. يُحفظ تلقائياً لكل اسم موقع.',
 
   // Slump test (in-card action)
   'slump.log_button': 'تسجيل اختبار الانسياب',

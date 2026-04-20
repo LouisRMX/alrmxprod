@@ -16,7 +16,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react'
-import type { ActiveTrip, StageName } from '@/lib/fieldlog/offline-trip-queue'
+import type { ActiveTrip, StageName, SiteType } from '@/lib/fieldlog/offline-trip-queue'
 import { STAGES } from '@/lib/fieldlog/offline-trip-queue'
 import { useStopwatch } from '@/hooks/useStopwatch'
 import { useLogT } from '@/lib/i18n/LogLocaleContext'
@@ -43,6 +43,7 @@ interface LiveTripCardProps {
   onUpdateRejected: (tripId: string, rejected: boolean) => void
   onLogSlumpTest: (tripId: string, location: 'plant' | 'site', pass: boolean) => void
   onClearSlumpTest: (tripId: string) => void
+  onUpdateSiteType: (tripId: string, siteType: SiteType) => void
 }
 
 const UNDO_WINDOW_MS = 8000
@@ -66,6 +67,7 @@ export default function LiveTripCard({
   onUpdateRejected,
   onLogSlumpTest,
   onClearSlumpTest,
+  onUpdateSiteType,
 }: LiveTripCardProps) {
   const { totalElapsed, stageElapsed } = useStopwatch(trip)
   const { t } = useLogT()
@@ -319,6 +321,10 @@ export default function LiveTripCard({
               suggestions={recentSites}
               onChange={(v) => onUpdateIdentity(trip.id, { siteName: v })}
               placeholder=""
+            />
+            <SiteTypePicker
+              value={trip.siteType}
+              onChange={(v) => onUpdateSiteType(trip.id, v)}
             />
           </div>
         )}
@@ -929,6 +935,51 @@ function OriginPlantChip({ value, suggestions, onChange }: {
           fontSize: '13px', cursor: 'pointer',
         }}
       >×</button>
+    </div>
+  )
+}
+
+// ── Site type picker ────────────────────────────────────────────────────
+// Four-way chip. Default is 'unknown' (neutral) so the observer is not
+// forced to guess on a new site; once they pick a concrete type, the
+// parent component persists the site_name -> site_type mapping so the
+// next trip to the same site auto-fills.
+const SITE_TYPE_ORDER: readonly SiteType[] = ['ground_pour', 'high_rise', 'infrastructure', 'unknown'] as const
+
+function SiteTypePicker({ value, onChange }: { value?: SiteType; onChange: (v: SiteType) => void }) {
+  const { t } = useLogT()
+  const effective: SiteType = value ?? 'unknown'
+  return (
+    <div>
+      <label style={{ display: 'block', fontSize: '11px', color: '#888', marginBottom: '4px', fontWeight: 600 }}>
+        <Bilingual k="site_type.label" />
+      </label>
+      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+        {SITE_TYPE_ORDER.map(opt => {
+          const active = effective === opt
+          const key = `site_type.${opt}` as LogStringKey
+          return (
+            <button
+              key={opt}
+              type="button"
+              onClick={() => onChange(opt)}
+              style={{
+                padding: '6px 12px', minHeight: '36px',
+                background: active ? '#0F6E56' : '#fff',
+                color: active ? '#fff' : '#555',
+                border: `1.5px solid ${active ? '#0F6E56' : '#d1d5db'}`,
+                borderRadius: '8px',
+                fontSize: '12px', fontWeight: 600, cursor: 'pointer',
+              }}
+            >
+              <Bilingual k={key} inline />
+            </button>
+          )
+        })}
+      </div>
+      <div style={{ fontSize: '10px', color: '#aaa', marginTop: '4px', lineHeight: 1.3 }}>
+        {t('site_type.help')}
+      </div>
     </div>
   )
 }

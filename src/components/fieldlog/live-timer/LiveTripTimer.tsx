@@ -35,6 +35,7 @@ import {
   setTripRejected,
   setTripSlumpTest,
   clearTripSlumpTest,
+  setTripSiteType,
   getAllMeasurers,
   addMeasurer,
   getAllOriginPlants,
@@ -306,6 +307,7 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
         onUpdateRejected={handleUpdateRejected}
         onLogSlumpTest={(id, loc, pass) => setTripSlumpTest(id, loc, pass)}
         onClearSlumpTest={(id) => clearTripSlumpTest(id)}
+        onUpdateSiteType={(id, type) => setTripSiteType(id, type)}
       />
     )
   }

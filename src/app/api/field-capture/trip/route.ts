@@ -32,6 +32,7 @@ interface TripPayload {
   truck_id?: string | null
   driver_name?: string | null
   site_name?: string | null
+  site_type?: 'ground_pour' | 'high_rise' | 'infrastructure' | 'unknown' | null
   origin_plant?: string | null
   plant_queue_start?: string | null
   loading_start?: string | null
@@ -128,6 +129,12 @@ export async function POST(req: NextRequest) {
     truck_id: payload.truck_id ?? null,
     driver_name: payload.driver_name ?? null,
     site_name: payload.site_name ?? null,
+    site_type: (payload.site_type === 'ground_pour'
+      || payload.site_type === 'high_rise'
+      || payload.site_type === 'infrastructure'
+      || payload.site_type === 'unknown')
+      ? payload.site_type
+      : null,
     origin_plant: typeof payload.origin_plant === 'string' ? payload.origin_plant : null,
     // 9-stage timestamps
     plant_queue_start: payload.plant_queue_start ?? null,

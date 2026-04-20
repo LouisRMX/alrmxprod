@@ -41,6 +41,11 @@ export const STAGES = [
 
 export type StageName = (typeof STAGES)[number]
 
+/** Site type classification. Drives TAT benchmarking — ground_pour, high_rise
+ *  and infrastructure have very different normal stage profiles, especially
+ *  for site_wait (pump/boom positioning) and pouring duration. */
+export type SiteType = 'ground_pour' | 'high_rise' | 'infrastructure' | 'unknown'
+
 /** Map stage name → daily_logs column name where the stage's START timestamp lives. */
 export const STAGE_START_COLUMN: Record<StageName, string> = {
   plant_queue: 'plant_queue_start',
@@ -86,6 +91,11 @@ export interface ActiveTrip {
   truckId?: string
   driverName?: string
   siteName?: string
+  /** Site classification (ground_pour / high_rise / infrastructure / unknown).
+   *  Auto-filled from the siteTypes cache when siteName matches a previously
+   *  categorised site; observer can override per trip. Unknown is the default
+   *  for first-time sites so the helper is not forced to guess. */
+  siteType?: SiteType
   /** ISO timestamps, one per completed stage. plant_queue_start = trip start. */
   timestamps: Partial<Record<StageName | 'complete', string>>
   /** Current stage the timer is showing (the stage about to be ended by next tap). */
@@ -174,6 +184,13 @@ class FieldLogDB extends Dexie {
    * Populated when observer picks or adds a plant. Autofills on next trip.
    */
   originPlants!: Table<{ name: string; lastUsed: string }, string>
+  /**
+   * Per-site cache: remember the site_type the observer chose for a given
+   * site_name so the next trip to the same site auto-fills it. The observer
+   * can still override on any individual trip. Using site_name (free text)
+   * as the key is pragmatic: consistent naming = consistent cache.
+   */
+  siteTypes!: Table<{ name: string; siteType: SiteType; lastUsed: string }, string>
 
   constructor() {
     super('alrmx_fieldlog')
@@ -192,6 +209,16 @@ class FieldLogDB extends Dexie {
       measurers: 'name, lastUsed',
       tokenCache: 'token',
       originPlants: 'name, lastUsed',
+    })
+    // v3: siteTypes cache so site_name -> site_type mapping persists per device
+    this.version(3).stores({
+      activeTrips: 'id, assessmentId, createdAt',
+      pendingTrips: 'id, assessmentId, finalisedAt, syncAttempts',
+      syncLog: '++id, tripId, at',
+      measurers: 'name, lastUsed',
+      tokenCache: 'token',
+      originPlants: 'name, lastUsed',
+      siteTypes: 'name, lastUsed',
     })
   }
 }
@@ -221,6 +248,7 @@ export async function startTrip(input: {
   truckId?: string
   driverName?: string
   siteName?: string
+  siteType?: SiteType
   viaToken?: boolean
   token?: string
   /** Defaults to 'plant_queue' (full cycle). Any other stage starts
@@ -230,6 +258,15 @@ export async function startTrip(input: {
   const now = new Date().toISOString()
   const startStage = input.startStage ?? 'plant_queue'
   const mode: 'full' | 'single_stage' = startStage === 'plant_queue' ? 'full' : 'single_stage'
+
+  // If a siteName was provided and we have a cached site_type for it,
+  // auto-apply unless the caller already set siteType explicitly.
+  let siteType = input.siteType
+  if (!siteType && input.siteName) {
+    const cached = await db.siteTypes.get(input.siteName)
+    if (cached) siteType = cached.siteType
+  }
+
   const trip: ActiveTrip = {
     id: newTripId(),
     label: input.truckId ? `Truck ${input.truckId}` : 'Unlabeled trip',
@@ -240,6 +277,7 @@ export async function startTrip(input: {
     truckId: input.truckId,
     driverName: input.driverName,
     siteName: input.siteName,
+    siteType,
     timestamps: { [startStage]: now } as Partial<Record<StageName | 'complete', string>>,
     currentStage: startStage,
     stageNotes: {},
@@ -256,6 +294,10 @@ export async function startTrip(input: {
   await db.measurers.put({ name: input.measurerName, lastUsed: now })
   if (input.originPlant) {
     await db.originPlants.put({ name: input.originPlant, lastUsed: now })
+  }
+  // Cache the site_name -> site_type mapping if both are set.
+  if (input.siteName && siteType) {
+    await db.siteTypes.put({ name: input.siteName, siteType, lastUsed: now })
   }
   return trip
 }
@@ -447,18 +489,29 @@ export async function setTripNotes(tripId: string, notes: string): Promise<void>
   await db.activeTrips.put({ ...trip, notes })
 }
 
-/** Update truck/driver/site identifiers on an active trip. */
+/** Update truck/driver/site identifiers on an active trip. When the site
+ *  name changes and no explicit site_type has been set on the trip, look
+ *  up the cache so a previously-categorised site auto-fills. */
 export async function setTripIdentity(
   tripId: string,
   ids: { truckId?: string; driverName?: string; siteName?: string },
 ): Promise<void> {
   const trip = await db.activeTrips.get(tripId)
   if (!trip) return
+  const nextSiteName = ids.siteName ?? trip.siteName
+  // Auto-apply cached site_type when the site_name changes to a site we
+  // have seen before AND the trip doesn't already have a user-set type.
+  let nextSiteType: SiteType | undefined = trip.siteType
+  if (nextSiteName && nextSiteName !== trip.siteName && !trip.siteType) {
+    const cached = await db.siteTypes.get(nextSiteName)
+    if (cached) nextSiteType = cached.siteType
+  }
   const updated: ActiveTrip = {
     ...trip,
     truckId: ids.truckId ?? trip.truckId,
     driverName: ids.driverName ?? trip.driverName,
-    siteName: ids.siteName ?? trip.siteName,
+    siteName: nextSiteName,
+    siteType: nextSiteType,
   }
   updated.label = updated.truckId ? `Truck ${updated.truckId}` : 'Unlabeled trip'
   await db.activeTrips.put(updated)
@@ -473,6 +526,30 @@ export async function setTripOriginPlant(tripId: string, originPlant: string): P
   if (trimmed) {
     await db.originPlants.put({ name: trimmed, lastUsed: new Date().toISOString() })
   }
+}
+
+/** Set the site_type for an active trip and persist the site_name ->
+ *  site_type mapping in the cache so future trips to the same site
+ *  auto-fill. Observer can still override per trip. */
+export async function setTripSiteType(tripId: string, siteType: SiteType): Promise<void> {
+  const trip = await db.activeTrips.get(tripId)
+  if (!trip) return
+  await db.activeTrips.put({ ...trip, siteType })
+  if (trip.siteName) {
+    await db.siteTypes.put({
+      name: trip.siteName,
+      siteType,
+      lastUsed: new Date().toISOString(),
+    })
+  }
+}
+
+/** Lookup a cached site_type for a site_name (returns undefined if
+ *  this site has never been categorised on this device). */
+export async function getCachedSiteType(siteName: string): Promise<SiteType | undefined> {
+  if (!siteName) return undefined
+  const row = await db.siteTypes.get(siteName)
+  return row?.siteType
 }
 
 /** Save a trip as partial (observer abandoned mid-cycle). */
@@ -563,6 +640,7 @@ export function buildDailyLogPayload(trip: PendingTrip): Record<string, unknown>
     truck_id: trip.truckId ?? null,
     driver_name: trip.driverName ?? null,
     site_name: trip.siteName ?? null,
+    site_type: trip.siteType ?? null,
     origin_plant: trip.originPlant ?? null,
     // 9-stage timing. Each line: the column on daily_logs = the Dexie key
     // whose tap value represents the START of that stage (or the END of
