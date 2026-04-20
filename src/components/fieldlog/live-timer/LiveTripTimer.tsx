@@ -42,6 +42,7 @@ import {
   addOriginPlant,
   drainPending,
   STAGES,
+  SITE_TYPE_ORDER,
   type ActiveTrip,
   type PendingTrip,
   type StageName,
@@ -542,30 +543,20 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
         <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '8px' }}>
           <Bilingual k="site_type.label" />
         </label>
-        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-          {(['ground_pour', 'high_rise', 'infrastructure', 'unknown'] as const).map(opt => {
-            const active = startSiteType === opt
-            const key = `site_type.${opt}` as LogStringKey
-            return (
-              <button
-                key={opt}
-                type="button"
-                onClick={() => setStartSiteType(active ? undefined : opt)}
-                style={{
-                  padding: '8px 12px', minHeight: '44px',
-                  background: active ? '#0F6E56' : '#fff',
-                  color: active ? '#fff' : '#555',
-                  border: `1.5px solid ${active ? '#0F6E56' : '#d1d5db'}`,
-                  borderRadius: '8px',
-                  fontSize: '13px', fontWeight: 600, cursor: 'pointer',
-                  flex: '1 1 140px',
-                }}
-              >
-                <Bilingual k={key} inline />
-              </button>
-            )
-          })}
-        </div>
+        <select
+          value={startSiteType ?? ''}
+          onChange={e => setStartSiteType((e.target.value || undefined) as SiteType | undefined)}
+          style={{
+            width: '100%', minHeight: '44px', padding: '0 12px',
+            border: '1px solid #ddd', borderRadius: '8px',
+            fontSize: '15px', background: '#fff',
+          }}
+        >
+          <option value="">—</option>
+          {SITE_TYPE_ORDER.map(opt => (
+            <option key={opt} value={opt}>{t(`site_type.${opt}` as LogStringKey)}</option>
+          ))}
+        </select>
         <div style={{ fontSize: '11px', color: '#888', marginTop: '6px', lineHeight: 1.4 }}>
           {t('site_type.help')}
         </div>

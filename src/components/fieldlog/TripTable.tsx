@@ -18,6 +18,21 @@ function calcTat(dep: string | null, arr: string | null): string {
   return `${Math.round(diff)} min`
 }
 
+function siteTypeShort(t: string | null): string {
+  switch (t) {
+    case 'ground_pour': return 'Ground'
+    case 'high_rise': return 'High rise'
+    case 'bridge_deck': return 'Bridge'
+    case 'road_pavement': return 'Road'
+    case 'industrial': return 'Industrial'
+    case 'tunnel': return 'Tunnel'
+    case 'precast': return 'Precast'
+    case 'marine': return 'Marine'
+    case 'piling': return 'Piling'
+    default: return ''
+  }
+}
+
 interface TripTableProps {
   trips: DailyLogRow[]
   isAdmin?: boolean
@@ -84,7 +99,7 @@ export default function TripTable({ trips, isAdmin, onDelete }: TripTableProps) 
                     padding: '2px 6px', background: '#E8F1FA', color: '#2E5C8A',
                     borderRadius: '4px', fontSize: '10px', fontWeight: 600,
                   }}>
-                    {t.site_type === 'ground_pour' ? 'Ground' : t.site_type === 'high_rise' ? 'High rise' : 'Infra'}
+                    {siteTypeShort(t.site_type)}
                   </span>
                 ) : <span style={{ color: '#ccc' }}>-</span>}
               </td>

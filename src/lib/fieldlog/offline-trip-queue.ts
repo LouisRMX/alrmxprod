@@ -41,10 +41,42 @@ export const STAGES = [
 
 export type StageName = (typeof STAGES)[number]
 
-/** Site type classification. Drives TAT benchmarking — ground_pour, high_rise
- *  and infrastructure have very different normal stage profiles, especially
- *  for site_wait (pump/boom positioning) and pouring duration. */
-export type SiteType = 'ground_pour' | 'high_rise' | 'infrastructure' | 'unknown'
+/** Site type classification (10 values). Each value encodes both the site
+ *  category and the implied pour method so TAT benchmarking can segment on
+ *  the things that actually vary (direct vs pumped vs specialized).
+ *
+ *  Direct discharge: ground_pour, road_pavement, industrial
+ *  Pumped + elevated: high_rise, bridge_deck
+ *  Specialized profiles: tunnel, marine, piling
+ *  Industrial receiver: precast
+ *  Escape hatch: unknown
+ */
+export type SiteType =
+  | 'ground_pour'
+  | 'high_rise'
+  | 'bridge_deck'
+  | 'road_pavement'
+  | 'industrial'
+  | 'tunnel'
+  | 'precast'
+  | 'marine'
+  | 'piling'
+  | 'unknown'
+
+/** Display order for pickers and dropdowns. Grouped: direct → pumped →
+ *  specialized → industrial → unknown, so analysts can scan the profiles. */
+export const SITE_TYPE_ORDER: readonly SiteType[] = [
+  'ground_pour',
+  'road_pavement',
+  'industrial',
+  'high_rise',
+  'bridge_deck',
+  'tunnel',
+  'marine',
+  'piling',
+  'precast',
+  'unknown',
+] as const
 
 /** Map stage name → daily_logs column name where the stage's START timestamp lives. */
 export const STAGE_START_COLUMN: Record<StageName, string> = {

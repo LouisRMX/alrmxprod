@@ -34,6 +34,7 @@ import {
 import { useLogT } from '@/lib/i18n/LogLocaleContext'
 import Bilingual from '@/lib/i18n/Bilingual'
 import type { LogStringKey } from '@/lib/i18n/log-catalog'
+import { SITE_TYPE_ORDER, type SiteType } from '@/lib/fieldlog/offline-trip-queue'
 
 interface Props {
   assessmentId: string
@@ -67,7 +68,7 @@ export default function FieldLogDiagnostics({ assessmentId, reportedTAT, targetT
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [dateRange, setDateRange] = useState<'today' | '7d' | '30d' | 'all'>('all')
-  const [siteTypeFilter, setSiteTypeFilter] = useState<'all' | 'ground_pour' | 'high_rise' | 'infrastructure' | 'unknown'>('all')
+  const [siteTypeFilter, setSiteTypeFilter] = useState<'all' | SiteType>('all')
   const [rawTrips, setRawTrips] = useState<DailyLogWithStages[]>([])
 
   useEffect(() => {
@@ -183,31 +184,29 @@ export default function FieldLogDiagnostics({ assessmentId, reportedTAT, targetT
       </div>
 
       {/* Site type filter. Segments the stage summary, TAT breakdown, and
-          outlier list so high-rise pours are not averaged with ground-pour. */}
+          outlier list so high-rise pours are not averaged with ground-pour.
+          Dropdown (not chips) because the 10-value enum is too wide to fit
+          as a button strip. */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
         <span style={{ fontSize: '12px', color: '#888', fontWeight: 600 }}>
           <Bilingual k="site_type.label" inline />:
         </span>
-        {(['all', 'ground_pour', 'high_rise', 'infrastructure', 'unknown'] as const).map(s => {
-          const active = siteTypeFilter === s
-          const labelKey: LogStringKey | null = s === 'all' ? null : `site_type.${s}` as LogStringKey
-          return (
-            <button
-              key={s}
-              type="button"
-              onClick={() => setSiteTypeFilter(s)}
-              style={{
-                padding: '5px 10px', fontSize: '12px', borderRadius: '5px',
-                border: `1px solid ${active ? '#0F6E56' : '#ddd'}`,
-                background: active ? '#E1F5EE' : '#fff',
-                color: active ? '#0F6E56' : '#666',
-                fontWeight: 500, cursor: 'pointer',
-              }}
-            >
-              {s === 'all' ? t('diag.all') : labelKey ? <Bilingual k={labelKey} inline /> : null}
-            </button>
-          )
-        })}
+        <select
+          value={siteTypeFilter}
+          onChange={e => setSiteTypeFilter(e.target.value as 'all' | SiteType)}
+          style={{
+            padding: '5px 10px', fontSize: '12px', borderRadius: '5px',
+            border: `1px solid ${siteTypeFilter === 'all' ? '#ddd' : '#0F6E56'}`,
+            background: siteTypeFilter === 'all' ? '#fff' : '#E1F5EE',
+            color: siteTypeFilter === 'all' ? '#666' : '#0F6E56',
+            fontWeight: 500, cursor: 'pointer', minHeight: '32px',
+          }}
+        >
+          <option value="all">{t('diag.all')}</option>
+          {SITE_TYPE_ORDER.map(s => (
+            <option key={s} value={s}>{t(`site_type.${s}` as LogStringKey)}</option>
+          ))}
+        </select>
       </div>
 
       {/* Site-type TAT comparison panel (shown only when filter is 'all'
@@ -451,7 +450,7 @@ function SiteTypeTATPanel({ rawTrips }: { rawTrips: DailyLogWithStages[] }) {
       if (!groups[type]) groups[type] = []
       groups[type].push(computed.totalMinutes)
     }
-    return (['ground_pour', 'high_rise', 'infrastructure', 'unknown'] as const)
+    return SITE_TYPE_ORDER
       .map(type => ({
         type,
         count: groups[type]?.length ?? 0,

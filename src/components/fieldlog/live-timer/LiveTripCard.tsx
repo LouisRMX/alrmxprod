@@ -17,7 +17,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import type { ActiveTrip, StageName, SiteType } from '@/lib/fieldlog/offline-trip-queue'
-import { STAGES } from '@/lib/fieldlog/offline-trip-queue'
+import { STAGES, SITE_TYPE_ORDER } from '@/lib/fieldlog/offline-trip-queue'
 import { useStopwatch } from '@/hooks/useStopwatch'
 import { useLogT } from '@/lib/i18n/LogLocaleContext'
 import Bilingual from '@/lib/i18n/Bilingual'
@@ -940,20 +940,17 @@ function OriginPlantChip({ value, suggestions, onChange }: {
   )
 }
 
-// ── Site type picker ────────────────────────────────────────────────────
-// Four-way chip. Default is 'unknown' (neutral) so the observer is not
-// forced to guess on a new site; once they pick a concrete type, the
-// parent component persists the site_name -> site_type mapping so the
-// next trip to the same site auto-fills.
-const SITE_TYPE_ORDER: readonly SiteType[] = ['ground_pour', 'high_rise', 'infrastructure', 'unknown'] as const
-
+// ── Site type picker (dropdown) ─────────────────────────────────────────
+// 10-value dropdown whose labels embed both the site category and the
+// implied pour method. The fromCache flag triggers an amber "⟳ auto"
+// badge + dashed border so a silent carry-over from a previous trip is
+// visible until the observer explicitly confirms or changes.
 function SiteTypePicker({ value, fromCache, onChange }: {
   value?: SiteType
   fromCache: boolean
   onChange: (v: SiteType) => void
 }) {
   const { t } = useLogT()
-  const effective: SiteType = value ?? 'unknown'
   const showAutoHint = fromCache && value !== undefined
   return (
     <div>
@@ -973,42 +970,28 @@ function SiteTypePicker({ value, fromCache, onChange }: {
           </span>
         )}
       </label>
-      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-        {SITE_TYPE_ORDER.map(opt => {
-          const active = effective === opt
-          const key = `site_type.${opt}` as LogStringKey
-          // When the active chip is from cache, use an amber outline so
-          // it reads as "suggested, tap to confirm" instead of "locked in".
-          const borderColor = active
-            ? (showAutoHint ? '#D68910' : '#0F6E56')
-            : '#d1d5db'
-          const bgColor = active
-            ? (showAutoHint ? '#FFF4D6' : '#0F6E56')
-            : '#fff'
-          const textColor = active
-            ? (showAutoHint ? '#7a5a00' : '#fff')
-            : '#555'
-          return (
-            <button
-              key={opt}
-              type="button"
-              onClick={() => onChange(opt)}
-              style={{
-                padding: '6px 12px', minHeight: '36px',
-                background: bgColor,
-                color: textColor,
-                border: active && showAutoHint
-                  ? `1.5px dashed ${borderColor}`
-                  : `1.5px solid ${borderColor}`,
-                borderRadius: '8px',
-                fontSize: '12px', fontWeight: 600, cursor: 'pointer',
-              }}
-            >
-              <Bilingual k={key} inline />
-            </button>
-          )
-        })}
-      </div>
+      <select
+        value={value ?? ''}
+        onChange={e => {
+          const v = e.target.value as SiteType
+          if (v) onChange(v)
+        }}
+        style={{
+          width: '100%', minHeight: '44px', padding: '0 12px',
+          fontSize: '14px',
+          background: showAutoHint ? '#FFF4D6' : '#fff',
+          color: showAutoHint ? '#7a5a00' : '#333',
+          border: showAutoHint
+            ? '1.5px dashed #D68910'
+            : `1px solid ${value ? '#0F6E56' : '#ddd'}`,
+          borderRadius: '8px', fontWeight: value ? 600 : 500, cursor: 'pointer',
+        }}
+      >
+        <option value="">—</option>
+        {SITE_TYPE_ORDER.map(opt => (
+          <option key={opt} value={opt}>{t(`site_type.${opt}` as LogStringKey)}</option>
+        ))}
+      </select>
       <div style={{ fontSize: '10px', color: showAutoHint ? '#7a5a00' : '#aaa', marginTop: '4px', lineHeight: 1.3 }}>
         {showAutoHint ? t('site_type.auto_filled') : t('site_type.help')}
       </div>

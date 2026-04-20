@@ -138,11 +138,18 @@ export const LOG_STRINGS = {
   'card.edit': 'Edit',
   'card.save': 'Save',
 
-  // ── Site type classification ──────────────────────────────────────
+  // ── Site type classification (10 values; labels embed the pour
+  //    method so a single dropdown communicates both dimensions) ──────
   'site_type.label': 'Site type',
-  'site_type.ground_pour': 'Ground pour',
-  'site_type.high_rise': 'High rise',
-  'site_type.infrastructure': 'Infrastructure',
+  'site_type.ground_pour': 'Ground pour / slab (direct)',
+  'site_type.road_pavement': 'Road / pavement (direct)',
+  'site_type.industrial': 'Industrial flatwork (direct)',
+  'site_type.high_rise': 'High rise / pumped building (elevated)',
+  'site_type.bridge_deck': 'Bridge deck (pumped, elevated)',
+  'site_type.tunnel': 'Tunnel / underground (specialized)',
+  'site_type.marine': 'Marine / offshore (specialized)',
+  'site_type.piling': 'Piling (specialized)',
+  'site_type.precast': 'Precast plant (industrial receiver)',
   'site_type.unknown': 'Unknown',
   'site_type.help': 'Drives TAT benchmarking. Cached per site name.',
   'site_type.auto_filled': 'Auto-filled from last trip. Tap to confirm or change.',
@@ -478,11 +485,17 @@ export const LOG_STRINGS_AR: Record<LogStringKey, string> = {
   'card.edit': 'تعديل',
   'card.save': 'حفظ',
 
-  // Site type classification
+  // Site type classification (10 values)
   'site_type.label': 'نوع الموقع',
-  'site_type.ground_pour': 'صب أرضي',
-  'site_type.high_rise': 'مبنى شاهق',
-  'site_type.infrastructure': 'بنية تحتية',
+  'site_type.ground_pour': 'صب أرضي (تفريغ مباشر)',
+  'site_type.road_pavement': 'طرق / أرصفة (تفريغ مباشر)',
+  'site_type.industrial': 'أرضيات صناعية (تفريغ مباشر)',
+  'site_type.high_rise': 'مبنى شاهق / مضخوخ (بالمضخة، علو)',
+  'site_type.bridge_deck': 'سطح جسر (بالمضخة، علو)',
+  'site_type.tunnel': 'نفق / تحت الأرض (متخصص)',
+  'site_type.marine': 'بحري / ساحلي (متخصص)',
+  'site_type.piling': 'خوازيق (متخصص)',
+  'site_type.precast': 'مصنع سابق الصب (صناعي)',
   'site_type.unknown': 'غير معروف',
   'site_type.help': 'يوجّه مقارنة TAT. يُحفظ تلقائياً لكل اسم موقع.',
   'site_type.auto_filled': 'تم التعبئة تلقائياً من الرحلة السابقة. اضغط للتأكيد أو التغيير.',

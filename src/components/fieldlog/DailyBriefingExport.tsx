@@ -272,8 +272,14 @@ export default function DailyBriefingExport({ assessmentId }: Props) {
     if (current.site_type_breakdown && Object.keys(current.site_type_breakdown).length > 0) {
       const mixLabel: Record<string, string> = {
         ground_pour: 'ground pour',
+        road_pavement: 'road/pavement',
+        industrial: 'industrial flatwork',
         high_rise: 'high rise',
-        infrastructure: 'infrastructure',
+        bridge_deck: 'bridge deck',
+        tunnel: 'tunnel',
+        marine: 'marine',
+        piling: 'piling',
+        precast: 'precast plant',
         unknown: 'unclassified',
       }
       const totalClassified = Object.values(current.site_type_breakdown).reduce((a, b) => a + b, 0)
