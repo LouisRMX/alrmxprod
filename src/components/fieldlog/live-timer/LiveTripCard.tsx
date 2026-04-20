@@ -41,6 +41,8 @@ interface LiveTripCardProps {
   onUpdateNotes: (tripId: string, notes: string) => void
   onUpdateStageNote: (tripId: string, stage: StageName, text: string) => void
   onUpdateRejected: (tripId: string, rejected: boolean) => void
+  onLogSlumpTest: (tripId: string, location: 'plant' | 'site', pass: boolean) => void
+  onClearSlumpTest: (tripId: string) => void
 }
 
 const UNDO_WINDOW_MS = 8000
@@ -62,6 +64,8 @@ export default function LiveTripCard({
   onUpdateNotes,
   onUpdateStageNote,
   onUpdateRejected,
+  onLogSlumpTest,
+  onClearSlumpTest,
 }: LiveTripCardProps) {
   const { totalElapsed, stageElapsed } = useStopwatch(trip)
   const { t } = useLogT()
@@ -407,6 +411,15 @@ export default function LiveTripCard({
         )}
       </button>
 
+      {/* Slump test action. One test per trip; relogging overwrites.
+          Pairs location (plant vs site) with pass/fail for root-cause
+          attribution on rejected loads (batching fault vs transit fault). */}
+      <SlumpTestControl
+        slumpTest={trip.slumpTest}
+        onLog={(loc, pass) => onLogSlumpTest(trip.id, loc, pass)}
+        onClear={() => onClearSlumpTest(trip.id)}
+      />
+
       {/* Secondary actions */}
       <div style={{ display: 'flex', gap: '8px' }}>
         <button
@@ -678,6 +691,177 @@ function formatHHMM(iso: string): string {
   const h = String(d.getHours()).padStart(2, '0')
   const m = String(d.getMinutes()).padStart(2, '0')
   return `${h}:${m}`
+}
+
+// ── Slump test control (in-card action) ──────────────────────────────────
+// Collapsed: a single muted button "💧 Log slump test".
+// After logging: shows a compact chip "💧 Plant Pass · 09:34" with a
+// small clear button to re-log if the observer made a mistake. One test
+// per trip by design; relogging simply overwrites.
+interface SlumpTestControlProps {
+  slumpTest: ActiveTrip['slumpTest']
+  onLog: (location: 'plant' | 'site', pass: boolean) => void
+  onClear: () => void
+}
+
+function SlumpTestControl({ slumpTest, onLog, onClear }: SlumpTestControlProps) {
+  const { t } = useLogT()
+  const [open, setOpen] = useState(false)
+  const [location, setLocation] = useState<'plant' | 'site' | null>(null)
+  const [result, setResult] = useState<boolean | null>(null)
+
+  const handleSave = () => {
+    if (location === null || result === null) return
+    onLog(location, result)
+    setOpen(false)
+    setLocation(null)
+    setResult(null)
+  }
+
+  // Already logged: compact summary chip
+  if (slumpTest && !open) {
+    const label = slumpTest.location === 'plant' ? t('slump.plant') : t('slump.site')
+    const outcome = slumpTest.pass ? t('slump.pass') : t('slump.fail')
+    const time = formatHHMM(slumpTest.time)
+    return (
+      <div style={{
+        width: '100%', minHeight: '44px',
+        background: slumpTest.pass ? '#E1F5EE' : '#FDEDEC',
+        color: slumpTest.pass ? '#0F6E56' : '#8B3A2E',
+        border: `1px solid ${slumpTest.pass ? '#A8D9C5' : '#E8A39B'}`,
+        borderRadius: '10px', padding: '0 12px',
+        display: 'flex', alignItems: 'center', gap: '8px',
+        fontSize: '13px', fontWeight: 600,
+      }}>
+        <span>💧</span>
+        <span>{t('slump.logged_prefix')}: {label} {outcome}</span>
+        <span style={{ fontSize: '11px', opacity: 0.7, fontFamily: 'ui-monospace, SF Mono, Menlo, monospace' }}>· {time}</span>
+        <button
+          type="button"
+          onClick={onClear}
+          style={{
+            marginInlineStart: 'auto', background: 'none', border: 'none',
+            color: 'inherit', opacity: 0.6, cursor: 'pointer', fontSize: '12px', padding: '4px 6px',
+          }}
+          aria-label={t('slump.clear')}
+        >
+          {t('slump.clear')}
+        </button>
+      </div>
+    )
+  }
+
+  // Collapsed: show log button
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        style={{
+          width: '100%', minHeight: '44px',
+          background: '#fff', color: '#555',
+          border: '1px solid #ddd', borderRadius: '10px',
+          fontSize: '13px', fontWeight: 600, cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+        }}
+      >
+        <span>💧</span>
+        <span><Bilingual k="slump.log_button" inline /></span>
+      </button>
+    )
+  }
+
+  // Expanded: where + result picker
+  const choiceBtn = (active: boolean, onClick: () => void, label: React.ReactNode, color: string): React.CSSProperties => ({})
+  void choiceBtn // helper kept inline below
+  return (
+    <div style={{
+      background: '#fff', border: '1px solid #e5e5e5', borderRadius: '12px',
+      padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px',
+    }}>
+      <div style={{ fontSize: '11px', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '.5px' }}>
+        <Bilingual k="slump.location_label" />
+      </div>
+      <div style={{ display: 'flex', gap: '8px' }}>
+        {(['plant', 'site'] as const).map(loc => {
+          const active = location === loc
+          return (
+            <button
+              key={loc}
+              type="button"
+              onClick={() => setLocation(loc)}
+              style={{
+                flex: 1, minHeight: '44px',
+                background: active ? '#0F6E56' : '#fff',
+                color: active ? '#fff' : '#333',
+                border: `1.5px solid ${active ? '#0F6E56' : '#ddd'}`,
+                borderRadius: '10px', fontSize: '14px', fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              <Bilingual k={loc === 'plant' ? 'slump.plant' : 'slump.site'} inline />
+            </button>
+          )
+        })}
+      </div>
+
+      <div style={{ fontSize: '11px', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '.5px', marginTop: '4px' }}>
+        <Bilingual k="slump.result_label" />
+      </div>
+      <div style={{ display: 'flex', gap: '8px' }}>
+        {([true, false] as const).map(pass => {
+          const active = result === pass
+          const color = pass ? '#0F6E56' : '#C0392B'
+          return (
+            <button
+              key={pass ? 'pass' : 'fail'}
+              type="button"
+              onClick={() => setResult(pass)}
+              style={{
+                flex: 1, minHeight: '44px',
+                background: active ? color : '#fff',
+                color: active ? '#fff' : color,
+                border: `1.5px solid ${color}`,
+                borderRadius: '10px', fontSize: '14px', fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              <Bilingual k={pass ? 'slump.pass' : 'slump.fail'} inline />
+            </button>
+          )
+        })}
+      </div>
+
+      <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={location === null || result === null}
+          style={{
+            flex: 1, minHeight: '44px',
+            background: (location !== null && result !== null) ? '#0F6E56' : '#ccc',
+            color: '#fff', border: 'none', borderRadius: '10px',
+            fontSize: '13px', fontWeight: 600,
+            cursor: (location !== null && result !== null) ? 'pointer' : 'not-allowed',
+          }}
+        >
+          <Bilingual k="slump.save" inline />
+        </button>
+        <button
+          type="button"
+          onClick={() => { setOpen(false); setLocation(null); setResult(null) }}
+          style={{
+            flex: 1, minHeight: '44px',
+            background: '#fff', color: '#555',
+            border: '1px solid #ddd', borderRadius: '10px',
+            fontSize: '13px', fontWeight: 600, cursor: 'pointer',
+          }}
+        >
+          <Bilingual k="slump.cancel" inline />
+        </button>
+      </div>
+    </div>
+  )
 }
 
 // ── Origin plant chip (inline picker on the active trip view) ────────────

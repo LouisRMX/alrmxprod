@@ -35,18 +35,23 @@ interface TripPayload {
   origin_plant?: string | null
   plant_queue_start?: string | null
   loading_start?: string | null
+  loading_end?: string | null
   departure_loaded?: string | null
   arrival_site?: string | null
   discharge_start?: string | null
   discharge_end?: string | null
   departure_site?: string | null
   arrival_plant?: string | null
+  plant_prep_end?: string | null
   measurer_name?: string
   is_partial?: boolean
   rejected?: boolean
   stage_notes?: Record<string, string> | null
   notes?: string | null
   data_source?: string
+  slump_pass?: boolean | null
+  slump_test_time?: string | null
+  slump_test_location?: 'plant' | 'site' | null
 }
 
 function clientIpFrom(req: NextRequest): string | null {
@@ -124,20 +129,29 @@ export async function POST(req: NextRequest) {
     driver_name: payload.driver_name ?? null,
     site_name: payload.site_name ?? null,
     origin_plant: typeof payload.origin_plant === 'string' ? payload.origin_plant : null,
+    // 9-stage timestamps
     plant_queue_start: payload.plant_queue_start ?? null,
     loading_start: payload.loading_start ?? null,
+    loading_end: payload.loading_end ?? null,
     departure_loaded: payload.departure_loaded ?? null,
     arrival_site: payload.arrival_site ?? null,
     discharge_start: payload.discharge_start ?? null,
     discharge_end: payload.discharge_end ?? null,
     departure_site: payload.departure_site ?? null,
     arrival_plant: payload.arrival_plant ?? null,
+    plant_prep_end: payload.plant_prep_end ?? null,
     measurer_name: typeof payload.measurer_name === 'string' ? payload.measurer_name : 'anonymous',
     is_partial: Boolean(payload.is_partial),
     rejected: Boolean(payload.rejected),
     stage_notes: payload.stage_notes ?? null,
     notes: payload.notes ?? null,
     data_source: 'direct_observation' as const,
+    // Slump-test metadata; NULL when the helper didn't run a formal test
+    slump_pass: typeof payload.slump_pass === 'boolean' ? payload.slump_pass : null,
+    slump_test_time: payload.slump_test_time ?? null,
+    slump_test_location: (payload.slump_test_location === 'plant' || payload.slump_test_location === 'site')
+      ? payload.slump_test_location
+      : null,
     captured_ip: capturedIp,
     captured_user_agent: capturedUserAgent,
   }

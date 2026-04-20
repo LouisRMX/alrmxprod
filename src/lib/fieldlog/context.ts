@@ -14,8 +14,10 @@ export interface RawTrip {
   arrival_plant: string | null
   loading_start: string | null
   loading_end: string | null
-  washout_end: string | null
+  plant_prep_end: string | null
   slump_pass: boolean | null
+  slump_test_time: string | null
+  slump_test_location: string | null
   load_m3: number | null
   rejected: boolean
   reject_side: string | null
@@ -107,7 +109,11 @@ export interface CapacityAnalysis {
 export interface MeasuredSupplements {
   batch_cycle_min: number | null
   order_to_dispatch_min: number | null
-  washout_min: number | null
+  /** Between-cycle plant prep minutes (holding water, driver break,
+   *  positioning for next load). Was historically called washout_min in
+   *  the pre-assessment questionnaire; renamed for 9-stage clarity. The
+   *  question still asks about the same real-world interval. */
+  plant_prep_min: number | null
 }
 
 export interface FieldLogContext {
@@ -365,7 +371,9 @@ export function buildFieldLogContext(
   const measured_supplements: MeasuredSupplements | null = answers ? {
     batch_cycle_min: answers.batch_cycle_min ? Number(answers.batch_cycle_min) : null,
     order_to_dispatch_min: answers.order_to_dispatch_min ? Number(answers.order_to_dispatch_min) : null,
-    washout_min: answers.washout_min ? Number(answers.washout_min) : null,
+    // Pre-assessment answer key is still washout_min for backward compat with
+    // saved answer blobs; maps to the renamed plant_prep_min field here.
+    plant_prep_min: answers.washout_min ? Number(answers.washout_min) : null,
   } : null
 
   return {

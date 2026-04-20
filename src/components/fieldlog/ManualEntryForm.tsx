@@ -24,16 +24,20 @@ export default function ManualEntryForm({
   const [driverName, setDriverName] = useState('')
   const [siteName, setSiteName] = useState('')
   const [siteType, setSiteType] = useState<string>('')
+  // 9-stage timestamps
+  const [plantQueueStart, setPlantQueueStart] = useState('')
+  const [loadingStart, setLoadingStart] = useState('')
+  const [loadingEnd, setLoadingEnd] = useState('')         // weighbridge start
   const [departureLoaded, setDepartureLoaded] = useState('')
   const [arrivalSite, setArrivalSite] = useState('')
   const [dischargeStart, setDischargeStart] = useState('')
   const [dischargeEnd, setDischargeEnd] = useState('')
   const [departureSite, setDepartureSite] = useState('')
   const [arrivalPlant, setArrivalPlant] = useState('')
-  const [loadingStart, setLoadingStart] = useState('')
-  const [loadingEnd, setLoadingEnd] = useState('')
-  const [washoutEnd, setWashoutEnd] = useState('')
+  const [plantPrepEnd, setPlantPrepEnd] = useState('')     // truck ready for next load
   const [slumpPass, setSlumpPass] = useState<string>('')
+  const [slumpTestTime, setSlumpTestTime] = useState('')
+  const [slumpTestLocation, setSlumpTestLocation] = useState<'' | 'plant' | 'site'>('')
   const [loadM3, setLoadM3] = useState('')
   const [rejected, setRejected] = useState(false)
   const [rejectSide, setRejectSide] = useState('')
@@ -52,16 +56,19 @@ export default function ManualEntryForm({
     setDriverName('')
     setSiteName('')
     setSiteType('')
+    setPlantQueueStart('')
+    setLoadingStart('')
+    setLoadingEnd('')
     setDepartureLoaded('')
     setArrivalSite('')
     setDischargeStart('')
     setDischargeEnd('')
     setDepartureSite('')
     setArrivalPlant('')
-    setLoadingStart('')
-    setLoadingEnd('')
-    setWashoutEnd('')
+    setPlantPrepEnd('')
     setSlumpPass('')
+    setSlumpTestTime('')
+    setSlumpTestLocation('')
     setLoadM3('')
     setRejected(false)
     setRejectSide('')
@@ -86,16 +93,21 @@ export default function ManualEntryForm({
       driver_name: driverName || null,
       site_name: siteName || null,
       site_type: siteType || null,
+      // 9-stage cycle timestamps (all optional; NULL → stage not measured)
+      plant_queue_start: timeToTimestamp(plantQueueStart),
+      loading_start: timeToTimestamp(loadingStart),
+      loading_end: timeToTimestamp(loadingEnd),
       departure_loaded: timeToTimestamp(departureLoaded),
       arrival_site: timeToTimestamp(arrivalSite),
       discharge_start: timeToTimestamp(dischargeStart),
       discharge_end: timeToTimestamp(dischargeEnd),
       departure_site: timeToTimestamp(departureSite),
       arrival_plant: timeToTimestamp(arrivalPlant),
-      loading_start: timeToTimestamp(loadingStart),
-      loading_end: timeToTimestamp(loadingEnd),
-      washout_end: timeToTimestamp(washoutEnd),
+      plant_prep_end: timeToTimestamp(plantPrepEnd),
+      // Slump test metadata
       slump_pass: slumpPass === 'pass' ? true : slumpPass === 'fail' ? false : null,
+      slump_test_time: slumpTestTime ? timeToTimestamp(slumpTestTime) : null,
+      slump_test_location: slumpTestLocation || null,
       load_m3: loadM3 ? parseFloat(loadM3) : null,
       rejected,
       reject_side: rejected && rejectSide ? rejectSide : null,
@@ -119,8 +131,10 @@ export default function ManualEntryForm({
     }
     onSaved()
   }, [assessmentId, plantId, logDate, truckId, driverName, siteName, siteType,
-      departureLoaded, arrivalSite, dischargeStart, dischargeEnd, departureSite,
-      arrivalPlant, loadingStart, loadingEnd, washoutEnd, slumpPass, loadM3, rejected, rejectSide, rejectCause, notes, supabase, onSaved])
+      plantQueueStart, loadingStart, loadingEnd, departureLoaded, arrivalSite,
+      dischargeStart, dischargeEnd, departureSite, arrivalPlant, plantPrepEnd,
+      slumpPass, slumpTestTime, slumpTestLocation,
+      loadM3, rejected, rejectSide, rejectCause, notes, supabase, onSaved])
 
   const inputStyle: React.CSSProperties = {
     width: '100%', padding: '8px 11px', border: '1px solid var(--gray-300, #d1d5db)',
@@ -182,10 +196,23 @@ export default function ManualEntryForm({
         </div>
       </div>
 
-      {/* Timestamps */}
+      {/* 9-stage cycle timestamps (all optional; departure_loaded required
+          as the single mandatory anchor so we can slot the trip into the day). */}
       <div style={{ borderTop: '1px solid #eee', paddingTop: '14px', marginTop: '6px', ...rowStyle }}>
         <label style={{ ...labelStyle, marginBottom: '10px' }}>Cycle timestamps</label>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+          <div>
+            <label style={{ ...labelStyle, fontSize: '10px' }}>Plant queue start</label>
+            <input type="time" value={plantQueueStart} onChange={e => setPlantQueueStart(e.target.value)} style={timeStyle} />
+          </div>
+          <div>
+            <label style={{ ...labelStyle, fontSize: '10px' }}>Loading start</label>
+            <input type="time" value={loadingStart} onChange={e => setLoadingStart(e.target.value)} style={timeStyle} />
+          </div>
+          <div>
+            <label style={{ ...labelStyle, fontSize: '10px' }}>Loading end (at weighbridge)</label>
+            <input type="time" value={loadingEnd} onChange={e => setLoadingEnd(e.target.value)} style={timeStyle} />
+          </div>
           <div>
             <label style={{ ...labelStyle, fontSize: '10px' }}>Departure loaded *</label>
             <input type="time" value={departureLoaded} onChange={e => setDepartureLoaded(e.target.value)} style={timeStyle} />
@@ -210,28 +237,38 @@ export default function ManualEntryForm({
             <label style={{ ...labelStyle, fontSize: '10px' }}>Arrival plant</label>
             <input type="time" value={arrivalPlant} onChange={e => setArrivalPlant(e.target.value)} style={timeStyle} />
           </div>
+          <div>
+            <label style={{ ...labelStyle, fontSize: '10px' }}>Ready for next load</label>
+            <input type="time" value={plantPrepEnd} onChange={e => setPlantPrepEnd(e.target.value)} style={timeStyle} />
+          </div>
         </div>
       </div>
 
-      {/* Plant internal (optional) */}
+      {/* Slump test (optional) */}
       <div style={{ borderTop: '1px solid #eee', paddingTop: '14px', marginTop: '6px', ...rowStyle }}>
-        <label style={{ ...labelStyle, marginBottom: '10px', color: '#aaa' }}>Plant internal (optional)</label>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+        <label style={{ ...labelStyle, marginBottom: '10px' }}>Slump test (optional)</label>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
           <div>
-            <label style={{ ...labelStyle, fontSize: '10px' }}>Loading start</label>
-            <input type="time" value={loadingStart} onChange={e => setLoadingStart(e.target.value)} style={timeStyle} />
+            <label style={{ ...labelStyle, fontSize: '10px' }}>Location</label>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              {[{ v: 'plant', l: 'Plant' }, { v: 'site', l: 'Site' }, { v: '', l: 'N/A' }].map(o => (
+                <button key={o.v} type="button" onClick={() => setSlumpTestLocation(o.v as '' | 'plant' | 'site')}
+                  style={{
+                    padding: '5px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 500, cursor: 'pointer',
+                    border: `1.5px solid ${slumpTestLocation === o.v ? '#0F6E56' : '#d1d5db'}`,
+                    background: slumpTestLocation === o.v ? '#e8f5ee' : '#fff',
+                    color: slumpTestLocation === o.v ? '#0F6E56' : '#888',
+                  }}>{o.l}</button>
+              ))}
+            </div>
           </div>
           <div>
-            <label style={{ ...labelStyle, fontSize: '10px' }}>Loading end</label>
-            <input type="time" value={loadingEnd} onChange={e => setLoadingEnd(e.target.value)} style={timeStyle} />
-          </div>
-          <div>
-            <label style={{ ...labelStyle, fontSize: '10px' }}>Washout end</label>
-            <input type="time" value={washoutEnd} onChange={e => setWashoutEnd(e.target.value)} style={timeStyle} />
+            <label style={{ ...labelStyle, fontSize: '10px' }}>Time</label>
+            <input type="time" value={slumpTestTime} onChange={e => setSlumpTestTime(e.target.value)} style={timeStyle} />
           </div>
         </div>
-        <div style={{ marginTop: '8px' }}>
-          <label style={{ ...labelStyle, fontSize: '10px' }}>Slump test</label>
+        <div>
+          <label style={{ ...labelStyle, fontSize: '10px' }}>Result</label>
           <div style={{ display: 'flex', gap: '6px' }}>
             {[{ v: 'pass', l: 'Pass' }, { v: 'fail', l: 'Fail' }, { v: '', l: 'Not tested' }].map(o => (
               <button key={o.v} type="button" onClick={() => setSlumpPass(o.v)}

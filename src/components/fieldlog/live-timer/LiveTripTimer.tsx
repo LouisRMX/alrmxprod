@@ -33,6 +33,8 @@ import {
   setTripOriginPlant,
   setTripNotes,
   setTripRejected,
+  setTripSlumpTest,
+  clearTripSlumpTest,
   getAllMeasurers,
   addMeasurer,
   getAllOriginPlants,
@@ -302,6 +304,8 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
         onUpdateNotes={(id, n) => setTripNotes(id, n)}
         onUpdateStageNote={(id, s, txt) => setStageNote(id, s, txt)}
         onUpdateRejected={handleUpdateRejected}
+        onLogSlumpTest={(id, loc, pass) => setTripSlumpTest(id, loc, pass)}
+        onClearSlumpTest={(id) => clearTripSlumpTest(id)}
       />
     )
   }
