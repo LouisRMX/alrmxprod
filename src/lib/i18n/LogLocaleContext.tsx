@@ -7,6 +7,13 @@
  * translator function `t(key, params?)`. Persists choice to
  * localStorage so observer's language is remembered across sessions.
  *
+ * Also exposes `bilingualMode` — an admin-only overlay that, when
+ * enabled alongside locale='ar', tells the <Bilingual> component to
+ * render Arabic with a small English subtitle so the admin can train,
+ * explain, or align with the end-user while both see the same screen.
+ * Token helpers never toggle this on because the toggle UI is gated
+ * behind admin mode.
+ *
  * The RTL direction is derived from locale and should be applied by
  * consumers as `dir={isRTL ? 'rtl' : 'ltr'}` on a root element.
  *
@@ -20,27 +27,35 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import { CATALOG, type LogLocale, type LogStringKey } from './log-catalog'
 
 const STORAGE_KEY = 'alrmx-log-locale'
+const BILINGUAL_KEY = 'alrmx-log-bilingual'
 
 interface LogLocaleCtx {
   locale: LogLocale
   setLocale: (l: LogLocale) => void
   t: (key: LogStringKey, params?: Record<string, string | number>) => string
   isRTL: boolean
+  bilingualMode: boolean
+  setBilingualMode: (v: boolean) => void
 }
 
 const LogLocaleContext = createContext<LogLocaleCtx | null>(null)
 
 export function LogLocaleProvider({ children }: { children: React.ReactNode }) {
   const [locale, setLocaleState] = useState<LogLocale>('en')
+  const [bilingualMode, setBilingualModeState] = useState(false)
 
-  // Read persisted locale on mount. SSR-safe: defaults to 'en' then
-  // flips on client if stored value differs.
+  // Read persisted state on mount. SSR-safe: defaults to 'en' + off,
+  // then flips on client if stored values differ.
   useEffect(() => {
     if (typeof window === 'undefined') return
     try {
       const stored = window.localStorage.getItem(STORAGE_KEY)
       if (stored === 'en' || stored === 'ar') {
         setLocaleState(stored)
+      }
+      const storedBi = window.localStorage.getItem(BILINGUAL_KEY)
+      if (storedBi === '1') {
+        setBilingualModeState(true)
       }
     } catch {
       // Private browsing or disabled storage, ignore
@@ -52,6 +67,15 @@ export function LogLocaleProvider({ children }: { children: React.ReactNode }) {
     if (typeof window !== 'undefined') {
       try {
         window.localStorage.setItem(STORAGE_KEY, l)
+      } catch { /* ignore */ }
+    }
+  }, [])
+
+  const setBilingualMode = useCallback((v: boolean) => {
+    setBilingualModeState(v)
+    if (typeof window !== 'undefined') {
+      try {
+        window.localStorage.setItem(BILINGUAL_KEY, v ? '1' : '0')
       } catch { /* ignore */ }
     }
   }, [])
@@ -70,7 +94,9 @@ export function LogLocaleProvider({ children }: { children: React.ReactNode }) {
     setLocale,
     t,
     isRTL: locale === 'ar',
-  }), [locale, setLocale, t])
+    bilingualMode,
+    setBilingualMode,
+  }), [locale, setLocale, t, bilingualMode, setBilingualMode])
 
   return (
     <LogLocaleContext.Provider value={value}>
@@ -97,6 +123,8 @@ export function useLogT(): LogLocaleCtx {
         )
       },
       isRTL: false,
+      bilingualMode: false,
+      setBilingualMode: () => {},
     }
   }
   return ctx

@@ -18,6 +18,7 @@ import SyncStatusBar from './SyncStatusBar'
 import DailyBriefingExport from './DailyBriefingExport'
 import LocaleToggle from './LocaleToggle'
 import { LogLocaleProvider, useLogT } from '@/lib/i18n/LogLocaleContext'
+import Bilingual from '@/lib/i18n/Bilingual'
 
 type SubTab = 'live' | 'diagnostics' | 'interventions' | 'review' | 'todo' | 'manual' | 'upload' | 'audio'
 type ViewRange = 'today' | '7d' | '30d' | 'all'
@@ -119,13 +120,14 @@ function FieldLogViewInner({ assessmentId, plantId, isAdmin, reportedTAT, target
     loadAutocomplete()
   }, [loadData, loadAutocomplete])
 
-  const tabBtn = (tab: SubTab, label: string) => (
+  const tabBtn = (tab: SubTab, label: React.ReactNode) => (
     <button type="button" onClick={() => setSubTab(tab)}
       style={{
         padding: '6px 14px', borderRadius: '6px', fontSize: '12px', fontWeight: 500, cursor: 'pointer',
         border: `1.5px solid ${subTab === tab ? '#0F6E56' : '#d1d5db'}`,
         background: subTab === tab ? '#e8f5ee' : '#fff',
         color: subTab === tab ? '#0F6E56' : '#888',
+        display: 'inline-flex', alignItems: 'center', gap: '6px',
       }}>
       {label}
     </button>
@@ -150,13 +152,13 @@ function FieldLogViewInner({ assessmentId, plantId, isAdmin, reportedTAT, target
       {/* Date picker + locale toggle + token share + daily briefing export */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-          <label style={{ fontSize: '12px', fontWeight: 600, color: '#888' }}>{t('field.date')}</label>
+          <label style={{ fontSize: '12px', fontWeight: 600, color: '#888' }}><Bilingual k="field.date" /></label>
           <input type="date" value={logDate} onChange={e => setLogDate(e.target.value)}
             style={{
               padding: '6px 10px', border: '1px solid #d1d5db', borderRadius: '6px',
               fontSize: '14px', background: '#fff',
             }} />
-          <LocaleToggle />
+          <LocaleToggle adminMode={isAdmin} />
         </div>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           {isAdmin && <DailyBriefingExport assessmentId={assessmentId} />}
@@ -167,14 +169,14 @@ function FieldLogViewInner({ assessmentId, plantId, isAdmin, reportedTAT, target
 
       {/* Sub-tabs */}
       <div style={{ display: 'flex', gap: '6px', marginBottom: '16px', flexWrap: 'wrap' }}>
-        {tabBtn('live', `⏱ ${t('tab.live')}`)}
-        {tabBtn('diagnostics', `📊 ${t('tab.diagnostics')}`)}
-        {tabBtn('interventions', `⚙ ${t('tab.interventions')}`)}
-        {tabBtn('review', `⚠ ${t('tab.review')}`)}
-        {tabBtn('todo', `🎯 ${t('tab.todo')}`)}
-        {tabBtn('manual', t('tab.manual'))}
-        {tabBtn('upload', t('tab.upload'))}
-        {audioEnabled && tabBtn('audio', t('tab.audio'))}
+        {tabBtn('live', <><span>⏱</span><Bilingual k="tab.live" /></>)}
+        {tabBtn('diagnostics', <><span>📊</span><Bilingual k="tab.diagnostics" /></>)}
+        {tabBtn('interventions', <><span>⚙</span><Bilingual k="tab.interventions" /></>)}
+        {tabBtn('review', <><span>⚠</span><Bilingual k="tab.review" /></>)}
+        {tabBtn('todo', <><span>🎯</span><Bilingual k="tab.todo" /></>)}
+        {tabBtn('manual', <Bilingual k="tab.manual" />)}
+        {tabBtn('upload', <Bilingual k="tab.upload" />)}
+        {audioEnabled && tabBtn('audio', <Bilingual k="tab.audio" />)}
       </div>
 
       {/* Active sub-tab */}
@@ -246,7 +248,7 @@ function FieldLogViewInner({ assessmentId, plantId, isAdmin, reportedTAT, target
           gap: '10px', flexWrap: 'wrap', marginBottom: '10px',
         }}>
           <div style={{ fontSize: '11px', fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: '.04em' }}>
-            {t('field.logged_trips')} ({trips.length})
+            <Bilingual k="field.logged_trips" /> ({trips.length})
           </div>
           <div style={{ display: 'inline-flex', borderRadius: '6px', overflow: 'hidden', border: '1px solid #d1d5db' }}>
             {(['today', '7d', '30d', 'all'] as const).map((r, i) => {
