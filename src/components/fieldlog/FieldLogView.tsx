@@ -19,6 +19,7 @@ import LocaleToggle from './LocaleToggle'
 import { LogLocaleProvider, useLogT } from '@/lib/i18n/LogLocaleContext'
 
 type SubTab = 'live' | 'diagnostics' | 'interventions' | 'review' | 'todo' | 'manual' | 'upload' | 'audio'
+type ViewRange = 'today' | '7d' | '30d' | 'all'
 
 interface FieldLogViewProps {
   assessmentId: string
@@ -47,6 +48,7 @@ function FieldLogViewInner({ assessmentId, plantId, isAdmin, reportedTAT, target
   const today = new Date().toISOString().slice(0, 10)
 
   const [logDate, setLogDate] = useState(today)
+  const [viewRange, setViewRange] = useState<ViewRange>('today')
   const [subTab, setSubTab] = useState<SubTab>('live')
   const [trips, setTrips] = useState<DailyLogRow[]>([])
   const [audioEnabled, setAudioEnabled] = useState(false)
@@ -60,18 +62,31 @@ function FieldLogViewInner({ assessmentId, plantId, isAdmin, reportedTAT, target
   const loadData = useCallback(async () => {
     setLoading(true)
 
-    // Load trips for selected date. Aggregated KPIs (avg TAT, reject %,
-    // truck count) moved to the Track dashboard where they belong.
-    const { data: tripData } = await supabase
+    // Load trips for the chosen view range. Aggregated KPIs (avg TAT,
+    // reject %, truck count) moved to the Track dashboard where they
+    // belong. The date picker above controls the ENTRY date for Manual/
+    // Upload/Audio; this range controls what the trip table shows.
+    let query = supabase
       .from('daily_logs')
       .select('*')
       .eq('assessment_id', assessmentId)
-      .eq('log_date', logDate)
       .order('departure_loaded', { ascending: true })
 
+    if (viewRange === 'today') {
+      query = query.eq('log_date', today)
+    } else if (viewRange === '7d') {
+      const start = new Date(Date.now() - 7 * 86_400_000).toISOString().slice(0, 10)
+      query = query.gte('log_date', start)
+    } else if (viewRange === '30d') {
+      const start = new Date(Date.now() - 30 * 86_400_000).toISOString().slice(0, 10)
+      query = query.gte('log_date', start)
+    }
+    // 'all' applies no date filter
+
+    const { data: tripData } = await query
     setTrips((tripData ?? []) as DailyLogRow[])
     setLoading(false)
-  }, [supabase, assessmentId, logDate])
+  }, [supabase, assessmentId, viewRange, today])
 
   // Load autocomplete suggestions (all entries on assessment, not just today)
   const loadAutocomplete = useCallback(async () => {
@@ -224,8 +239,40 @@ function FieldLogViewInner({ assessmentId, plantId, isAdmin, reportedTAT, target
 
       {/* Trip table */}
       <div style={{ marginTop: '24px', borderTop: '1px solid #eee', paddingTop: '16px' }}>
-        <div style={{ fontSize: '11px', fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: '10px' }}>
-          {t('field.logged_trips')} ({trips.length})
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          gap: '10px', flexWrap: 'wrap', marginBottom: '10px',
+        }}>
+          <div style={{ fontSize: '11px', fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: '.04em' }}>
+            {t('field.logged_trips')} ({trips.length})
+          </div>
+          <div style={{ display: 'inline-flex', borderRadius: '6px', overflow: 'hidden', border: '1px solid #d1d5db' }}>
+            {(['today', '7d', '30d', 'all'] as const).map((r, i) => {
+              const label = r === 'today' ? t('diag.today')
+                : r === '7d' ? t('diag.last_7')
+                : r === '30d' ? t('diag.last_30')
+                : t('diag.all')
+              const active = viewRange === r
+              return (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => setViewRange(r)}
+                  style={{
+                    padding: '6px 10px',
+                    background: active ? '#0F6E56' : '#fff',
+                    color: active ? '#fff' : '#555',
+                    border: 'none',
+                    borderRight: i < 3 ? '1px solid #d1d5db' : 'none',
+                    fontSize: '11px', fontWeight: 600,
+                    cursor: 'pointer', minHeight: '32px',
+                  }}
+                >
+                  {label}
+                </button>
+              )
+            })}
+          </div>
         </div>
         {loading ? (
           <div style={{ textAlign: 'center', padding: '20px', color: '#aaa', fontSize: '13px' }}>Loading...</div>
