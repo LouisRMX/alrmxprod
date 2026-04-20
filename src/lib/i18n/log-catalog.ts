@@ -145,6 +145,8 @@ export const LOG_STRINGS = {
   'site_type.infrastructure': 'Infrastructure',
   'site_type.unknown': 'Unknown',
   'site_type.help': 'Drives TAT benchmarking. Cached per site name.',
+  'site_type.auto_filled': 'Auto-filled from last trip. Tap to confirm or change.',
+  'site_type.auto_badge': 'auto',
 
   // ── Slump test (in-card action) ───────────────────────────────────
   'slump.log_button': 'Log slump test',
@@ -483,6 +485,8 @@ export const LOG_STRINGS_AR: Record<LogStringKey, string> = {
   'site_type.infrastructure': 'بنية تحتية',
   'site_type.unknown': 'غير معروف',
   'site_type.help': 'يوجّه مقارنة TAT. يُحفظ تلقائياً لكل اسم موقع.',
+  'site_type.auto_filled': 'تم التعبئة تلقائياً من الرحلة السابقة. اضغط للتأكيد أو التغيير.',
+  'site_type.auto_badge': 'تلقائي',
 
   // Slump test (in-card action)
   'slump.log_button': 'تسجيل اختبار الانسياب',

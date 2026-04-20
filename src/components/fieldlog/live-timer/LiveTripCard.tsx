@@ -324,6 +324,7 @@ export default function LiveTripCard({
             />
             <SiteTypePicker
               value={trip.siteType}
+              fromCache={Boolean(trip.siteTypeFromCache)}
               onChange={(v) => onUpdateSiteType(trip.id, v)}
             />
           </div>
@@ -946,18 +947,47 @@ function OriginPlantChip({ value, suggestions, onChange }: {
 // next trip to the same site auto-fills.
 const SITE_TYPE_ORDER: readonly SiteType[] = ['ground_pour', 'high_rise', 'infrastructure', 'unknown'] as const
 
-function SiteTypePicker({ value, onChange }: { value?: SiteType; onChange: (v: SiteType) => void }) {
+function SiteTypePicker({ value, fromCache, onChange }: {
+  value?: SiteType
+  fromCache: boolean
+  onChange: (v: SiteType) => void
+}) {
   const { t } = useLogT()
   const effective: SiteType = value ?? 'unknown'
+  const showAutoHint = fromCache && value !== undefined
   return (
     <div>
-      <label style={{ display: 'block', fontSize: '11px', color: '#888', marginBottom: '4px', fontWeight: 600 }}>
+      <label style={{
+        display: 'flex', alignItems: 'center', gap: '6px',
+        fontSize: '11px', color: '#888', marginBottom: '4px', fontWeight: 600,
+      }}>
         <Bilingual k="site_type.label" />
+        {showAutoHint && (
+          <span style={{
+            padding: '1px 6px', background: '#FFF4D6',
+            color: '#7a5a00', border: '1px solid #F1D79A',
+            borderRadius: '3px', fontSize: '9px', fontWeight: 700,
+            textTransform: 'uppercase', letterSpacing: '.3px',
+          }}>
+            ⟳ {t('site_type.auto_badge')}
+          </span>
+        )}
       </label>
       <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
         {SITE_TYPE_ORDER.map(opt => {
           const active = effective === opt
           const key = `site_type.${opt}` as LogStringKey
+          // When the active chip is from cache, use an amber outline so
+          // it reads as "suggested, tap to confirm" instead of "locked in".
+          const borderColor = active
+            ? (showAutoHint ? '#D68910' : '#0F6E56')
+            : '#d1d5db'
+          const bgColor = active
+            ? (showAutoHint ? '#FFF4D6' : '#0F6E56')
+            : '#fff'
+          const textColor = active
+            ? (showAutoHint ? '#7a5a00' : '#fff')
+            : '#555'
           return (
             <button
               key={opt}
@@ -965,9 +995,11 @@ function SiteTypePicker({ value, onChange }: { value?: SiteType; onChange: (v: S
               onClick={() => onChange(opt)}
               style={{
                 padding: '6px 12px', minHeight: '36px',
-                background: active ? '#0F6E56' : '#fff',
-                color: active ? '#fff' : '#555',
-                border: `1.5px solid ${active ? '#0F6E56' : '#d1d5db'}`,
+                background: bgColor,
+                color: textColor,
+                border: active && showAutoHint
+                  ? `1.5px dashed ${borderColor}`
+                  : `1.5px solid ${borderColor}`,
                 borderRadius: '8px',
                 fontSize: '12px', fontWeight: 600, cursor: 'pointer',
               }}
@@ -977,8 +1009,8 @@ function SiteTypePicker({ value, onChange }: { value?: SiteType; onChange: (v: S
           )
         })}
       </div>
-      <div style={{ fontSize: '10px', color: '#aaa', marginTop: '4px', lineHeight: 1.3 }}>
-        {t('site_type.help')}
+      <div style={{ fontSize: '10px', color: showAutoHint ? '#7a5a00' : '#aaa', marginTop: '4px', lineHeight: 1.3 }}>
+        {showAutoHint ? t('site_type.auto_filled') : t('site_type.help')}
       </div>
     </div>
   )

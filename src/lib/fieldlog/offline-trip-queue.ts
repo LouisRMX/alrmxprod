@@ -96,6 +96,11 @@ export interface ActiveTrip {
    *  categorised site; observer can override per trip. Unknown is the default
    *  for first-time sites so the helper is not forced to guess. */
   siteType?: SiteType
+  /** True when siteType was populated from the site-name cache and the
+   *  observer has not yet tapped to confirm. Drives the auto-filled indicator
+   *  so silent carry-over from a previous trip is visible on-screen. Any
+   *  explicit tap via setTripSiteType clears this flag. */
+  siteTypeFromCache?: boolean
   /** ISO timestamps, one per completed stage. plant_queue_start = trip start. */
   timestamps: Partial<Record<StageName | 'complete', string>>
   /** Current stage the timer is showing (the stage about to be ended by next tap). */
@@ -262,9 +267,13 @@ export async function startTrip(input: {
   // If a siteName was provided and we have a cached site_type for it,
   // auto-apply unless the caller already set siteType explicitly.
   let siteType = input.siteType
+  let siteTypeFromCache = false
   if (!siteType && input.siteName) {
     const cached = await db.siteTypes.get(input.siteName)
-    if (cached) siteType = cached.siteType
+    if (cached) {
+      siteType = cached.siteType
+      siteTypeFromCache = true
+    }
   }
 
   const trip: ActiveTrip = {
@@ -278,6 +287,7 @@ export async function startTrip(input: {
     driverName: input.driverName,
     siteName: input.siteName,
     siteType,
+    siteTypeFromCache: siteTypeFromCache ? true : undefined,
     timestamps: { [startStage]: now } as Partial<Record<StageName | 'complete', string>>,
     currentStage: startStage,
     stageNotes: {},
@@ -500,11 +510,22 @@ export async function setTripIdentity(
   if (!trip) return
   const nextSiteName = ids.siteName ?? trip.siteName
   // Auto-apply cached site_type when the site_name changes to a site we
-  // have seen before AND the trip doesn't already have a user-set type.
+  // have seen before AND the trip doesn't already have a user-confirmed type.
+  // A user-confirmed type is one with siteTypeFromCache === false/undefined;
+  // if the current value was itself from cache we treat the change as fresh.
   let nextSiteType: SiteType | undefined = trip.siteType
-  if (nextSiteName && nextSiteName !== trip.siteName && !trip.siteType) {
+  let nextFromCache = trip.siteTypeFromCache ?? false
+  const currentIsConfirmed = trip.siteType && !trip.siteTypeFromCache
+  if (nextSiteName && nextSiteName !== trip.siteName && !currentIsConfirmed) {
     const cached = await db.siteTypes.get(nextSiteName)
-    if (cached) nextSiteType = cached.siteType
+    if (cached) {
+      nextSiteType = cached.siteType
+      nextFromCache = true
+    } else {
+      // No cache for the new site — clear any stale auto-filled value.
+      nextSiteType = undefined
+      nextFromCache = false
+    }
   }
   const updated: ActiveTrip = {
     ...trip,
@@ -512,6 +533,7 @@ export async function setTripIdentity(
     driverName: ids.driverName ?? trip.driverName,
     siteName: nextSiteName,
     siteType: nextSiteType,
+    siteTypeFromCache: nextFromCache ? true : undefined,
   }
   updated.label = updated.truckId ? `Truck ${updated.truckId}` : 'Unlabeled trip'
   await db.activeTrips.put(updated)
@@ -530,11 +552,15 @@ export async function setTripOriginPlant(tripId: string, originPlant: string): P
 
 /** Set the site_type for an active trip and persist the site_name ->
  *  site_type mapping in the cache so future trips to the same site
- *  auto-fill. Observer can still override per trip. */
+ *  auto-fill. Observer can still override per trip. Any explicit tap
+ *  clears the siteTypeFromCache flag so the auto-filled indicator in
+ *  the UI disappears (the value is now user-confirmed). */
 export async function setTripSiteType(tripId: string, siteType: SiteType): Promise<void> {
   const trip = await db.activeTrips.get(tripId)
   if (!trip) return
-  await db.activeTrips.put({ ...trip, siteType })
+  const { siteTypeFromCache: _stfc, ...rest } = trip
+  void _stfc
+  await db.activeTrips.put({ ...rest, siteType })
   if (trip.siteName) {
     await db.siteTypes.put({
       name: trip.siteName,
