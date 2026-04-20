@@ -68,12 +68,14 @@ export default function ReviewQueue({ assessmentId }: Props) {
   useEffect(() => { load() }, [load])
 
   const act = async (id: string, status: 'reviewed_include' | 'reviewed_exclude', note?: string) => {
+    const { data: userData } = await supabase.auth.getUser()
     await supabase
       .from('daily_logs')
       .update({
         review_status: status,
         review_note: note ?? null,
         reviewed_at: new Date().toISOString(),
+        reviewed_by: userData.user?.id ?? null,
       })
       .eq('id', id)
     await load()
