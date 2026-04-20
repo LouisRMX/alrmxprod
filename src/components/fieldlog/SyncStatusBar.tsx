@@ -22,6 +22,7 @@ import { createClient } from '@/lib/supabase/client'
 import { db, drainPending } from '@/lib/fieldlog/offline-trip-queue'
 import { useOnlineStatus } from '@/hooks/useOnlineStatus'
 import { useLogT } from '@/lib/i18n/LogLocaleContext'
+import Bilingual from '@/lib/i18n/Bilingual'
 
 interface Props {
   assessmentId: string
@@ -105,7 +106,7 @@ export default function SyncStatusBar({ assessmentId }: Props) {
         display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap',
       }}>
         <span style={{ fontSize: '14px' }}>●</span>
-        <strong>{t('sync.offline')}</strong>
+        <strong><Bilingual k="sync.offline" inline /></strong>
         {pendingCount > 0 && (
           <span>· {pendingCount} {t('sync.offline_suffix')}</span>
         )}
@@ -123,7 +124,7 @@ export default function SyncStatusBar({ assessmentId }: Props) {
         display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap',
       }}>
         <span style={{ fontSize: '14px' }}>●</span>
-        <strong>{t('sync.online_all_synced')}</strong>
+        <strong><Bilingual k="sync.online_all_synced" inline /></strong>
         {lastSync && <span style={{ color: '#0F6E56aa' }}>· {t('sync.last_sync')} {formatRelative(lastSync)}</span>}
       </div>
     )
@@ -141,7 +142,7 @@ export default function SyncStatusBar({ assessmentId }: Props) {
       display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap',
     }}>
       <span style={{ fontSize: '14px' }}>{stalled ? '⚠' : '⏳'}</span>
-      <strong>{pendingCount} {t('sync.pending')}</strong>
+      <strong>{pendingCount} <Bilingual k="sync.pending" inline /></strong>
       {oldestPending && (
         <span>· {t('sync.oldest')} {formatRelative(oldestPending.finalisedAt)}</span>
       )}
@@ -160,7 +161,7 @@ export default function SyncStatusBar({ assessmentId }: Props) {
           opacity: syncing ? 0.6 : 1,
         }}
       >
-        {syncing ? t('sync.syncing') : t('sync.retry')}
+        {syncing ? <Bilingual k="sync.syncing" inline /> : <Bilingual k="sync.retry" inline />}
       </button>
     </div>
   )

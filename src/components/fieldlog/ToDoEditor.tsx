@@ -16,6 +16,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import * as XLSX from 'xlsx'
 import { createClient } from '@/lib/supabase/client'
 import { useLogT } from '@/lib/i18n/LogLocaleContext'
+import Bilingual from '@/lib/i18n/Bilingual'
 import type { LogStringKey } from '@/lib/i18n/log-catalog'
 
 type TodoMetric = 'trips_complete' | 'loads_delivered' | 'rejected_loads'
@@ -175,7 +176,7 @@ export default function ToDoEditor({ assessmentId, plantId }: Props) {
       }}>
         <div>
           <div style={{ fontSize: '14px', fontWeight: 600, color: '#1a1a1a' }}>
-            {t('todo.title')}
+            <Bilingual k="todo.title" />
           </div>
           <div style={{ fontSize: '12px', color: '#666', marginTop: '2px' }}>
             {t('todo.subtitle')}
@@ -201,7 +202,7 @@ export default function ToDoEditor({ assessmentId, plantId }: Props) {
               fontSize: '13px', fontWeight: 600, cursor: 'pointer', minHeight: '44px',
             }}
           >
-            📥 {t('todo.upload')}
+            📥 <Bilingual k="todo.upload" inline />
           </button>
           <button
             type="button"
@@ -212,7 +213,7 @@ export default function ToDoEditor({ assessmentId, plantId }: Props) {
               cursor: 'pointer', minHeight: '44px',
             }}
           >
-            + {t('todo.add')}
+            + <Bilingual k="todo.add" inline />
           </button>
         </div>
       </div>
@@ -264,7 +265,7 @@ export default function ToDoEditor({ assessmentId, plantId }: Props) {
           padding: '24px', background: '#fafafa', border: '1px dashed #ddd',
           borderRadius: '10px', textAlign: 'center', color: '#888', fontSize: '13px',
         }}>
-          {t('todo.empty')}
+          <Bilingual k="todo.empty" />
         </div>
       )}
 
@@ -343,7 +344,7 @@ function ToDoCard({ row, progress, onEdit, onDelete }: CardProps) {
                 borderRadius: '4px', fontSize: '10px', fontWeight: 600,
                 textTransform: 'uppercase', letterSpacing: '.3px',
               }}>
-                ✓ {t('todo.complete_badge')}
+                ✓ <Bilingual k="todo.complete_badge" inline />
               </span>
             )}
             {isOverdue && (
@@ -352,7 +353,7 @@ function ToDoCard({ row, progress, onEdit, onDelete }: CardProps) {
                 borderRadius: '4px', fontSize: '10px', fontWeight: 600,
                 textTransform: 'uppercase', letterSpacing: '.3px',
               }}>
-                {t('todo.overdue_badge')}
+                <Bilingual k="todo.overdue_badge" inline />
               </span>
             )}
           </div>
@@ -371,7 +372,7 @@ function ToDoCard({ row, progress, onEdit, onDelete }: CardProps) {
               cursor: 'pointer', minHeight: '36px',
             }}
           >
-            {t('card.edit')}
+            <Bilingual k="card.edit" inline />
           </button>
           <button
             type="button"
@@ -382,7 +383,7 @@ function ToDoCard({ row, progress, onEdit, onDelete }: CardProps) {
               cursor: 'pointer', minHeight: '36px',
             }}
           >
-            {t('todo.delete')}
+            <Bilingual k="todo.delete" inline />
           </button>
         </div>
       </div>
@@ -492,12 +493,12 @@ function ToDoForm({ assessmentId, plantId, existing, onSaved, onCancel }: FormPr
       padding: '18px 20px', marginBottom: '16px',
     }}>
       <div style={{ fontSize: '13px', fontWeight: 600, color: '#1a1a1a', marginBottom: '12px' }}>
-        {existing ? t('todo.edit') : t('todo.new')}
+        {existing ? <Bilingual k="todo.edit" /> : <Bilingual k="todo.new" />}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '12px' }}>
         <div>
-          <label style={labelStyle}>{t('todo.title_label')}</label>
+          <label style={labelStyle}><Bilingual k="todo.title_label" /></label>
           <input
             type="text" value={title} onChange={e => setTitle(e.target.value)}
             placeholder={t('todo.title_placeholder')}
@@ -507,7 +508,7 @@ function ToDoForm({ assessmentId, plantId, existing, onSaved, onCancel }: FormPr
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px' }}>
           <div>
-            <label style={labelStyle}>{t('todo.target_count_label')}</label>
+            <label style={labelStyle}><Bilingual k="todo.target_count_label" /></label>
             <input
               type="number" min={1} value={targetCount}
               onChange={e => setTargetCount(Number(e.target.value))}
@@ -515,7 +516,7 @@ function ToDoForm({ assessmentId, plantId, existing, onSaved, onCancel }: FormPr
             />
           </div>
           <div>
-            <label style={labelStyle}>{t('todo.target_date_label')}</label>
+            <label style={labelStyle}><Bilingual k="todo.target_date_label" /></label>
             <input
               type="date" value={targetDate} min={today}
               onChange={e => setTargetDate(e.target.value)}
@@ -523,7 +524,7 @@ function ToDoForm({ assessmentId, plantId, existing, onSaved, onCancel }: FormPr
             />
           </div>
           <div>
-            <label style={labelStyle}>{t('todo.metric_label')}</label>
+            <label style={labelStyle}><Bilingual k="todo.metric_label" /></label>
             <select
               value={metric}
               onChange={e => setMetric(e.target.value as TodoMetric)}
@@ -560,7 +561,7 @@ function ToDoForm({ assessmentId, plantId, existing, onSaved, onCancel }: FormPr
             opacity: saving ? 0.6 : 1,
           }}
         >
-          {saving ? t('todo.saving') : existing ? t('todo.save_changes') : t('todo.add')}
+          {saving ? <Bilingual k="todo.saving" inline /> : existing ? <Bilingual k="todo.save_changes" inline /> : <Bilingual k="todo.add" inline />}
         </button>
         <button
           type="button"
@@ -572,7 +573,7 @@ function ToDoForm({ assessmentId, plantId, existing, onSaved, onCancel }: FormPr
             cursor: 'pointer', minHeight: '44px',
           }}
         >
-          {t('todo.cancel')}
+          <Bilingual k="todo.cancel" inline />
         </button>
       </div>
     </div>

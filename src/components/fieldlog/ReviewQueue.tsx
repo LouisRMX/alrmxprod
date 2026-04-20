@@ -15,6 +15,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useLogT } from '@/lib/i18n/LogLocaleContext'
+import Bilingual from '@/lib/i18n/Bilingual'
 
 interface OutlierRow {
   id: string
@@ -90,7 +91,7 @@ export default function ReviewQueue({ assessmentId }: Props) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '14px' }}>
         <div>
           <div style={{ fontSize: '14px', fontWeight: 600, color: '#1a1a1a' }}>
-            {t('reviewq.title')}
+            <Bilingual k="reviewq.title" />
           </div>
           <div style={{ fontSize: '12px', color: '#666', marginTop: '2px', lineHeight: 1.4 }}>
             {t('reviewq.subtitle')}
@@ -123,7 +124,7 @@ export default function ReviewQueue({ assessmentId }: Props) {
           padding: '32px 16px', background: '#fafafa', border: '1px dashed #ddd',
           borderRadius: '10px', textAlign: 'center', color: '#888', fontSize: '13px',
         }}>
-          {filter === 'pending' ? t('reviewq.empty_pending') : t('reviewq.empty_all')}
+          {filter === 'pending' ? <Bilingual k="reviewq.empty_pending" /> : <Bilingual k="reviewq.empty_all" />}
         </div>
       )}
 
@@ -229,7 +230,7 @@ function OutlierCard({ row, onAct }: {
         marginBottom: isReviewed ? 0 : '12px',
       }}>
         <div style={{ fontSize: '10px', fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: '.3px', marginBottom: '6px' }}>
-          {t('reviewq.stage_breakdown')}
+          <Bilingual k="reviewq.stage_breakdown" />
         </div>
         {stageBreakdown(t('stage.plant_queue'), row.plant_queue_min)}
         {stageBreakdown(t('stage.loading'), row.loading_min)}
@@ -250,7 +251,7 @@ function OutlierCard({ row, onAct }: {
       {!isReviewed && (
         <div style={{ marginTop: '12px' }}>
           <label style={{ fontSize: '11px', color: '#888', fontWeight: 600, display: 'block', marginBottom: '4px' }}>
-            {t('reviewq.reason_optional')}
+            <Bilingual k="reviewq.reason_optional" />
           </label>
           <input
             type="text"
@@ -277,7 +278,7 @@ function OutlierCard({ row, onAct }: {
                 cursor: acting ? 'not-allowed' : 'pointer', minHeight: '44px',
               }}
             >
-              {acting === 'include' ? t('reviewq.including') : t('reviewq.include')}
+              {acting === 'include' ? <Bilingual k="reviewq.including" inline /> : <Bilingual k="reviewq.include" inline />}
             </button>
             <button
               type="button"
@@ -291,7 +292,7 @@ function OutlierCard({ row, onAct }: {
                 cursor: acting ? 'not-allowed' : 'pointer', minHeight: '44px',
               }}
             >
-              {acting === 'exclude' ? t('reviewq.excluding') : t('reviewq.exclude')}
+              {acting === 'exclude' ? <Bilingual k="reviewq.excluding" inline /> : <Bilingual k="reviewq.exclude" inline />}
             </button>
           </div>
         </div>

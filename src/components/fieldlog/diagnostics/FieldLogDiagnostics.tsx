@@ -32,6 +32,7 @@ import {
   type TripWithStageDurations,
 } from './tripAnalysis'
 import { useLogT } from '@/lib/i18n/LogLocaleContext'
+import Bilingual from '@/lib/i18n/Bilingual'
 import type { LogStringKey } from '@/lib/i18n/log-catalog'
 
 interface Props {
@@ -123,7 +124,7 @@ export default function FieldLogDiagnostics({ assessmentId, reportedTAT, targetT
   }, [trips])
 
   if (loading) {
-    return <div style={{ padding: '24px', color: '#888', fontSize: '14px' }}>{t('diag.loading')}</div>
+    return <div style={{ padding: '24px', color: '#888', fontSize: '14px' }}><Bilingual k="diag.loading" /></div>
   }
   if (error) {
     return <div style={{ padding: '24px', color: '#C0392B', fontSize: '14px' }}>{t('diag.error')}: {error}</div>
@@ -134,7 +135,7 @@ export default function FieldLogDiagnostics({ assessmentId, reportedTAT, targetT
         padding: '32px', textAlign: 'center', background: '#fafafa',
         border: '1px dashed #ccc', borderRadius: '10px', color: '#888', fontSize: '14px',
       }}>
-        {t('diag.no_trips')}
+        <Bilingual k="diag.no_trips" />
       </div>
     )
   }
@@ -147,7 +148,7 @@ export default function FieldLogDiagnostics({ assessmentId, reportedTAT, targetT
 
       {/* Filter + counts */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
-        <span style={{ fontSize: '12px', color: '#888', fontWeight: 600 }}>{t('diag.range')}:</span>
+        <span style={{ fontSize: '12px', color: '#888', fontWeight: 600 }}><Bilingual k="diag.range" inline />:</span>
         {(['today', '7d', '30d', 'all'] as const).map(r => (
           <button
             key={r}

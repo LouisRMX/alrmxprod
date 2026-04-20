@@ -16,6 +16,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useLogT } from '@/lib/i18n/LogLocaleContext'
+import Bilingual from '@/lib/i18n/Bilingual'
 
 interface InterventionRow {
   id: string
@@ -85,7 +86,7 @@ export function InterventionsEditor({ assessmentId, plantId }: InterventionsEdit
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '14px' }}>
         <div>
           <div style={{ fontSize: '14px', fontWeight: 600, color: '#1a1a1a' }}>
-            {t('interv.title')}
+            <Bilingual k="interv.title" />
           </div>
           <div style={{ fontSize: '12px', color: '#666', marginTop: '2px' }}>
             {t('interv.subtitle')}
@@ -100,7 +101,7 @@ export function InterventionsEditor({ assessmentId, plantId }: InterventionsEdit
             cursor: 'pointer', minHeight: '44px',
           }}
         >
-          + {t('interv.add')}
+          + <Bilingual k="interv.add" inline />
         </button>
       </div>
 
@@ -120,7 +121,7 @@ export function InterventionsEditor({ assessmentId, plantId }: InterventionsEdit
           padding: '24px', background: '#fafafa', border: '1px dashed #ddd',
           borderRadius: '10px', textAlign: 'center', color: '#888', fontSize: '13px',
         }}>
-          {t('interv.empty')}
+          <Bilingual k="interv.empty" />
         </div>
       )}
 
@@ -166,7 +167,7 @@ export function InterventionsEditor({ assessmentId, plantId }: InterventionsEdit
                   cursor: 'pointer', minHeight: '36px',
                 }}
               >
-                {t('card.edit')}
+                <Bilingual k="card.edit" inline />
               </button>
               <button
                 type="button"
@@ -177,7 +178,7 @@ export function InterventionsEditor({ assessmentId, plantId }: InterventionsEdit
                   cursor: 'pointer', minHeight: '36px',
                 }}
               >
-                {t('interv.delete')}
+                <Bilingual k="interv.delete" inline />
               </button>
             </div>
           </div>
@@ -264,17 +265,17 @@ function InterventionForm({ assessmentId, plantId, existing, onSaved, onCancel }
       padding: '18px 20px', marginBottom: '16px',
     }}>
       <div style={{ fontSize: '13px', fontWeight: 600, color: '#1a1a1a', marginBottom: '12px' }}>
-        {existing ? t('interv.edit') : t('interv.new')}
+        {existing ? <Bilingual k="interv.edit" /> : <Bilingual k="interv.new" />}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '12px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
           <div>
-            <label style={labelStyle}>{t('interv.date')}</label>
+            <label style={labelStyle}><Bilingual k="interv.date" /></label>
             <input type="date" value={date} onChange={e => setDate(e.target.value)} style={inputStyle} />
           </div>
           <div>
-            <label style={labelStyle}>{t('interv.target_metric')}</label>
+            <label style={labelStyle}><Bilingual k="interv.target_metric" /></label>
             <select value={targetMetric} onChange={e => setTargetMetric(e.target.value)} style={{ ...inputStyle, background: '#fff' }}>
               {metricOptions.map(o => (
                 <option key={o.value} value={o.value}>{o.label}</option>
@@ -284,7 +285,7 @@ function InterventionForm({ assessmentId, plantId, existing, onSaved, onCancel }
         </div>
 
         <div>
-          <label style={labelStyle}>{t('interv.title_label')}</label>
+          <label style={labelStyle}><Bilingual k="interv.title_label" /></label>
           <input
             type="text" value={title} onChange={e => setTitle(e.target.value)}
             placeholder={t('interv.title_placeholder')}
@@ -293,7 +294,7 @@ function InterventionForm({ assessmentId, plantId, existing, onSaved, onCancel }
         </div>
 
         <div>
-          <label style={labelStyle}>{t('interv.implemented_by')}</label>
+          <label style={labelStyle}><Bilingual k="interv.implemented_by" /></label>
           <input
             type="text" value={implementedBy} onChange={e => setImplementedBy(e.target.value)}
             placeholder={t('interv.implemented_by_placeholder')}
@@ -302,7 +303,7 @@ function InterventionForm({ assessmentId, plantId, existing, onSaved, onCancel }
         </div>
 
         <div>
-          <label style={labelStyle}>{t('interv.description_label')}</label>
+          <label style={labelStyle}><Bilingual k="interv.description_label" /></label>
           <textarea
             value={description} onChange={e => setDescription(e.target.value)}
             placeholder={t('interv.description_placeholder')}
@@ -333,7 +334,7 @@ function InterventionForm({ assessmentId, plantId, existing, onSaved, onCancel }
             opacity: saving ? 0.6 : 1,
           }}
         >
-          {saving ? t('interv.saving') : existing ? t('interv.save_changes') : t('interv.add')}
+          {saving ? <Bilingual k="interv.saving" inline /> : existing ? <Bilingual k="interv.save_changes" inline /> : <Bilingual k="interv.add" inline />}
         </button>
         <button
           type="button"
@@ -345,7 +346,7 @@ function InterventionForm({ assessmentId, plantId, existing, onSaved, onCancel }
             cursor: 'pointer', minHeight: '44px',
           }}
         >
-          {t('interv.cancel')}
+          <Bilingual k="interv.cancel" inline />
         </button>
       </div>
     </div>

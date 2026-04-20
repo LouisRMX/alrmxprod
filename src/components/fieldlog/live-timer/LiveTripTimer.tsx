@@ -47,6 +47,7 @@ import { useOnlineStatus } from '@/hooks/useOnlineStatus'
 import { createClient } from '@/lib/supabase/client'
 import LiveTripCard from './LiveTripCard'
 import { useLogT } from '@/lib/i18n/LogLocaleContext'
+import Bilingual from '@/lib/i18n/Bilingual'
 import type { LogStringKey } from '@/lib/i18n/log-catalog'
 
 interface LiveTripTimerProps {
@@ -350,7 +351,7 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
         background: '#fff', border: '1px solid #e5e5e5', borderRadius: '12px', padding: '12px',
       }}>
         <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '8px' }}>
-          {t('live.measuring_as')}
+          <Bilingual k="live.measuring_as" />
         </label>
         {!showAddMeasurer && (
           <div style={{ display: 'flex', gap: '8px' }}>
@@ -423,7 +424,7 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
         background: '#fff', border: '1px solid #e5e5e5', borderRadius: '12px', padding: '12px',
       }}>
         <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '8px' }}>
-          {t('live.current_plant')}
+          <Bilingual k="live.current_plant" />
         </label>
         {!showAddOriginPlant && (
           <div style={{ display: 'flex', gap: '8px' }}>
@@ -494,7 +495,7 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
         background: '#fff', border: '1px solid #e5e5e5', borderRadius: '12px', padding: '12px',
       }}>
         <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '8px' }}>
-          {t('live.measuring_from')}
+          <Bilingual k="live.measuring_from" />
         </label>
         <select
           value={startStage}
@@ -531,20 +532,22 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
           boxShadow: currentMeasurer ? '0 4px 14px rgba(15, 110, 86, 0.25)' : 'none',
         }}
       >
-        ▶  {startStage === 'plant_queue' ? t('live.start_new_trip') : t('live.start_measurement_of', { stage: stageLabel(startStage) })}
+        ▶&nbsp;&nbsp;{startStage === 'plant_queue'
+          ? <Bilingual k="live.start_new_trip" inline />
+          : <Bilingual k="live.start_measurement_of" params={{ stage: stageLabel(startStage) }} inline />}
       </button>
 
       {/* Active trip list */}
       <div style={{ flex: 1, overflowY: 'auto' }}>
         <div style={{ fontSize: '11px', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '8px' }}>
-          {t('live.active_trips')} ({activeTrips?.length ?? 0})
+          <Bilingual k="live.active_trips" /> ({activeTrips?.length ?? 0})
         </div>
         {(!activeTrips || activeTrips.length === 0) && (
           <div style={{
             background: '#fff', border: '1px dashed #ccc', borderRadius: '10px',
             padding: '20px', textAlign: 'center', fontSize: '13px', color: '#888',
           }}>
-            {t('live.no_active_trips')}
+            <Bilingual k="live.no_active_trips" />
           </div>
         )}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -560,7 +563,7 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
         {pendingCount > 0 && (
           <div style={{ marginTop: '20px' }}>
             <div style={{ fontSize: '11px', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '8px' }}>
-              {t('live.pending_sync')} ({pendingCount})
+              <Bilingual k="live.pending_sync" /> ({pendingCount})
             </div>
             <div style={{
               background: '#fff', border: '1px solid #e5e5e5', borderRadius: '10px',
@@ -702,7 +705,7 @@ function ActiveTripListItem({ trip, onFocus }: { trip: ActiveTrip; onFocus: () =
         background: '#E1F5EE', color: '#0F6E56',
         fontSize: '12px', fontWeight: 600, flexShrink: 0,
       }}>
-        {t('list.open')} →
+        <Bilingual k="list.open" inline /> →
       </div>
     </button>
   )

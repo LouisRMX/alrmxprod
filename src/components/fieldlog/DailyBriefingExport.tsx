@@ -24,6 +24,7 @@
 import { useCallback, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useLogT } from '@/lib/i18n/LogLocaleContext'
+import Bilingual from '@/lib/i18n/Bilingual'
 
 const STAGE_LABEL: Record<string, string> = {
   plant_queue: 'Plant queue',
@@ -311,7 +312,7 @@ export default function DailyBriefingExport({ assessmentId }: Props) {
           cursor: 'pointer',
         }}
       >
-        📋 {t('brief.button')}
+        📋 <Bilingual k="brief.button" inline />
       </button>
 
       {open && (
@@ -334,7 +335,7 @@ export default function DailyBriefingExport({ assessmentId }: Props) {
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
               <div>
-                <div style={{ fontSize: '16px', fontWeight: 700 }}>{t('brief.title')}</div>
+                <div style={{ fontSize: '16px', fontWeight: 700 }}><Bilingual k="brief.title" /></div>
                 <div style={{ fontSize: '12px', color: '#666', marginTop: '2px' }}>
                   {t('brief.subtitle')}
                 </div>
@@ -367,14 +368,14 @@ export default function DailyBriefingExport({ assessmentId }: Props) {
                     boxShadow: mode === m ? '0 1px 3px rgba(0,0,0,.1)' : 'none',
                   }}
                 >
-                  {m === 'executive' ? t('brief.executive') : t('brief.detailed')}
+                  {m === 'executive' ? <Bilingual k="brief.executive" inline /> : <Bilingual k="brief.detailed" inline />}
                 </button>
               ))}
             </div>
 
             {loading ? (
               <div style={{ padding: '40px', textAlign: 'center', color: '#888', fontSize: '13px' }}>
-                {t('brief.generating')}
+                <Bilingual k="brief.generating" />
               </div>
             ) : (
               <textarea
@@ -402,7 +403,7 @@ export default function DailyBriefingExport({ assessmentId }: Props) {
                   minHeight: '44px', opacity: loading || !briefing ? 0.6 : 1,
                 }}
               >
-                {t('brief.copy')}
+                <Bilingual k="brief.copy" inline />
               </button>
               <button
                 type="button"
@@ -416,7 +417,7 @@ export default function DailyBriefingExport({ assessmentId }: Props) {
                   minHeight: '44px',
                 }}
               >
-                {t('brief.regenerate')}
+                <Bilingual k="brief.regenerate" inline />
               </button>
             </div>
           </div>

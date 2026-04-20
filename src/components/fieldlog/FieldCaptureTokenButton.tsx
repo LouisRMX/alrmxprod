@@ -15,6 +15,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useLogT } from '@/lib/i18n/LogLocaleContext'
+import Bilingual from '@/lib/i18n/Bilingual'
 
 interface Props {
   assessmentId: string
@@ -122,7 +123,7 @@ export default function FieldCaptureTokenButton({ assessmentId, plantId }: Props
           cursor: 'pointer',
         }}
       >
-        {t('token.button')}
+        <Bilingual k="token.button" inline />
       </button>
 
       {open && (
@@ -142,7 +143,7 @@ export default function FieldCaptureTokenButton({ assessmentId, plantId }: Props
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
               <div>
-                <div style={{ fontSize: '16px', fontWeight: 700 }}>{t('token.title')}</div>
+                <div style={{ fontSize: '16px', fontWeight: 700 }}><Bilingual k="token.title" /></div>
                 <div style={{ fontSize: '12px', color: '#666', marginTop: '2px' }}>
                   {t('token.subtitle')}
                 </div>
@@ -158,7 +159,7 @@ export default function FieldCaptureTokenButton({ assessmentId, plantId }: Props
               padding: '12px', marginBottom: '14px',
             }}>
               <div style={{ fontSize: '11px', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: '8px' }}>
-                {t('token.generate_title')}
+                <Bilingual k="token.generate_title" />
               </div>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 <input
@@ -188,7 +189,7 @@ export default function FieldCaptureTokenButton({ assessmentId, plantId }: Props
                     border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: 600, cursor: 'pointer',
                   }}
                 >
-                  {t('token.generate')}
+                  <Bilingual k="token.generate" inline />
                 </button>
               </div>
             </div>
@@ -196,12 +197,12 @@ export default function FieldCaptureTokenButton({ assessmentId, plantId }: Props
             {/* Existing list */}
             <div>
               <div style={{ fontSize: '11px', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: '8px' }}>
-                {t('token.active_links')} ({tokens.filter(tk => !tk.revoked_at && new Date(tk.expires_at) > new Date()).length})
+                <Bilingual k="token.active_links" /> ({tokens.filter(tk => !tk.revoked_at && new Date(tk.expires_at) > new Date()).length})
               </div>
               {loading && <div style={{ fontSize: '12px', color: '#888' }}>{t('token.loading')}</div>}
               {!loading && tokens.length === 0 && (
                 <div style={{ fontSize: '12px', color: '#888', padding: '14px', textAlign: 'center', background: '#fafafa', borderRadius: '6px' }}>
-                  {t('token.no_links')}
+                  <Bilingual k="token.no_links" />
                 </div>
               )}
               {tokens.map(tok => {
@@ -239,7 +240,7 @@ export default function FieldCaptureTokenButton({ assessmentId, plantId }: Props
                             padding: '6px 10px', background: '#f0f0f0', border: '1px solid #ddd',
                             borderRadius: '5px', fontSize: '11px', cursor: isActive ? 'pointer' : 'not-allowed', color: '#333',
                           }}
-                        >{t('token.copy')}</button>
+                        ><Bilingual k="token.copy" inline /></button>
                         {isActive && (
                           <button
                             type="button"
@@ -248,7 +249,7 @@ export default function FieldCaptureTokenButton({ assessmentId, plantId }: Props
                               padding: '6px 10px', background: '#fff', border: '1px solid #C0392B',
                               borderRadius: '5px', fontSize: '11px', cursor: 'pointer', color: '#C0392B',
                             }}
-                          >{t('token.revoke')}</button>
+                          ><Bilingual k="token.revoke" inline /></button>
                         )}
                       </div>
                     </div>

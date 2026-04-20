@@ -20,6 +20,7 @@ import type { ActiveTrip, StageName } from '@/lib/fieldlog/offline-trip-queue'
 import { STAGES } from '@/lib/fieldlog/offline-trip-queue'
 import { useStopwatch } from '@/hooks/useStopwatch'
 import { useLogT } from '@/lib/i18n/LogLocaleContext'
+import Bilingual from '@/lib/i18n/Bilingual'
 import type { LogStringKey } from '@/lib/i18n/log-catalog'
 
 interface LiveTripCardProps {
@@ -221,7 +222,7 @@ export default function LiveTripCard({
         padding: '16px', textAlign: 'center',
       }}>
         <div style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', letterSpacing: '.5px', fontWeight: 600 }}>
-          {t('card.total_elapsed')}
+          <Bilingual k="card.total_elapsed" />
         </div>
         <div style={{
           fontFamily: 'ui-monospace, SF Mono, Menlo, monospace',
@@ -291,7 +292,7 @@ export default function LiveTripCard({
             fontSize: '13px', fontWeight: 600, color: '#555', cursor: 'pointer',
           }}
         >
-          <span>{t('card.truck_driver_site')}</span>
+          <span><Bilingual k="card.truck_driver_site" /></span>
           <span style={{ fontSize: '10px', color: '#888' }}>{showIdentity ? '▲' : '▼'}</span>
         </button>
         {showIdentity && (
@@ -361,7 +362,7 @@ export default function LiveTripCard({
             fontSize: '13px', fontWeight: 600, color: '#555', cursor: 'pointer',
           }}
         >
-          <span>{t('card.trip_notes')}</span>
+          <span><Bilingual k="card.trip_notes" /></span>
           <span style={{ fontSize: '10px', color: '#888' }}>{showNotes ? '▲' : '▼'}</span>
         </button>
         {showNotes && (
@@ -397,13 +398,13 @@ export default function LiveTripCard({
         {trip.rejected ? (
           <>
             <span>✕</span>
-            <span>{t('card.load_rejected')}</span>
+            <span><Bilingual k="card.load_rejected" inline /></span>
             <span style={{ fontSize: '11px', opacity: 0.7 }}>· {t('card.tap_to_unmark')}</span>
           </>
         ) : (
           <>
             <span style={{ fontSize: '14px' }}>○</span>
-            <span>{t('card.mark_rejected')}</span>
+            <span><Bilingual k="card.mark_rejected" inline /></span>
           </>
         )}
       </button>
@@ -424,7 +425,7 @@ export default function LiveTripCard({
             fontSize: '13px', fontWeight: 600, cursor: 'pointer',
           }}
         >
-          {t('card.save_partial')}
+          <Bilingual k="card.save_partial" inline />
         </button>
         <button
           type="button"
@@ -440,7 +441,7 @@ export default function LiveTripCard({
             fontSize: '13px', fontWeight: 600, cursor: 'pointer',
           }}
         >
-          {t('card.discard')}
+          <Bilingual k="card.discard" inline />
         </button>
       </div>
 
@@ -467,7 +468,7 @@ export default function LiveTripCard({
               padding: '6px 10px',
             }}
           >
-            {t('undo.undo')}
+            <Bilingual k="undo.undo" inline />
           </button>
         </div>
       )}
@@ -562,7 +563,7 @@ function TripReviewView({ trip, onUndoSplit, onConfirmSave, onCancel, onClose }:
         background: '#E1F5EE', border: '1px solid #A8D9C5',
         borderRadius: '10px', padding: '10px 12px', fontSize: '12px', color: '#0F6E56',
       }}>
-        {t('review.trip_complete')}
+        <Bilingual k="review.trip_complete" />
       </div>
 
       {/* Timestamp list */}
@@ -591,12 +592,12 @@ function TripReviewView({ trip, onUndoSplit, onConfirmSave, onCancel, onClose }:
                 </div>
                 {missing && (
                   <div style={{ fontSize: '11px', color: '#C0392B', marginTop: '2px' }}>
-                    {t('review.not_recorded')}
+                    <Bilingual k="review.not_recorded" inline />
                   </div>
                 )}
                 {edited && !missing && (
                   <div style={{ fontSize: '11px', color: '#D68910', marginTop: '2px' }}>
-                    {t('review.edited')}
+                    <Bilingual k="review.edited" inline />
                   </div>
                 )}
               </div>
@@ -638,7 +639,7 @@ function TripReviewView({ trip, onUndoSplit, onConfirmSave, onCancel, onClose }:
             boxShadow: '0 4px 14px rgba(15, 110, 86, 0.25)',
           }}
         >
-          {t('review.save_trip')}
+          <Bilingual k="review.save_trip" inline />
         </button>
         <div style={{ display: 'flex', gap: '8px' }}>
           <button
@@ -651,7 +652,7 @@ function TripReviewView({ trip, onUndoSplit, onConfirmSave, onCancel, onClose }:
               fontSize: '13px', fontWeight: 600, cursor: 'pointer',
             }}
           >
-            ← {t('review.back_to_timer')}
+            ← <Bilingual k="review.back_to_timer" inline />
           </button>
           <button
             type="button"
@@ -663,7 +664,7 @@ function TripReviewView({ trip, onUndoSplit, onConfirmSave, onCancel, onClose }:
               fontSize: '13px', fontWeight: 600, cursor: 'pointer',
             }}
           >
-            {t('review.discard_trip')}
+            <Bilingual k="review.discard_trip" inline />
           </button>
         </div>
       </div>
@@ -733,7 +734,7 @@ function OriginPlantChip({ value, suggestions, onChange }: {
           background: '#0F6E56', color: '#fff', border: 'none',
           borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer',
         }}
-      >{t('card.save')}</button>
+      ><Bilingual k="card.save" inline /></button>
       <button
         type="button"
         onClick={() => { setLocal(value); setEditing(false) }}
