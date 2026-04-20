@@ -717,6 +717,11 @@ export function buildDailyLogPayload(trip: PendingTrip): Record<string, unknown>
     // Partial if explicitly saved mid-trip, OR if single-stage mode
     // (only one stage was measured, remaining are null by design).
     is_partial: trip.isPartial || trip.measurementMode === 'single_stage',
+    // Measurement scope: distinguishes a full-cycle trip from a deliberate
+    // single-stage sample. Full trips set measured_stage=NULL; single
+    // trips require measured_stage to name the one stage being timed.
+    measurement_mode: trip.measurementMode === 'single_stage' ? 'single' : 'full',
+    measured_stage: trip.measurementMode === 'single_stage' ? (trip.singleStage ?? null) : null,
     rejected: trip.rejected ?? false,
     stage_notes: Object.keys(trip.stageNotes).length > 0 ? trip.stageNotes : null,
     notes: trip.notes || null,

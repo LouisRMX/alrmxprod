@@ -49,6 +49,8 @@ interface TripPayload {
   plant_prep_end?: string | null
   measurer_name?: string
   is_partial?: boolean
+  measurement_mode?: 'full' | 'single'
+  measured_stage?: string | null
   rejected?: boolean
   stage_notes?: Record<string, string> | null
   notes?: string | null
@@ -158,6 +160,16 @@ export async function POST(req: NextRequest) {
     plant_prep_end: payload.plant_prep_end ?? null,
     measurer_name: typeof payload.measurer_name === 'string' ? payload.measurer_name : 'anonymous',
     is_partial: Boolean(payload.is_partial),
+    // Measurement scope: validate both together so DB constraint
+    // (mode=single → measured_stage NOT NULL) can't be tripped.
+    measurement_mode: payload.measurement_mode === 'single' ? 'single' : 'full',
+    measured_stage: (payload.measurement_mode === 'single'
+      && typeof payload.measured_stage === 'string'
+      && ['plant_queue', 'loading', 'weighbridge', 'transit_out',
+          'site_wait', 'pouring', 'site_washout', 'transit_back', 'plant_prep']
+          .includes(payload.measured_stage))
+      ? payload.measured_stage
+      : null,
     rejected: Boolean(payload.rejected),
     stage_notes: payload.stage_notes ?? null,
     notes: payload.notes ?? null,

@@ -39,6 +39,11 @@ export interface DailyLogRow {
   measurer_name?: string | null
   is_partial?: boolean | null
   stage_notes?: Record<string, string> | null
+  // Measurement scope (2026-04-20): distinguishes a full-cycle trip from
+  // a deliberate single-stage sample. When mode is 'single', measured_stage
+  // names which of the 9 stages the observer was timing.
+  measurement_mode?: 'full' | 'single'
+  measured_stage?: string | null
   // Multi-plant shared-fleet support (2026-04-18 migration)
   origin_plant?: string | null
 }

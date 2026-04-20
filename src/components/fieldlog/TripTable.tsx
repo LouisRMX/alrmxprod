@@ -33,6 +33,40 @@ function siteTypeShort(t: string | null): string {
   }
 }
 
+function stageShort(s: string | null | undefined): string {
+  switch (s) {
+    case 'plant_queue': return 'Plant queue'
+    case 'loading': return 'Loading'
+    case 'weighbridge': return 'Weighbridge'
+    case 'transit_out': return 'Transit out'
+    case 'site_wait': return 'Site wait'
+    case 'pouring': return 'Pouring'
+    case 'site_washout': return 'Site washout'
+    case 'transit_back': return 'Transit back'
+    case 'plant_prep': return 'Plant prep'
+    default: return s ?? ''
+  }
+}
+
+/** Render a short mode label for the table cell:
+ *  - Full cycle trip, all stages captured → "Full"
+ *  - Full cycle trip saved mid-way → "Partial"
+ *  - Single-stage measurement → "{Stage} only"
+ */
+function modeLabel(t: {
+  measurement_mode?: 'full' | 'single'
+  measured_stage?: string | null
+  is_partial?: boolean | null
+}): { label: string; tone: 'full' | 'partial' | 'single' } {
+  if (t.measurement_mode === 'single' && t.measured_stage) {
+    return { label: `${stageShort(t.measured_stage)} only`, tone: 'single' }
+  }
+  if (t.is_partial) {
+    return { label: 'Partial', tone: 'partial' }
+  }
+  return { label: 'Full', tone: 'full' }
+}
+
 interface TripTableProps {
   trips: DailyLogRow[]
   isAdmin?: boolean
@@ -77,6 +111,7 @@ export default function TripTable({ trips, isAdmin, onDelete }: TripTableProps) 
             <th style={th}>#</th>
             <th style={th}>Truck</th>
             <th style={th}>Measurer</th>
+            <th style={th}>Mode</th>
             <th style={th}>Site type</th>
             <th style={th}>Depart</th>
             <th style={th}>Arrive</th>
@@ -96,6 +131,19 @@ export default function TripTable({ trips, isAdmin, onDelete }: TripTableProps) 
               <td style={{ ...td, fontWeight: 500 }}>{t.truck_id || '-'}</td>
               <td style={{ ...td, color: t.measurer_name ? '#333' : '#ccc' }}>
                 {t.measurer_name || '-'}
+              </td>
+              <td style={td}>
+                {(() => {
+                  const m = modeLabel(t)
+                  const bg = m.tone === 'full' ? '#E1F5EE' : m.tone === 'single' ? '#FFF4D6' : '#FDEDEC'
+                  const fg = m.tone === 'full' ? '#0F6E56' : m.tone === 'single' ? '#7a5a00' : '#8B3A2E'
+                  return (
+                    <span style={{
+                      padding: '2px 6px', background: bg, color: fg,
+                      borderRadius: '4px', fontSize: '10px', fontWeight: 600,
+                    }}>{m.label}</span>
+                  )
+                })()}
               </td>
               <td style={td}>
                 {t.site_type && t.site_type !== 'unknown' ? (
