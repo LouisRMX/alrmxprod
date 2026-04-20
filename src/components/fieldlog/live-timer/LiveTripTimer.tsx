@@ -45,6 +45,7 @@ import {
   type ActiveTrip,
   type PendingTrip,
   type StageName,
+  type SiteType,
 } from '@/lib/fieldlog/offline-trip-queue'
 import { useOnlineStatus } from '@/hooks/useOnlineStatus'
 import { createClient } from '@/lib/supabase/client'
@@ -81,6 +82,10 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
   const [syncingNow, setSyncingNow] = useState(false)
   // Selected starting stage for the next trip. plant_queue = full cycle.
   const [startStage, setStartStage] = useState<StageName>('plant_queue')
+  // Site type pre-selected on the start screen. Observer can override on the
+  // trip card later. Undefined means "don't set" — startTrip will still do
+  // a cache lookup by site_name if one is provided.
+  const [startSiteType, setStartSiteType] = useState<SiteType | undefined>(undefined)
   // Transient "Trip saved" toast shown after a trip finalises.
   const [saveToast, setSaveToast] = useState<string | null>(null)
 
@@ -188,11 +193,15 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
       plantId,
       measurerName: currentMeasurer,
       originPlant: currentOriginPlant || undefined,
+      siteType: startSiteType,
       startStage,
       viaToken: syncMode === 'token',
       token,
     })
     setFocusedTripId(trip.id)
+    // Reset the pre-selection so the next trip starts blank; cache still
+    // auto-applies via site_name so consistent sites don't need re-picking.
+    setStartSiteType(undefined)
     // Haptic confirmation on Start (works in PWA-installed iOS and most Android)
     if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
       try { navigator.vibrate(75) } catch { /* ignore */ }
@@ -522,6 +531,44 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
             {t('live.single_stage_explainer', { stage: stageLabel(startStage) })}
           </div>
         )}
+      </div>
+
+      {/* Site type pre-selection (optional). Persists to the trip the moment
+          Start is tapped; observer can still change it later on the trip card.
+          If left empty the cache will auto-apply on site_name match. */}
+      <div style={{
+        background: '#fff', border: '1px solid #e5e5e5', borderRadius: '12px', padding: '12px',
+      }}>
+        <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '8px' }}>
+          <Bilingual k="site_type.label" />
+        </label>
+        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+          {(['ground_pour', 'high_rise', 'infrastructure', 'unknown'] as const).map(opt => {
+            const active = startSiteType === opt
+            const key = `site_type.${opt}` as LogStringKey
+            return (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => setStartSiteType(active ? undefined : opt)}
+                style={{
+                  padding: '8px 12px', minHeight: '44px',
+                  background: active ? '#0F6E56' : '#fff',
+                  color: active ? '#fff' : '#555',
+                  border: `1.5px solid ${active ? '#0F6E56' : '#d1d5db'}`,
+                  borderRadius: '8px',
+                  fontSize: '13px', fontWeight: 600, cursor: 'pointer',
+                  flex: '1 1 140px',
+                }}
+              >
+                <Bilingual k={key} inline />
+              </button>
+            )
+          })}
+        </div>
+        <div style={{ fontSize: '11px', color: '#888', marginTop: '6px', lineHeight: 1.4 }}>
+          {t('site_type.help')}
+        </div>
       </div>
 
       {/* Start new trip button */}
