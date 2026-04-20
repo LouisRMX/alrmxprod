@@ -9,6 +9,7 @@ import UploadParseView from './UploadParseView'
 import AudioCaptureView from './AudioCaptureView'
 import LiveTripTimer from './live-timer/LiveTripTimer'
 import FieldCaptureTokenButton from './FieldCaptureTokenButton'
+import FieldCapturePreviewButton from './FieldCapturePreviewButton'
 import FieldLogDiagnostics from './diagnostics/FieldLogDiagnostics'
 import { InterventionsEditor } from './InterventionsView'
 import ToDoEditor from './ToDoEditor'
@@ -159,6 +160,7 @@ function FieldLogViewInner({ assessmentId, plantId, isAdmin, reportedTAT, target
         </div>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           {isAdmin && <DailyBriefingExport assessmentId={assessmentId} />}
+          {isAdmin && <FieldCapturePreviewButton assessmentId={assessmentId} plantId={plantId} />}
           {isAdmin && <FieldCaptureTokenButton assessmentId={assessmentId} plantId={plantId} />}
         </div>
       </div>
