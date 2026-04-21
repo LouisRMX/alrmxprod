@@ -88,6 +88,9 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
   // ticks "Measure single stage". Keeps the start screen uncluttered for
   // the common case.
   const [showSingleStagePicker, setShowSingleStagePicker] = useState(false)
+  // Collapsed by default: hides origin plant + single-stage toggle so first-time
+  // users see only their name + site type + big Start button. Expand when needed.
+  const [showMoreOptions, setShowMoreOptions] = useState(false)
   // Site type pre-selected on the start screen. Observer can override on the
   // trip card later. Undefined means "don't set" — startTrip will still do
   // a cache lookup by site_name if one is provided.
@@ -113,16 +116,45 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
   )
   const pendingCount = pendingTrips?.length ?? 0
 
-  // Load measurer list from IndexedDB on mount
+  // Load measurer list from IndexedDB on mount, and auto-seed with the
+  // logged-in user's name if the list is empty. Low-tech users should never
+  // have to "Add a measurer first" before starting their first trip.
   useEffect(() => {
-    getAllMeasurers().then(list => {
-      setMeasurers(list)
-      if (list.length > 0 && !currentMeasurer) setCurrentMeasurer(list[0])
-    })
-    getAllOriginPlants().then(list => {
-      setOriginPlants(list)
-      if (list.length > 0 && !currentOriginPlant) setCurrentOriginPlant(list[0])
-    })
+    async function init() {
+      const list = await getAllMeasurers()
+      const plantList = await getAllOriginPlants()
+      setOriginPlants(plantList)
+      if (plantList.length > 0 && !currentOriginPlant) setCurrentOriginPlant(plantList[0])
+
+      if (list.length > 0) {
+        setMeasurers(list)
+        if (!currentMeasurer) setCurrentMeasurer(list[0])
+        return
+      }
+      // Empty measurer list: seed with logged-in user's name (authed mode only)
+      if (syncMode !== 'authed') {
+        setMeasurers(list)
+        return
+      }
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) { setMeasurers(list); return }
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('id', user.id)
+          .maybeSingle()
+        const name = (profile?.full_name || user.email?.split('@')[0] || '').trim()
+        if (!name) { setMeasurers(list); return }
+        await addMeasurer(name)
+        const seeded = await getAllMeasurers()
+        setMeasurers(seeded)
+        setCurrentMeasurer(name)
+      } catch {
+        setMeasurers(list)
+      }
+    }
+    init()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load autocomplete suggestions (server trucks/drivers/sites from prior trips)
@@ -340,32 +372,36 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
       background: '#fafafa', padding: '16px', gap: '14px',
       paddingBottom: 'max(16px, env(safe-area-inset-bottom))',
     }}>
-      {/* Status bar */}
-      <div style={{
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        background: online ? '#E1F5EE' : '#FDEDEC',
-        border: `1px solid ${online ? '#A8D9C5' : '#E8A39B'}`,
-        borderRadius: '10px', padding: '8px 12px', fontSize: '12px',
-      }}>
-        <span style={{ color: online ? '#0F6E56' : '#8B3A2E', fontWeight: 600 }}>
-          {online ? '● Online' : '● Offline — trips saved locally'}
-        </span>
-        <span style={{ color: '#666' }}>
-          {pendingCount > 0 ? `${pendingCount} pending sync` : 'All synced'}
-          {pendingCount > 0 && online && (
-            <button
-              type="button"
-              onClick={runSync}
-              disabled={syncingNow}
-              style={{
-                marginLeft: '8px', padding: '4px 10px',
-                background: '#0F6E56', color: '#fff', border: 'none',
-                borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer',
-              }}
-            >{syncingNow ? 'Syncing…' : 'Sync now'}</button>
-          )}
-        </span>
-      </div>
+      {/* Status bar. In authed mode, FieldLogView already renders a SyncStatusBar
+          at the top of the tab, so we skip this one. Token (helper) mode has no
+          outer bar so we still show it here. */}
+      {syncMode === 'token' && (
+        <div style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          background: online ? '#E1F5EE' : '#FDEDEC',
+          border: `1px solid ${online ? '#A8D9C5' : '#E8A39B'}`,
+          borderRadius: '10px', padding: '8px 12px', fontSize: '12px',
+        }}>
+          <span style={{ color: online ? '#0F6E56' : '#8B3A2E', fontWeight: 600 }}>
+            {online ? '● Online' : '● Offline — trips saved locally'}
+          </span>
+          <span style={{ color: '#666' }}>
+            {pendingCount > 0 ? `${pendingCount} pending sync` : 'All synced'}
+            {pendingCount > 0 && online && (
+              <button
+                type="button"
+                onClick={runSync}
+                disabled={syncingNow}
+                style={{
+                  marginLeft: '8px', padding: '4px 10px',
+                  background: '#0F6E56', color: '#fff', border: 'none',
+                  borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer',
+                }}
+              >{syncingNow ? 'Syncing…' : 'Sync now'}</button>
+            )}
+          </span>
+        </div>
+      )}
 
       {/* Measurer selector */}
       <div style={{
@@ -440,7 +476,50 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
         )}
       </div>
 
+      {/* Site type: friendly one-liner question. Dropdown stays here for Wave 1;
+          Wave 2 will convert to an icon grid. Observer can still change it on
+          the trip card once a trip is active. */}
+      <div style={{
+        background: '#fff', border: '1px solid #e5e5e5', borderRadius: '12px', padding: '12px',
+      }}>
+        <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#333', marginBottom: '8px' }}>
+          <Bilingual k="site_type.question" />
+        </label>
+        <select
+          value={startSiteType ?? ''}
+          onChange={e => setStartSiteType((e.target.value || undefined) as SiteType | undefined)}
+          style={{
+            width: '100%', minHeight: '44px', padding: '0 12px',
+            border: '1px solid #ddd', borderRadius: '8px',
+            fontSize: '15px', background: '#fff',
+          }}
+        >
+          <option value="">—</option>
+          {SITE_TYPE_ORDER.map(opt => (
+            <option key={opt} value={opt}>{t(`site_type.${opt}` as LogStringKey)}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* More options toggle: collapses rarely-used controls (origin plant for
+          multi-plant shared-fleet assessments, single-stage measurement). */}
+      <button
+        type="button"
+        onClick={() => setShowMoreOptions(v => !v)}
+        style={{
+          width: '100%', minHeight: '40px',
+          background: 'transparent', color: '#0F6E56',
+          border: '1px dashed #A8D9C5', borderRadius: '10px',
+          fontSize: '13px', fontWeight: 600, cursor: 'pointer',
+        }}
+      >
+        {showMoreOptions
+          ? <>▲ <Bilingual k="live.hide_options" inline /></>
+          : <>▼ <Bilingual k="live.more_options" inline /></>}
+      </button>
+
       {/* Origin plant selector (optional, for multi-plant shared-fleet assessments) */}
+      {showMoreOptions && (<div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
       <div style={{
         background: '#fff', border: '1px solid #e5e5e5', borderRadius: '12px', padding: '12px',
       }}>
@@ -554,34 +633,7 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
           </div>
         )}
       </div>
-
-      {/* Site type pre-selection (optional). Persists to the trip the moment
-          Start is tapped; observer can still change it later on the trip card.
-          If left empty the cache will auto-apply on site_name match. */}
-      <div style={{
-        background: '#fff', border: '1px solid #e5e5e5', borderRadius: '12px', padding: '12px',
-      }}>
-        <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '8px' }}>
-          <Bilingual k="site_type.label" />
-        </label>
-        <select
-          value={startSiteType ?? ''}
-          onChange={e => setStartSiteType((e.target.value || undefined) as SiteType | undefined)}
-          style={{
-            width: '100%', minHeight: '44px', padding: '0 12px',
-            border: '1px solid #ddd', borderRadius: '8px',
-            fontSize: '15px', background: '#fff',
-          }}
-        >
-          <option value="">—</option>
-          {SITE_TYPE_ORDER.map(opt => (
-            <option key={opt} value={opt}>{t(`site_type.${opt}` as LogStringKey)}</option>
-          ))}
-        </select>
-        <div style={{ fontSize: '11px', color: '#888', marginTop: '6px', lineHeight: 1.4 }}>
-          {t('site_type.help')}
-        </div>
-      </div>
+      </div>)}
 
       {/* Start new trip button */}
       <button
