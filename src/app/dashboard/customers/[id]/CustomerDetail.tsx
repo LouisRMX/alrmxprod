@@ -240,7 +240,7 @@ export default function CustomerDetail({ customer, plants, members: initialMembe
           borderRadius: 'var(--radius)', padding: '20px', marginBottom: '24px'
         }}>
           <div style={{ fontSize: '14px', fontWeight: '600', marginBottom: '16px' }}>Edit customer</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px', marginBottom: '16px' }}>
             <div>
               <label style={{ fontSize: '11px', fontWeight: '500', color: 'var(--gray-700)', display: 'block', marginBottom: '5px' }}>
                 Company name *

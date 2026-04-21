@@ -60,7 +60,7 @@ export default function AddCustomerForm({ userId: _ }: { userId: string }) {
       ) : (
         <form onSubmit={handleSubmit}>
           <div style={{ fontSize: '14px', fontWeight: '600', marginBottom: '16px' }}>New customer</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px', marginBottom: '12px' }}>
             <div>
               <label style={{ fontSize: '11px', fontWeight: '500', color: 'var(--gray-700)', display: 'block', marginBottom: '5px' }}>
                 Company name *

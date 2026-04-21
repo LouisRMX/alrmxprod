@@ -482,11 +482,15 @@ export default function CompareView({
         )}
       </div>
 
-      {/* Summary chips */}
-      <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
+      {/* Summary chips — one-per-row on mobile, side-by-side on desktop */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
+        gap: '10px', marginBottom: '20px',
+      }}>
         <div style={{
           background: '#fff8ed', border: '1px solid #f5cba0',
-          borderRadius: '10px', padding: '14px 20px', flex: '1', minWidth: '140px',
+          borderRadius: '10px', padding: '14px 20px',
         }}>
           <div style={{ fontSize: '10px', fontWeight: 600, color: '#c96a00', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: '5px' }}>
             Total recoverable
@@ -501,7 +505,7 @@ export default function CompareView({
 
         <div style={{
           background: 'var(--gray-50)', border: '1px solid var(--border)',
-          borderRadius: '10px', padding: '14px 20px', flex: '1', minWidth: '140px',
+          borderRadius: '10px', padding: '14px 20px',
         }}>
           <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: '5px' }}>
             Primary bottleneck
@@ -513,7 +517,7 @@ export default function CompareView({
 
         <div style={{
           background: 'var(--gray-50)', border: '1px solid var(--border)',
-          borderRadius: '10px', padding: '14px 20px', flex: '1', minWidth: '140px',
+          borderRadius: '10px', padding: '14px 20px',
         }}>
           <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: '5px' }}>
             Plants improving
@@ -562,6 +566,15 @@ export default function CompareView({
         background: 'var(--white)', border: '1px solid var(--border)',
         borderRadius: 'var(--radius)', overflow: 'hidden', marginBottom: '16px',
       }}>
+        {isMobile && (
+          <div style={{
+            padding: '8px 12px', background: 'var(--gray-50)',
+            fontSize: '11px', color: 'var(--gray-500)', fontStyle: 'italic',
+            borderBottom: '1px solid var(--border)',
+          }}>
+            ← Scroll sideways to see all KPI columns →
+          </div>
+        )}
         <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' as React.CSSProperties['WebkitOverflowScrolling'] }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '680px' }}>
             <thead>

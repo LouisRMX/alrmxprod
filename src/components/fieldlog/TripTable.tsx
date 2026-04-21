@@ -91,12 +91,12 @@ export default function TripTable({ trips, isAdmin, onDelete }: TripTableProps) 
   }
 
   const th: React.CSSProperties = {
-    fontSize: '10px', fontWeight: 600, color: '#888', textTransform: 'uppercase',
-    letterSpacing: '.04em', padding: '6px 8px', textAlign: 'left', borderBottom: '1px solid #eee',
+    fontSize: '11px', fontWeight: 600, color: '#888', textTransform: 'uppercase',
+    letterSpacing: '.04em', padding: '10px 10px', textAlign: 'left', borderBottom: '1px solid #eee',
     whiteSpace: 'nowrap',
   }
   const td: React.CSSProperties = {
-    fontSize: '13px', padding: '7px 8px', borderBottom: '1px solid #f5f5f5',
+    fontSize: '13px', padding: '12px 10px', borderBottom: '1px solid #f5f5f5',
     whiteSpace: 'nowrap', color: '#333',
   }
 

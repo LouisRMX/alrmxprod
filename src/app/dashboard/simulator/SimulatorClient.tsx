@@ -436,7 +436,7 @@ export default function SimulatorClient({ assessments }: SimulatorClientProps) {
             <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--gray-700)', marginBottom: '12px' }}>
               Baseline, {selected.plant?.name}
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px' }}>
               {[
                 { label: 'Monthly loss', value: fmtMoney(selected.ebitda_monthly || 0) + '/mo', color: '#C0392B' },
                 { label: 'Constraint', value: selected.bottleneck || '-', color: '#C0392B' },
@@ -479,7 +479,7 @@ export default function SimulatorClient({ assessments }: SimulatorClientProps) {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '24px' }}>
               {/* Turnaround */}
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
@@ -662,7 +662,7 @@ export default function SimulatorClient({ assessments }: SimulatorClientProps) {
             </table>
 
             {/* Constraint breakdown */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '20px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px', marginBottom: '20px' }}>
               {[
                 { label: 'Production capacity', value: fmtVolume(result.prodDaily) + '/day', active: result.bottleneck === 'Production' },
                 { label: 'Fleet capacity (effective)', value: fmtVolume(result.effectiveFleetDaily) + '/day', active: result.bottleneck === 'Fleet / Logistics' || result.bottleneck === 'Dispatch' },

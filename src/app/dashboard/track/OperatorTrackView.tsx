@@ -276,7 +276,7 @@ export default function OperatorTrackView({ assessmentId, assessment, userId }: 
               Log Week {currentWeek}
             </div>
             <form onSubmit={handleSubmit}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '12px' }}>
                 {config.track_turnaround && (
                   <div>
                     <label style={{ fontSize: '11px', fontWeight: 500, color: 'var(--gray-700)', display: 'block', marginBottom: '5px' }}>

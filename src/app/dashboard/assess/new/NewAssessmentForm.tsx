@@ -184,7 +184,7 @@ export default function NewAssessmentForm({
       {/* Date & Season */}
       {customerId && (plantId || (addingPlant && newPlantName)) && (
         <>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
             <div>
               <label style={{ fontSize: '12px', fontWeight: '500', color: 'var(--gray-700)', display: 'block', marginBottom: '6px' }}>
                 Visit date
