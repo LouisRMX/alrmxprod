@@ -9,6 +9,7 @@
  */
 import LiveTripTimer from '@/components/fieldlog/live-timer/LiveTripTimer'
 import LocaleToggle from '@/components/fieldlog/LocaleToggle'
+import LocaleFirstVisitModal from '@/components/fieldlog/LocaleFirstVisitModal'
 import { LogLocaleProvider, useLogT } from '@/lib/i18n/LogLocaleContext'
 
 interface Props {
@@ -21,6 +22,7 @@ interface Props {
 export default function FieldCaptureClient(props: Props) {
   return (
     <LogLocaleProvider>
+      <LocaleFirstVisitModal />
       <FieldCaptureInner {...props} />
     </LogLocaleProvider>
   )

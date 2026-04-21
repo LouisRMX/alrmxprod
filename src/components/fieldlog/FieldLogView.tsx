@@ -14,6 +14,7 @@ import ToDoEditor from './ToDoEditor'
 import ReviewQueue from './ReviewQueue'
 import SyncStatusBar from './SyncStatusBar'
 import LocaleToggle from './LocaleToggle'
+import LocaleFirstVisitModal from './LocaleFirstVisitModal'
 import { LogLocaleProvider, useLogT } from '@/lib/i18n/LogLocaleContext'
 import Bilingual from '@/lib/i18n/Bilingual'
 
@@ -39,6 +40,7 @@ interface FieldLogViewProps {
 export default function FieldLogView(props: FieldLogViewProps) {
   return (
     <LogLocaleProvider>
+      <LocaleFirstVisitModal />
       <FieldLogViewInner {...props} />
     </LogLocaleProvider>
   )

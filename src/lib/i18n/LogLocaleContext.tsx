@@ -36,6 +36,10 @@ interface LogLocaleCtx {
   isRTL: boolean
   bilingualMode: boolean
   setBilingualMode: (v: boolean) => void
+  /** True once a stored locale has been read (client-only). Consumers can
+   *  gate a first-visit language modal on !hasChosenLocale && hydrated. */
+  hydrated: boolean
+  hasChosenLocale: boolean
 }
 
 const LogLocaleContext = createContext<LogLocaleCtx | null>(null)
@@ -43,15 +47,19 @@ const LogLocaleContext = createContext<LogLocaleCtx | null>(null)
 export function LogLocaleProvider({ children }: { children: React.ReactNode }) {
   const [locale, setLocaleState] = useState<LogLocale>('en')
   const [bilingualMode, setBilingualModeState] = useState(false)
+  const [hydrated, setHydrated] = useState(false)
+  const [hasChosenLocale, setHasChosenLocale] = useState(false)
 
   // Read persisted state on mount. SSR-safe: defaults to 'en' + off,
-  // then flips on client if stored values differ.
+  // then flips on client if stored values differ. hasChosenLocale lets
+  // consumers gate a first-visit language chooser modal.
   useEffect(() => {
     if (typeof window === 'undefined') return
     try {
       const stored = window.localStorage.getItem(STORAGE_KEY)
       if (stored === 'en' || stored === 'ar') {
         setLocaleState(stored)
+        setHasChosenLocale(true)
       }
       const storedBi = window.localStorage.getItem(BILINGUAL_KEY)
       if (storedBi === '1') {
@@ -60,10 +68,12 @@ export function LogLocaleProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // Private browsing or disabled storage, ignore
     }
+    setHydrated(true)
   }, [])
 
   const setLocale = useCallback((l: LogLocale) => {
     setLocaleState(l)
+    setHasChosenLocale(true)
     if (typeof window !== 'undefined') {
       try {
         window.localStorage.setItem(STORAGE_KEY, l)
@@ -96,7 +106,9 @@ export function LogLocaleProvider({ children }: { children: React.ReactNode }) {
     isRTL: locale === 'ar',
     bilingualMode,
     setBilingualMode,
-  }), [locale, setLocale, t, bilingualMode, setBilingualMode])
+    hydrated,
+    hasChosenLocale,
+  }), [locale, setLocale, t, bilingualMode, setBilingualMode, hydrated, hasChosenLocale])
 
   return (
     <LogLocaleContext.Provider value={value}>
@@ -125,6 +137,8 @@ export function useLogT(): LogLocaleCtx {
       isRTL: false,
       bilingualMode: false,
       setBilingualMode: () => {},
+      hydrated: false,
+      hasChosenLocale: false,
     }
   }
   return ctx
