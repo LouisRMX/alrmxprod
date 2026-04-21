@@ -19,10 +19,11 @@
 
 import { useEffect, useState } from 'react'
 import type { ActiveTrip, StageName, SiteType } from '@/lib/fieldlog/offline-trip-queue'
-import { STAGES, SITE_TYPE_ORDER } from '@/lib/fieldlog/offline-trip-queue'
+import { STAGES } from '@/lib/fieldlog/offline-trip-queue'
 import { useStopwatch } from '@/hooks/useStopwatch'
 import { useLogT } from '@/lib/i18n/LogLocaleContext'
 import Bilingual from '@/lib/i18n/Bilingual'
+import SiteTypeGrid from '../SiteTypeGrid'
 import type { LogStringKey } from '@/lib/i18n/log-catalog'
 
 interface LiveTripCardProps {
@@ -902,61 +903,24 @@ function OriginPlantChip({ value, suggestions, onChange }: {
   )
 }
 
-// ── Site type picker (dropdown) ─────────────────────────────────────────
-// 10-value dropdown whose labels embed both the site category and the
-// implied pour method. The fromCache flag triggers an amber "⟳ auto"
-// badge + dashed border so a silent carry-over from a previous trip is
-// visible until the observer explicitly confirms or changes.
+// ── Site type picker (icon grid) ───────────────────────────────────────
+// Thin wrapper around SiteTypeGrid that adds the "Where is the truck going?"
+// question label and the auto-filled indicator for cache carry-overs.
 function SiteTypePicker({ value, fromCache, onChange }: {
   value?: SiteType
   fromCache: boolean
   onChange: (v: SiteType) => void
 }) {
   const { t } = useLogT()
-  const showAutoHint = fromCache && value !== undefined
   return (
     <div>
       <label style={{
-        display: 'flex', alignItems: 'center', gap: '6px',
-        fontSize: '11px', color: '#888', marginBottom: '4px', fontWeight: 600,
+        display: 'block',
+        fontSize: '11px', color: '#888', marginBottom: '6px', fontWeight: 600,
       }}>
-        <Bilingual k="site_type.label" />
-        {showAutoHint && (
-          <span style={{
-            padding: '1px 6px', background: '#FFF4D6',
-            color: '#7a5a00', border: '1px solid #F1D79A',
-            borderRadius: '3px', fontSize: '9px', fontWeight: 700,
-            textTransform: 'uppercase', letterSpacing: '.3px',
-          }}>
-            ⟳ {t('site_type.auto_badge')}
-          </span>
-        )}
+        {t('site_type.question')}
       </label>
-      <select
-        value={value ?? ''}
-        onChange={e => {
-          const v = e.target.value as SiteType
-          if (v) onChange(v)
-        }}
-        style={{
-          width: '100%', minHeight: '44px', padding: '0 12px',
-          fontSize: '14px',
-          background: showAutoHint ? '#FFF4D6' : '#fff',
-          color: showAutoHint ? '#7a5a00' : '#333',
-          border: showAutoHint
-            ? '1.5px dashed #D68910'
-            : `1px solid ${value ? '#0F6E56' : '#ddd'}`,
-          borderRadius: '8px', fontWeight: value ? 600 : 500, cursor: 'pointer',
-        }}
-      >
-        <option value="">—</option>
-        {SITE_TYPE_ORDER.map(opt => (
-          <option key={opt} value={opt}>{t(`site_type.${opt}` as LogStringKey)}</option>
-        ))}
-      </select>
-      <div style={{ fontSize: '10px', color: showAutoHint ? '#7a5a00' : '#aaa', marginTop: '4px', lineHeight: 1.3 }}>
-        {showAutoHint ? t('site_type.auto_filled') : t('site_type.help')}
-      </div>
+      <SiteTypeGrid value={value} fromCache={fromCache} onChange={onChange} compact />
     </div>
   )
 }

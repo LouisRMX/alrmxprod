@@ -42,7 +42,6 @@ import {
   addOriginPlant,
   drainPending,
   STAGES,
-  SITE_TYPE_ORDER,
   type ActiveTrip,
   type PendingTrip,
   type StageName,
@@ -51,6 +50,7 @@ import {
 import { useOnlineStatus } from '@/hooks/useOnlineStatus'
 import { createClient } from '@/lib/supabase/client'
 import LiveTripCard from './LiveTripCard'
+import SiteTypeGrid from '../SiteTypeGrid'
 import { useLogT } from '@/lib/i18n/LogLocaleContext'
 import Bilingual from '@/lib/i18n/Bilingual'
 import type { LogStringKey } from '@/lib/i18n/log-catalog'
@@ -476,29 +476,20 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
         )}
       </div>
 
-      {/* Site type: friendly one-liner question. Dropdown stays here for Wave 1;
-          Wave 2 will convert to an icon grid. Observer can still change it on
-          the trip card once a trip is active. */}
+      {/* Site type icon grid. Tap a tile to pick; observer can change it on
+          the trip card once a trip is active. Replaces the dropdown so
+          low-literacy dispatchers identify the site by pictogram, not by
+          reading 10 long text options. */}
       <div style={{
         background: '#fff', border: '1px solid #e5e5e5', borderRadius: '12px', padding: '12px',
       }}>
-        <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#333', marginBottom: '8px' }}>
+        <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#333', marginBottom: '10px' }}>
           <Bilingual k="site_type.question" />
         </label>
-        <select
-          value={startSiteType ?? ''}
-          onChange={e => setStartSiteType((e.target.value || undefined) as SiteType | undefined)}
-          style={{
-            width: '100%', minHeight: '44px', padding: '0 12px',
-            border: '1px solid #ddd', borderRadius: '8px',
-            fontSize: '15px', background: '#fff',
-          }}
-        >
-          <option value="">—</option>
-          {SITE_TYPE_ORDER.map(opt => (
-            <option key={opt} value={opt}>{t(`site_type.${opt}` as LogStringKey)}</option>
-          ))}
-        </select>
+        <SiteTypeGrid
+          value={startSiteType}
+          onChange={(v) => setStartSiteType(v)}
+        />
       </div>
 
       {/* More options toggle: collapses rarely-used controls (origin plant for
