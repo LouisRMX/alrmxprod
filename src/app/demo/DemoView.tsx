@@ -316,14 +316,17 @@ export default function DemoView({ userRole = null, isOverridden = false }: Demo
 
   // Allowed modes per role + phase
   // Pre-assessment: questions + report + decision + simulator (for scenario exploration with the customer)
-  // On-site: full product after plant visit
+  // On-site: full product after plant visit, including the Field Log tab
+  //   The Field Log itself uses the 'demo' assessment sentinel; FieldLogView
+  //   swaps it for the seeded assessment via NEXT_PUBLIC_DEMO_ASSESSMENT_ID
+  //   so the Log experience shows the populated 9-stage dataset.
   const allowedModes: AssessmentMode[] = demoPhase === 'workshop'
     ? (userRole === 'operator' ? ['track'] : ['questions', 'report', 'decision', 'simulator'])
     : userRole === 'owner'
     ? ['report', 'decision', 'simulator', 'track']
     : userRole === 'operator'
     ? ['track']
-    : ['questions', 'report', 'decision', 'simulator', 'track', 'gps']
+    : ['questions', 'report', 'decision', 'simulator', 'track', 'fieldlog', 'gps']
 
   // Everyone starts on All plants by default
   const defaultView: 'plants' | AssessmentMode =
