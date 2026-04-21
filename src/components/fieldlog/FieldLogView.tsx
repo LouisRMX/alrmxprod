@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { useIsMobile } from '@/hooks/useIsMobile'
 import { createClient } from '@/lib/supabase/client'
 import type { DailyLogRow } from '@/lib/fieldlog/types'
 import TripTable from './TripTable'
@@ -60,10 +61,25 @@ function FieldLogViewInner({ assessmentId, plantId, isAdmin, reportedTAT, target
   const { t, isRTL } = useLogT()
   const supabase = createClient()
   const today = new Date().toISOString().slice(0, 10)
+  const isMobile = useIsMobile()
 
   const [logDate, setLogDate] = useState(today)
   const [viewRange, setViewRange] = useState<ViewRange>('today')
   const [subTab, setSubTab] = useState<SubTab>('live')
+  const [showMoreTabs, setShowMoreTabs] = useState(false)
+  const moreMenuRef = useRef<HTMLDivElement>(null)
+
+  // Close the "More" menu when clicking outside of it
+  useEffect(() => {
+    if (!showMoreTabs) return
+    const onClick = (e: MouseEvent) => {
+      if (moreMenuRef.current && !moreMenuRef.current.contains(e.target as Node)) {
+        setShowMoreTabs(false)
+      }
+    }
+    document.addEventListener('mousedown', onClick)
+    return () => document.removeEventListener('mousedown', onClick)
+  }, [showMoreTabs])
   const [trips, setTrips] = useState<DailyLogRow[]>([])
   const [audioEnabled, setAudioEnabled] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -183,15 +199,73 @@ function FieldLogViewInner({ assessmentId, plantId, isAdmin, reportedTAT, target
         )}
       </div>
 
-      {/* Sub-tabs: 6 total. Add (+) replaces the former Manual/Upload/Audio
-          triple; method is selected via chips inside the Add tab. */}
-      <div style={{ display: 'flex', gap: '6px', marginBottom: '16px', flexWrap: 'wrap' }}>
+      {/* Sub-tabs: 6 total. On mobile, only the three most-used (Live,
+          Review, Add) stay visible; the rest collapse behind a "⋯ More"
+          menu to keep the viewport uncluttered for field observers. */}
+      <div style={{ display: 'flex', gap: '6px', marginBottom: '16px', flexWrap: 'wrap', position: 'relative' }}>
         {tabBtn('live', <><span>⏱</span><Bilingual k="tab.live" /></>)}
-        {tabBtn('diagnostics', <><span>📊</span><Bilingual k="tab.diagnostics" /></>)}
-        {tabBtn('interventions', <><span>⚙</span><Bilingual k="tab.interventions" /></>)}
         {tabBtn('review', <><span>⚠</span><Bilingual k="tab.review" /></>)}
-        {tabBtn('todo', <><span>🎯</span><Bilingual k="tab.todo" /></>)}
         {tabBtn('add', <><span>+</span><Bilingual k="tab.add" /></>)}
+        {!isMobile && tabBtn('diagnostics', <><span>📊</span><Bilingual k="tab.diagnostics" /></>)}
+        {!isMobile && tabBtn('interventions', <><span>⚙</span><Bilingual k="tab.interventions" /></>)}
+        {!isMobile && tabBtn('todo', <><span>🎯</span><Bilingual k="tab.todo" /></>)}
+        {isMobile && (
+          <div ref={moreMenuRef} style={{ position: 'relative' }}>
+            <button
+              type="button"
+              onClick={() => setShowMoreTabs(v => !v)}
+              aria-expanded={showMoreTabs}
+              style={{
+                padding: '6px 14px', borderRadius: '6px', fontSize: '12px', fontWeight: 500, cursor: 'pointer',
+                border: `1.5px solid ${['diagnostics', 'interventions', 'todo'].includes(subTab) ? '#0F6E56' : '#d1d5db'}`,
+                background: ['diagnostics', 'interventions', 'todo'].includes(subTab) ? '#e8f5ee' : '#fff',
+                color: ['diagnostics', 'interventions', 'todo'].includes(subTab) ? '#0F6E56' : '#888',
+                display: 'inline-flex', alignItems: 'center', gap: '6px',
+              }}
+            >
+              <span>⋯</span>
+              {subTab === 'diagnostics' && <Bilingual k="tab.diagnostics" />}
+              {subTab === 'interventions' && <Bilingual k="tab.interventions" />}
+              {subTab === 'todo' && <Bilingual k="tab.todo" />}
+              {!['diagnostics', 'interventions', 'todo'].includes(subTab) && <Bilingual k="live.more_options" />}
+            </button>
+            {showMoreTabs && (
+              <div style={{
+                position: 'absolute', top: 'calc(100% + 4px)', insetInlineEnd: 0,
+                background: '#fff', border: '1px solid #e5e5e5', borderRadius: '8px',
+                boxShadow: '0 8px 24px rgba(0,0,0,0.12)', padding: '4px',
+                zIndex: 100, minWidth: '180px',
+                display: 'flex', flexDirection: 'column', gap: '2px',
+              }}>
+                {(['diagnostics', 'interventions', 'todo'] as const).map(k => {
+                  const active = subTab === k
+                  const label = k === 'diagnostics' ? <Bilingual k="tab.diagnostics" />
+                    : k === 'interventions' ? <Bilingual k="tab.interventions" />
+                    : <Bilingual k="tab.todo" />
+                  const icon = k === 'diagnostics' ? '📊' : k === 'interventions' ? '⚙' : '🎯'
+                  return (
+                    <button
+                      key={k}
+                      type="button"
+                      onClick={() => { setSubTab(k); setShowMoreTabs(false) }}
+                      style={{
+                        textAlign: 'start',
+                        padding: '10px 14px', minHeight: '44px',
+                        background: active ? '#e8f5ee' : 'transparent',
+                        color: active ? '#0F6E56' : '#333',
+                        border: 'none', borderRadius: '6px',
+                        fontSize: '14px', fontWeight: 500, cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', gap: '10px',
+                      }}
+                    >
+                      <span>{icon}</span>{label}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Active sub-tab */}
