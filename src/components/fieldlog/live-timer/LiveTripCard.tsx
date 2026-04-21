@@ -70,7 +70,7 @@ export default function LiveTripCard({
   onClearSlumpTest,
   onUpdateSiteType,
 }: LiveTripCardProps) {
-  const { totalElapsed, stageElapsed } = useStopwatch(trip)
+  const { totalElapsed, stageElapsed, stageSeconds } = useStopwatch(trip)
   const { t } = useLogT()
   const stageLabelT = (s: StageName) => t(`stage.${s}` as LogStringKey)
   const [showIdentity, setShowIdentity] = useState(!trip.truckId)
@@ -110,6 +110,28 @@ export default function LiveTripCard({
   const stageLabel = stageLabelT(trip.currentStage)
   const isSingleStage = trip.measurementMode === 'single_stage'
   const isLastStage = currentIndex === STAGES.length - 1
+
+  // Wrong-stage detection. If the observer has been on a stage MUCH longer
+  // than a typical duration, they may have forgotten to tap next. Shows a
+  // soft amber hint; no action taken, no data mutated. Thresholds are 3×
+  // conservative expected values so false positives stay rare.
+  const STAGE_TYPICAL_MIN: Record<StageName, number> = {
+    plant_queue: 10,
+    loading: 8,
+    weighbridge: 3,
+    transit_out: 30,
+    site_wait: 10,
+    pouring: 20,
+    site_washout: 5,
+    transit_back: 30,
+    plant_prep: 10,
+  }
+  const stageMinutes = Math.floor(stageSeconds / 60)
+  const stageSlowThreshold = STAGE_TYPICAL_MIN[trip.currentStage] * 3
+  const isStageSlow = stageMinutes >= stageSlowThreshold
+
+  // Wall clock: re-renders every second via the useStopwatch tick
+  const wallClock = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 
   return (
     <div style={{
@@ -190,15 +212,37 @@ export default function LiveTripCard({
         background: '#fff', border: '1px solid #e5e5e5', borderRadius: '12px',
         padding: '16px', textAlign: 'center',
       }}>
-        <div style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', letterSpacing: '.5px', fontWeight: 600 }}>
-          <Bilingual k="card.total_elapsed" />
-        </div>
+        {/* Top row: total elapsed on the left, wall clock on the right. Non-technical
+            observers sanity-check the clock against their watch more easily than
+            a stopwatch count. */}
         <div style={{
-          fontFamily: 'ui-monospace, SF Mono, Menlo, monospace',
-          fontSize: '42px', fontWeight: 700, color: '#1a1a1a',
-          marginTop: '4px', letterSpacing: '-1px',
+          display: 'grid', gridTemplateColumns: '1fr 1fr',
+          gap: '12px', alignItems: 'start',
         }}>
-          {totalElapsed}
+          <div>
+            <div style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', letterSpacing: '.5px', fontWeight: 600 }}>
+              <Bilingual k="card.total_elapsed" />
+            </div>
+            <div style={{
+              fontFamily: 'ui-monospace, SF Mono, Menlo, monospace',
+              fontSize: '36px', fontWeight: 700, color: '#1a1a1a',
+              marginTop: '4px', letterSpacing: '-1px',
+            }}>
+              {totalElapsed}
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', letterSpacing: '.5px', fontWeight: 600 }}>
+              {t('card.wall_clock')}
+            </div>
+            <div style={{
+              fontFamily: 'ui-monospace, SF Mono, Menlo, monospace',
+              fontSize: '36px', fontWeight: 700, color: '#555',
+              marginTop: '4px', letterSpacing: '-1px',
+            }}>
+              {wallClock}
+            </div>
+          </div>
         </div>
         <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #f0f0f0' }}>
           <div style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', letterSpacing: '.5px', fontWeight: 600 }}>
@@ -206,7 +250,7 @@ export default function LiveTripCard({
           </div>
           <div style={{
             fontFamily: 'ui-monospace, SF Mono, Menlo, monospace',
-            fontSize: '28px', fontWeight: 600, color: '#0F6E56',
+            fontSize: '28px', fontWeight: 600, color: isStageSlow ? '#B7950B' : '#0F6E56',
             marginTop: '2px',
           }}>
             {stageElapsed}
@@ -215,6 +259,16 @@ export default function LiveTripCard({
             <Bilingual k={`stage.hint.${trip.currentStage}` as LogStringKey} />
           </div>
         </div>
+        {isStageSlow && (
+          <div style={{
+            marginTop: '10px', padding: '8px 10px',
+            background: '#FFF4D6', border: '1px solid #F1D79A',
+            borderRadius: '8px', fontSize: '12px', color: '#7a5a00',
+            textAlign: 'left', lineHeight: 1.35,
+          }}>
+            ⏳ {t('card.stage_slow_warning', { stage: stageLabel, minutes: stageMinutes })}
+          </div>
+        )}
       </div>
 
       {/* Big split button */}

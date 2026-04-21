@@ -210,6 +210,8 @@ export const LOG_STRINGS = {
   'undo.stage_started': '{stage} started',
   'undo.back_to_stage': '← Back to {stage}',
   'undo.back_to_timer': '← Back to timer',
+  'card.wall_clock': 'Now',
+  'card.stage_slow_warning': 'Been on {stage} for {minutes} min. Did you forget to tap next?',
 
   // ── Review queue ──────────────────────────────────────────────────
   'reviewq.title': 'Review queue',
@@ -572,6 +574,8 @@ export const LOG_STRINGS_AR: Record<LogStringKey, string> = {
   'undo.stage_started': 'بدأت {stage}',
   'undo.back_to_stage': '← العودة إلى {stage}',
   'undo.back_to_timer': '← العودة إلى المؤقت',
+  'card.wall_clock': 'الآن',
+  'card.stage_slow_warning': 'استمررت في {stage} منذ {minutes} دقيقة. هل نسيت الضغط على التالي؟',
 
   // Review queue
   'reviewq.title': 'قائمة المراجعة',
