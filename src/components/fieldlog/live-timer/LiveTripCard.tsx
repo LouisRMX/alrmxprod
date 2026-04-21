@@ -8,14 +8,16 @@
  *   - Review: shown after last split, lets user edit timestamps before save
  *
  * Safety nets:
- *   - Lag 1 (transient undo): for ~8s after a split, a small "UNDO" bar
- *     appears at the bottom. Tap to revert the last split.
+ *   - Lag 1 (persistent back button): while currentIndex > 0, an inline
+ *     "← Back to [prev stage]" button is always shown. Tap to revert one
+ *     stage. Tap again to go further back. Works for the whole lifetime
+ *     of the trip, not just a transient window.
  *   - Lag 2 (pre-save review): after completing transit_back, the trip
  *     doesn't finalise immediately. Observer sees a review screen with
- *     all 7 timestamps and can edit any before saving.
+ *     all 9 timestamps and can edit any before saving.
  */
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { ActiveTrip, StageName, SiteType } from '@/lib/fieldlog/offline-trip-queue'
 import { STAGES, SITE_TYPE_ORDER } from '@/lib/fieldlog/offline-trip-queue'
 import { useStopwatch } from '@/hooks/useStopwatch'
@@ -45,8 +47,6 @@ interface LiveTripCardProps {
   onClearSlumpTest: (tripId: string) => void
   onUpdateSiteType: (tripId: string, siteType: SiteType) => void
 }
-
-const UNDO_WINDOW_MS = 8000
 
 export default function LiveTripCard({
   trip,
@@ -84,39 +84,7 @@ export default function LiveTripCard({
     }
   }, [])
 
-  // Transient undo state
-  const [undoVisible, setUndoVisible] = useState(false)
-  const [undoLabel, setUndoLabel] = useState('')
-  const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const lastSeenStageRef = useRef<StageName>(trip.currentStage)
-  const lastSeenReviewRef = useRef<boolean>(Boolean(trip.awaitingReview))
-
-  // Detect split events: whenever currentStage changes (or awaitingReview flips
-  // true), show the undo bar for UNDO_WINDOW_MS then auto-hide.
-  useEffect(() => {
-    const stageChanged = trip.currentStage !== lastSeenStageRef.current
-    const reviewEntered = trip.awaitingReview && !lastSeenReviewRef.current
-
-    if (stageChanged || reviewEntered) {
-      const label = reviewEntered
-        ? t('undo.trip_complete')
-        : t('undo.stage_started', { stage: stageLabelT(trip.currentStage) })
-      setUndoLabel(label)
-      setUndoVisible(true)
-      if (undoTimerRef.current) clearTimeout(undoTimerRef.current)
-      undoTimerRef.current = setTimeout(() => setUndoVisible(false), UNDO_WINDOW_MS)
-    }
-    lastSeenStageRef.current = trip.currentStage
-    lastSeenReviewRef.current = Boolean(trip.awaitingReview)
-
-    return () => {
-      if (undoTimerRef.current) clearTimeout(undoTimerRef.current)
-    }
-  }, [trip.currentStage, trip.awaitingReview])
-
-  const handleUndoClick = () => {
-    setUndoVisible(false)
-    if (undoTimerRef.current) clearTimeout(undoTimerRef.current)
+  const handleBackClick = () => {
     onUndoSplit(trip.id)
   }
 
@@ -281,8 +249,29 @@ export default function LiveTripCard({
           )
         })}
       </div>
-      <div style={{ fontSize: '10px', color: '#888', textAlign: 'center', marginTop: '-8px' }}>
-        <Bilingual k="card.stage_of" params={{ n: currentIndex + 1, total: STAGES.length }} />
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        marginTop: '-8px', gap: '8px',
+      }}>
+        <div style={{ fontSize: '10px', color: '#888', flex: '0 0 auto' }}>
+          <Bilingual k="card.stage_of" params={{ n: currentIndex + 1, total: STAGES.length }} />
+        </div>
+        {currentIndex > 0 && (
+          <button
+            type="button"
+            onClick={handleBackClick}
+            style={{
+              minHeight: '44px', padding: '8px 14px',
+              background: '#fff', color: '#0F6E56',
+              border: '1px solid #A8D9C5', borderRadius: '10px',
+              fontSize: '13px', fontWeight: 600, cursor: 'pointer',
+              whiteSpace: 'nowrap',
+            }}
+            aria-label={t('undo.back_to_stage', { stage: stageLabelT(STAGES[currentIndex - 1]) })}
+          >
+            {t('undo.back_to_stage', { stage: stageLabelT(STAGES[currentIndex - 1]) })}
+          </button>
+        )}
       </div>
 
       {/* Identity (collapsible) */}
@@ -463,33 +452,6 @@ export default function LiveTripCard({
         </button>
       </div>
 
-      {/* Transient Undo bar (Lag 1 safety net) */}
-      {undoVisible && currentIndex > 0 && (
-        <div style={{
-          position: 'fixed',
-          bottom: 'max(16px, env(safe-area-inset-bottom))',
-          left: '16px', right: '16px',
-          background: '#1a1a1a', color: '#fff',
-          borderRadius: '12px', padding: '12px 16px',
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          gap: '12px', boxShadow: '0 8px 24px rgba(0,0,0,.25)',
-          fontSize: '14px', zIndex: 1000,
-        }}>
-          <span>{undoLabel}</span>
-          <button
-            type="button"
-            onClick={handleUndoClick}
-            style={{
-              background: 'none', color: '#5AD39A', border: 'none',
-              fontSize: '14px', fontWeight: 700, cursor: 'pointer',
-              textTransform: 'uppercase', letterSpacing: '.5px',
-              padding: '6px 10px',
-            }}
-          >
-            <Bilingual k="undo.undo" inline />
-          </button>
-        </div>
-      )}
     </div>
   )
 }

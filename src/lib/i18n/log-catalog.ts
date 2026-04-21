@@ -205,6 +205,8 @@ export const LOG_STRINGS = {
   'undo.undo': 'UNDO',
   'undo.trip_complete': 'Trip complete',
   'undo.stage_started': '{stage} started',
+  'undo.back_to_stage': '← Back to {stage}',
+  'undo.back_to_timer': '← Back to timer',
 
   // ── Review queue ──────────────────────────────────────────────────
   'reviewq.title': 'Review queue',
@@ -562,6 +564,8 @@ export const LOG_STRINGS_AR: Record<LogStringKey, string> = {
   'undo.undo': 'تراجع',
   'undo.trip_complete': 'اكتملت الرحلة',
   'undo.stage_started': 'بدأت {stage}',
+  'undo.back_to_stage': '← العودة إلى {stage}',
+  'undo.back_to_timer': '← العودة إلى المؤقت',
 
   // Review queue
   'reviewq.title': 'قائمة المراجعة',
