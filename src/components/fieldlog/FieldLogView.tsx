@@ -44,7 +44,20 @@ export default function FieldLogView(props: FieldLogViewProps) {
   )
 }
 
+// Env-based demo swap: when the caller passes the 'demo' sentinel AND the
+// demo env vars are set, re-route the entire Log tab to a real seeded
+// assessment in Supabase so every sub-component (Live, Diagnostics, Review,
+// To-do, etc.) queries the DB normally and shows a fully populated demo.
+// Falls back to the historical placeholder if env vars are missing.
+const DEMO_ASSESSMENT_ID = process.env.NEXT_PUBLIC_DEMO_ASSESSMENT_ID
+const DEMO_PLANT_ID = process.env.NEXT_PUBLIC_DEMO_PLANT_ID
+
 function FieldLogViewInner({ assessmentId, plantId, isAdmin, reportedTAT, targetTAT }: FieldLogViewProps) {
+  // Swap demo sentinel for the real seeded IDs when env is configured.
+  if (assessmentId === 'demo' && DEMO_ASSESSMENT_ID && DEMO_PLANT_ID) {
+    assessmentId = DEMO_ASSESSMENT_ID
+    plantId = DEMO_PLANT_ID
+  }
   const { t, isRTL } = useLogT()
   const supabase = createClient()
   const today = new Date().toISOString().slice(0, 10)
