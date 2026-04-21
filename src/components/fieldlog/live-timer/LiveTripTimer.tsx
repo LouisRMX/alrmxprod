@@ -83,6 +83,11 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
   const [syncingNow, setSyncingNow] = useState(false)
   // Selected starting stage for the next trip. plant_queue = full cycle.
   const [startStage, setStartStage] = useState<StageName>('plant_queue')
+  // Single-stage capture is an advanced use-case (~5% of trips). Default
+  // to the full-cycle flow and only reveal the stage picker when the user
+  // ticks "Measure single stage". Keeps the start screen uncluttered for
+  // the common case.
+  const [showSingleStagePicker, setShowSingleStagePicker] = useState(false)
   // Site type pre-selected on the start screen. Observer can override on the
   // trip card later. Undefined means "don't set" — startTrip will still do
   // a cache lookup by site_name if one is provided.
@@ -506,30 +511,46 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
         )}
       </div>
 
-      {/* Measuring from selector: pick full cycle or single-stage mode */}
+      {/* Advanced: measuring single stage. Hidden behind a checkbox because
+          ~95% of captures are full-cycle trips. Showing all 9 single-stage
+          options in a dropdown by default clutters the start screen. */}
       <div style={{
         background: '#fff', border: '1px solid #e5e5e5', borderRadius: '12px', padding: '12px',
       }}>
-        <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '8px' }}>
-          <Bilingual k="live.measuring_from" />
+        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', color: '#555' }}>
+          <input
+            type="checkbox"
+            checked={showSingleStagePicker}
+            onChange={e => {
+              const checked = e.target.checked
+              setShowSingleStagePicker(checked)
+              // Reset to full cycle when collapsing the picker
+              if (!checked) setStartStage('plant_queue')
+            }}
+            style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+          />
+          <Bilingual k="live.measure_single_stage_toggle" />
         </label>
-        <select
-          value={startStage}
-          onChange={e => setStartStage(e.target.value as StageName)}
-          style={{
-            width: '100%', minHeight: '44px', padding: '0 12px',
-            border: '1px solid #ddd', borderRadius: '8px',
-            fontSize: '15px', background: '#fff',
-          }}
-        >
-          <option value="plant_queue">{t('live.plant_queue_full_cycle')}</option>
-          {STAGES.filter(s => s !== 'plant_queue').map(s => (
-            <option key={s} value={s}>{stageLabel(s)} · {t('live.single_stage_only_suffix')}</option>
-          ))}
-        </select>
-        {startStage !== 'plant_queue' && (
-          <div style={{ fontSize: '11px', color: '#888', marginTop: '6px', lineHeight: 1.4 }}>
-            {t('live.single_stage_explainer', { stage: stageLabel(startStage) })}
+        {showSingleStagePicker && (
+          <div style={{ marginTop: '10px' }}>
+            <select
+              value={startStage}
+              onChange={e => setStartStage(e.target.value as StageName)}
+              style={{
+                width: '100%', minHeight: '44px', padding: '0 12px',
+                border: '1px solid #ddd', borderRadius: '8px',
+                fontSize: '15px', background: '#fff',
+              }}
+            >
+              {STAGES.filter(s => s !== 'plant_queue').map(s => (
+                <option key={s} value={s}>{stageLabel(s)} · {t('live.single_stage_only_suffix')}</option>
+              ))}
+            </select>
+            {startStage !== 'plant_queue' && (
+              <div style={{ fontSize: '11px', color: '#888', marginTop: '6px', lineHeight: 1.4 }}>
+                {t('live.single_stage_explainer', { stage: stageLabel(startStage) })}
+              </div>
+            )}
           </div>
         )}
       </div>

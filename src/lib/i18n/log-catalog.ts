@@ -33,6 +33,7 @@ export const LOG_STRINGS = {
   'tab.interventions': 'Interventions',
   'tab.review': 'Review',
   'tab.todo': 'To-do',
+  'tab.add': 'Add trip',
   'tab.manual': 'Manual',
   'tab.upload': 'Upload',
   'tab.audio': 'Audio',
@@ -60,6 +61,7 @@ export const LOG_STRINGS = {
   'live.not_specified': '(not specified)',
   'live.add_plant_placeholder': 'Plant 1, Plant 2, etc.',
   'live.measuring_from': 'Measuring from',
+  'live.measure_single_stage_toggle': 'Measure single stage (advanced)',
   'live.plant_queue_full_cycle': 'Plant queue (full cycle)',
   'live.single_stage_only_suffix': 'only',
   'live.single_stage_explainer': 'Single-stage mode: tap Start when the stage begins, Finish when it ends. Saved as a partial trip with just {stage} timing.',
@@ -137,6 +139,15 @@ export const LOG_STRINGS = {
   'card.set_plant': 'Set plant',
   'card.edit': 'Edit',
   'card.save': 'Save',
+
+  // ── Add trip: method chooser inside the consolidated tab ─────────
+  'add.method_label': 'Log via',
+  'add.method_manual': 'Manual entry',
+  'add.method_manual_hint': 'Type each timestamp into a form. Fastest for a single trip you already captured on paper.',
+  'add.method_upload': 'Upload document',
+  'add.method_upload_hint': 'Upload a photo, PDF, CSV, or Excel export. The extractor will parse it and let you review before saving.',
+  'add.method_audio': 'Audio transcription',
+  'add.method_audio_hint': 'Record or upload a voice note. The transcriber will extract trip data for review.',
 
   // ── Site type classification (10 values; labels embed the pour
   //    method so a single dropdown communicates both dimensions) ──────
@@ -381,6 +392,7 @@ export const LOG_STRINGS_AR: Record<LogStringKey, string> = {
   'tab.interventions': 'إجراءات التحسين',
   'tab.review': 'المراجعة',
   'tab.todo': 'قائمة المهام',
+  'tab.add': 'إضافة رحلة',
   'tab.manual': 'يدوي',
   'tab.upload': 'رفع',
   'tab.audio': 'صوت',
@@ -408,6 +420,7 @@ export const LOG_STRINGS_AR: Record<LogStringKey, string> = {
   'live.not_specified': '(غير محدد)',
   'live.add_plant_placeholder': 'مصنع 1، مصنع 2، إلخ.',
   'live.measuring_from': 'القياس من',
+  'live.measure_single_stage_toggle': 'قياس مرحلة واحدة (متقدم)',
   'live.plant_queue_full_cycle': 'طابور المصنع (دورة كاملة)',
   'live.single_stage_only_suffix': 'فقط',
   'live.single_stage_explainer': 'وضع المرحلة الواحدة: اضغط بدء عند بداية المرحلة، إنهاء عند انتهائها. تُحفظ كرحلة جزئية بقياس {stage} فقط.',
@@ -484,6 +497,15 @@ export const LOG_STRINGS_AR: Record<LogStringKey, string> = {
   'card.set_plant': 'تحديد المصنع',
   'card.edit': 'تعديل',
   'card.save': 'حفظ',
+
+  // Add trip: method chooser
+  'add.method_label': 'التسجيل عبر',
+  'add.method_manual': 'إدخال يدوي',
+  'add.method_manual_hint': 'أدخل كل طابع زمني في نموذج. الأسرع لرحلة واحدة سجلتها على ورقة.',
+  'add.method_upload': 'رفع مستند',
+  'add.method_upload_hint': 'ارفع صورة أو PDF أو CSV أو Excel. سيتم استخراج البيانات وعرضها للمراجعة قبل الحفظ.',
+  'add.method_audio': 'نسخ صوتي',
+  'add.method_audio_hint': 'سجّل أو ارفع ملاحظة صوتية. سيتم نسخ البيانات واستخراج تفاصيل الرحلة للمراجعة.',
 
   // Site type classification (10 values)
   'site_type.label': 'نوع الموقع',

@@ -2,6 +2,7 @@
 
 import type { DailyLogRow } from '@/lib/fieldlog/types'
 import { createClient } from '@/lib/supabase/client'
+import { useIsMobile } from '@/hooks/useIsMobile'
 
 function fmtTime(ts: string | null): string {
   if (!ts) return '-'
@@ -74,6 +75,8 @@ interface TripTableProps {
 }
 
 export default function TripTable({ trips, isAdmin, onDelete }: TripTableProps) {
+  const isMobile = useIsMobile()
+
   if (trips.length === 0) {
     return (
       <div style={{ textAlign: 'center', padding: '32px 16px', color: '#aaa', fontSize: '13px' }}>
@@ -88,6 +91,92 @@ export default function TripTable({ trips, isAdmin, onDelete }: TripTableProps) 
     if (!confirm('Delete this trip entry?')) return
     await supabase.from('daily_logs').delete().eq('id', id)
     onDelete?.(id)
+  }
+
+  // Mobile: compact card per trip. Core stats up top, less-used detail
+  // (all four stage timestamps, volume, notes) inside an expandable row
+  // on tap. Keeps the list scannable without horizontal scroll.
+  if (isMobile) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '4px 0' }}>
+        {trips.map((t, i) => {
+          const m = modeLabel(t)
+          const modeBg = m.tone === 'full' ? '#E1F5EE' : m.tone === 'single' ? '#FFF4D6' : '#FDEDEC'
+          const modeFg = m.tone === 'full' ? '#0F6E56' : m.tone === 'single' ? '#7a5a00' : '#8B3A2E'
+          const tat = calcTat(t.departure_loaded, t.arrival_plant)
+          const isRejected = t.rejected
+          return (
+            <div key={t.id} style={{
+              background: '#fff', border: `1px solid ${isRejected ? '#E8A39B' : '#e5e5e5'}`,
+              borderRadius: '10px', padding: '12px 14px',
+            }}>
+              {/* Row 1: truck + TAT */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                  <span style={{ color: '#aaa', fontSize: '11px' }}>#{i + 1}</span>
+                  <span style={{ fontSize: '14px', fontWeight: 600, color: '#1a1a1a' }}>
+                    {t.truck_id || 'Unlabeled'}
+                  </span>
+                  <span style={{
+                    padding: '2px 6px', background: modeBg, color: modeFg,
+                    borderRadius: '4px', fontSize: '10px', fontWeight: 600,
+                  }}>{m.label}</span>
+                  {isRejected && (
+                    <span style={{
+                      padding: '2px 6px', background: '#FDEDEC', color: '#8B3A2E',
+                      borderRadius: '4px', fontSize: '10px', fontWeight: 600,
+                    }}>Rejected</span>
+                  )}
+                </div>
+                <span style={{ fontSize: '15px', fontWeight: 700, color: '#0F6E56', fontFamily: 'var(--mono)' }}>
+                  {tat}
+                </span>
+              </div>
+
+              {/* Row 2: measurer + site type + time window */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', marginTop: '6px', flexWrap: 'wrap' }}>
+                <div style={{ fontSize: '12px', color: '#666', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                  {t.measurer_name && <span>{t.measurer_name}</span>}
+                  {t.site_type && t.site_type !== 'unknown' && (
+                    <span style={{
+                      padding: '1px 6px', background: '#E8F1FA', color: '#2E5C8A',
+                      borderRadius: '3px', fontSize: '10px', fontWeight: 600,
+                    }}>{siteTypeShort(t.site_type)}</span>
+                  )}
+                </div>
+                <div style={{ fontSize: '11px', color: '#888', fontFamily: 'var(--mono)' }}>
+                  {fmtTime(t.departure_loaded)} → {fmtTime(t.arrival_plant)}
+                </div>
+              </div>
+
+              {/* Row 3: notes (only when present) */}
+              {t.notes && (
+                <div style={{ fontSize: '11px', color: '#777', marginTop: '6px', lineHeight: 1.4, fontStyle: 'italic' }}>
+                  {t.notes}
+                </div>
+              )}
+
+              {/* Admin delete action */}
+              {isAdmin && (
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(t.id)}
+                    style={{
+                      background: 'none', border: 'none', color: '#C0392B',
+                      fontSize: '11px', cursor: 'pointer', padding: '4px 8px',
+                      minHeight: '32px',
+                    }}
+                  >
+                    Delete
+                  </button>
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    )
   }
 
   const th: React.CSSProperties = {

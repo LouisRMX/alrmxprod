@@ -3,24 +3,23 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { DailyLogRow } from '@/lib/fieldlog/types'
-import ManualEntryForm from './ManualEntryForm'
 import TripTable from './TripTable'
-import UploadParseView from './UploadParseView'
-import AudioCaptureView from './AudioCaptureView'
 import LiveTripTimer from './live-timer/LiveTripTimer'
-import FieldCaptureTokenButton from './FieldCaptureTokenButton'
-import FieldCapturePreviewButton from './FieldCapturePreviewButton'
+import AddTripTabs from './AddTripTabs'
+import AdminActionsMenu from './AdminActionsMenu'
 import FieldLogDiagnostics from './diagnostics/FieldLogDiagnostics'
 import { InterventionsEditor } from './InterventionsView'
 import ToDoEditor from './ToDoEditor'
 import ReviewQueue from './ReviewQueue'
 import SyncStatusBar from './SyncStatusBar'
-import DailyBriefingExport from './DailyBriefingExport'
 import LocaleToggle from './LocaleToggle'
 import { LogLocaleProvider, useLogT } from '@/lib/i18n/LogLocaleContext'
 import Bilingual from '@/lib/i18n/Bilingual'
 
-type SubTab = 'live' | 'diagnostics' | 'interventions' | 'review' | 'todo' | 'manual' | 'upload' | 'audio'
+// 6 sub-tabs: 5 primary (Live, Diagnostics, Interventions, Review, To-do)
+// plus one consolidated "add" tab that replaces the former Manual / Upload
+// / Audio tabs and selects method via chips inside the tab.
+type SubTab = 'live' | 'diagnostics' | 'interventions' | 'review' | 'todo' | 'add'
 type ViewRange = 'today' | '7d' | '30d' | 'all'
 
 interface FieldLogViewProps {
@@ -162,34 +161,37 @@ function FieldLogViewInner({ assessmentId, plantId, isAdmin, reportedTAT, target
           sees live sync state, age of oldest pending trip, retry button. */}
       <SyncStatusBar assessmentId={assessmentId} />
 
-      {/* Date picker + locale toggle + token share + daily briefing export */}
+      {/* Header: locale toggle + date picker (only for Add) + admin menu.
+          Date picker is suppressed when the active tab is a live or review
+          surface because it only affects backfill via the Add tab. */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-          <label style={{ fontSize: '12px', fontWeight: 600, color: '#888' }}><Bilingual k="field.date" /></label>
-          <input type="date" value={logDate} onChange={e => setLogDate(e.target.value)}
-            style={{
-              padding: '6px 10px', border: '1px solid #d1d5db', borderRadius: '6px',
-              fontSize: '14px', background: '#fff',
-            }} />
           <LocaleToggle adminMode={isAdmin} />
+          {subTab === 'add' && (
+            <>
+              <label style={{ fontSize: '12px', fontWeight: 600, color: '#888' }}><Bilingual k="field.date" /></label>
+              <input type="date" value={logDate} onChange={e => setLogDate(e.target.value)}
+                style={{
+                  padding: '6px 10px', border: '1px solid #d1d5db', borderRadius: '6px',
+                  fontSize: '14px', background: '#fff',
+                }} />
+            </>
+          )}
         </div>
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          {isAdmin && <DailyBriefingExport assessmentId={assessmentId} />}
-          {isAdmin && <FieldCapturePreviewButton assessmentId={assessmentId} plantId={plantId} />}
-          {isAdmin && <FieldCaptureTokenButton assessmentId={assessmentId} plantId={plantId} />}
-        </div>
+        {isAdmin && (
+          <AdminActionsMenu assessmentId={assessmentId} plantId={plantId} />
+        )}
       </div>
 
-      {/* Sub-tabs */}
+      {/* Sub-tabs: 6 total. Add (+) replaces the former Manual/Upload/Audio
+          triple; method is selected via chips inside the Add tab. */}
       <div style={{ display: 'flex', gap: '6px', marginBottom: '16px', flexWrap: 'wrap' }}>
         {tabBtn('live', <><span>⏱</span><Bilingual k="tab.live" /></>)}
         {tabBtn('diagnostics', <><span>📊</span><Bilingual k="tab.diagnostics" /></>)}
         {tabBtn('interventions', <><span>⚙</span><Bilingual k="tab.interventions" /></>)}
         {tabBtn('review', <><span>⚠</span><Bilingual k="tab.review" /></>)}
         {tabBtn('todo', <><span>🎯</span><Bilingual k="tab.todo" /></>)}
-        {tabBtn('manual', <Bilingual k="tab.manual" />)}
-        {tabBtn('upload', <Bilingual k="tab.upload" />)}
-        {audioEnabled && tabBtn('audio', <Bilingual k="tab.audio" />)}
+        {tabBtn('add', <><span>+</span><Bilingual k="tab.add" /></>)}
       </div>
 
       {/* Active sub-tab */}
@@ -223,8 +225,8 @@ function FieldLogViewInner({ assessmentId, plantId, isAdmin, reportedTAT, target
         <ToDoEditor assessmentId={assessmentId} plantId={plantId} />
       )}
 
-      {subTab === 'manual' && (
-        <ManualEntryForm
+      {subTab === 'add' && (
+        <AddTripTabs
           assessmentId={assessmentId}
           plantId={plantId}
           logDate={logDate}
@@ -233,24 +235,7 @@ function FieldLogViewInner({ assessmentId, plantId, isAdmin, reportedTAT, target
           existingDriverNames={driverNames}
           existingSiteNames={siteNames}
           tripCount={trips.length}
-        />
-      )}
-
-      {subTab === 'upload' && (
-        <UploadParseView
-          assessmentId={assessmentId}
-          plantId={plantId}
-          logDate={logDate}
-          onSaved={handleSaved}
-        />
-      )}
-
-      {subTab === 'audio' && (
-        <AudioCaptureView
-          assessmentId={assessmentId}
-          plantId={plantId}
-          logDate={logDate}
-          onSaved={handleSaved}
+          audioEnabled={audioEnabled}
         />
       )}
 
