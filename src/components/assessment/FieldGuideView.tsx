@@ -313,6 +313,7 @@ function HypothesisCard({
     <div style={{
       background: '#fff', border: `1px solid ${statusBorderColor(status)}`, borderRadius: '12px',
       padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px',
+      minWidth: 0, overflowWrap: 'anywhere', wordBreak: 'break-word',
     }}>
       <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
         <span style={{
@@ -328,18 +329,19 @@ function HypothesisCard({
         <span style={{
           marginInlineStart: 'auto',
           fontSize: '14px', fontWeight: 700, color: '#0F6E56',
+          whiteSpace: 'nowrap',
         }}>${Math.round(hypothesis.usd_per_month / 1000)}k/mo</span>
       </div>
 
       <div>
-        <div style={{ fontSize: '15px', fontWeight: 700, color: '#1a1a1a', lineHeight: 1.3 }}>{hypothesis.name}</div>
-        <div style={{ fontSize: '11px', color: '#888', marginTop: '2px' }}>
+        <div style={{ fontSize: '15px', fontWeight: 700, color: '#1a1a1a', lineHeight: 1.3, overflowWrap: 'anywhere' }}>{hypothesis.name}</div>
+        <div style={{ fontSize: '11px', color: '#888', marginTop: '2px', overflowWrap: 'anywhere' }}>
           {hypothesis.related_plan_hypothesis} · invalidation: {hypothesis.invalidation_time_label}
         </div>
       </div>
 
-      <details style={{ fontSize: '12px', color: '#555', lineHeight: 1.5 }}>
-        <summary style={{ cursor: 'pointer', fontWeight: 600, color: '#333' }}>Method + criteria</summary>
+      <details style={{ fontSize: '12px', color: '#555', lineHeight: 1.5, overflowWrap: 'anywhere' }}>
+        <summary style={{ cursor: 'pointer', fontWeight: 600, color: '#333', padding: '6px 0', minHeight: '32px' }}>Method + criteria</summary>
         <div style={{ marginTop: '6px' }}>
           <div><strong>Method:</strong> {hypothesis.measurement_method}</div>
           <div style={{ marginTop: '4px' }}><strong>Validate if:</strong> {hypothesis.validate_if}</div>
@@ -469,32 +471,34 @@ function DayView({
   onUpdate: (itemType: string, itemId: string, patch: { status?: ProgressStatus; note?: string | null }) => void
 }) {
   return (
-    <div>
+    <div style={{ minWidth: 0 }}>
       <div style={{ marginBottom: '10px' }}>
         <div style={{ fontSize: '12px', color: '#888' }}>{day.date_placeholder}</div>
-        <div style={{ fontSize: '14px', color: '#333', lineHeight: 1.5, marginTop: '4px' }}>{day.focus}</div>
+        <div style={{ fontSize: '14px', color: '#333', lineHeight: 1.5, marginTop: '4px', overflowWrap: 'anywhere' }}>{day.focus}</div>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
         {day.slots.map((s, i) => (
           <div key={i} style={{
             background: '#fff', border: '1px solid #e5e5e5', borderRadius: '12px', padding: '12px',
+            minWidth: 0, overflowWrap: 'anywhere', wordBreak: 'break-word',
           }}>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '4px' }}>
               <span style={{
                 fontSize: '11px', fontWeight: 700, color: '#555', letterSpacing: '.3px',
                 background: '#f4f4f4', padding: '2px 8px', borderRadius: '4px',
+                whiteSpace: 'nowrap',
               }}>
                 {s.start === s.end ? s.start : `${s.start} – ${s.end}`}
               </span>
               {s.refs && s.refs.length > 0 && (
-                <span style={{ fontSize: '11px', color: '#888' }}>
+                <span style={{ fontSize: '11px', color: '#888', overflowWrap: 'anywhere' }}>
                   → {s.refs.join(', ')}
                 </span>
               )}
             </div>
-            <div style={{ fontSize: '14px', fontWeight: 600, color: '#1a1a1a', marginBottom: '4px' }}>{s.activity}</div>
-            <div style={{ fontSize: '12px', color: '#555', lineHeight: 1.45 }}>{s.purpose}</div>
+            <div style={{ fontSize: '14px', fontWeight: 600, color: '#1a1a1a', marginBottom: '4px', overflowWrap: 'anywhere' }}>{s.activity}</div>
+            <div style={{ fontSize: '12px', color: '#555', lineHeight: 1.45, overflowWrap: 'anywhere' }}>{s.purpose}</div>
             {s.gate && (
               <GateControl
                 gate={s.gate}
@@ -548,12 +552,13 @@ function GateControl({
       background: status === 'confirmed' ? '#E1F5EE' : status === 'failed' ? '#FDEDEC' : '#f8f8f8',
       border: `1px solid ${statusBorderColor(status)}`,
       borderRadius: '8px', padding: '10px',
+      minWidth: 0, overflowWrap: 'anywhere', wordBreak: 'break-word',
     }}>
       <div style={{ fontSize: '11px', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '.3px' }}>
         Gate
       </div>
-      <div style={{ fontSize: '13px', color: '#333', lineHeight: 1.4, marginTop: '2px' }}>{gate.criterion}</div>
-      <div style={{ fontSize: '11px', color: '#888', lineHeight: 1.4, marginTop: '4px', fontStyle: 'italic' }}>
+      <div style={{ fontSize: '13px', color: '#333', lineHeight: 1.4, marginTop: '2px', overflowWrap: 'anywhere' }}>{gate.criterion}</div>
+      <div style={{ fontSize: '11px', color: '#888', lineHeight: 1.4, marginTop: '4px', fontStyle: 'italic', overflowWrap: 'anywhere' }}>
         If fail: {gate.fail_action}
       </div>
 
@@ -619,19 +624,20 @@ function PreArrivalList({
                       background: done ? '#E1F5EE' : '#fff',
                       border: `1px solid ${done ? '#A8D9C5' : '#e5e5e5'}`,
                       borderRadius: '8px', padding: '10px 12px', cursor: 'pointer',
+                      minWidth: 0, minHeight: '44px',
                     }}
                   >
                     <input
                       type="checkbox"
                       checked={done}
                       onChange={(e) => onUpdate(item.id, { status: e.target.checked ? 'confirmed' : 'todo' })}
-                      style={{ width: '20px', height: '20px', marginTop: '2px', cursor: 'pointer' }}
+                      style={{ width: '20px', height: '20px', marginTop: '2px', cursor: 'pointer', flexShrink: 0 }}
                     />
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: '13px', fontWeight: 600, color: done ? '#0F6E56' : '#1a1a1a' }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '13px', fontWeight: 600, color: done ? '#0F6E56' : '#1a1a1a', overflowWrap: 'anywhere' }}>
                         {item.title}
                       </div>
-                      <div style={{ fontSize: '11px', color: '#888', marginTop: '2px', lineHeight: 1.4 }}>
+                      <div style={{ fontSize: '11px', color: '#888', marginTop: '2px', lineHeight: 1.4, overflowWrap: 'anywhere' }}>
                         {item.detail}
                       </div>
                     </div>
@@ -683,16 +689,17 @@ function InterviewCard({
   return (
     <div style={{
       background: '#fff', border: `1px solid ${statusBorderColor(status)}`, borderRadius: '12px', padding: '14px',
+      minWidth: 0, overflowWrap: 'anywhere', wordBreak: 'break-word',
     }}>
       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'baseline' }}>
-        <div style={{ fontSize: '15px', fontWeight: 700, color: '#1a1a1a' }}>{interview.role}</div>
+        <div style={{ fontSize: '15px', fontWeight: 700, color: '#1a1a1a', overflowWrap: 'anywhere' }}>{interview.role}</div>
         <div style={{ fontSize: '11px', color: '#888' }}>{interview.when} · {interview.duration_min} min</div>
       </div>
-      <div style={{ fontSize: '12px', color: '#555', marginTop: '6px', lineHeight: 1.4 }}>
+      <div style={{ fontSize: '12px', color: '#555', marginTop: '6px', lineHeight: 1.4, overflowWrap: 'anywhere' }}>
         <strong>Objective:</strong> {interview.objective}
       </div>
-      <details style={{ marginTop: '8px', fontSize: '12px' }}>
-        <summary style={{ cursor: 'pointer', fontWeight: 600, color: '#333' }}>
+      <details style={{ marginTop: '8px', fontSize: '12px', overflowWrap: 'anywhere' }}>
+        <summary style={{ cursor: 'pointer', fontWeight: 600, color: '#333', padding: '6px 0', minHeight: '32px' }}>
           Questions ({interview.questions.length})
         </summary>
         <ol style={{ marginTop: '6px', paddingInlineStart: '18px', color: '#555', lineHeight: 1.5 }}>
@@ -747,14 +754,15 @@ function AbortList({
             background: triggered ? '#FDEDEC' : '#fff',
             border: `1px solid ${triggered ? '#E8A39B' : '#e5e5e5'}`,
             borderRadius: '12px', padding: '12px',
+            minWidth: 0, overflowWrap: 'anywhere', wordBreak: 'break-word',
           }}>
-            <div style={{ fontSize: '14px', fontWeight: 700, color: triggered ? '#8B3A2E' : '#1a1a1a' }}>
+            <div style={{ fontSize: '14px', fontWeight: 700, color: triggered ? '#8B3A2E' : '#1a1a1a', overflowWrap: 'anywhere' }}>
               {s.scenario}
             </div>
-            <div style={{ fontSize: '11px', color: '#888', marginTop: '2px' }}>
+            <div style={{ fontSize: '11px', color: '#888', marginTop: '2px', overflowWrap: 'anywhere' }}>
               Check at: {s.if_triggered}
             </div>
-            <div style={{ fontSize: '12px', color: '#555', marginTop: '6px', lineHeight: 1.4 }}>
+            <div style={{ fontSize: '12px', color: '#555', marginTop: '6px', lineHeight: 1.4, overflowWrap: 'anywhere' }}>
               <strong>Action:</strong> {s.action}
             </div>
             <StatusPicker
@@ -794,7 +802,7 @@ function StatusPicker({
   onChange: (s: ProgressStatus) => void
 }) {
   return (
-    <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '6px' }}>
+    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '8px' }}>
       {options.map(opt => {
         const active = status === opt
         return (
@@ -803,13 +811,14 @@ function StatusPicker({
             type="button"
             onClick={() => onChange(opt)}
             style={{
-              padding: '6px 10px', minHeight: '32px',
+              padding: '10px 12px', minHeight: '44px',
               background: active ? statusBgColor(opt) : '#fff',
               color: active ? statusFgColor(opt) : '#555',
               border: `1px solid ${active ? statusBorderColor(opt) : '#e5e5e5'}`,
-              borderRadius: '6px', fontSize: '11px', fontWeight: 600,
+              borderRadius: '6px', fontSize: '12px', fontWeight: 600,
               cursor: 'pointer',
               textTransform: 'capitalize',
+              whiteSpace: 'nowrap',
             }}
           >{opt.replace('_', ' ')}</button>
         )
