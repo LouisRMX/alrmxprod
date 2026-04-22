@@ -97,6 +97,75 @@ export default function InterventionPlanView({ assessmentId, plantId }: Props) {
 
   useEffect(() => { loadSaved() }, [loadSaved])
 
+  const generateWithExplicitFeedback = useCallback(async (explicitFeedback: string) => {
+    // Skip the feedback-box dance: fire regeneration immediately with the
+    // provided feedback string. Used by the "Apply these polish fixes"
+    // button on the eval scorecard.
+    setError(null)
+    setStreaming(true)
+    setStreamText('')
+    setRevising(false)
+    setOpenPlanId(null)
+    setCopied(false)
+    setEvalResult(null)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+    try {
+      const res = await fetch('/api/generate-intervention-plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          assessmentId,
+          plantId,
+          regenerationFeedback: explicitFeedback,
+        }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error ?? `HTTP ${res.status}`)
+      }
+      const reader = res.body?.getReader()
+      if (!reader) throw new Error('No response stream')
+      const decoder = new TextDecoder()
+      let acc = ''
+      let localRevising = false
+      while (true) {
+        const { value, done } = await reader.read()
+        if (done) break
+        const chunk = decoder.decode(value, { stream: true })
+        acc += chunk
+        let processed = acc
+        let changed = true
+        while (changed) {
+          changed = false
+          const resetIdx = processed.indexOf(RESET_MARKER)
+          if (resetIdx >= 0) {
+            processed = processed.slice(resetIdx + RESET_MARKER.length)
+            localRevising = true
+            setRevising(true)
+            changed = true
+            continue
+          }
+          const doneIdx = processed.indexOf(DONE_MARKER)
+          if (doneIdx >= 0) {
+            processed = processed.slice(0, doneIdx)
+          }
+        }
+        if (localRevising && processed.length > 0) {
+          localRevising = false
+          setRevising(false)
+        }
+        acc = processed
+        setStreamText(processed)
+      }
+      await loadSaved()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Plan generation failed')
+    } finally {
+      setStreaming(false)
+      setRevising(false)
+    }
+  }, [assessmentId, plantId, loadSaved, RESET_MARKER, DONE_MARKER])
+
   const generate = useCallback(async (regen = false) => {
     setError(null)
     setStreaming(true)
@@ -321,13 +390,8 @@ export default function InterventionPlanView({ assessmentId, plantId }: Props) {
       {(evalResult || (activePlanId && savedPlans.find(p => p.id === activePlanId)?.input_snapshot?.eval_result)) && (
         <EvalScorecard
           result={evalResult ?? (savedPlans.find(p => p.id === activePlanId)?.input_snapshot?.eval_result as EvalResult)}
-          onRegenerateWithFeedback={(fb) => {
-            setFeedback(fb)
-            setShowFeedback(true)
-            setEvalResult(null)
-            // Scroll up so the user sees the feedback box + Regenerate button
-            window.scrollTo({ top: 0, behavior: 'smooth' })
-          }}
+          onRegenerateWithFeedback={generateWithExplicitFeedback}
+          streaming={streaming}
         />
       )}
 
@@ -407,9 +471,10 @@ export default function InterventionPlanView({ assessmentId, plantId }: Props) {
 
 // ── Eval scorecard ──────────────────────────────────────────────────────
 
-function EvalScorecard({ result, onRegenerateWithFeedback }: {
+function EvalScorecard({ result, onRegenerateWithFeedback, streaming }: {
   result: EvalResult
   onRegenerateWithFeedback?: (feedback: string) => void
+  streaming?: boolean
 }) {
   const overall = result.overall_score
   const band = overall >= 4 ? '#0F6E56' : overall >= 3 ? '#D68910' : '#C0392B'
@@ -417,6 +482,12 @@ function EvalScorecard({ result, onRegenerateWithFeedback }: {
   const feedbackStr = result.top_fixes.length > 0
     ? `Apply these fixes from the last quality evaluation:\n${result.top_fixes.map(f => `- ${f}`).join('\n')}`
     : ''
+  // Button is available whenever there are fixes to apply, regardless of
+  // publishable status. A publishable plan (4.0+) may still benefit from
+  // the judge's polish suggestions.
+  const buttonLabel = result.publishable
+    ? 'Apply these polish fixes →'
+    : 'Regenerate using these fixes →'
   return (
     <div style={{
       background: bandBg, border: `1px solid ${band}`, color: band,
@@ -428,17 +499,20 @@ function EvalScorecard({ result, onRegenerateWithFeedback }: {
         <span style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '.5px', fontWeight: 700 }}>
           {result.publishable ? 'Publishable' : 'Needs fixes before sharing'}
         </span>
-        {!result.publishable && onRegenerateWithFeedback && feedbackStr && (
+        {onRegenerateWithFeedback && feedbackStr && (
           <button
             type="button"
             onClick={() => onRegenerateWithFeedback(feedbackStr)}
+            disabled={streaming}
             style={{
               marginInlineStart: 'auto',
               padding: '6px 12px', minHeight: '32px',
-              background: band, color: '#fff', border: 'none',
-              borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer',
+              background: streaming ? '#999' : band, color: '#fff', border: 'none',
+              borderRadius: '8px', fontSize: '12px', fontWeight: 600,
+              cursor: streaming ? 'not-allowed' : 'pointer',
+              opacity: streaming ? 0.7 : 1,
             }}
-          >Regenerate using these fixes →</button>
+          >{streaming ? 'Regenerating…' : buttonLabel}</button>
         )}
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '6px 14px' }}>
