@@ -75,7 +75,12 @@ export default function FieldGuideView({ assessmentId }: Props) {
       setLoading(true)
       try {
         const res = await fetch(`/api/field-guide/progress?assessmentId=${encodeURIComponent(assessmentId)}`)
-        if (!res.ok) throw new Error((await res.json()).error ?? 'Load failed')
+        const isJson = (res.headers.get('content-type') ?? '').includes('application/json')
+        if (!res.ok) {
+          const msg = isJson ? ((await res.json()).error ?? 'Load failed') : `Load failed (${res.status})`
+          throw new Error(msg)
+        }
+        if (!isJson) throw new Error('Session expired, please reload')
         const { rows } = (await res.json()) as { rows: ProgressRow[] }
         const m: ProgressMap = new Map()
         for (const row of rows) m.set(progressKey(row.item_type, row.item_id), row)
@@ -125,7 +130,12 @@ export default function FieldGuideView({ assessmentId }: Props) {
           usdAdjusted: optimistic.usd_adjusted,
         }),
       })
-      if (!res.ok) throw new Error((await res.json()).error ?? 'Save failed')
+      const isJson = (res.headers.get('content-type') ?? '').includes('application/json')
+      if (!res.ok) {
+        const msg = isJson ? ((await res.json()).error ?? 'Save failed') : `Save failed (${res.status})`
+        throw new Error(msg)
+      }
+      if (!isJson) throw new Error('Session expired, please reload')
       const { row } = (await res.json()) as { row: ProgressRow }
       setProgress(prev => {
         const next = new Map(prev)
@@ -778,46 +788,63 @@ function AbortList({
       <div style={{ fontSize: '12px', color: '#888', marginBottom: '6px', lineHeight: 1.45 }}>
         Each scenario describes a failure mode and the recovery action. Mark a scenario as "triggered" if it happens on-site. Your note captures what you did about it.
       </div>
-      {scenarios.map(s => {
-        const row = progress.get(progressKey('abort', s.id))
-        const triggered = row?.status === 'triggered'
-        return (
-          <div key={s.id} style={{
-            background: triggered ? '#FDEDEC' : '#fff',
-            border: `1px solid ${triggered ? '#E8A39B' : '#e5e5e5'}`,
-            borderRadius: '12px', padding: '12px',
-            minWidth: 0, overflowWrap: 'anywhere', wordBreak: 'break-word',
-          }}>
-            <div style={{ fontSize: '14px', fontWeight: 700, color: triggered ? '#8B3A2E' : '#1a1a1a', overflowWrap: 'anywhere' }}>
-              {s.scenario}
-            </div>
-            <div style={{ fontSize: '11px', color: '#888', marginTop: '2px', overflowWrap: 'anywhere' }}>
-              Check at: {s.if_triggered}
-            </div>
-            <div style={{ fontSize: '12px', color: '#555', marginTop: '6px', lineHeight: 1.4, overflowWrap: 'anywhere' }}>
-              <strong>Action:</strong> {s.action}
-            </div>
-            <StatusPicker
-              status={row?.status ?? 'todo'}
-              options={['todo', 'triggered', 'skipped']}
-              onChange={(st) => onUpdate(s.id, { status: st })}
-            />
-            {triggered && (
-              <textarea
-                value={row?.note ?? ''}
-                onChange={(e) => onUpdate(s.id, { note: e.target.value })}
-                rows={2}
-                placeholder="What happened, how you adapted"
-                style={{
-                  width: '100%', marginTop: '8px', padding: '8px',
-                  border: '1px solid #e8a39b', borderRadius: '6px',
-                  fontSize: '12px', fontFamily: 'inherit', resize: 'vertical',
-                }}
-              />
-            )}
-          </div>
-        )
-      })}
+      {scenarios.map(s => (
+        <AbortCard
+          key={s.id}
+          scenario={s}
+          progress={progress.get(progressKey('abort', s.id))}
+          onUpdate={(patch) => onUpdate(s.id, patch)}
+        />
+      ))}
+    </div>
+  )
+}
+
+function AbortCard({
+  scenario, progress, onUpdate,
+}: {
+  scenario: FieldGuide['abort_scenarios'][number]
+  progress: ProgressRow | undefined
+  onUpdate: (patch: { status?: ProgressStatus; note?: string | null }) => void
+}) {
+  const [noteDraft, setNoteDraft] = useState(progress?.note ?? '')
+  useEffect(() => { setNoteDraft(progress?.note ?? '') }, [progress?.note])
+  const triggered = progress?.status === 'triggered'
+  return (
+    <div style={{
+      background: triggered ? '#FDEDEC' : '#fff',
+      border: `1px solid ${triggered ? '#E8A39B' : '#e5e5e5'}`,
+      borderRadius: '12px', padding: '12px',
+      minWidth: 0, overflowWrap: 'anywhere', wordBreak: 'break-word',
+    }}>
+      <div style={{ fontSize: '14px', fontWeight: 700, color: triggered ? '#8B3A2E' : '#1a1a1a', overflowWrap: 'anywhere' }}>
+        {scenario.scenario}
+      </div>
+      <div style={{ fontSize: '11px', color: '#888', marginTop: '2px', overflowWrap: 'anywhere' }}>
+        Check at: {scenario.if_triggered}
+      </div>
+      <div style={{ fontSize: '12px', color: '#555', marginTop: '6px', lineHeight: 1.4, overflowWrap: 'anywhere' }}>
+        <strong>Action:</strong> {scenario.action}
+      </div>
+      <StatusPicker
+        status={progress?.status ?? 'todo'}
+        options={['todo', 'triggered', 'skipped']}
+        onChange={(st) => onUpdate({ status: st })}
+      />
+      {triggered && (
+        <textarea
+          value={noteDraft}
+          onChange={(e) => setNoteDraft(e.target.value)}
+          onBlur={() => { if ((progress?.note ?? '') !== noteDraft) onUpdate({ note: noteDraft }) }}
+          rows={2}
+          placeholder="What happened, how you adapted"
+          style={{
+            width: '100%', marginTop: '8px', padding: '8px',
+            border: '1px solid #e8a39b', borderRadius: '6px',
+            fontSize: '12px', fontFamily: 'inherit', resize: 'vertical',
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -833,8 +860,14 @@ function StatusPicker({
   options: ProgressStatus[]
   onChange: (s: ProgressStatus) => void
 }) {
+  // Grid layout: responsive columns that pack evenly on narrow mobile viewports.
+  // Avoids the ragged wrap of flex-wrap with variable-width buttons.
   return (
-    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '8px' }}>
+    <div style={{
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(92px, 1fr))',
+      gap: '6px', marginTop: '8px', minWidth: 0,
+    }}>
       {options.map(opt => {
         const active = status === opt
         return (
@@ -843,7 +876,7 @@ function StatusPicker({
             type="button"
             onClick={() => onChange(opt)}
             style={{
-              padding: '10px 12px', minHeight: '44px',
+              padding: '10px 8px', minHeight: '44px', minWidth: 0,
               background: active ? statusBgColor(opt) : '#fff',
               color: active ? statusFgColor(opt) : '#555',
               border: `1px solid ${active ? statusBorderColor(opt) : '#e5e5e5'}`,
@@ -851,6 +884,7 @@ function StatusPicker({
               cursor: 'pointer',
               textTransform: 'capitalize',
               whiteSpace: 'nowrap',
+              overflow: 'hidden', textOverflow: 'ellipsis',
             }}
           >{opt.replace('_', ' ')}</button>
         )
