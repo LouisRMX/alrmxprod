@@ -23,6 +23,10 @@ interface SavedPlan {
   generated_at: string
   model_version: string | null
   plan_content: { markdown?: string } | null
+  // Consultant edits layered on top of plan_content. edits.markdown, if
+  // present, replaces plan_content.markdown in the UI. Original AI output
+  // is preserved in plan_content so eval scores remain meaningful.
+  edits: { markdown?: string } | null
   status: string
   notes: string | null
   input_snapshot?: {
@@ -62,7 +66,7 @@ export default function InterventionPlanView({ assessmentId, plantId }: Props) {
   const loadSaved = useCallback(async () => {
     const { data } = await supabase
       .from('intervention_plans')
-      .select('id, generated_at, model_version, plan_content, status, notes, input_snapshot')
+      .select('id, generated_at, model_version, plan_content, edits, status, notes, input_snapshot')
       .eq('assessment_id', assessmentId)
       .order('generated_at', { ascending: false })
       .limit(20)
@@ -71,6 +75,10 @@ export default function InterventionPlanView({ assessmentId, plantId }: Props) {
 
   const [evalLoading, setEvalLoading] = useState(false)
   const [evalResult, setEvalResult] = useState<EvalResult | null>(null)
+
+  const [isEditing, setIsEditing] = useState(false)
+  const [editText, setEditText] = useState('')
+  const [saving, setSaving] = useState(false)
 
   const deletePlan = useCallback(async (planId: string) => {
     const plan = savedPlans.find(p => p.id === planId)
@@ -254,14 +262,73 @@ export default function InterventionPlanView({ assessmentId, plantId }: Props) {
     }
   }, [assessmentId, plantId, feedback, loadSaved, revising, RESET_MARKER, DONE_MARKER])
 
-  const activeMarkdown = streamText
-    || (openPlanId ? savedPlans.find(p => p.id === openPlanId)?.plan_content?.markdown ?? '' : '')
-    || ''
-
   // Plan-id tied to whatever we are currently rendering: either an
   // explicitly opened history item, or the just-generated plan (most
   // recent saved plan after stream ends).
   const activePlanId = openPlanId ?? (streamText && !streaming ? savedPlans[0]?.id ?? null : null)
+
+  const activePlanRow = activePlanId ? savedPlans.find(p => p.id === activePlanId) ?? null : null
+  // Prefer consultant edits over original AI markdown when present.
+  const savedMarkdown = activePlanRow
+    ? (activePlanRow.edits?.markdown ?? activePlanRow.plan_content?.markdown ?? '')
+    : ''
+  const activeMarkdown = streamText || savedMarkdown || ''
+
+  const startEdit = useCallback(() => {
+    if (!activePlanId) return
+    setStreamText('')
+    setOpenPlanId(activePlanId)
+    setEditText(activeMarkdown)
+    setIsEditing(true)
+  }, [activePlanId, activeMarkdown])
+
+  const cancelEdit = useCallback(() => {
+    setIsEditing(false)
+    setEditText('')
+  }, [])
+
+  const saveEdit = useCallback(async () => {
+    if (!activePlanId) return
+    setSaving(true)
+    setError(null)
+    try {
+      const { error: updErr } = await supabase
+        .from('intervention_plans')
+        .update({ edits: { markdown: editText } })
+        .eq('id', activePlanId)
+      if (updErr) throw new Error(updErr.message)
+      await loadSaved()
+      setIsEditing(false)
+      setEditText('')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Save failed')
+    } finally {
+      setSaving(false)
+    }
+  }, [activePlanId, editText, supabase, loadSaved])
+
+  const resetEditsToOriginal = useCallback(async () => {
+    if (!activePlanId) return
+    if (!window.confirm('Revert to the original AI-generated plan? Your manual edits will be lost.')) return
+    setSaving(true)
+    setError(null)
+    try {
+      const { error: updErr } = await supabase
+        .from('intervention_plans')
+        .update({ edits: {} })
+        .eq('id', activePlanId)
+      if (updErr) throw new Error(updErr.message)
+      await loadSaved()
+      setIsEditing(false)
+      setEditText('')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Reset failed')
+    } finally {
+      setSaving(false)
+    }
+  }, [activePlanId, supabase, loadSaved])
+
+  const hasEdits = !!activePlanRow?.edits?.markdown
 
   const handleCopy = useCallback(async () => {
     if (!activeMarkdown) return
@@ -309,8 +376,15 @@ export default function InterventionPlanView({ assessmentId, plantId }: Props) {
           </p>
         </div>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          {activeMarkdown && !streaming && (
+          {activeMarkdown && !streaming && !isEditing && (
             <>
+              {activePlanId && (
+                <button
+                  type="button"
+                  onClick={startEdit}
+                  style={secondaryBtn}
+                >Edit plan</button>
+              )}
               <button
                 type="button"
                 onClick={handleCopy}
@@ -343,7 +417,7 @@ export default function InterventionPlanView({ assessmentId, plantId }: Props) {
       </div>
 
       {/* Regeneration feedback input, shown on demand */}
-      {!streaming && activeMarkdown && (
+      {!streaming && !isEditing && activeMarkdown && (
         <div style={{ marginBottom: '16px' }}>
           {!showFeedback ? (
             <button
@@ -418,12 +492,65 @@ export default function InterventionPlanView({ assessmentId, plantId }: Props) {
         />
       )}
 
-      {/* Plan rendering area */}
-      {activeMarkdown && (
+      {/* Plan rendering / editing area */}
+      {isEditing ? (
+        <div style={{
+          background: '#fff', border: '1px solid #0F6E56', borderRadius: '12px',
+          padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px',
+        }}>
+          <div style={{ fontSize: '12px', color: '#555', lineHeight: 1.4 }}>
+            Edit the plan markdown below. Section headers use <code style={{ background: '#f4f4f4', padding: '1px 4px', borderRadius: '3px' }}>##</code> and <code style={{ background: '#f4f4f4', padding: '1px 4px', borderRadius: '3px' }}>###</code>. Your changes are saved to the <strong>edits</strong> layer, so the original AI output is preserved and can be restored.
+          </div>
+          <textarea
+            value={editText}
+            onChange={(e) => setEditText(e.target.value)}
+            rows={30}
+            style={{
+              width: '100%', padding: '14px', border: '1px solid #ddd',
+              borderRadius: '8px', fontSize: '13px', lineHeight: 1.55,
+              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+              resize: 'vertical', minHeight: '400px',
+            }}
+          />
+          <div style={{ display: 'flex', gap: '8px', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+            <div>
+              {hasEdits && (
+                <button
+                  type="button"
+                  onClick={resetEditsToOriginal}
+                  disabled={saving}
+                  style={saving ? secondaryBtnDisabled : { ...secondaryBtn, color: '#8B3A2E', borderColor: '#E8A39B' }}
+                >Revert to original</button>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={cancelEdit}
+                disabled={saving}
+                style={saving ? secondaryBtnDisabled : secondaryBtn}
+              >Cancel</button>
+              <button
+                type="button"
+                onClick={saveEdit}
+                disabled={saving || editText.trim().length === 0}
+                style={saving || editText.trim().length === 0 ? primaryBtnDisabled : primaryBtn}
+              >{saving ? 'Saving…' : 'Save edits'}</button>
+            </div>
+          </div>
+        </div>
+      ) : activeMarkdown && (
         <div style={{
           background: '#fff', border: '1px solid #e5e5e5', borderRadius: '12px',
           padding: '24px', fontSize: '14px', lineHeight: 1.65, color: '#222',
         }}>
+          {hasEdits && !streaming && (
+            <div style={{
+              display: 'inline-block', padding: '2px 8px', marginBottom: '12px',
+              background: '#E1F5EE', color: '#0F6E56', borderRadius: '4px',
+              fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.5px',
+            }}>Edited</div>
+          )}
           <MarkdownView markdown={activeMarkdown} />
           {streaming && (
             <div style={{
@@ -455,6 +582,7 @@ export default function InterventionPlanView({ assessmentId, plantId }: Props) {
               const isOpen = p.id === openPlanId
               const d = new Date(p.generated_at)
               const evalScore = p.input_snapshot?.eval_result?.overall_score
+              const planHasEdits = !!p.edits?.markdown
               return (
                 <div
                   key={p.id}
@@ -483,6 +611,13 @@ export default function InterventionPlanView({ assessmentId, plantId }: Props) {
                       {d.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
                       <span style={{ color: '#888', marginLeft: '8px', fontSize: '11px' }}>
                         · {p.status} · {p.model_version ?? 'unknown model'}
+                        {planHasEdits && (
+                          <span style={{
+                            marginInlineStart: '8px', padding: '1px 6px',
+                            background: '#E1F5EE', color: '#0F6E56',
+                            borderRadius: '3px', fontWeight: 600,
+                          }}>edited</span>
+                        )}
                         {typeof evalScore === 'number' && (
                           <span style={{
                             marginInlineStart: '8px', padding: '1px 6px',
