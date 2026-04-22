@@ -813,8 +813,15 @@ function buildUserPrompt(input: BuildUserPromptInput): string {
     ? recentInterventions.map(i => `- [${i.intervention_date}] ${i.title} (${i.target_metric ?? 'no metric'}): ${i.description ?? ''}`).join('\n')
     : 'None — this is the first intervention plan for this plant.'
 
+  // Detect conservative-polish regen (when frontend passes flag for
+  // publishable plans). In conservative mode, we reinforce the "do not
+  // restructure" instruction on the server side too, so even the first
+  // pass respects it.
+  const isConservative = regenerationFeedback?.startsWith('CONSERVATIVE POLISH ONLY') ?? false
   const feedbackBlock = regenerationFeedback
-    ? `\n## Regeneration feedback (re-run, honor this)\n${regenerationFeedback}\n`
+    ? (isConservative
+        ? `\n## Regeneration feedback (CONSERVATIVE — wording refinements only)\nThe previous version of this plan was already publishable. Apply the refinements below as wording changes only. DO NOT add or remove interventions. DO NOT change USD totals or Phase structure. DO NOT re-balance Phase 1+2 sums unless the fix explicitly asks for it. Preserve hypothesis/intervention rollups exactly as they stood. Only clarify sentences, tighten phrasing, and add the specific missing sentences the fixes call for.\n\n${regenerationFeedback}\n`
+        : `\n## Regeneration feedback (re-run, honor this)\n${regenerationFeedback}\n`)
     : ''
 
   const parsedBlock = parsedInputs

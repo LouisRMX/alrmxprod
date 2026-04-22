@@ -479,14 +479,16 @@ function EvalScorecard({ result, onRegenerateWithFeedback, streaming }: {
   const overall = result.overall_score
   const band = overall >= 4 ? '#0F6E56' : overall >= 3 ? '#D68910' : '#C0392B'
   const bandBg = overall >= 4 ? '#E1F5EE' : overall >= 3 ? '#FFF4D6' : '#FDEDEC'
+  // Conservative flag instructs the revision prompt to apply fixes as
+  // wording refinements only, without restructuring the plan. Used on
+  // publishable plans where a full regeneration risks balance regression.
   const feedbackStr = result.top_fixes.length > 0
-    ? `Apply these fixes from the last quality evaluation:\n${result.top_fixes.map(f => `- ${f}`).join('\n')}`
+    ? (result.publishable
+        ? `CONSERVATIVE POLISH ONLY. The plan is already publishable; apply these evaluator refinements as WORDING changes only. Do NOT restructure sections, add or remove interventions, or change USD totals. Refine clarity only:\n${result.top_fixes.map(f => `- ${f}`).join('\n')}`
+        : `Apply these fixes from the last quality evaluation:\n${result.top_fixes.map(f => `- ${f}`).join('\n')}`)
     : ''
-  // Button is available whenever there are fixes to apply, regardless of
-  // publishable status. A publishable plan (4.0+) may still benefit from
-  // the judge's polish suggestions.
   const buttonLabel = result.publishable
-    ? 'Apply these polish fixes →'
+    ? 'Apply polish fixes (wording only)'
     : 'Regenerate using these fixes →'
   return (
     <div style={{
@@ -531,6 +533,18 @@ function EvalScorecard({ result, onRegenerateWithFeedback, streaming }: {
           <ul style={{ margin: 0, paddingInlineStart: '18px' }}>
             {result.top_fixes.map((f, i) => <li key={i} style={{ margin: '2px 0' }}>{f}</li>)}
           </ul>
+          {result.publishable && (
+            <div style={{
+              marginTop: '10px', padding: '8px 10px',
+              background: '#fff', border: `1px dashed ${band}66`, borderRadius: '6px',
+              fontSize: '11px', color: band, lineHeight: 1.4,
+            }}>
+              <strong>Regression risk note</strong>: this plan is already publishable.
+              Using the button above runs a conservative regen that keeps interventions + USD intact
+              and only refines wording. For maximum control, copy the markdown and apply these fixes
+              manually in your editor instead.
+            </div>
+          )}
         </div>
       )}
     </div>
