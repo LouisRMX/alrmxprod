@@ -175,31 +175,52 @@ export default function FieldGuideView({ assessmentId }: Props) {
         }}>{error}</div>
       )}
 
-      {/* Section tabs. On mobile we wrap, on desktop we align the counter to the far right. */}
-      <div style={{
-        display: 'flex', gap: '4px', marginBottom: isMobile ? '8px' : '16px',
-        flexWrap: 'wrap', alignItems: 'center',
-      }}>
-        {[
-          { id: 'hypotheses' as const, label: 'Hypotheses' },
-          { id: 'day' as const, label: 'Day-by-day' },
-          { id: 'pre_arrival' as const, label: 'Pre-arrival' },
-          { id: 'interviews' as const, label: 'Interviews' },
-          { id: 'abort' as const, label: 'Abort scenarios' },
-        ].map(s => (
-          <button
-            key={s.id}
-            type="button"
-            onClick={() => setSection(s.id)}
-            style={sectionTabBtn(section === s.id)}
-          >{s.label}</button>
-        ))}
-        {!isMobile && (
+      {/* Section tabs. On mobile they render as a 2-column grid so they always fit
+          on a 320px+ viewport without any horizontal scroll. */}
+      {isMobile ? (
+        <div style={{
+          display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)',
+          gap: '6px', marginBottom: '8px', width: '100%', minWidth: 0,
+        }}>
+          {[
+            { id: 'hypotheses' as const, label: 'Hypotheses' },
+            { id: 'day' as const, label: 'Day-by-day' },
+            { id: 'pre_arrival' as const, label: 'Pre-arrival' },
+            { id: 'interviews' as const, label: 'Interviews' },
+            { id: 'abort' as const, label: 'Abort' },
+          ].map(s => (
+            <button
+              key={s.id}
+              type="button"
+              onClick={() => setSection(s.id)}
+              style={sectionTabBtnMobile(section === s.id)}
+            >{s.label}</button>
+          ))}
+        </div>
+      ) : (
+        <div style={{
+          display: 'flex', gap: '4px', marginBottom: '16px',
+          flexWrap: 'wrap', alignItems: 'center',
+        }}>
+          {[
+            { id: 'hypotheses' as const, label: 'Hypotheses' },
+            { id: 'day' as const, label: 'Day-by-day' },
+            { id: 'pre_arrival' as const, label: 'Pre-arrival' },
+            { id: 'interviews' as const, label: 'Interviews' },
+            { id: 'abort' as const, label: 'Abort scenarios' },
+          ].map(s => (
+            <button
+              key={s.id}
+              type="button"
+              onClick={() => setSection(s.id)}
+              style={sectionTabBtn(section === s.id)}
+            >{s.label}</button>
+          ))}
           <div style={{ marginInlineStart: 'auto', fontSize: '11px', color: '#888', alignSelf: 'center' }}>
             {summary.done} / {summary.total} items marked
           </div>
-        )}
-      </div>
+        </div>
+      )}
       {isMobile && (
         <div style={{ fontSize: '11px', color: '#888', marginBottom: '12px' }}>
           {summary.done} / {summary.total} items marked
@@ -401,6 +422,15 @@ function HypothesisCard({
 
 // ── Section: Day-by-day ──
 
+// Shorten day labels on mobile: "Day 1 AM — Data onboarding + sanity check" → "Day 1 AM".
+function shortDayLabel(label: string): string {
+  const emDash = label.indexOf('—')
+  if (emDash > 0) return label.slice(0, emDash).trim()
+  const hyphen = label.indexOf(' - ')
+  if (hyphen > 0) return label.slice(0, hyphen).trim()
+  return label
+}
+
 function DayPicker({
   days, activeId, onChange, progress,
 }: {
@@ -415,6 +445,7 @@ function DayPicker({
       <div style={{
         display: 'flex', gap: '4px', marginBottom: isMobile ? '4px' : '12px', overflowX: 'auto',
         WebkitOverflowScrolling: 'touch' as React.CSSProperties['WebkitOverflowScrolling'],
+        minWidth: 0, maxWidth: '100%',
       }}>
         {days.map(d => {
           const active = d.id === activeId
@@ -427,13 +458,14 @@ function DayPicker({
             const r = progress.get(progressKey('slot_gate', id)) ?? progress.get(progressKey('eod_gate', id))
             return r && ['confirmed', 'partial', 'skipped'].includes(r.status)
           }).length
+          const label = isMobile ? shortDayLabel(d.label) : d.label
           return (
             <button
               key={d.id}
               type="button"
               onClick={() => onChange(d.id)}
               style={{
-                padding: '8px 14px', minHeight: '44px',
+                padding: isMobile ? '10px 10px' : '8px 14px', minHeight: '44px',
                 background: active ? '#0F6E56' : '#fff',
                 color: active ? '#fff' : '#333',
                 border: `1.5px solid ${active ? '#0F6E56' : '#e5e5e5'}`,
@@ -441,7 +473,7 @@ function DayPicker({
                 cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
               }}
             >
-              {d.label}
+              {label}
               {gateIds.length > 0 && (
                 <span style={{ marginInlineStart: '6px', fontSize: '10px', opacity: 0.8 }}>
                   {done}/{gateIds.length}
@@ -863,5 +895,17 @@ function sectionTabBtn(active: boolean): React.CSSProperties {
     border: `1.5px solid ${active ? '#0F6E56' : '#e5e5e5'}`,
     borderRadius: '8px', fontSize: '12px', fontWeight: 600,
     cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
+  }
+}
+
+function sectionTabBtnMobile(active: boolean): React.CSSProperties {
+  return {
+    padding: '10px 8px', minHeight: '44px', minWidth: 0,
+    background: active ? '#0F6E56' : '#fff',
+    color: active ? '#fff' : '#333',
+    border: `1.5px solid ${active ? '#0F6E56' : '#e5e5e5'}`,
+    borderRadius: '8px', fontSize: '13px', fontWeight: 600,
+    cursor: 'pointer', whiteSpace: 'nowrap',
+    overflow: 'hidden', textOverflow: 'ellipsis',
   }
 }
