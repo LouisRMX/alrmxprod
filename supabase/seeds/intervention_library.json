@@ -620,25 +620,24 @@
     "slug": "partial_load_elimination_protocol",
     "title_en": "Partial-load elimination protocol (min load rule + consolidation)",
     "category": "dispatch",
-    "problem_solves": "Avg load well below drum capacity implies significant capacity loss. Root causes vary; protocol forces diagnosis + action.",
+    "problem_solves": "Avg load below 8 m3 warrants investigation — could be waste (dispatch, pump access, over-batching) or legitimate (customer small-order mix). Protocol forces on-site root-cause diagnosis before quantifying opportunity.",
     "applicability_rules": {
-      "avg_load_m3_lt": 8.0,
-      "mixer_drum_capacity_m3_gte": 8.0
+      "avg_load_m3_lt": 8.0
     },
     "cost_usd_low": 1000,
     "cost_usd_high": 5000,
-    "cost_notes": "Process + facilitation + dashboards. Impact comes from behaviour change, not tools.",
+    "cost_notes": "Process + facilitation + dashboards. Impact is conditional on root-cause diagnosis showing operational (not customer) drivers of low load size.",
     "impact_metric": "avg_load_m3",
-    "impact_pct_low": 8,
-    "impact_pct_high": 20,
-    "impact_secondary": "Trips needed per 1000 m3 -8 to -17%; fleet can absorb volume growth without adding trucks.",
+    "impact_pct_low": null,
+    "impact_pct_high": null,
+    "impact_secondary": "USD impact cannot be quantified from benchmark alone. After root-cause diagnosis reveals recoverable m3 delta, compute as (delta m3 * parsed_inputs.impact_multipliers.per_m3_avg_load_increase_usd). Conservative preliminary range: each 0.5 m3 recoverable = roughly 0.5 * per_m3_avg_load_increase_usd.",
     "effort_weeks": 4,
     "complexity": "medium",
     "prerequisites": ["order_intake_standardisation"],
     "quick_win": true,
-    "gcc_notes": "Partial loads often justified as 'keeping customer happy with a quick topper truck'. Needs owner endorsement to push back.",
+    "gcc_notes": "Partial loads in GCC often justified as 'keeping customer happy with a quick topper truck'. Needs owner endorsement to push back. Also: customer-mix may genuinely require <8 m3 loads (residential small pours) — do not assume it is waste.",
     "sources": ["Internal derivation"],
-    "tags": ["dispatch", "quick_win", "high_leverage"]
+    "tags": ["dispatch", "quick_win", "conditional_opportunity"]
   },
   {
     "slug": "night_shift_expansion",

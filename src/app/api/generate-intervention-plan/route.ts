@@ -624,11 +624,10 @@ The user prompt contains a block labelled \`parsed_inputs\` with the authoritati
 
 - **No duplicate opportunities across phases.** If the partial-load opportunity appears in a hypothesis at \$160k/month, interventions testing it in Phase 1 + Phase 2 must ROLL UP to that same \$160k (per rollup rule), not claim it twice at \$160k + \$263k. Exactly one total \$ opportunity per hypothesis across the entire plan.
 
-- **Benchmark ranges: use midpoint or low end, never the high end.** When a USD computation depends on a benchmark range (either from GCC domain context below OR from a library applicability rule), use the midpoint or low end. Never cherry-pick the top of the range to inflate impact. Examples:
-    - "Typical avg load per trip: 8-10 m³" : assume 9 m³ (midpoint) for partial-load gap math, not 10 m³.
-    - "Typical rejection rate: 2-4%" : assume 3% for quality-loss math, not 4%.
-    - "Typical TAT benchmark: 120-150 min" : use 135 min (midpoint) when no target_turnaround_min exists, not 120.
-    When using a benchmark value, state explicitly: "Assuming X per industry midpoint, to be validated on-site."
+- **Benchmarks are hypotheses, not facts.** The GCC domain context below contains unsourced industry estimates. You MUST NOT assert a quantified opportunity purely from a benchmark comparison. When a measured plant value is below/above a benchmark, the correct consultant move is to FLAG IT FOR ON-SITE VALIDATION, not to claim a dollar opportunity. Example for OMIX (avg_load_m3 = 7.45):
+    - ✗ WRONG: "Avg load 7.45 m³ vs 9 m³ industry benchmark = 1.55 m³ partial-load gap worth $459k/month"
+    - ✓ RIGHT: "Avg load 7.45 m³ is below the 8 m³ threshold that commonly points to partial-load waste. On-site Week 1 action: sample 100 tickets by customer type and site constraint. If operational drivers (dispatch, pump, over-batching) exceed customer-mix drivers, the recoverable m³ delta can be quantified. Preliminary range: each 0.5 m³ recoverable = $148k/month (from parsed_inputs.impact_multipliers.per_m3_avg_load_increase_usd × 0.5)."
+    Never cherry-pick the top of a benchmark range. When you MUST cite a benchmark number (e.g. to explain why a plant metric is suspect), use the boundary value that justifies investigation — for avg_load use 8 (the threshold), not 9 (midpoint) or 10 (high end).
 
 - **Anti-invention hard rule for unknown baselines.** If a library intervention's USD impact formula requires a baseline value NOT present in \`parsed_inputs\` (e.g. monthly_fuel_spend, monthly_labour_cost, monthly_admixture_spend, maintenance_spend_per_truck, contract_dispute_volume, slump_test_coverage_baseline), write the USD impact line as: "TBD, baseline <field_name> to validate on-site". Do NOT infer the baseline from a rule of thumb, a vendor claim, or an industry benchmark. ONE unknown baseline is enough to mark TBD; do not try to compose a value by combining multiple unknowns.
 
@@ -692,10 +691,12 @@ ${JSON.stringify(library, null, 2)}
 
 ## GCC ready-mix domain context (condensed)
 
+NOTE: Every number below is an unsourced industry estimate from general knowledge, not a verified benchmark. Flag anything based on them as "per industry estimate, to be validated on-site". Never claim quantified opportunity from a benchmark comparison alone.
+
 - Typical USD margin per m³ (material only): $20-35. OMIX-class: $27.
-- Typical Saudi ready-mix TAT benchmark: 120-150 min for ≤25 km radius. Above 160 min = significant operational drag.
-- Typical rejection rate: 2-4%. Below 2% = under-reporting suspected. Above 5% = quality process breakdown.
-- Typical avg load per trip: 8-10 m³. Below 8 m³ = partial-load leak; requires root-cause breakdown (pump constraint, small orders, over-batching).
+- Typical Saudi ready-mix TAT estimate: 120-150 min for ≤25 km radius, verify on-site. Above 160 min warrants investigation but quantified opportunity requires measured TAT components (plant dwell / transit / site wait / washout / return).
+- Typical rejection rate estimate: 2-4%, verify on-site. Below 2% commonly indicates under-reporting, not world-class quality. Above 5% commonly indicates quality process breakdown. Either case requires independent measurement before quantifying opportunity.
+- Typical avg load per trip estimate: 8-10 m³ in GCC markets. **Below 8 m³ warrants on-site investigation to determine if it is waste (operational drivers like dispatch, pump access, over-batching) or legitimate (customer small-order mix). Do NOT claim quantified partial-load opportunity from the benchmark gap alone; first root-cause the cause on-site.** Once root-caused, quantify recoverable m³ delta from parsed_inputs.impact_multipliers.per_m3_avg_load_increase_usd applied to that measured delta.
 - Riyadh daytime heavy-vehicle restrictions: ~6:30-9:30 and 12:30-16:00 in core zones on weekdays. Reduces effective dispatch window by ~7 hrs. Plants in outer industrial zones are less affected.
 - Saudization: commercial drivers increasingly Saudi nationals; expat-dominant fleets face gradual transition pressure. Incentive plans must work across both.
 - Fleet-sharing across multiple plants: requires central dispatch. 87 trucks across 2 plants = medium complexity; >150 trucks across >3 plants = high complexity.
