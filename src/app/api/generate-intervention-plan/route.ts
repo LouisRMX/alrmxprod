@@ -28,12 +28,99 @@ import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
 import { checkRateLimit, checkSpendCap, trackSpend } from '@/lib/rate-limit'
 import { NextRequest, NextResponse } from 'next/server'
+import { mapToReportInput, calculateReport, type ReportInput, type ReportCalculations } from '@/lib/reportCalculations'
+import type { Answers } from '@/lib/calculations'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
 
 const MODEL = 'claude-sonnet-4-20250514'
 const MAX_TOKENS = 8000
 const RATE_LIMIT = { maxRequests: 5, windowSeconds: 60 }
+
+/** Authoritative parsed numeric inputs. The LLM MUST cite these. */
+interface ParsedInputs {
+  selling_price_usd_per_m3: number
+  material_cost_usd_per_m3: number
+  contribution_margin_usd_per_m3: number
+  trucks_assigned: number
+  number_of_plants: number
+  plant_capacity_m3_per_hour: number
+  operating_hours_per_day: number
+  operating_days_per_year: number
+  op_days_per_month: number
+  monthly_output_m3: number
+  monthly_contribution_usd: number
+  avg_load_m3: number
+  total_trips_last_month: number
+  actual_trips_per_truck_per_day: number
+  avg_turnaround_min: number
+  target_turnaround_min: number
+  target_trips_per_truck_per_day: number
+  rejection_rate_pct: number
+  actual_daily_output_m3: number
+  target_daily_output_m3: number
+  utilisation_actual_pct: number
+  utilisation_target_pct: number
+  monthly_gap_m3: number
+  monthly_gap_usd: number
+  recovery_low_usd: number
+  recovery_high_usd: number
+  quality_loss_usd: number
+  dispatch_loss_usd: number
+  production_loss_usd: number
+  gap_driver: string
+  constraint: string
+  bottleneck: string
+  has_external_constraint: boolean
+  dispatch_tool_raw: string
+  biggest_operational_challenge: string
+  demand_vs_capacity: string
+  data_sources_raw: string
+  avg_delivery_radius_raw: string
+}
+
+function deriveParsedInputs(ri: ReportInput, rc: ReportCalculations): ParsedInputs {
+  return {
+    selling_price_usd_per_m3: ri.selling_price_per_m3,
+    material_cost_usd_per_m3: ri.material_cost_per_m3,
+    contribution_margin_usd_per_m3: rc.contribution_margin_per_m3,
+    trucks_assigned: ri.trucks_assigned,
+    number_of_plants: ri.number_of_plants ?? 1,
+    plant_capacity_m3_per_hour: ri.plant_capacity_m3_per_hour,
+    operating_hours_per_day: ri.operating_hours_per_day,
+    operating_days_per_year: ri.operating_days_per_year,
+    op_days_per_month: rc.op_days_per_month,
+    monthly_output_m3: ri.actual_production_last_month_m3,
+    monthly_contribution_usd: ri.actual_production_last_month_m3 * rc.contribution_margin_per_m3,
+    avg_load_m3: rc.avg_load_m3,
+    total_trips_last_month: ri.total_trips_last_month,
+    actual_trips_per_truck_per_day: rc.actual_trips_per_truck_per_day,
+    avg_turnaround_min: ri.avg_turnaround_min,
+    target_turnaround_min: rc.target_tat_min,
+    target_trips_per_truck_per_day: rc.target_trips_per_truck_per_day,
+    rejection_rate_pct: ri.rejection_rate_pct,
+    actual_daily_output_m3: rc.actual_daily_output_m3,
+    target_daily_output_m3: rc.target_daily_output_m3,
+    utilisation_actual_pct: rc.utilisation_actual_pct,
+    utilisation_target_pct: rc.utilisation_target_pct,
+    monthly_gap_m3: rc.monthly_gap_m3,
+    monthly_gap_usd: rc.monthly_gap_usd,
+    recovery_low_usd: rc.recovery_low_usd,
+    recovery_high_usd: rc.recovery_high_usd,
+    quality_loss_usd: rc.quality_loss_usd,
+    dispatch_loss_usd: rc.dispatch_loss_usd,
+    production_loss_usd: rc.production_loss_usd,
+    gap_driver: rc.gap_driver,
+    constraint: rc.constraint,
+    bottleneck: '',
+    has_external_constraint: rc.has_external_constraint,
+    dispatch_tool_raw: ri.dispatch_tool,
+    biggest_operational_challenge: ri.biggest_operational_challenge,
+    demand_vs_capacity: ri.demand_vs_capacity,
+    data_sources_raw: ri.data_sources,
+    avg_delivery_radius_raw: String(ri.avg_delivery_radius),
+  }
+}
 
 interface LibraryItem {
   slug: string
@@ -136,14 +223,43 @@ export async function POST(req: NextRequest) {
 
   const library: LibraryItem[] = (libraryRows ?? []) as LibraryItem[]
 
+  // Compute parsed numeric inputs from raw answers. This is the critical step
+  // that prevents the LLM from fumbling bucket-text labels like "Over 125 min"
+  // and inventing margin/utilisation numbers. Same path as /api/generate-report.
+  let parsedInputs: ParsedInputs | null = null
+  try {
+    const answers = (assessment.answers ?? {}) as Answers
+    const answersRec = answers as unknown as Record<string, unknown>
+    // Minimal dx stub — mapToReportInput only reads tat_actual + reject_pct + management_context.
+    const tatActualAnswer = Number(answersRec.turnaround ?? answersRec.avg_turnaround_min ?? 0)
+    const rejectAnswer = Number(answersRec.rejection_rate ?? answersRec.rejection_rate_pct ?? 0)
+    const dxStub = {
+      tat_actual: isFinite(tatActualAnswer) && tatActualAnswer > 0 ? tatActualAnswer : 170,
+      reject_pct: isFinite(rejectAnswer) && rejectAnswer > 0 ? rejectAnswer : 2,
+      management_context: String(answersRec.biggest_pain ?? answersRec.biggest_operational_challenge ?? ''),
+    }
+    const reportInput = mapToReportInput(dxStub, answersRec)
+    const rc = calculateReport(reportInput)
+    parsedInputs = deriveParsedInputs(reportInput, rc)
+  } catch (err) {
+    console.warn('Intervention plan: parsed-inputs derivation failed, prompt will omit numeric block', err)
+  }
+
   const systemPrompt = buildSystemPrompt(library)
   const userPrompt = buildUserPrompt({
     plant,
     assessment,
+    parsedInputs,
     fieldKpis,
     recentInterventions: recentInterventions ?? [],
     regenerationFeedback,
   })
+
+  // Annotate parsed inputs with the assessment's stored bottleneck (captured
+  // in the snapshot so the LLM doesn't have to cross-reference two blocks).
+  if (parsedInputs && assessment.bottleneck) {
+    parsedInputs.bottleneck = String(assessment.bottleneck)
+  }
 
   const inputSnapshot = {
     plant,
@@ -154,6 +270,7 @@ export async function POST(req: NextRequest) {
       ebitda_monthly: assessment.ebitda_monthly,
       hidden_rev_monthly: assessment.hidden_rev_monthly,
     },
+    parsed_inputs: parsedInputs,
     field_kpis: fieldKpis,
     recent_interventions: recentInterventions,
     regeneration_feedback: regenerationFeedback ?? null,
@@ -218,6 +335,17 @@ export async function POST(req: NextRequest) {
 function buildSystemPrompt(library: LibraryItem[]): string {
   return `You are an operations consultant specializing in ready-mix concrete plants in the GCC region, writing a structured intervention plan for a specific plant. You support Louis Hellmann, a Lean/Six Sigma operations consultant entering the ready-mix vertical. Your output must look like senior-consultant work: precise, grounded, source-tagged, politically aware.
 
+## CRITICAL numeric fidelity (highest priority)
+
+The user prompt contains a block labelled \`parsed_inputs\` with the authoritative numeric values for this plant (monthly_output_m3, avg_load_m3, avg_turnaround_min, target_turnaround_min, contribution_margin_usd_per_m3, trucks_assigned, number_of_plants, etc.). You MUST:
+
+1. **Use \`parsed_inputs\` values verbatim.** Do NOT recalculate from raw \`answers\`. Do NOT substitute with plausible-looking numbers.
+2. **Every computation** in your output (USD impacts, % deltas, trip counts) must start from \`parsed_inputs\` and show the arithmetic, e.g. "0.8 extra trips/truck/day × parsed_inputs.trucks_assigned (87) × parsed_inputs.op_days_per_month (25) × parsed_inputs.avg_load_m3 (7.45) × parsed_inputs.contribution_margin_usd_per_m3 ($27.25) = $353,000/month".
+3. **Units matter.** Monthly numbers stay monthly. Never annualise unless the target sentence is explicitly annual. Plant capacity is m³/hour, NOT m³/day.
+4. **Plant count**: use \`parsed_inputs.number_of_plants\`. If ≥2, never say "single plant". Note mixer count separately — the library comment mentions "5 mixers across 2 plants" style when relevant.
+5. **If a value is not in \`parsed_inputs\`**: write literally "to be validated on-site" and skip the USD estimate for that line. Do not infer.
+6. **Reconciliation check**: sum of Phase 1 + Phase 2 USD monthly impact should track toward \`parsed_inputs.recovery_low_usd\` to \`parsed_inputs.recovery_high_usd\`. If your draft sum is far off, revise — do not publish a plan that under-promises vs. the pre-assessment's stated recoverable band.
+
 ## Output format (strict — markdown with these exact H2 section headers, in order)
 
 ## Verify on-site (days 1-4)
@@ -252,9 +380,9 @@ A numbered list of 5-8 items the consultant must reconcile on-site before acting
 ## Grounding rules (NEVER violate)
 
 1. **Every USD figure in your output MUST cite either**:
-   - An input field like "(per input: avg_turnaround_min=170)", OR
+   - A \`parsed_inputs\` field like "(parsed_inputs.avg_turnaround_min = 170)", OR
    - A library slug like "(lib: dispatcher_app_tier1, cost range \$40k-\$80k)"
-2. **If you lack a basis for a number, write "to be validated on-site" instead of guessing.** This is the single most important rule. A fabricated SAR/USD figure destroys trust.
+2. **If you lack a basis for a number, write "to be validated on-site" instead of guessing.** This is the single most important rule. A fabricated USD figure destroys trust.
 3. **Respect the consultant's data constraints.** If field_kpis is empty/null, that means the on-site visit hasn't happened yet. DO NOT invent observed values. Ground all hypotheses in the pre-assessment (self-reported) numbers only, and flag this explicitly in the "Verify on-site" section.
 4. **Do NOT re-recommend interventions already in \`recent_interventions\`.** If a dispatch SOP is already logged, don't recommend "implement dispatch SOP" again — build on it or go deeper.
 5. **Honor \`applicability_rules\`.** Before recommending a library item, check that the plant's KPIs satisfy the rule (e.g., trucks_min, dispatch_tool_current). If the rule isn't satisfied, exclude it or flag it as conditional.
@@ -283,13 +411,14 @@ Keep sections tight. Total output target: 1,500-2,500 words.`
 interface BuildUserPromptInput {
   plant: { id: string; name?: string; country?: string } | null | undefined
   assessment: { id: string; answers?: unknown; scores?: unknown; overall?: number | null; bottleneck?: string | null; ebitda_monthly?: number | null; hidden_rev_monthly?: number | null }
+  parsedInputs: ParsedInputs | null
   fieldKpis: unknown
   recentInterventions: Array<{ title: string; description: string | null; target_metric: string | null; intervention_date: string }>
   regenerationFeedback?: string
 }
 
 function buildUserPrompt(input: BuildUserPromptInput): string {
-  const { plant, assessment, fieldKpis, recentInterventions, regenerationFeedback } = input
+  const { plant, assessment, parsedInputs, fieldKpis, recentInterventions, regenerationFeedback } = input
   const plantLabel = plant?.name ? `${plant.name} (${plant.country ?? 'unknown country'})` : 'Plant (unnamed)'
   const fieldBlock = fieldKpis && Array.isArray(fieldKpis) && fieldKpis.length > 0
     ? JSON.stringify(fieldKpis, null, 2)
@@ -303,19 +432,26 @@ function buildUserPrompt(input: BuildUserPromptInput): string {
     ? `\n## Regeneration feedback (re-run, honor this)\n${regenerationFeedback}\n`
     : ''
 
+  const parsedBlock = parsedInputs
+    ? JSON.stringify(parsedInputs, null, 2)
+    : 'UNAVAILABLE — parsed inputs could not be derived. Ground USD figures in library cost ranges only and mark plant-specific estimates as "to be validated on-site".'
+
   return `Generate an intervention plan for the following plant.
 
 ## Plant
 ${plantLabel}
 
-## Assessment summary
+## parsed_inputs (AUTHORITATIVE — use these verbatim, do NOT recalculate)
+${parsedBlock}
+
+## Assessment summary (for context only; numeric values in parsed_inputs override any conflicting reading here)
 - Overall score: ${assessment.overall ?? 'n/a'}
 - Primary bottleneck: ${assessment.bottleneck ?? 'n/a'}
 - Monthly EBITDA: ${assessment.ebitda_monthly ? `$${Math.round(assessment.ebitda_monthly).toLocaleString()}` : 'n/a'}
-- Hidden recoverable monthly margin: ${assessment.hidden_rev_monthly ? `$${Math.round(assessment.hidden_rev_monthly).toLocaleString()}` : 'n/a'}
+- Hidden recoverable monthly margin (pre-assessment): ${assessment.hidden_rev_monthly ? `$${Math.round(assessment.hidden_rev_monthly).toLocaleString()}` : 'n/a'}
 - Scores: ${JSON.stringify(assessment.scores ?? {})}
 
-## Pre-assessment answers (self-reported)
+## Raw pre-assessment answers (context only — prefer parsed_inputs for any number)
 ${JSON.stringify(assessment.answers ?? {}, null, 2)}
 
 ## Field log KPIs (last 30 days)
@@ -325,5 +461,5 @@ ${fieldBlock}
 ${interventionsBlock}
 ${feedbackBlock}
 
-Produce the markdown plan now, strictly following the output format and grounding rules.`
+Produce the markdown plan now, strictly following the output format and grounding rules. Remember: every USD figure must trace to parsed_inputs or a library slug, and Phase 1+2 totals should track toward parsed_inputs.recovery_low_usd / recovery_high_usd.`
 }
