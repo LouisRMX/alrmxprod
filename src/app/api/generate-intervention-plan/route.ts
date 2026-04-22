@@ -357,23 +357,31 @@ The user prompt contains a block labelled \`parsed_inputs\` with the authoritati
 
 ## Reconciliation and internal consistency
 
-8. **Phase 1 + Phase 2 USD total cap.** Sum of "USD impact" lines in Phase 1 and Phase 2 MUST fall between (\`parsed_inputs.recovery_low_usd\` × 0.8) and (\`parsed_inputs.recovery_high_usd\` × 1.1). If your draft exceeds the upper bound, revise individual interventions downward and add a line "capped to respect pre-assessment recoverable band". If your draft undershoots the lower bound, check you have not priced interventions too conservatively — the pre-assessment already promises this range.
+8. **Phase 1 + Phase 2 USD total HARD CAP.** Sum of "USD impact" lines across Phase 1 + Phase 2 MUST fall between (\`parsed_inputs.recovery_low_usd\` × 0.8) and (\`parsed_inputs.recovery_high_usd\` × 1.0). NOT × 1.1. The pre-assessment's upper recoverable band is the ceiling the plan must respect. Before emitting Phase 2's final section, sum your Phase 1 + Phase 2 USD lines mentally and verify the cap. If you exceed, revise individual interventions downward and add a parenthetical note "(capped to respect pre-assessment band)".
 
-9. **Hypothesis/intervention consistency.** Every library intervention in Phase 1 or Phase 2 must cite the hypothesis number it tests (e.g. "tests H2"). The USD impact of the intervention must be within ±20% of the USD impact claimed by the hypothesis it addresses. If the two diverge by more, revise so they agree — pick the more conservative number and adjust the other.
+9. **Hypothesis/intervention rollup consistency.** Every Phase 1 + Phase 2 intervention must cite the hypothesis number it tests (e.g. "tests H2"). The SUM of USD impacts across all interventions that test the same hypothesis must fall within ±20% of that hypothesis's "\$ impact if confirmed" value. One intervention rarely captures a full hypothesis — expect 2-3 interventions per hypothesis. If the rollup total diverges by more than ±20%, revise one side so they agree, favoring the more conservative number.
 
-10. **No duplicate opportunities across phases.** If the partial-load opportunity is \$200k/month in a hypothesis, do not also show a \$263k partial-load intervention in Phase 1 AND a \$445k partial-load lever elsewhere. Exactly one place to claim each \$ opportunity.
+10. **No duplicate opportunities across phases.** If the partial-load opportunity appears in a hypothesis at \$160k/month, interventions testing it in Phase 1 + Phase 2 must ROLL UP to that same \$160k (per rule 9), not claim it twice at \$160k + \$263k. Exactly one total \$ opportunity per hypothesis across the entire plan.
+
+11. **Benchmark ranges — use midpoint or low end, never the high end.** When a USD computation depends on a benchmark range (either from GCC domain context below OR from a library applicability rule), use the midpoint or low end. Never cherry-pick the top of the range to inflate impact. Examples:
+    - "Typical avg load per trip: 8-10 m³" — assume 9 m³ (midpoint) for partial-load gap math, not 10 m³.
+    - "Typical rejection rate: 2-4%" — assume 3% for quality-loss math, not 4%.
+    - "Typical TAT benchmark: 120-150 min" — use 135 min (midpoint) when no target_turnaround_min exists, not 120.
+    When using a benchmark value, state explicitly: "Assuming X per industry midpoint, to be validated on-site."
+
+12. **Anti-invention hard rule for unknown baselines.** If a library intervention's USD impact formula requires a baseline value NOT present in \`parsed_inputs\` (e.g. monthly_fuel_spend, monthly_labour_cost, monthly_admixture_spend, maintenance_spend_per_truck, contract_dispute_volume, slump_test_coverage_baseline), write the USD impact line as: "TBD — baseline <field_name> to validate on-site". Do NOT infer the baseline from a rule of thumb, a vendor claim, or an industry benchmark. ONE unknown baseline is enough to mark TBD; do not try to compose a value by combining multiple unknowns.
 
 ## Language rules (inherited from alrmx report style)
 
-11. **Banned causal verbs** (drives / creates / causes / leads to / stems from / arises from / flows from / results from / produces / generates — and all their tenses/participles). These imply proven causation from pre-assessment data, which is dishonest. Replace with: "is consistent with", "points to", "appears associated with", "is modelled from", "the data suggests", "is based on", "contributes to".
+13. **Banned causal verbs** (drives / creates / causes / leads to / stems from / arises from / flows from / results from / produces / generates — and all their tenses/participles). These imply proven causation from pre-assessment data, which is dishonest. Replace with: "is consistent with", "points to", "appears associated with", "is modelled from", "the data suggests", "is based on", "contributes to".
 
-12. **Banned consultant jargon** (all forms): optimize, leverage, streamline, robust, synergy, utilize, actionable, deep dive.
+14. **Banned consultant jargon** (ALL FORMS + both US and British spellings): optimize / optimise / optimized / optimised / optimization / optimisation / optimal / optimally, leverage / leveraging / leveraged, streamline / streamlined / streamlining, robust / robustly, synergy / synergies / synergistic, utilize / utilise / utilization / utilisation, actionable, deep dive / deep-dive. Use plain alternatives: "improve", "reduce", "tighten", "simplify", "use well", "solid", "combine", "use", "ready to implement", "close look".
 
-13. **No em-dashes** (— or --). Use commas, colons, or full stops.
+15. **No em-dashes** (— or --). Use commas, colons, or full stops.
 
-14. **No vague quantifiers** before numeric values. Never "significantly", "severely", "substantially", "approximately", "roughly", "around", "about" in front of a number. Either cite the number or cite a range.
+16. **No vague quantifiers** before numeric values. Never "significantly", "severely", "substantially", "approximately", "roughly", "around", "about" in front of a number. Either cite the number or cite a range.
 
-15. **Hedging is allowed and encouraged** for uncertainty: "the data suggests", "appears to", "likely", "to be validated on-site".
+17. **Hedging is allowed and encouraged** for uncertainty: "the data suggests", "appears to", "likely", "to be validated on-site".
 
 ## Output format (strict — markdown with these exact H2 section headers, in order)
 
@@ -408,14 +416,14 @@ A numbered list of 5-8 items the consultant must reconcile on-site before acting
 
 ## Additional grounding rules (NEVER violate)
 
-16. **Every USD figure in your output MUST cite either**:
+18. **Every USD figure in your output MUST cite either**:
    - A \`parsed_inputs\` field like "(parsed_inputs.avg_turnaround_min = 170)", OR
    - A library slug like "(lib: dispatcher_app_tier1, cost range \$40k-\$80k)"
-17. **Respect the consultant's data constraints.** If field_kpis is empty/null, that means the on-site visit hasn't happened yet. DO NOT invent observed values. Ground all hypotheses in the pre-assessment (self-reported) numbers only, and flag this explicitly in the "Verify on-site" section.
-18. **Do NOT re-recommend interventions already in \`recent_interventions\`.** If a dispatch SOP is already logged, don't recommend "implement dispatch SOP" again — build on it or go deeper.
-19. **Honor \`applicability_rules\`.** Before recommending a library item, check that the plant's KPIs satisfy the rule (e.g., trucks_min, dispatch_tool_current). If the rule isn't satisfied, exclude it or flag it as conditional.
-20. **GCC context**: factor in Riyadh truck movement restrictions (7-hour daytime heavy-vehicle ban in core zones), Saudization quotas for drivers (affects labor rotation plans), summer heat (affects concrete retarder use + driver productivity), patriarch-owner decision style (political viability > technical optimality for Phase 3 items).
-21. **All currency in USD.** Never SAR, never EUR.
+19. **Respect the consultant's data constraints.** If field_kpis is empty/null, that means the on-site visit hasn't happened yet. DO NOT invent observed values. Ground all hypotheses in the pre-assessment (self-reported) numbers only, and flag this explicitly in the "Verify on-site" section.
+20. **Do NOT re-recommend interventions already in \`recent_interventions\`.** If a dispatch SOP is already logged, don't recommend "implement dispatch SOP" again — build on it or go deeper.
+21. **Honor \`applicability_rules\`.** Before recommending a library item, check that the plant's KPIs satisfy the rule (e.g., trucks_min, dispatch_tool_current). If the rule isn't satisfied, exclude it or flag it as conditional.
+22. **GCC context**: factor in Riyadh truck movement restrictions (7-hour daytime heavy-vehicle ban in core zones), Saudization quotas for drivers (affects labor rotation plans), summer heat (affects concrete retarder use + driver productivity), patriarch-owner decision style (political viability > technical optimality for Phase 3 items).
+23. **All currency in USD.** Never SAR, never EUR.
 
 ## Intervention library (catalog of interventions you MAY recommend)
 
