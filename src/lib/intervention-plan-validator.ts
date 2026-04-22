@@ -82,21 +82,13 @@ const BANNED_CAUSAL_VERBS = [
   /\breveals?\b/gi,
   /\brevealed\b/gi,
   /\brevealing\b/gi,
-  /\bcontributes?\s+to\b/gi,
-  /\bcontributed\s+to\b/gi,
-  /\bcontributing\s+to\b/gi,
-  /\bimpacts?\b/gi,
-  /\bimpacted\b/gi,
-  /\bimpacting\b/gi,
-  /\binfluences?\b/gi,
-  /\binfluenced\b/gi,
-  /\binfluencing\b/gi,
-  /\btriggers?\b/gi,
-  /\btriggered\b/gi,
-  /\btriggering\b/gi,
-  /\benables?\b/gi,
-  /\benabled\b/gi,
-  /\benabling\b/gi,
+  // "contributes to" has an approved use ("intervention X contributes to
+  // Phase 1 sum") distinct from the banned attribution sense. Keep the
+  // approved-replacements list strict instead.
+  // Note: "impact", "influence", "trigger", "enable", "contribute" all removed
+  // from strict ban because they are also legitimate nouns/verbs in intervention
+  // vocabulary ("impact_multipliers", "intervention enables X capability").
+  // The remaining explicit causal verbs above are strictly about attribution.
 ]
 
 const BANNED_JARGON = [

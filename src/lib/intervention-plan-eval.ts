@@ -147,7 +147,10 @@ Produce the JSON scorecard now. Be specific in violations — quote the offendin
   // the prefill back onto Haiku's continuation.
   const response = await anthropic.messages.create({
     model: JUDGE_MODEL,
-    max_tokens: 4000,
+    // Bumped from 4000 to 8000. Judge JSON includes 10 dimension scores
+    // each with rationale + violations array + 3-5 top_fixes. When dimension
+    // rationales are long, 4000 tokens truncated the output mid-object.
+    max_tokens: 8000,
     system: systemPrompt,
     messages: [
       { role: 'user', content: userPrompt },
@@ -167,8 +170,8 @@ Produce the JSON scorecard now. Be specific in violations — quote the offendin
     console.warn('Eval judge initial parse failed; retrying with stricter nudge')
     const retry = await anthropic.messages.create({
       model: JUDGE_MODEL,
-      max_tokens: 4000,
-      system: systemPrompt + '\n\nREMINDER: respond with a single JSON object. Nothing before the opening brace, nothing after the closing brace.',
+      max_tokens: 8000,
+      system: systemPrompt + '\n\nREMINDER: respond with a single JSON object. Nothing before the opening brace, nothing after the closing brace. Keep each rationale under 25 words to fit within the response budget.',
       messages: [
         { role: 'user', content: userPrompt },
         { role: 'assistant', content: '{' },
@@ -245,6 +248,41 @@ function tryParseJudgeOutput(raw: string): { dimension_scores?: EvalDimensionSco
       const last = stripped.lastIndexOf('}')
       const body = first >= 0 && last > first ? stripped.slice(first, last + 1) : stripped
       return body.replace(/,(\s*[}\]])/g, '$1')
+    },
+    // 6. Repair truncated JSON: close unclosed objects + arrays in order.
+    //    When Haiku runs out of tokens mid-structure, the output ends with
+    //    a partial object or string. This strategy counts unclosed braces
+    //    and brackets and appends them in reverse order.
+    s => {
+      let body = s.trim().replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?\s*```\s*$/i, '')
+      const first = body.indexOf('{')
+      if (first < 0) return body
+      body = body.slice(first)
+
+      // If the tail is an unterminated string, close it before closing the
+      // structural braces.
+      let inString = false
+      let escaped = false
+      const stack: string[] = []
+      for (let i = 0; i < body.length; i++) {
+        const c = body[i]
+        if (escaped) { escaped = false; continue }
+        if (c === '\\') { escaped = true; continue }
+        if (c === '"') { inString = !inString; continue }
+        if (inString) continue
+        if (c === '{' || c === '[') stack.push(c)
+        else if (c === '}' && stack[stack.length - 1] === '{') stack.pop()
+        else if (c === ']' && stack[stack.length - 1] === '[') stack.pop()
+      }
+      let repaired = body
+      if (inString) repaired += '"'
+      // Drop any trailing comma or partial-key before closing
+      repaired = repaired.replace(/,\s*$/, '').replace(/:\s*$/, ': null')
+      while (stack.length > 0) {
+        const open = stack.pop()
+        repaired += open === '{' ? '}' : ']'
+      }
+      return repaired
     },
   ]
 

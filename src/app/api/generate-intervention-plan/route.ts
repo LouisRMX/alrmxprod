@@ -818,7 +818,19 @@ The block labelled \`parsed_inputs\` contains the authoritative numeric values f
 
    ONLY the final percentage/delta should appear as a freehand number. Never multiply the operand chain (trucks × days × load × margin) yourself.
 
-- **Every USD figure MUST show the multiplier reference.** Format: \`"0.4 × parsed_inputs.impact_multipliers.per_trip_per_truck_per_day_usd ($441,743) = $176,697/month"\`. If the multiplier you need isn't one of the six, mark the line TBD rather than improvise.
+- **Every USD figure MUST show the multiplier reference in this EXACT format and nothing else:**
+  \`<delta> × parsed_inputs.impact_multipliers.<multiplier_name> ($<value>) = $<result>/month\`
+
+  Example: \`0.4 × parsed_inputs.impact_multipliers.per_trip_per_truck_per_day_usd ($441,743) = $176,697/month\`
+
+  COMMON MALFORMED VARIANTS TO AVOID:
+  - ✗ \`0.2 trips/truck/day × 0.2 × parsed_inputs...\` ← the "0.2" is duplicated
+  - ✗ \`0.2 extra trips × $441k = $88k\` ← short-form that loses the multiplier name
+  - ✗ \`0.2 m³ increase × 0.2 × per_m3...\` ← same duplication pattern
+
+  Write each multiplier reference ONCE. Do not restate the delta after the "×" sign. If the answer is \`0.2 × $441,552 = $88,310\`, write exactly that (once), never \`0.2 × 0.2 × $441,552\`.
+
+  If the multiplier you need isn't one of the six provided, mark the line TBD rather than improvise.
 
 - **Units matter.** Monthly numbers stay monthly. Never annualise unless the target sentence is explicitly annual. Plant capacity is m³/hour, NOT m³/day.
 
@@ -855,7 +867,7 @@ The block labelled \`parsed_inputs\` contains the authoritative numeric values f
 
 - **Banned causal verbs** (all forms, tenses, and participles). Pre-assessment data cannot prove causation; asserting it through directional verbs is dishonest. Banned:
   - Explicit: drives, creates, causes, leads to, stems from, arises from, flows from, results from, produces, generates
-  - Directional attribution (commonly missed): **points to, signals, unlocks, transforms, indicates, demonstrates, reveals, contributes to, impacts, influences, triggers, enables**
+  - Directional attribution (commonly missed): **points to, signals, unlocks, transforms, indicates, demonstrates, reveals**
   Replace ALL of the above with genuinely correlative or hypothesis framing:
   - "is consistent with"
   - "appears associated with"
@@ -865,6 +877,8 @@ The block labelled \`parsed_inputs\` contains the authoritative numeric values f
   - "we observe X and Y together"
   - "is based on" (for sourcing, not causation)
   - "is modelled from" (for calculation trace, not causation)
+
+  NOTE on "impact"/"influence"/"contribute to"/"trigger"/"enable": these words are ALLOWED in neutral noun or capability uses ("impact_multipliers" as a field name, "GPS enables TAT measurement" as a capability statement). They are only problematic when used as directional attribution ("the data impacts our conclusion"). Don't rename existing field names like \`parsed_inputs.impact_multipliers\` — those are data identifiers.
 
 - **Banned consultant jargon** (ALL FORMS + both US and British spellings): optimize / optimise / optimized / optimised / optimization / optimisation / optimal / optimally, leverage / leveraging / leveraged, streamline / streamlined / streamlining, robust / robustly, synergy / synergies / synergistic, utilize / utilise / utilization / utilisation, actionable, deep dive / deep-dive. Use plain alternatives: "improve", "reduce", "tighten", "simplify", "use well", "solid", "combine", "use", "ready to implement", "close look".
 
