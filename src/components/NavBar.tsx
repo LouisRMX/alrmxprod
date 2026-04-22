@@ -102,10 +102,13 @@ export default function NavBar({ user, profile, memberRole, isAdmin: isAdminProp
   // memberRole is already the effective role (with viewAs override applied),
   // so it takes priority over the raw isAdmin check.
   const tabs = (() => {
+    // OMIX demo hide — Comparison + Portfolio require ≥2 assessments/plants to
+    // be useful. Hidden until after the Riyadh trip. Restore the lines marked
+    // with "OMIX hidden" below.
     if (memberRole === 'owner') {
       return [
         { label: 'Overview',    href: '/dashboard/plants' },
-        { label: 'Comparison',  href: '/dashboard/compare' },
+        // { label: 'Comparison',  href: '/dashboard/compare' },  // OMIX hidden
         { label: 'Reports',     href: '/dashboard/reports' },
       ]
     }
@@ -119,7 +122,7 @@ export default function NavBar({ user, profile, memberRole, isAdmin: isAdminProp
     if (memberRole === 'manager') {
       return [
         { label: 'Overview',    href: '/dashboard/plants' },
-        { label: 'Comparison',  href: '/dashboard/compare' },
+        // { label: 'Comparison',  href: '/dashboard/compare' },  // OMIX hidden
         { label: 'Reports',     href: '/dashboard/reports' },
       ]
     }
@@ -128,8 +131,8 @@ export default function NavBar({ user, profile, memberRole, isAdmin: isAdminProp
     if (isAdmin) {
       return [
         { label: 'New assessment', href: '/dashboard/assess' },
-        { label: 'Portfolio',      href: '/dashboard/portfolio' },
-        { label: 'Comparison',     href: '/dashboard/compare' },
+        // { label: 'Portfolio',      href: '/dashboard/portfolio' },  // OMIX hidden
+        // { label: 'Comparison',     href: '/dashboard/compare' },    // OMIX hidden
         { label: 'Customers',      href: '/dashboard/customers' },
         { label: 'Reports',        href: '/dashboard/reports' },
         { label: 'Simulator',      href: '/dashboard/simulator' },

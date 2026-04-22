@@ -1,7 +1,8 @@
 'use client'
 
 import { ChatProvider } from '@/context/ChatContext'
-import FloatingChat from '@/components/chat/FloatingChat'
+// OMIX demo hide — uncomment with the <FloatingChat /> usage below after the trip.
+// import FloatingChat from '@/components/chat/FloatingChat'
 import type { MemberRole } from '@/lib/getEffectiveMemberRole'
 import type { ReactNode } from 'react'
 
@@ -15,8 +16,10 @@ export default function DashboardShell({ children, userRole, isAdmin }: Dashboar
   return (
     <ChatProvider>
       {children}
-      {/* Operators do data entry only — no access to financial intelligence via chat */}
+      {/* OMIX demo hide — uncomment to restore the floating chat after the trip.
+          Operators do data entry only, so chat is also role-gated when active.
       {userRole !== 'operator' && <FloatingChat userRole={userRole} isAdmin={isAdmin} />}
+      */}
     </ChatProvider>
   )
 }
