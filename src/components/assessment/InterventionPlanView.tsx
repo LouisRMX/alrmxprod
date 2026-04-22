@@ -72,6 +72,29 @@ export default function InterventionPlanView({ assessmentId, plantId }: Props) {
   const [evalLoading, setEvalLoading] = useState(false)
   const [evalResult, setEvalResult] = useState<EvalResult | null>(null)
 
+  const deletePlan = useCallback(async (planId: string) => {
+    const plan = savedPlans.find(p => p.id === planId)
+    const label = plan ? new Date(plan.generated_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'this plan'
+    if (!window.confirm(`Delete plan from ${label}? This cannot be undone.`)) return
+    setError(null)
+    try {
+      const { error: delErr } = await supabase
+        .from('intervention_plans')
+        .delete()
+        .eq('id', planId)
+      if (delErr) throw new Error(delErr.message)
+      // If we deleted the currently-open plan, clear the view
+      if (openPlanId === planId) {
+        setOpenPlanId(null)
+        setStreamText('')
+        setEvalResult(null)
+      }
+      await loadSaved()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Delete failed')
+    }
+  }, [savedPlans, supabase, openPlanId, loadSaved])
+
   const runEval = useCallback(async (planId: string) => {
     setEvalLoading(true)
     setEvalResult(null)
@@ -431,31 +454,60 @@ export default function InterventionPlanView({ assessmentId, plantId }: Props) {
             {savedPlans.map(p => {
               const isOpen = p.id === openPlanId
               const d = new Date(p.generated_at)
+              const evalScore = p.input_snapshot?.eval_result?.overall_score
               return (
-                <button
+                <div
                   key={p.id}
-                  type="button"
-                  onClick={() => {
-                    setStreamText('')
-                    setOpenPlanId(isOpen ? null : p.id)
-                  }}
                   style={{
-                    textAlign: 'left',
+                    display: 'flex', alignItems: 'stretch', gap: '4px',
                     background: isOpen ? '#E1F5EE' : '#fff',
                     border: `1px solid ${isOpen ? '#A8D9C5' : '#e5e5e5'}`,
-                    borderRadius: '8px', padding: '10px 14px', cursor: 'pointer',
-                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                    fontSize: '13px', color: isOpen ? '#0F6E56' : '#333',
+                    borderRadius: '8px', overflow: 'hidden',
                   }}
                 >
-                  <span>
-                    {d.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
-                    <span style={{ color: '#888', marginLeft: '8px', fontSize: '11px' }}>
-                      · {p.status} · {p.model_version ?? 'unknown model'}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStreamText('')
+                      setOpenPlanId(isOpen ? null : p.id)
+                    }}
+                    style={{
+                      flex: 1, textAlign: 'left',
+                      background: 'transparent', border: 'none',
+                      padding: '10px 14px', cursor: 'pointer',
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                      fontSize: '13px', color: isOpen ? '#0F6E56' : '#333',
+                    }}
+                  >
+                    <span>
+                      {d.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                      <span style={{ color: '#888', marginLeft: '8px', fontSize: '11px' }}>
+                        · {p.status} · {p.model_version ?? 'unknown model'}
+                        {typeof evalScore === 'number' && (
+                          <span style={{
+                            marginInlineStart: '8px', padding: '1px 6px',
+                            background: evalScore >= 4 ? '#E1F5EE' : evalScore >= 3 ? '#FFF4D6' : '#FDEDEC',
+                            color: evalScore >= 4 ? '#0F6E56' : evalScore >= 3 ? '#7a5a00' : '#8B3A2E',
+                            borderRadius: '3px', fontWeight: 600,
+                          }}>{evalScore.toFixed(1)}/5</span>
+                        )}
+                      </span>
                     </span>
-                  </span>
-                  <span>{isOpen ? '▲ open' : '▼ view'}</span>
-                </button>
+                    <span>{isOpen ? '▲ open' : '▼ view'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => deletePlan(p.id)}
+                    aria-label="Delete plan"
+                    title="Delete this plan"
+                    style={{
+                      background: 'transparent', border: 'none',
+                      borderInlineStart: '1px solid #eee',
+                      padding: '0 12px', cursor: 'pointer',
+                      color: '#C0392B', fontSize: '14px', fontWeight: 600,
+                    }}
+                  >✕</button>
+                </div>
               )
             })}
           </div>
