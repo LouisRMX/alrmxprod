@@ -396,11 +396,19 @@ export async function POST(req: NextRequest) {
   const recoveryHigh = parsedInputs?.recovery_high_usd ?? null
   const numberOfPlants = parsedInputs?.number_of_plants ?? 1
 
+  // Control markers the client listens for. Picked to be vanishingly
+  // unlikely in markdown output so we can split the stream cleanly.
+  const RESET_MARKER = '\u0001ALRMX_PLAN_RESET\u0001'
+  const DONE_MARKER = '\u0001ALRMX_PLAN_DONE\u0001'
+
+  const MAX_REVISION_CYCLES = 2
+
   const stream = new ReadableStream({
     async start(controller) {
-      let fullText = ''
       try {
-        // ── First pass: stream Claude's initial draft to the client ─────
+        let fullText = ''
+
+        // ── Pass 1: stream Claude's initial draft to the client ─────────
         await streamClaude({
           controller,
           encoder,
@@ -409,24 +417,26 @@ export async function POST(req: NextRequest) {
           onText: (t) => { fullText += t },
         })
 
-        // ── Validate the draft ─────────────────────────────────────────
-        const validation = validatePlan({
-          markdown: fullText,
-          recovery_low_usd: recoveryLow,
-          recovery_high_usd: recoveryHigh,
-          number_of_plants: numberOfPlants,
-        })
+        // ── Validate + up to MAX_REVISION_CYCLES re-stream passes ──────
+        const allValidations: Array<ReturnType<typeof validatePlan>> = []
+        let cycle = 0
+        while (cycle < MAX_REVISION_CYCLES) {
+          const validation = validatePlan({
+            markdown: fullText,
+            recovery_low_usd: recoveryLow,
+            recovery_high_usd: recoveryHigh,
+            number_of_plants: numberOfPlants,
+          })
+          allValidations.push(validation)
 
-        const hasCritical = validation.violations.some(v => v.severity === 'critical')
-        const hasMajor = validation.violations.some(v => v.severity === 'major')
+          const hasCritical = validation.violations.some(v => v.severity === 'critical')
+          const hasMajor = validation.violations.some(v => v.severity === 'major')
+          if (!hasCritical && !hasMajor) break
+          cycle += 1
 
-        // ── Second pass (auto-revise) if critical or major issues ──────
-        let finalText = fullText
-        let revisionHappened = false
-        if (hasCritical || hasMajor) {
-          revisionHappened = true
-          // Separator so the UI can tell a revision is coming
-          controller.enqueue(encoder.encode('\n\n---\n\n> _Revising plan to fix validation issues..._\n\n---\n\n'))
+          // Tell the client: drop everything shown so far and stream the
+          // revised version fresh. UI shows "Revising..." state during gap.
+          controller.enqueue(encoder.encode(RESET_MARKER))
 
           let revisedText = ''
           await streamClaude({
@@ -436,16 +446,31 @@ export async function POST(req: NextRequest) {
             userMessages: [
               { role: 'user', content: userPrompt },
               { role: 'assistant', content: fullText },
-              { role: 'user', content: `Your previous draft had these validation issues. Produce a corrected version of the ENTIRE plan now. Fix every CRITICAL and MAJOR issue listed. Keep everything else.\n\n${validation.revisionFeedback}` },
+              { role: 'user', content: buildRevisionPrompt(validation, cycle) },
             ],
             onText: (t) => { revisedText += t },
           })
-          finalText = revisedText
+          fullText = revisedText
         }
+
+        // ── Post-sanitize: final mechanical cleanup ─────────────────────
+        // Em-dashes specifically: regex-replace any that slipped through
+        // into commas. Safe even if validator already caught them.
+        const sanitizedText = sanitizeFinalMarkdown(fullText)
+
+        // If sanitization actually changed anything and we're already past
+        // the max revision cycles, surface the cleaned version by resetting
+        // the client once more and re-emitting. Cheap because no LLM call.
+        if (sanitizedText !== fullText) {
+          controller.enqueue(encoder.encode(RESET_MARKER))
+          controller.enqueue(encoder.encode(sanitizedText))
+        }
+
+        controller.enqueue(encoder.encode(DONE_MARKER))
 
         trackSpend(user.id)
 
-        // Persist the final plan (with revision metadata)
+        // Persist ONLY the final sanitized text + revision audit trail.
         await supabase.from('intervention_plans').insert({
           assessment_id: assessmentId,
           plant_id: plantId,
@@ -454,11 +479,12 @@ export async function POST(req: NextRequest) {
           input_snapshot: {
             ...inputSnapshot,
             validation: {
-              initial_violations: validation.violations,
-              revision_triggered: revisionHappened,
+              cycles_run: cycle,
+              validations: allValidations,
+              post_sanitize_applied: sanitizedText !== fullText,
             },
           },
-          plan_content: { markdown: finalText.trim() },
+          plan_content: { markdown: sanitizedText.trim() },
           status: 'draft',
         })
 
@@ -474,6 +500,37 @@ export async function POST(req: NextRequest) {
   return new Response(stream, {
     headers: { 'Content-Type': 'text/plain; charset=utf-8' },
   })
+}
+
+/** Build the revision instruction sent to Claude when validator fails.
+ *  Key constraint: do NOT drop interventions — reduce numbers instead.
+ *  Dropping is the revision model's easy way out when capped, which
+ *  destroys value the consultant may want to keep. */
+function buildRevisionPrompt(validation: ReturnType<typeof validatePlan>, cycle: number): string {
+  return `Your draft for intervention plan cycle ${cycle} did not pass validation. Produce a corrected version of the ENTIRE plan now, keeping the same section structure and the SAME list of interventions. Fix the issues by ADJUSTING NUMBERS (USD impact, percentages) DOWN — do not delete interventions. The consultant decides scope, you only enforce numeric discipline.
+
+${validation.revisionFeedback}
+
+Output the full revised plan. All content must be fresh (the client resets their view when they receive the revision), so include every section from Verify on-site through Pitch summary.`
+}
+
+/** Last-mile cleanup on the final plan before persisting + returning.
+ *  Handles the purely mechanical fixes that are safer in code than LLM:
+ *  - Em-dashes and en-dashes → commas (matches alrmx report style).
+ *  - Double-hyphen ASCII em-dash substitutes → commas.
+ *  - Trailing whitespace on lines.
+ *  - 3+ consecutive blank lines → 2.
+ */
+function sanitizeFinalMarkdown(md: string): string {
+  return md
+    // em-dash + en-dash + ascii "--" → ", "
+    .replace(/[\u2014\u2013]|--/g, ',')
+    // tidy double-space left by replacements
+    .replace(/ {2,}/g, ' ')
+    // trim trailing whitespace per line
+    .split('\n').map(l => l.trimEnd()).join('\n')
+    // collapse 3+ blank lines
+    .replace(/\n{3,}/g, '\n\n')
 }
 
 /** Stream a single Claude call into the response controller.

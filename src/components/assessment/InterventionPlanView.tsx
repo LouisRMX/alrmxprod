@@ -31,12 +31,17 @@ export default function InterventionPlanView({ assessmentId, plantId }: Props) {
   const supabase = useMemo(() => createClient(), [])
   const [streaming, setStreaming] = useState(false)
   const [streamText, setStreamText] = useState('')
+  const [revising, setRevising] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [feedback, setFeedback] = useState('')
   const [showFeedback, setShowFeedback] = useState(false)
   const [savedPlans, setSavedPlans] = useState<SavedPlan[]>([])
   const [openPlanId, setOpenPlanId] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+
+  // Server-side control markers. Must match src/app/api/generate-intervention-plan/route.ts.
+  const RESET_MARKER = '\u0001ALRMX_PLAN_RESET\u0001'
+  const DONE_MARKER = '\u0001ALRMX_PLAN_DONE\u0001'
 
   const loadSaved = useCallback(async () => {
     const { data } = await supabase
@@ -54,6 +59,7 @@ export default function InterventionPlanView({ assessmentId, plantId }: Props) {
     setError(null)
     setStreaming(true)
     setStreamText('')
+    setRevising(false)
     setOpenPlanId(null)
     setCopied(false)
     try {
@@ -79,7 +85,30 @@ export default function InterventionPlanView({ assessmentId, plantId }: Props) {
         if (done) break
         const chunk = decoder.decode(value, { stream: true })
         acc += chunk
-        setStreamText(acc)
+
+        // Scan for control markers: reset (revision starting) and done.
+        // We process markers in order, keeping the tail after each.
+        let processed = acc
+        let changed = true
+        while (changed) {
+          changed = false
+          const resetIdx = processed.indexOf(RESET_MARKER)
+          if (resetIdx >= 0) {
+            processed = processed.slice(resetIdx + RESET_MARKER.length)
+            setRevising(true)
+            changed = true
+            continue
+          }
+          const doneIdx = processed.indexOf(DONE_MARKER)
+          if (doneIdx >= 0) {
+            processed = processed.slice(0, doneIdx)
+            // done marker means no more text follows; stop looking
+          }
+        }
+        // Once we get any post-reset text, flip revising off and render it
+        if (revising && processed.length > 0) setRevising(false)
+        acc = processed
+        setStreamText(processed)
       }
       await loadSaved()
       if (regen) { setFeedback(''); setShowFeedback(false) }
@@ -87,8 +116,9 @@ export default function InterventionPlanView({ assessmentId, plantId }: Props) {
       setError(e instanceof Error ? e.message : 'Plan generation failed')
     } finally {
       setStreaming(false)
+      setRevising(false)
     }
-  }, [assessmentId, plantId, feedback, loadSaved])
+  }, [assessmentId, plantId, feedback, loadSaved, revising, RESET_MARKER, DONE_MARKER])
 
   const activeMarkdown = streamText
     || (openPlanId ? savedPlans.find(p => p.id === openPlanId)?.plan_content?.markdown ?? '' : '')
@@ -215,6 +245,21 @@ export default function InterventionPlanView({ assessmentId, plantId }: Props) {
           background: '#FDEDEC', border: '1px solid #E8A39B', color: '#8B3A2E',
           padding: '10px 14px', borderRadius: '8px', fontSize: '13px', marginBottom: '16px',
         }}>{error}</div>
+      )}
+
+      {revising && (
+        <div style={{
+          background: '#FFF4D6', border: '1px solid #F1D79A', color: '#7a5a00',
+          padding: '10px 14px', borderRadius: '8px', fontSize: '13px', marginBottom: '16px',
+          display: 'flex', alignItems: 'center', gap: '10px',
+        }}>
+          <span style={{
+            display: 'inline-block', width: '10px', height: '10px',
+            borderRadius: '50%', background: '#D68910',
+            animation: 'blink 1s step-end infinite',
+          }} />
+          Draft failed validation, regenerating with corrections...
+        </div>
       )}
 
       {/* Plan rendering area */}

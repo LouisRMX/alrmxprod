@@ -135,13 +135,15 @@ export function validatePlan(input: ValidatorInput): ValidatorResult {
     }
   }
 
-  // ── 3. Em-dashes
+  // ── 3. Em-dashes (post-sanitize also catches these mechanically, but
+  //      flagging as major ensures the LLM gets feedback if its revision
+  //      re-introduces them)
   const emDashes = md.match(EM_DASH)
   if (emDashes && emDashes.length > 0) {
     violations.push({
       code: 'em_dash',
-      severity: 'minor',
-      message: `${emDashes.length} em-dash(es) present. Replace with comma, colon, or period.`,
+      severity: 'major',
+      message: `${emDashes.length} em-dash(es) present. Replace every one with a comma, colon, or period. alrmx report style never uses em-dashes.`,
     })
   }
 
@@ -179,7 +181,7 @@ export function validatePlan(input: ValidatorInput): ValidatorResult {
       const sum = impactUsds.reduce((a, b) => a + b, 0)
       if (sum > 0) {
         const floor = input.recovery_low_usd * 0.8
-        const ceiling = input.recovery_high_usd * 1.0
+        const ceiling = input.recovery_high_usd * 1.05
         if (sum > ceiling) {
           violations.push({
             code: 'phase_sum_exceeds_cap',
