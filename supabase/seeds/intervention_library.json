@@ -5,7 +5,12 @@
     "category": "dispatch",
     "problem_solves": "Order-to-dispatch time > 15 min; dispatcher juggles WhatsApp + Excel + phone; no real-time truck state; no audit trail for disputes.",
     "applicability_rules": {
-      "dispatch_tool_current": ["whatsapp", "excel", "paper", "none"],
+      "dispatch_tool_current": [
+        "whatsapp",
+        "excel",
+        "paper",
+        "none"
+      ],
       "trucks_min": 20,
       "plants_min": 1,
       "order_to_dispatch_min_gt": 12
@@ -19,11 +24,26 @@
     "impact_secondary": "TAT -8 to -15 min via better queueing + ETA visibility; mixer utilisation +5 to +10 pp; dispute write-offs -30 to -50%.",
     "effort_weeks": 10,
     "complexity": "medium",
-    "prerequisites": ["gps_on_all_trucks", "batch_plant_integration_feasible"],
+    "prerequisites": [
+      "gps_on_all_trucks",
+      "batch_plant_integration_feasible"
+    ],
     "quick_win": false,
     "gcc_notes": "Driver UX must be Arabic-first with RTL. Many GCC drivers are South Asian (Urdu/Hindi/Bangla speakers) — multi-lingual driver app is a real requirement, not nice-to-have. Tablets in trucks get fried by Riyadh summer heat; spec IP65, operating temp to 60 C, or use driver BYOD with allowance.",
-    "sources": ["Command Alkon TrackIt case studies [recall]", "Sysdyne iStrada marketing [recall]", "VERIFI + fleet telematics bundles [recall]"],
-    "tags": ["dispatch", "digital_core", "foundation"]
+    "sources": [
+      "Command Alkon TrackIt case studies [recall]",
+      "Sysdyne iStrada marketing [recall]",
+      "VERIFI + fleet telematics bundles [recall]"
+    ],
+    "tags": [
+      "dispatch",
+      "digital_core",
+      "foundation"
+    ],
+    "site_type_applicability": [
+      "any"
+    ],
+    "tat_component_target": "multi"
   },
   {
     "slug": "dispatcher_app_tier0_lightweight",
@@ -31,7 +51,10 @@
     "category": "dispatch",
     "problem_solves": "Need dispatch visibility now but cannot wait 3-6 months for tier-1 rollout. Quick interim structure replaces WhatsApp scatter.",
     "applicability_rules": {
-      "dispatch_tool_current": ["whatsapp", "paper"],
+      "dispatch_tool_current": [
+        "whatsapp",
+        "paper"
+      ],
       "trucks_min": 10,
       "plants_min": 1
     },
@@ -47,8 +70,18 @@
     "prerequisites": [],
     "quick_win": true,
     "gcc_notes": "Arabic column headers and an Arabic-labelled status board for the dispatch room. Integrates with existing WhatsApp via Twilio WhatsApp Business API.",
-    "sources": ["General SaaS deployment economics for a 90-truck fleet"],
-    "tags": ["dispatch", "quick_win", "bridge_solution"]
+    "sources": [
+      "General SaaS deployment economics for a 90-truck fleet"
+    ],
+    "tags": [
+      "dispatch",
+      "quick_win",
+      "bridge_solution"
+    ],
+    "site_type_applicability": [
+      "any"
+    ],
+    "tat_component_target": "multi"
   },
   {
     "slug": "dispatch_playbook_roles",
@@ -72,8 +105,19 @@
     "prerequisites": [],
     "quick_win": true,
     "gcc_notes": "Patriarch-owner cultures often conflate dispatcher loyalty with capability. Document the rules in Arabic and get owner sign-off before rollout, or the new playbook will be overridden informally.",
-    "sources": ["Consulting playbook norms for logistics SMEs"],
-    "tags": ["dispatch", "process", "quick_win", "change_mgmt"]
+    "sources": [
+      "Consulting playbook norms for logistics SMEs"
+    ],
+    "tags": [
+      "dispatch",
+      "process",
+      "quick_win",
+      "change_mgmt"
+    ],
+    "site_type_applicability": [
+      "any"
+    ],
+    "tat_component_target": "plant_dwell"
   },
   {
     "slug": "multi_plant_load_balancer",
@@ -93,11 +137,23 @@
     "impact_secondary": "TAT -5 to -10 min on average; fuel -3 to -7%; trips per truck per day +0.3 to +0.8.",
     "effort_weeks": 3,
     "complexity": "medium",
-    "prerequisites": ["gps_visibility_both_plants"],
+    "prerequisites": [
+      "gps_visibility_both_plants"
+    ],
     "quick_win": false,
     "gcc_notes": "Riyadh truck restriction zones make nearest-plant routing non-trivial: the cheaper plant by distance may be blocked during the restricted window. Rules must be time-of-day aware.",
-    "sources": ["Industry practice [recall]: multi-plant operators routinely cite 10-25% empty-km reduction"],
-    "tags": ["dispatch", "multi_plant", "high_leverage"]
+    "sources": [
+      "Industry practice [recall]: multi-plant operators routinely cite 10-25% empty-km reduction"
+    ],
+    "tags": [
+      "dispatch",
+      "multi_plant",
+      "high_leverage"
+    ],
+    "site_type_applicability": [
+      "any"
+    ],
+    "tat_component_target": "transit_out"
   },
   {
     "slug": "order_intake_standardisation",
@@ -105,7 +161,11 @@
     "category": "dispatch",
     "problem_solves": "Incomplete orders (missing site contact, access constraints, pump details) cause rework at dispatch time and partial loads sent to avoid cancellation.",
     "applicability_rules": {
-      "order_intake_channel_any_of": ["phone", "whatsapp", "walk_in"]
+      "order_intake_channel_any_of": [
+        "phone",
+        "whatsapp",
+        "walk_in"
+      ]
     },
     "cost_usd_low": 500,
     "cost_usd_high": 3000,
@@ -119,8 +179,18 @@
     "prerequisites": [],
     "quick_win": true,
     "gcc_notes": "Include columns for: site access truck-size limit, pump type (line/boom), slump at point-of-pour, pour window, Iqama of site contact.",
-    "sources": ["Lean ops norms for B2B logistics"],
-    "tags": ["dispatch", "quick_win", "quality"]
+    "sources": [
+      "Lean ops norms for B2B logistics"
+    ],
+    "tags": [
+      "dispatch",
+      "quick_win",
+      "quality"
+    ],
+    "site_type_applicability": [
+      "any"
+    ],
+    "tat_component_target": "site_wait"
   },
   {
     "slug": "customer_slot_booking",
@@ -140,11 +210,28 @@
     "impact_secondary": "TAT -10 to -25 min; reject rate -0.2 to -0.5 pp (less re-temper / hot loads waiting in sun).",
     "effort_weeks": 5,
     "complexity": "medium",
-    "prerequisites": ["customer_willingness_to_sign_clause"],
+    "prerequisites": [
+      "customer_willingness_to_sign_clause"
+    ],
     "quick_win": false,
     "gcc_notes": "Demurrage is culturally sensitive with long-standing GCC contractor relationships. Patriarch-owner may resist. Alternative: soft priority-slot incentive rather than punitive charge.",
-    "sources": ["Saudi Readymix IPO prospectus 2010 [recall]", "GCP/VERIFI customer reports [recall]"],
-    "tags": ["site_ops", "customer_discipline", "TAT"]
+    "sources": [
+      "Saudi Readymix IPO prospectus 2010 [recall]",
+      "GCP/VERIFI customer reports [recall]"
+    ],
+    "tags": [
+      "site_ops",
+      "customer_discipline",
+      "TAT"
+    ],
+    "site_type_applicability": [
+      "high_rise",
+      "bridge_deck",
+      "tunnel",
+      "precast",
+      "marine"
+    ],
+    "tat_component_target": "site_wait"
   },
   {
     "slug": "pre_pour_site_readiness_call",
@@ -166,8 +253,18 @@
     "prerequisites": [],
     "quick_win": true,
     "gcc_notes": "Saudization-friendly role — can be filled by Saudi women (tele-work-compatible per MHRSD Saudization rules).",
-    "sources": ["Widespread industry practice [recall]"],
-    "tags": ["site_ops", "quick_win", "TAT"]
+    "sources": [
+      "Widespread industry practice [recall]"
+    ],
+    "tags": [
+      "site_ops",
+      "quick_win",
+      "TAT"
+    ],
+    "site_type_applicability": [
+      "any"
+    ],
+    "tat_component_target": "site_wait"
   },
   {
     "slug": "weighbridge_kiosk_self_check",
@@ -175,7 +272,10 @@
     "category": "weighbridge",
     "problem_solves": "Manual weigh ticketing causes 3-8 min per truck at the gate; bottleneck in peak dispatch; sometimes cause of partial records.",
     "applicability_rules": {
-      "weighbridge_process": ["manual", "semi_manual"],
+      "weighbridge_process": [
+        "manual",
+        "semi_manual"
+      ],
       "trips_per_day_min": 80
     },
     "cost_usd_low": 15000,
@@ -187,11 +287,22 @@
     "impact_secondary": "TAT -3 to -6 min; gate headcount -1 per shift per plant.",
     "effort_weeks": 6,
     "complexity": "medium",
-    "prerequisites": ["batch_system_api_available"],
+    "prerequisites": [
+      "batch_system_api_available"
+    ],
     "quick_win": false,
     "gcc_notes": "Arabic UI mandatory. Iqama (foreign worker ID) barcode standard in KSA; use as driver auth. Summer heat shelter needed for kiosk.",
-    "sources": ["Libra Systems, Command Alkon weighbridge kiosk case studies [recall]"],
-    "tags": ["weighbridge", "automation"]
+    "sources": [
+      "Libra Systems, Command Alkon weighbridge kiosk case studies [recall]"
+    ],
+    "tags": [
+      "weighbridge",
+      "automation"
+    ],
+    "site_type_applicability": [
+      "any"
+    ],
+    "tat_component_target": "plant_dwell"
   },
   {
     "slug": "rfid_gate_access",
@@ -214,8 +325,18 @@
     "prerequisites": [],
     "quick_win": false,
     "gcc_notes": "Ensure tag spec tolerates 60 C direct sun. Mount on windscreen upper-left to avoid re-read at wash bay.",
-    "sources": ["Generic fleet RFID deployment benchmarks"],
-    "tags": ["weighbridge", "automation", "fleet"]
+    "sources": [
+      "Generic fleet RFID deployment benchmarks"
+    ],
+    "tags": [
+      "weighbridge",
+      "automation",
+      "fleet"
+    ],
+    "site_type_applicability": [
+      "any"
+    ],
+    "tat_component_target": "plant_dwell"
   },
   {
     "slug": "queue_management_screen",
@@ -237,8 +358,18 @@
     "prerequisites": [],
     "quick_win": true,
     "gcc_notes": "Arabic + Urdu + English on rotating display; truck number in large digits readable from 30 m.",
-    "sources": ["Common batching-plant retrofit [recall]"],
-    "tags": ["weighbridge", "quick_win", "driver_ux"]
+    "sources": [
+      "Common batching-plant retrofit [recall]"
+    ],
+    "tags": [
+      "weighbridge",
+      "quick_win",
+      "driver_ux"
+    ],
+    "site_type_applicability": [
+      "any"
+    ],
+    "tat_component_target": "plant_dwell"
   },
   {
     "slug": "batch_cycle_time_audit",
@@ -258,11 +389,22 @@
     "impact_secondary": "Throughput +5 to +12 m3/hr per mixer; recipe changeovers -30 to -50%.",
     "effort_weeks": 3,
     "complexity": "medium",
-    "prerequisites": ["batch_controller_data_exportable"],
+    "prerequisites": [
+      "batch_controller_data_exportable"
+    ],
     "quick_win": false,
     "gcc_notes": "Riyadh summer: admixture dosing tuned for 40+ C paste temp may need adjustment per shift.",
-    "sources": ["Sysdyne, Marcotte audit methodologies [recall]"],
-    "tags": ["batching", "throughput"]
+    "sources": [
+      "Sysdyne, Marcotte audit methodologies [recall]"
+    ],
+    "tags": [
+      "batching",
+      "throughput"
+    ],
+    "site_type_applicability": [
+      "any"
+    ],
+    "tat_component_target": "loading"
   },
   {
     "slug": "recipe_rationalisation",
@@ -284,8 +426,18 @@
     "prerequisites": [],
     "quick_win": true,
     "gcc_notes": "Megaproject specs (NEOM, Red Sea, Diriyah) each impose bespoke recipes; rationalise non-project portfolio first.",
-    "sources": ["Lean ops SKU rationalisation norms"],
-    "tags": ["batching", "quality", "quick_win"]
+    "sources": [
+      "Lean ops SKU rationalisation norms"
+    ],
+    "tags": [
+      "batching",
+      "quality",
+      "quick_win"
+    ],
+    "site_type_applicability": [
+      "any"
+    ],
+    "tat_component_target": "loading"
   },
   {
     "slug": "moisture_probe_automation",
@@ -293,8 +445,11 @@
     "category": "batching",
     "problem_solves": "Manual moisture adjustment is error-prone; causes slump variability and rejects; overdoses water or admixture.",
     "applicability_rules": {
-      "moisture_adjustment_process": ["manual", "none"],
-      "reject_rate_pct_gt": 1.0
+      "moisture_adjustment_process": [
+        "manual",
+        "none"
+      ],
+      "reject_rate_pct_gt": 1
     },
     "cost_usd_low": 8000,
     "cost_usd_high": 25000,
@@ -305,11 +460,23 @@
     "impact_secondary": "Reject rate -0.3 to -1.0 pp; admixture spend -5 to -12%.",
     "effort_weeks": 4,
     "complexity": "medium",
-    "prerequisites": ["pic_or_plc_accepts_probe_input"],
+    "prerequisites": [
+      "pic_or_plc_accepts_probe_input"
+    ],
     "quick_win": false,
     "gcc_notes": "Riyadh aggregate sources often dry; probes pay back faster in mixed-aggregate plants.",
-    "sources": ["Hydronix customer case studies [recall]"],
-    "tags": ["batching", "quality", "automation"]
+    "sources": [
+      "Hydronix customer case studies [recall]"
+    ],
+    "tags": [
+      "batching",
+      "quality",
+      "automation"
+    ],
+    "site_type_applicability": [
+      "any"
+    ],
+    "tat_component_target": "loading"
   },
   {
     "slug": "silo_inventory_sensors",
@@ -317,7 +484,11 @@
     "category": "batching",
     "problem_solves": "Stockouts stop production mid-shift; emergency cement deliveries at premium price; fines for late customer orders.",
     "applicability_rules": {
-      "silo_monitoring": ["manual", "visual", "none"]
+      "silo_monitoring": [
+        "manual",
+        "visual",
+        "none"
+      ]
     },
     "cost_usd_low": 8000,
     "cost_usd_high": 25000,
@@ -331,8 +502,17 @@
     "prerequisites": [],
     "quick_win": false,
     "gcc_notes": "Cement cartel discipline in KSA means alternate suppliers limited on short notice; stockout cost is high.",
-    "sources": ["Endress+Hauser, Siemens, Bindicator level-sensor case studies [recall]"],
-    "tags": ["batching", "inventory"]
+    "sources": [
+      "Endress+Hauser, Siemens, Bindicator level-sensor case studies [recall]"
+    ],
+    "tags": [
+      "batching",
+      "inventory"
+    ],
+    "site_type_applicability": [
+      "any"
+    ],
+    "tat_component_target": "none"
   },
   {
     "slug": "telematics_gps_basic",
@@ -355,8 +535,18 @@
     "prerequisites": [],
     "quick_win": false,
     "gcc_notes": "MOT Saudi Arabia 'Wasl' integration is mandatory for commercial fleets >3.5t — vendor must be Wasl-certified.",
-    "sources": ["Geotab / Mix Telematics customer reports [recall]"],
-    "tags": ["fleet", "foundation", "regulatory"]
+    "sources": [
+      "Geotab / Mix Telematics customer reports [recall]"
+    ],
+    "tags": [
+      "fleet",
+      "foundation",
+      "regulatory"
+    ],
+    "site_type_applicability": [
+      "any"
+    ],
+    "tat_component_target": "multi"
   },
   {
     "slug": "telematics_concrete_sensors",
@@ -377,11 +567,25 @@
     "impact_secondary": "Water addition at site -30 to -60%; fuel -2 to -5%; customer dispute win rate near 100%.",
     "effort_weeks": 12,
     "complexity": "high",
-    "prerequisites": ["telematics_gps_basic", "driver_training_plan"],
+    "prerequisites": [
+      "telematics_gps_basic",
+      "driver_training_plan"
+    ],
     "quick_win": false,
     "gcc_notes": "Riyadh 40+ C summer drives major paste temperature issues; in-drum temp monitoring has outsized value here.",
-    "sources": ["VERIFI public case studies [recall]", "Command Alkon MIX-R marketing [recall]"],
-    "tags": ["fleet", "quality", "high_cost"]
+    "sources": [
+      "VERIFI public case studies [recall]",
+      "Command Alkon MIX-R marketing [recall]"
+    ],
+    "tags": [
+      "fleet",
+      "quality",
+      "high_cost"
+    ],
+    "site_type_applicability": [
+      "any"
+    ],
+    "tat_component_target": "site_wait"
   },
   {
     "slug": "preventive_maintenance_program",
@@ -389,7 +593,10 @@
     "category": "maintenance",
     "problem_solves": "Breakdowns pulled from the line unpredictably; reactive maintenance is 60-80% of wrench time; no PM compliance tracking.",
     "applicability_rules": {
-      "maintenance_approach": ["reactive", "ad_hoc"],
+      "maintenance_approach": [
+        "reactive",
+        "ad_hoc"
+      ],
       "trucks_min": 20
     },
     "cost_usd_low": 5000,
@@ -401,11 +608,22 @@
     "impact_secondary": "Available-fleet % +3 to +7 pp; breakdown-on-route rate cut in half.",
     "effort_weeks": 8,
     "complexity": "medium",
-    "prerequisites": ["workshop_supervisor_buy_in"],
+    "prerequisites": [
+      "workshop_supervisor_buy_in"
+    ],
     "quick_win": false,
     "gcc_notes": "Workshop often dominated by one or two expat master mechanics; winning them over is critical.",
-    "sources": ["Fiix / UpKeep SME fleet case studies [recall]"],
-    "tags": ["maintenance", "fleet"]
+    "sources": [
+      "Fiix / UpKeep SME fleet case studies [recall]"
+    ],
+    "tags": [
+      "maintenance",
+      "fleet"
+    ],
+    "site_type_applicability": [
+      "any"
+    ],
+    "tat_component_target": "none"
   },
   {
     "slug": "predictive_maintenance_analytics",
@@ -425,11 +643,23 @@
     "impact_secondary": "Parts inventory -10 to -20%; critical-failure rate halved on addressed components.",
     "effort_weeks": 16,
     "complexity": "high",
-    "prerequisites": ["telematics_gps_basic", "preventive_maintenance_program"],
+    "prerequisites": [
+      "telematics_gps_basic",
+      "preventive_maintenance_program"
+    ],
     "quick_win": false,
     "gcc_notes": "Heat + dust shorten component lifetime vs. OEM book values by 15-40%. Local empirical calibration beats manufacturer intervals.",
-    "sources": ["Geotab MyGeotab marketplace case studies [recall]"],
-    "tags": ["maintenance", "advanced"]
+    "sources": [
+      "Geotab MyGeotab marketplace case studies [recall]"
+    ],
+    "tags": [
+      "maintenance",
+      "advanced"
+    ],
+    "site_type_applicability": [
+      "any"
+    ],
+    "tat_component_target": "none"
   },
   {
     "slug": "spare_parts_kanban",
@@ -437,7 +667,11 @@
     "category": "maintenance",
     "problem_solves": "Stockouts of high-frequency parts (filters, hoses, drum liners) drive unnecessary downtime; overstock of slow-movers ties up cash.",
     "applicability_rules": {
-      "parts_inventory_mgmt": ["manual", "spreadsheet", "none"]
+      "parts_inventory_mgmt": [
+        "manual",
+        "spreadsheet",
+        "none"
+      ]
     },
     "cost_usd_low": 2000,
     "cost_usd_high": 8000,
@@ -451,8 +685,18 @@
     "prerequisites": [],
     "quick_win": true,
     "gcc_notes": "Import lead times for OEM (German/Italian) batching plant spares are 6-12 weeks; critical items need dual-source strategy.",
-    "sources": ["Lean maintenance practice"],
-    "tags": ["maintenance", "quick_win", "inventory"]
+    "sources": [
+      "Lean maintenance practice"
+    ],
+    "tags": [
+      "maintenance",
+      "quick_win",
+      "inventory"
+    ],
+    "site_type_applicability": [
+      "any"
+    ],
+    "tat_component_target": "none"
   },
   {
     "slug": "driver_incentive_redesign",
@@ -460,7 +704,11 @@
     "category": "driver",
     "problem_solves": "Pure per-trip incentive drives partial-load behaviour and unsafe speed; pure hourly drives slow-walking; current mix not aligned to TAT/reject goals.",
     "applicability_rules": {
-      "driver_pay_model_any_of": ["per_trip_only", "hourly_only", "flat_monthly_only"]
+      "driver_pay_model_any_of": [
+        "per_trip_only",
+        "hourly_only",
+        "flat_monthly_only"
+      ]
     },
     "cost_usd_low": 0,
     "cost_usd_high": 5000,
@@ -471,11 +719,23 @@
     "impact_secondary": "Safety incidents -10 to -30%; reject attribution fights shrink.",
     "effort_weeks": 4,
     "complexity": "medium",
-    "prerequisites": ["driver_pay_baseline_audit"],
+    "prerequisites": [
+      "driver_pay_baseline_audit"
+    ],
     "quick_win": false,
     "gcc_notes": "Driver workforce in KSA ready-mix is overwhelmingly South Asian; per-trip incentives are culturally entrenched. Any change needs Arabic + Urdu/Hindi communication and a 'nobody loses in month 1' guarantee.",
-    "sources": ["GCC labour market practice [recall]"],
-    "tags": ["driver", "incentive", "change_mgmt"]
+    "sources": [
+      "GCC labour market practice [recall]"
+    ],
+    "tags": [
+      "driver",
+      "incentive",
+      "change_mgmt"
+    ],
+    "site_type_applicability": [
+      "any"
+    ],
+    "tat_component_target": "multi"
   },
   {
     "slug": "driver_training_concrete_handling",
@@ -497,8 +757,18 @@
     "prerequisites": [],
     "quick_win": true,
     "gcc_notes": "Delivered in Urdu or Hindi; Arabic materials for the subset of Saudi drivers.",
-    "sources": ["Industry training vendors [recall]"],
-    "tags": ["driver", "quality", "quick_win"]
+    "sources": [
+      "Industry training vendors [recall]"
+    ],
+    "tags": [
+      "driver",
+      "quality",
+      "quick_win"
+    ],
+    "site_type_applicability": [
+      "any"
+    ],
+    "tat_component_target": "multi"
   },
   {
     "slug": "driver_app_etas_forms",
@@ -506,7 +776,11 @@
     "category": "driver",
     "problem_solves": "Paper tickets lost, late customer signatures, no ETA to site contact, WhatsApp chaos.",
     "applicability_rules": {
-      "dispatch_tool_current": ["whatsapp", "paper", "excel"]
+      "dispatch_tool_current": [
+        "whatsapp",
+        "paper",
+        "excel"
+      ]
     },
     "cost_usd_low": 4000,
     "cost_usd_high": 15000,
@@ -517,11 +791,22 @@
     "impact_secondary": "DSO -5 to -15 days on invoicing; dispute rate -20 to -50%.",
     "effort_weeks": 4,
     "complexity": "low",
-    "prerequisites": ["driver_smartphone_penetration_gt_70pc_or_provided"],
+    "prerequisites": [
+      "driver_smartphone_penetration_gt_70pc_or_provided"
+    ],
     "quick_win": false,
     "gcc_notes": "Provide company phones for non-smartphone drivers; SAR 80-150/mo line cost (~$22-40).",
-    "sources": ["Sysdyne, TrackIt driver app case studies [recall]"],
-    "tags": ["driver", "digital"]
+    "sources": [
+      "Sysdyne, TrackIt driver app case studies [recall]"
+    ],
+    "tags": [
+      "driver",
+      "digital"
+    ],
+    "site_type_applicability": [
+      "any"
+    ],
+    "tat_component_target": "multi"
   },
   {
     "slug": "slump_automation_qc",
@@ -529,7 +814,9 @@
     "category": "qc",
     "problem_solves": "Manual slump test is sampled (e.g. 1 in 10), subjective, and adds 2-4 min if done at gate.",
     "applicability_rules": {
-      "slump_test_process": ["manual_sample"]
+      "slump_test_process": [
+        "manual_sample"
+      ]
     },
     "cost_usd_low": 15000,
     "cost_usd_high": 60000,
@@ -540,11 +827,23 @@
     "impact_secondary": "Reject rate -0.3 to -0.8 pp; sample cycle time near zero.",
     "effort_weeks": 6,
     "complexity": "medium",
-    "prerequisites": ["batch_controller_integration"],
+    "prerequisites": [
+      "batch_controller_integration"
+    ],
     "quick_win": false,
     "gcc_notes": "Dust + high temp challenge for vision systems; specify IP66 and active cooling.",
-    "sources": ["ICAR rheometer papers [recall]", "Sensocrete marketing [recall]"],
-    "tags": ["qc", "automation"]
+    "sources": [
+      "ICAR rheometer papers [recall]",
+      "Sensocrete marketing [recall]"
+    ],
+    "tags": [
+      "qc",
+      "automation"
+    ],
+    "site_type_applicability": [
+      "any"
+    ],
+    "tat_component_target": "loading"
   },
   {
     "slug": "concrete_temperature_hot_weather",
@@ -552,8 +851,10 @@
     "category": "qc",
     "problem_solves": "Summer pours exceed the 32 C paste temperature threshold, driving slump loss, set-time issues, and rejects on arrival.",
     "applicability_rules": {
-      "climate_zone": ["hot_desert"],
-      "reject_rate_pct_gt": 1.0
+      "climate_zone": [
+        "hot_desert"
+      ],
+      "reject_rate_pct_gt": 1
     },
     "cost_usd_low": 15000,
     "cost_usd_high": 80000,
@@ -567,8 +868,19 @@
     "prerequisites": [],
     "quick_win": false,
     "gcc_notes": "ACI 305 'Hot Weather Concreting' is the reference standard. Saudi Building Code references ACI. Many GCC plants already have ice plants; the gap is usually protocol discipline.",
-    "sources": ["ACI 305R-20 [recall]", "Saudi Readymix IPO 2010 [recall]"],
-    "tags": ["qc", "gcc_critical", "seasonal"]
+    "sources": [
+      "ACI 305R-20 [recall]",
+      "Saudi Readymix IPO 2010 [recall]"
+    ],
+    "tags": [
+      "qc",
+      "gcc_critical",
+      "seasonal"
+    ],
+    "site_type_applicability": [
+      "any"
+    ],
+    "tat_component_target": "none"
   },
   {
     "slug": "admixture_optimisation",
@@ -590,8 +902,19 @@
     "prerequisites": [],
     "quick_win": true,
     "gcc_notes": "Riyadh admixture market dominated by Fosroc, Sika, BASF/MBCC, Chryso, CICO. Competitive tender annually is typical leverage.",
-    "sources": ["ACI 212.3R on admixtures [recall]", "Supplier customer cases [recall]"],
-    "tags": ["qc", "quick_win", "cost"]
+    "sources": [
+      "ACI 212.3R on admixtures [recall]",
+      "Supplier customer cases [recall]"
+    ],
+    "tags": [
+      "qc",
+      "quick_win",
+      "cost"
+    ],
+    "site_type_applicability": [
+      "any"
+    ],
+    "tat_component_target": "none"
   },
   {
     "slug": "reject_root_cause_system",
@@ -599,7 +922,11 @@
     "category": "qc",
     "problem_solves": "Rejects under-recorded (suspicious 1.5% reported = likely higher); causes assigned loosely; no closed-loop action.",
     "applicability_rules": {
-      "reject_recording_process": ["manual", "under_recorded_suspected", "none"]
+      "reject_recording_process": [
+        "manual",
+        "under_recorded_suspected",
+        "none"
+      ]
     },
     "cost_usd_low": 500,
     "cost_usd_high": 3000,
@@ -613,8 +940,18 @@
     "prerequisites": [],
     "quick_win": true,
     "gcc_notes": "Cultural resistance to recording rejects accurately (face, blame on driver). Framing must be 'diagnostic data', not accountability weapon, for month 1.",
-    "sources": ["Lean QC practice"],
-    "tags": ["qc", "quick_win", "diagnostic"]
+    "sources": [
+      "Lean QC practice"
+    ],
+    "tags": [
+      "qc",
+      "quick_win",
+      "diagnostic"
+    ],
+    "site_type_applicability": [
+      "any"
+    ],
+    "tat_component_target": "none"
   },
   {
     "slug": "partial_load_elimination_protocol",
@@ -622,7 +959,7 @@
     "category": "dispatch",
     "problem_solves": "Avg load below 8 m3 warrants investigation — could be waste (dispatch, pump access, over-batching) or legitimate (customer small-order mix). Protocol forces on-site root-cause diagnosis before quantifying opportunity.",
     "applicability_rules": {
-      "avg_load_m3_lt": 8.0
+      "avg_load_m3_lt": 8
     },
     "cost_usd_low": 1000,
     "cost_usd_high": 5000,
@@ -633,11 +970,23 @@
     "impact_secondary": "USD impact cannot be quantified from benchmark alone. After root-cause diagnosis reveals recoverable m3 delta, compute as (delta m3 * parsed_inputs.impact_multipliers.per_m3_avg_load_increase_usd). Conservative preliminary range: each 0.5 m3 recoverable = roughly 0.5 * per_m3_avg_load_increase_usd.",
     "effort_weeks": 4,
     "complexity": "medium",
-    "prerequisites": ["order_intake_standardisation"],
+    "prerequisites": [
+      "order_intake_standardisation"
+    ],
     "quick_win": true,
     "gcc_notes": "Partial loads in GCC often justified as 'keeping customer happy with a quick topper truck'. Needs owner endorsement to push back. Also: customer-mix may genuinely require <8 m3 loads (residential small pours) — do not assume it is waste.",
-    "sources": ["Internal derivation"],
-    "tags": ["dispatch", "quick_win", "conditional_opportunity"]
+    "sources": [
+      "Internal derivation"
+    ],
+    "tags": [
+      "dispatch",
+      "quick_win",
+      "conditional_opportunity"
+    ],
+    "site_type_applicability": [
+      "any"
+    ],
+    "tat_component_target": "none"
   },
   {
     "slug": "night_shift_expansion",
@@ -657,11 +1006,24 @@
     "impact_secondary": "Mixer utilisation improves; Riyadh daytime truck restrictions dodged for some routes.",
     "effort_weeks": 8,
     "complexity": "medium",
-    "prerequisites": ["demand_pipeline_supports", "maintenance_window_relocated"],
+    "prerequisites": [
+      "demand_pipeline_supports",
+      "maintenance_window_relocated"
+    ],
     "quick_win": false,
     "gcc_notes": "Directly incentivised by RCRC truck-movement restrictions: night windows are when mixers can legally traverse restricted zones. Megaprojects pour at night to avoid heat.",
-    "sources": ["Saudi Vision 2030 giga-project delivery schedules [recall]"],
-    "tags": ["batching", "capacity", "gcc_critical"]
+    "sources": [
+      "Saudi Vision 2030 giga-project delivery schedules [recall]"
+    ],
+    "tags": [
+      "batching",
+      "capacity",
+      "gcc_critical"
+    ],
+    "site_type_applicability": [
+      "any"
+    ],
+    "tat_component_target": "none"
   },
   {
     "slug": "subcontractor_haulier_integration",
@@ -683,8 +1045,17 @@
     "prerequisites": [],
     "quick_win": false,
     "gcc_notes": "Saudization Nitaqat may push some hire-fleet arrangements off-books; formalise to avoid labour-ministry risk.",
-    "sources": ["Industry practice"],
-    "tags": ["fleet", "procurement"]
+    "sources": [
+      "Industry practice"
+    ],
+    "tags": [
+      "fleet",
+      "procurement"
+    ],
+    "site_type_applicability": [
+      "any"
+    ],
+    "tat_component_target": "multi"
   },
   {
     "slug": "data_kpi_dashboard_exec",
@@ -703,11 +1074,23 @@
     "impact_secondary": "All other interventions ROI becomes measurable, compounding value.",
     "effort_weeks": 2,
     "complexity": "low",
-    "prerequisites": ["data_sources_accessible"],
+    "prerequisites": [
+      "data_sources_accessible"
+    ],
     "quick_win": true,
     "gcc_notes": "Patriarch-owner should see it on WhatsApp daily at 7am; design for the phone first.",
-    "sources": ["General BI practice"],
-    "tags": ["dispatch", "quick_win", "leadership"]
+    "sources": [
+      "General BI practice"
+    ],
+    "tags": [
+      "dispatch",
+      "quick_win",
+      "leadership"
+    ],
+    "site_type_applicability": [
+      "any"
+    ],
+    "tat_component_target": "none"
   },
   {
     "slug": "value_stream_mapping",
@@ -715,7 +1098,10 @@
     "category": "diagnostic",
     "problem_solves": "No shared visual of the order-to-cash flow. Improvement efforts target symptoms because the team cannot agree on where value and waste are created across order intake, dispatch, loading, delivery, pour, return, and reconciliation.",
     "applicability_rules": {
-      "engagement_phase_in": ["onsite_week_1", "any"]
+      "engagement_phase_in": [
+        "onsite_week_1",
+        "any"
+      ]
     },
     "cost_usd_low": 1500,
     "cost_usd_high": 6000,
@@ -729,8 +1115,19 @@
     "prerequisites": [],
     "quick_win": true,
     "gcc_notes": "Run in Arabic + English. Include the patriarch-owner in a 2-hour walkthrough of the future-state map so he endorses the direction before any spend decisions.",
-    "sources": ["Lean operations practice (Rother + Shook, Learning to See)"],
-    "tags": ["diagnostic", "lean", "quick_win", "foundational"]
+    "sources": [
+      "Lean operations practice (Rother + Shook, Learning to See)"
+    ],
+    "tags": [
+      "diagnostic",
+      "lean",
+      "quick_win",
+      "foundational"
+    ],
+    "site_type_applicability": [
+      "any"
+    ],
+    "tat_component_target": "multi"
   },
   {
     "slug": "gemba_walk_protocol",
@@ -738,7 +1135,10 @@
     "category": "driver",
     "problem_solves": "Management operates from the office, decisions drift from reality. Floor-level waste (queues, partial loads, idle trucks) is not seen until it shows up in aggregate KPIs.",
     "applicability_rules": {
-      "engagement_phase_in": ["onsite_week_1", "any"]
+      "engagement_phase_in": [
+        "onsite_week_1",
+        "any"
+      ]
     },
     "cost_usd_low": 0,
     "cost_usd_high": 2000,
@@ -752,8 +1152,18 @@
     "prerequisites": [],
     "quick_win": true,
     "gcc_notes": "In patriarch-owner cultures the owner's physical presence on the plant floor has outsized signalling effect. A 30-min Gemba walk with owner + plant manager 2x/week shifts behaviour faster than any dashboard.",
-    "sources": ["Toyota Production System practice"],
-    "tags": ["lean", "quick_win", "management"]
+    "sources": [
+      "Toyota Production System practice"
+    ],
+    "tags": [
+      "lean",
+      "quick_win",
+      "management"
+    ],
+    "site_type_applicability": [
+      "any"
+    ],
+    "tat_component_target": "multi"
   },
   {
     "slug": "oee_tracking_mixers",
@@ -776,8 +1186,18 @@
     "prerequisites": [],
     "quick_win": false,
     "gcc_notes": "Summer heat causes de-rating that stock OEE tools may miss. Include paste-temperature in the availability breakdown.",
-    "sources": ["Lean manufacturing standard (Nakajima, TPM)"],
-    "tags": ["lean", "batching", "measurement"]
+    "sources": [
+      "Lean manufacturing standard (Nakajima, TPM)"
+    ],
+    "tags": [
+      "lean",
+      "batching",
+      "measurement"
+    ],
+    "site_type_applicability": [
+      "any"
+    ],
+    "tat_component_target": "loading"
   },
   {
     "slug": "takt_time_sync_mixer_truck",
@@ -797,11 +1217,24 @@
     "impact_secondary": "Truck idle time at plant falls; mixer utilisation rises 3-8 pp; TAT benefits 2-5 min per trip.",
     "effort_weeks": 2,
     "complexity": "medium",
-    "prerequisites": ["oee_tracking_mixers"],
+    "prerequisites": [
+      "oee_tracking_mixers"
+    ],
     "quick_win": true,
     "gcc_notes": "Riyadh peak-hour dispatch windows compress takt mismatch; recalibrate separately for morning and afternoon.",
-    "sources": ["Lean flow practice"],
-    "tags": ["lean", "dispatch", "batching", "quick_win"]
+    "sources": [
+      "Lean flow practice"
+    ],
+    "tags": [
+      "lean",
+      "dispatch",
+      "batching",
+      "quick_win"
+    ],
+    "site_type_applicability": [
+      "any"
+    ],
+    "tat_component_target": "loading"
   },
   {
     "slug": "a3_problem_solving",
@@ -809,7 +1242,10 @@
     "category": "diagnostic",
     "problem_solves": "Problems are solved ad-hoc; root cause rarely documented; same issue recurs because countermeasures weren't validated.",
     "applicability_rules": {
-      "engagement_phase_in": ["onsite_week_1", "any"]
+      "engagement_phase_in": [
+        "onsite_week_1",
+        "any"
+      ]
     },
     "cost_usd_low": 1000,
     "cost_usd_high": 4000,
@@ -823,8 +1259,18 @@
     "prerequisites": [],
     "quick_win": false,
     "gcc_notes": "A3 format in Arabic on A3 paper; one A3 per wall in the dispatch room. Visible commitment counters patriarch-owner tendency to override structured analysis with gut calls.",
-    "sources": ["Toyota A3 problem solving (Shook)"],
-    "tags": ["lean", "culture", "problem_solving"]
+    "sources": [
+      "Toyota A3 problem solving (Shook)"
+    ],
+    "tags": [
+      "lean",
+      "culture",
+      "problem_solving"
+    ],
+    "site_type_applicability": [
+      "any"
+    ],
+    "tat_component_target": "multi"
   },
   {
     "slug": "kaizen_event_focused",
@@ -832,7 +1278,10 @@
     "category": "diagnostic",
     "problem_solves": "Long-drawn-out improvement projects lose momentum; team needs a visible win to build belief in the engagement.",
     "applicability_rules": {
-      "engagement_phase_in": ["onsite_week_2", "any"]
+      "engagement_phase_in": [
+        "onsite_week_2",
+        "any"
+      ]
     },
     "cost_usd_low": 2000,
     "cost_usd_high": 10000,
@@ -843,11 +1292,22 @@
     "impact_secondary": "Generates an internal case study that justifies the rest of the engagement to the owner. Wins hearts and minds.",
     "effort_weeks": 1,
     "complexity": "medium",
-    "prerequisites": ["value_stream_mapping"],
+    "prerequisites": [
+      "value_stream_mapping"
+    ],
     "quick_win": false,
     "gcc_notes": "Time-box strictly at 5 days even if imperfect; culture rewards visible follow-through more than polished analysis.",
-    "sources": ["Kaizen event methodology"],
-    "tags": ["lean", "focus"]
+    "sources": [
+      "Kaizen event methodology"
+    ],
+    "tags": [
+      "lean",
+      "focus"
+    ],
+    "site_type_applicability": [
+      "any"
+    ],
+    "tat_component_target": "multi"
   },
   {
     "slug": "andon_signal_system",
@@ -869,8 +1329,18 @@
     "prerequisites": [],
     "quick_win": true,
     "gcc_notes": "Arabic + Urdu + Hindi template messages. Include Iqama number field so driver + customer contact are identifiable without typing.",
-    "sources": ["Toyota Andon practice"],
-    "tags": ["lean", "site_ops", "quick_win"]
+    "sources": [
+      "Toyota Andon practice"
+    ],
+    "tags": [
+      "lean",
+      "site_ops",
+      "quick_win"
+    ],
+    "site_type_applicability": [
+      "any"
+    ],
+    "tat_component_target": "site_wait"
   },
   {
     "slug": "standard_work_dispatcher",
@@ -878,7 +1348,10 @@
     "category": "dispatch",
     "problem_solves": "Role execution varies by personality and shift; performance inconsistent; training new hires slow; accountability unclear.",
     "applicability_rules": {
-      "engagement_phase_in": ["onsite_week_2", "any"]
+      "engagement_phase_in": [
+        "onsite_week_2",
+        "any"
+      ]
     },
     "cost_usd_low": 1500,
     "cost_usd_high": 6000,
@@ -889,11 +1362,23 @@
     "impact_secondary": "Replaces hero-dispatcher dependency with documented process. Enables dispatcher_app_tier1_cloud rollout because you know what the app must automate.",
     "effort_weeks": 3,
     "complexity": "low",
-    "prerequisites": ["value_stream_mapping"],
+    "prerequisites": [
+      "value_stream_mapping"
+    ],
     "quick_win": false,
     "gcc_notes": "Must be signed off by the owner to have weight; informal dispatch authority otherwise overrides documented standard work.",
-    "sources": ["Lean standard work practice"],
-    "tags": ["lean", "dispatch", "process"]
+    "sources": [
+      "Lean standard work practice"
+    ],
+    "tags": [
+      "lean",
+      "dispatch",
+      "process"
+    ],
+    "site_type_applicability": [
+      "any"
+    ],
+    "tat_component_target": "plant_dwell"
   },
   {
     "slug": "smed_mixer_changeover",
@@ -913,11 +1398,23 @@
     "impact_secondary": "Mixer availability +3-8 pp; throughput +5-10% on peak days.",
     "effort_weeks": 4,
     "complexity": "medium",
-    "prerequisites": ["oee_tracking_mixers", "recipe_rationalisation"],
+    "prerequisites": [
+      "oee_tracking_mixers",
+      "recipe_rationalisation"
+    ],
     "quick_win": false,
     "gcc_notes": "Summer admix adjustment adds a separate changeover class; include it in the SMED analysis.",
-    "sources": ["Shingo SMED methodology"],
-    "tags": ["lean", "batching"]
+    "sources": [
+      "Shingo SMED methodology"
+    ],
+    "tags": [
+      "lean",
+      "batching"
+    ],
+    "site_type_applicability": [
+      "any"
+    ],
+    "tat_component_target": "loading"
   },
   {
     "slug": "five_s_yard_weighbridge",
@@ -925,7 +1422,10 @@
     "category": "weighbridge",
     "problem_solves": "Physical workspace disorganisation adds minutes to every cycle: drivers search for forms, weighbridge slips missing, truck parking random.",
     "applicability_rules": {
-      "engagement_phase_in": ["onsite_week_1", "any"]
+      "engagement_phase_in": [
+        "onsite_week_1",
+        "any"
+      ]
     },
     "cost_usd_low": 2000,
     "cost_usd_high": 8000,
@@ -939,8 +1439,18 @@
     "prerequisites": [],
     "quick_win": true,
     "gcc_notes": "Heat shelters and shade over waiting-driver areas pay back via less driver fatigue; build into 5S scope.",
-    "sources": ["Lean 5S practice"],
-    "tags": ["lean", "quick_win", "workplace"]
+    "sources": [
+      "Lean 5S practice"
+    ],
+    "tags": [
+      "lean",
+      "quick_win",
+      "workplace"
+    ],
+    "site_type_applicability": [
+      "any"
+    ],
+    "tat_component_target": "plant_dwell"
   },
   {
     "slug": "poka_yoke_batching",
@@ -949,7 +1459,10 @@
     "problem_solves": "Manual recipe entry errors slip through and cause rejects. Batch validation is visual rather than systematic.",
     "applicability_rules": {
       "reject_rate_pct_gt": 1.5,
-      "batch_controller_manual_override_in": ["allowed", "common"]
+      "batch_controller_manual_override_in": [
+        "allowed",
+        "common"
+      ]
     },
     "cost_usd_low": 3000,
     "cost_usd_high": 15000,
@@ -960,11 +1473,23 @@
     "impact_secondary": "Reject rate falls 0.3-0.7 pp; customer dispute volume drops.",
     "effort_weeks": 4,
     "complexity": "medium",
-    "prerequisites": ["recipe_rationalisation"],
+    "prerequisites": [
+      "recipe_rationalisation"
+    ],
     "quick_win": false,
     "gcc_notes": "Arabic UI on the batch operator console; many batcher operators prefer Arabic-first even when comfortable in English.",
-    "sources": ["Shingo Zero Quality Control / poka-yoke"],
-    "tags": ["lean", "qc", "automation"]
+    "sources": [
+      "Shingo Zero Quality Control / poka-yoke"
+    ],
+    "tags": [
+      "lean",
+      "qc",
+      "automation"
+    ],
+    "site_type_applicability": [
+      "any"
+    ],
+    "tat_component_target": "loading"
   },
   {
     "slug": "heijunka_demand_leveling",
@@ -984,11 +1509,22 @@
     "impact_secondary": "Mixer utilisation rises 5-10 pp in the afternoon window; fewer partial loads driven by peak pressure.",
     "effort_weeks": 4,
     "complexity": "medium",
-    "prerequisites": ["customer_slot_booking"],
+    "prerequisites": [
+      "customer_slot_booking"
+    ],
     "quick_win": false,
     "gcc_notes": "Riyadh afternoon restriction window limits 12:30-16:00 routes. Levelling targets the pre-restriction hours (10:00-12:00) specifically.",
-    "sources": ["Toyota Production System (heijunka)"],
-    "tags": ["lean", "dispatch"]
+    "sources": [
+      "Toyota Production System (heijunka)"
+    ],
+    "tags": [
+      "lean",
+      "dispatch"
+    ],
+    "site_type_applicability": [
+      "any"
+    ],
+    "tat_component_target": "plant_dwell"
   },
   {
     "slug": "jidoka_quality_stops",
@@ -996,8 +1532,11 @@
     "category": "qc",
     "problem_solves": "Out-of-spec batches are dispatched because the operator has no automatic stop trigger; rejects caught only at site.",
     "applicability_rules": {
-      "reject_rate_pct_gt": 2.0,
-      "slump_test_process_in": ["manual_sample", "none"]
+      "reject_rate_pct_gt": 2,
+      "slump_test_process_in": [
+        "manual_sample",
+        "none"
+      ]
     },
     "cost_usd_low": 8000,
     "cost_usd_high": 25000,
@@ -1008,11 +1547,23 @@
     "impact_secondary": "Customer trust improves; dispute rate falls; in-transit water addition practice fades.",
     "effort_weeks": 6,
     "complexity": "medium",
-    "prerequisites": ["moisture_probe_automation"],
+    "prerequisites": [
+      "moisture_probe_automation"
+    ],
     "quick_win": false,
     "gcc_notes": "Summer paste temperature drift is the primary jidoka trigger in Riyadh; calibrate seasonal thresholds.",
-    "sources": ["Toyota jidoka principle"],
-    "tags": ["lean", "qc", "automation"]
+    "sources": [
+      "Toyota jidoka principle"
+    ],
+    "tags": [
+      "lean",
+      "qc",
+      "automation"
+    ],
+    "site_type_applicability": [
+      "any"
+    ],
+    "tat_component_target": "loading"
   },
   {
     "slug": "kanban_materials_pull",
@@ -1020,7 +1571,11 @@
     "category": "batching",
     "problem_solves": "Push-based ordering creates both stockouts and working-capital bloat. Re-order points are set by gut, not by consumption rate + lead time.",
     "applicability_rules": {
-      "silo_monitoring_in": ["manual", "visual", "none"]
+      "silo_monitoring_in": [
+        "manual",
+        "visual",
+        "none"
+      ]
     },
     "cost_usd_low": 1500,
     "cost_usd_high": 8000,
@@ -1034,8 +1589,18 @@
     "prerequisites": [],
     "quick_win": true,
     "gcc_notes": "Cement supplier relationships in KSA are semi-monopolistic; factor in 2-3 day minimum re-order lead time even for established customers.",
-    "sources": ["Lean pull-system practice"],
-    "tags": ["lean", "inventory", "quick_win"]
+    "sources": [
+      "Lean pull-system practice"
+    ],
+    "tags": [
+      "lean",
+      "inventory",
+      "quick_win"
+    ],
+    "site_type_applicability": [
+      "any"
+    ],
+    "tat_component_target": "none"
   },
   {
     "slug": "strategic_supplier_partnerships",
@@ -1057,7 +1622,16 @@
     "prerequisites": [],
     "quick_win": false,
     "gcc_notes": "Saudi admix market: Fosroc, Sika, BASF/MBCC, Chryso, CICO. Run competitive tender annually. Cement has fewer alternatives (cartel-like pricing discipline).",
-    "sources": ["Strategic sourcing practice"],
-    "tags": ["procurement", "cost"]
+    "sources": [
+      "Strategic sourcing practice"
+    ],
+    "tags": [
+      "procurement",
+      "cost"
+    ],
+    "site_type_applicability": [
+      "any"
+    ],
+    "tat_component_target": "none"
   }
 ]

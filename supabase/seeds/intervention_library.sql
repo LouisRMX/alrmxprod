@@ -5,7 +5,8 @@ INSERT INTO public.intervention_library (
   slug, title_en, title_ar, category, problem_solves, applicability_rules,
   cost_usd_low, cost_usd_high, cost_notes, impact_metric, impact_pct_low,
   impact_pct_high, impact_secondary, effort_weeks, complexity, prerequisites,
-  quick_win, gcc_notes, sources, tags
+  quick_win, gcc_notes, sources, tags,
+  site_type_applicability, tat_component_target
 ) VALUES (
   'dispatcher_app_tier1_cloud',
   'Deploy cloud dispatcher + driver app (tier 1, full vendor)',
@@ -26,7 +27,9 @@ INSERT INTO public.intervention_library (
   false,
   'Driver UX must be Arabic-first with RTL. Many GCC drivers are South Asian (Urdu/Hindi/Bangla speakers) — multi-lingual driver app is a real requirement, not nice-to-have. Tablets in trucks get fried by Riyadh summer heat; spec IP65, operating temp to 60 C, or use driver BYOD with allowance.',
   '["Command Alkon TrackIt case studies [recall]","Sysdyne iStrada marketing [recall]","VERIFI + fleet telematics bundles [recall]"]'::jsonb,
-  ARRAY['dispatch', 'digital_core', 'foundation']::text[]
+  ARRAY['dispatch', 'digital_core', 'foundation']::text[],
+  ARRAY['any']::text[],
+  'multi'
 ) ON CONFLICT (slug) DO UPDATE SET
   title_en = EXCLUDED.title_en,
   title_ar = EXCLUDED.title_ar,
@@ -46,13 +49,16 @@ INSERT INTO public.intervention_library (
   quick_win = EXCLUDED.quick_win,
   gcc_notes = EXCLUDED.gcc_notes,
   sources = EXCLUDED.sources,
-  tags = EXCLUDED.tags;
+  tags = EXCLUDED.tags,
+  site_type_applicability = EXCLUDED.site_type_applicability,
+  tat_component_target = EXCLUDED.tat_component_target;
 
 INSERT INTO public.intervention_library (
   slug, title_en, title_ar, category, problem_solves, applicability_rules,
   cost_usd_low, cost_usd_high, cost_notes, impact_metric, impact_pct_low,
   impact_pct_high, impact_secondary, effort_weeks, complexity, prerequisites,
-  quick_win, gcc_notes, sources, tags
+  quick_win, gcc_notes, sources, tags,
+  site_type_applicability, tat_component_target
 ) VALUES (
   'dispatcher_app_tier0_lightweight',
   'Lightweight dispatcher board (Airtable / Google Sheets + Twilio) before full vendor rollout',
@@ -73,7 +79,9 @@ INSERT INTO public.intervention_library (
   true,
   'Arabic column headers and an Arabic-labelled status board for the dispatch room. Integrates with existing WhatsApp via Twilio WhatsApp Business API.',
   '["General SaaS deployment economics for a 90-truck fleet"]'::jsonb,
-  ARRAY['dispatch', 'quick_win', 'bridge_solution']::text[]
+  ARRAY['dispatch', 'quick_win', 'bridge_solution']::text[],
+  ARRAY['any']::text[],
+  'multi'
 ) ON CONFLICT (slug) DO UPDATE SET
   title_en = EXCLUDED.title_en,
   title_ar = EXCLUDED.title_ar,
@@ -93,13 +101,16 @@ INSERT INTO public.intervention_library (
   quick_win = EXCLUDED.quick_win,
   gcc_notes = EXCLUDED.gcc_notes,
   sources = EXCLUDED.sources,
-  tags = EXCLUDED.tags;
+  tags = EXCLUDED.tags,
+  site_type_applicability = EXCLUDED.site_type_applicability,
+  tat_component_target = EXCLUDED.tat_component_target;
 
 INSERT INTO public.intervention_library (
   slug, title_en, title_ar, category, problem_solves, applicability_rules,
   cost_usd_low, cost_usd_high, cost_notes, impact_metric, impact_pct_low,
   impact_pct_high, impact_secondary, effort_weeks, complexity, prerequisites,
-  quick_win, gcc_notes, sources, tags
+  quick_win, gcc_notes, sources, tags,
+  site_type_applicability, tat_component_target
 ) VALUES (
   'dispatch_playbook_roles',
   'Dispatcher role redesign + shift playbook',
@@ -120,7 +131,9 @@ INSERT INTO public.intervention_library (
   true,
   'Patriarch-owner cultures often conflate dispatcher loyalty with capability. Document the rules in Arabic and get owner sign-off before rollout, or the new playbook will be overridden informally.',
   '["Consulting playbook norms for logistics SMEs"]'::jsonb,
-  ARRAY['dispatch', 'process', 'quick_win', 'change_mgmt']::text[]
+  ARRAY['dispatch', 'process', 'quick_win', 'change_mgmt']::text[],
+  ARRAY['any']::text[],
+  'plant_dwell'
 ) ON CONFLICT (slug) DO UPDATE SET
   title_en = EXCLUDED.title_en,
   title_ar = EXCLUDED.title_ar,
@@ -140,13 +153,16 @@ INSERT INTO public.intervention_library (
   quick_win = EXCLUDED.quick_win,
   gcc_notes = EXCLUDED.gcc_notes,
   sources = EXCLUDED.sources,
-  tags = EXCLUDED.tags;
+  tags = EXCLUDED.tags,
+  site_type_applicability = EXCLUDED.site_type_applicability,
+  tat_component_target = EXCLUDED.tat_component_target;
 
 INSERT INTO public.intervention_library (
   slug, title_en, title_ar, category, problem_solves, applicability_rules,
   cost_usd_low, cost_usd_high, cost_notes, impact_metric, impact_pct_low,
   impact_pct_high, impact_secondary, effort_weeks, complexity, prerequisites,
-  quick_win, gcc_notes, sources, tags
+  quick_win, gcc_notes, sources, tags,
+  site_type_applicability, tat_component_target
 ) VALUES (
   'multi_plant_load_balancer',
   'Cross-plant load balancing rules (nearest-plant + capacity-aware)',
@@ -167,7 +183,9 @@ INSERT INTO public.intervention_library (
   false,
   'Riyadh truck restriction zones make nearest-plant routing non-trivial: the cheaper plant by distance may be blocked during the restricted window. Rules must be time-of-day aware.',
   '["Industry practice [recall]: multi-plant operators routinely cite 10-25% empty-km reduction"]'::jsonb,
-  ARRAY['dispatch', 'multi_plant', 'high_leverage']::text[]
+  ARRAY['dispatch', 'multi_plant', 'high_leverage']::text[],
+  ARRAY['any']::text[],
+  'transit_out'
 ) ON CONFLICT (slug) DO UPDATE SET
   title_en = EXCLUDED.title_en,
   title_ar = EXCLUDED.title_ar,
@@ -187,13 +205,16 @@ INSERT INTO public.intervention_library (
   quick_win = EXCLUDED.quick_win,
   gcc_notes = EXCLUDED.gcc_notes,
   sources = EXCLUDED.sources,
-  tags = EXCLUDED.tags;
+  tags = EXCLUDED.tags,
+  site_type_applicability = EXCLUDED.site_type_applicability,
+  tat_component_target = EXCLUDED.tat_component_target;
 
 INSERT INTO public.intervention_library (
   slug, title_en, title_ar, category, problem_solves, applicability_rules,
   cost_usd_low, cost_usd_high, cost_notes, impact_metric, impact_pct_low,
   impact_pct_high, impact_secondary, effort_weeks, complexity, prerequisites,
-  quick_win, gcc_notes, sources, tags
+  quick_win, gcc_notes, sources, tags,
+  site_type_applicability, tat_component_target
 ) VALUES (
   'order_intake_standardisation',
   'Standardised order intake form + confirmation SLA',
@@ -214,7 +235,9 @@ INSERT INTO public.intervention_library (
   true,
   'Include columns for: site access truck-size limit, pump type (line/boom), slump at point-of-pour, pour window, Iqama of site contact.',
   '["Lean ops norms for B2B logistics"]'::jsonb,
-  ARRAY['dispatch', 'quick_win', 'quality']::text[]
+  ARRAY['dispatch', 'quick_win', 'quality']::text[],
+  ARRAY['any']::text[],
+  'site_wait'
 ) ON CONFLICT (slug) DO UPDATE SET
   title_en = EXCLUDED.title_en,
   title_ar = EXCLUDED.title_ar,
@@ -234,13 +257,16 @@ INSERT INTO public.intervention_library (
   quick_win = EXCLUDED.quick_win,
   gcc_notes = EXCLUDED.gcc_notes,
   sources = EXCLUDED.sources,
-  tags = EXCLUDED.tags;
+  tags = EXCLUDED.tags,
+  site_type_applicability = EXCLUDED.site_type_applicability,
+  tat_component_target = EXCLUDED.tat_component_target;
 
 INSERT INTO public.intervention_library (
   slug, title_en, title_ar, category, problem_solves, applicability_rules,
   cost_usd_low, cost_usd_high, cost_notes, impact_metric, impact_pct_low,
   impact_pct_high, impact_secondary, effort_weeks, complexity, prerequisites,
-  quick_win, gcc_notes, sources, tags
+  quick_win, gcc_notes, sources, tags,
+  site_type_applicability, tat_component_target
 ) VALUES (
   'customer_slot_booking',
   'Site slot-booking portal with demurrage clause',
@@ -261,7 +287,9 @@ INSERT INTO public.intervention_library (
   false,
   'Demurrage is culturally sensitive with long-standing GCC contractor relationships. Patriarch-owner may resist. Alternative: soft priority-slot incentive rather than punitive charge.',
   '["Saudi Readymix IPO prospectus 2010 [recall]","GCP/VERIFI customer reports [recall]"]'::jsonb,
-  ARRAY['site_ops', 'customer_discipline', 'TAT']::text[]
+  ARRAY['site_ops', 'customer_discipline', 'TAT']::text[],
+  ARRAY['high_rise', 'bridge_deck', 'tunnel', 'precast', 'marine']::text[],
+  'site_wait'
 ) ON CONFLICT (slug) DO UPDATE SET
   title_en = EXCLUDED.title_en,
   title_ar = EXCLUDED.title_ar,
@@ -281,13 +309,16 @@ INSERT INTO public.intervention_library (
   quick_win = EXCLUDED.quick_win,
   gcc_notes = EXCLUDED.gcc_notes,
   sources = EXCLUDED.sources,
-  tags = EXCLUDED.tags;
+  tags = EXCLUDED.tags,
+  site_type_applicability = EXCLUDED.site_type_applicability,
+  tat_component_target = EXCLUDED.tat_component_target;
 
 INSERT INTO public.intervention_library (
   slug, title_en, title_ar, category, problem_solves, applicability_rules,
   cost_usd_low, cost_usd_high, cost_notes, impact_metric, impact_pct_low,
   impact_pct_high, impact_secondary, effort_weeks, complexity, prerequisites,
-  quick_win, gcc_notes, sources, tags
+  quick_win, gcc_notes, sources, tags,
+  site_type_applicability, tat_component_target
 ) VALUES (
   'pre_pour_site_readiness_call',
   'Pre-pour 30-minute site readiness confirmation call',
@@ -308,7 +339,9 @@ INSERT INTO public.intervention_library (
   true,
   'Saudization-friendly role — can be filled by Saudi women (tele-work-compatible per MHRSD Saudization rules).',
   '["Widespread industry practice [recall]"]'::jsonb,
-  ARRAY['site_ops', 'quick_win', 'TAT']::text[]
+  ARRAY['site_ops', 'quick_win', 'TAT']::text[],
+  ARRAY['any']::text[],
+  'site_wait'
 ) ON CONFLICT (slug) DO UPDATE SET
   title_en = EXCLUDED.title_en,
   title_ar = EXCLUDED.title_ar,
@@ -328,13 +361,16 @@ INSERT INTO public.intervention_library (
   quick_win = EXCLUDED.quick_win,
   gcc_notes = EXCLUDED.gcc_notes,
   sources = EXCLUDED.sources,
-  tags = EXCLUDED.tags;
+  tags = EXCLUDED.tags,
+  site_type_applicability = EXCLUDED.site_type_applicability,
+  tat_component_target = EXCLUDED.tat_component_target;
 
 INSERT INTO public.intervention_library (
   slug, title_en, title_ar, category, problem_solves, applicability_rules,
   cost_usd_low, cost_usd_high, cost_notes, impact_metric, impact_pct_low,
   impact_pct_high, impact_secondary, effort_weeks, complexity, prerequisites,
-  quick_win, gcc_notes, sources, tags
+  quick_win, gcc_notes, sources, tags,
+  site_type_applicability, tat_component_target
 ) VALUES (
   'weighbridge_kiosk_self_check',
   'Self-check driver kiosk at weighbridge (ANPR + Iqama scan)',
@@ -355,7 +391,9 @@ INSERT INTO public.intervention_library (
   false,
   'Arabic UI mandatory. Iqama (foreign worker ID) barcode standard in KSA; use as driver auth. Summer heat shelter needed for kiosk.',
   '["Libra Systems, Command Alkon weighbridge kiosk case studies [recall]"]'::jsonb,
-  ARRAY['weighbridge', 'automation']::text[]
+  ARRAY['weighbridge', 'automation']::text[],
+  ARRAY['any']::text[],
+  'plant_dwell'
 ) ON CONFLICT (slug) DO UPDATE SET
   title_en = EXCLUDED.title_en,
   title_ar = EXCLUDED.title_ar,
@@ -375,13 +413,16 @@ INSERT INTO public.intervention_library (
   quick_win = EXCLUDED.quick_win,
   gcc_notes = EXCLUDED.gcc_notes,
   sources = EXCLUDED.sources,
-  tags = EXCLUDED.tags;
+  tags = EXCLUDED.tags,
+  site_type_applicability = EXCLUDED.site_type_applicability,
+  tat_component_target = EXCLUDED.tat_component_target;
 
 INSERT INTO public.intervention_library (
   slug, title_en, title_ar, category, problem_solves, applicability_rules,
   cost_usd_low, cost_usd_high, cost_notes, impact_metric, impact_pct_low,
   impact_pct_high, impact_secondary, effort_weeks, complexity, prerequisites,
-  quick_win, gcc_notes, sources, tags
+  quick_win, gcc_notes, sources, tags,
+  site_type_applicability, tat_component_target
 ) VALUES (
   'rfid_gate_access',
   'RFID/UHF tagging of own fleet + ANPR for visitors',
@@ -402,7 +443,9 @@ INSERT INTO public.intervention_library (
   false,
   'Ensure tag spec tolerates 60 C direct sun. Mount on windscreen upper-left to avoid re-read at wash bay.',
   '["Generic fleet RFID deployment benchmarks"]'::jsonb,
-  ARRAY['weighbridge', 'automation', 'fleet']::text[]
+  ARRAY['weighbridge', 'automation', 'fleet']::text[],
+  ARRAY['any']::text[],
+  'plant_dwell'
 ) ON CONFLICT (slug) DO UPDATE SET
   title_en = EXCLUDED.title_en,
   title_ar = EXCLUDED.title_ar,
@@ -422,13 +465,16 @@ INSERT INTO public.intervention_library (
   quick_win = EXCLUDED.quick_win,
   gcc_notes = EXCLUDED.gcc_notes,
   sources = EXCLUDED.sources,
-  tags = EXCLUDED.tags;
+  tags = EXCLUDED.tags,
+  site_type_applicability = EXCLUDED.site_type_applicability,
+  tat_component_target = EXCLUDED.tat_component_target;
 
 INSERT INTO public.intervention_library (
   slug, title_en, title_ar, category, problem_solves, applicability_rules,
   cost_usd_low, cost_usd_high, cost_notes, impact_metric, impact_pct_low,
   impact_pct_high, impact_secondary, effort_weeks, complexity, prerequisites,
-  quick_win, gcc_notes, sources, tags
+  quick_win, gcc_notes, sources, tags,
+  site_type_applicability, tat_component_target
 ) VALUES (
   'queue_management_screen',
   'Dynamic queue-management screen at batching deck',
@@ -449,7 +495,9 @@ INSERT INTO public.intervention_library (
   true,
   'Arabic + Urdu + English on rotating display; truck number in large digits readable from 30 m.',
   '["Common batching-plant retrofit [recall]"]'::jsonb,
-  ARRAY['weighbridge', 'quick_win', 'driver_ux']::text[]
+  ARRAY['weighbridge', 'quick_win', 'driver_ux']::text[],
+  ARRAY['any']::text[],
+  'plant_dwell'
 ) ON CONFLICT (slug) DO UPDATE SET
   title_en = EXCLUDED.title_en,
   title_ar = EXCLUDED.title_ar,
@@ -469,13 +517,16 @@ INSERT INTO public.intervention_library (
   quick_win = EXCLUDED.quick_win,
   gcc_notes = EXCLUDED.gcc_notes,
   sources = EXCLUDED.sources,
-  tags = EXCLUDED.tags;
+  tags = EXCLUDED.tags,
+  site_type_applicability = EXCLUDED.site_type_applicability,
+  tat_component_target = EXCLUDED.tat_component_target;
 
 INSERT INTO public.intervention_library (
   slug, title_en, title_ar, category, problem_solves, applicability_rules,
   cost_usd_low, cost_usd_high, cost_notes, impact_metric, impact_pct_low,
   impact_pct_high, impact_secondary, effort_weeks, complexity, prerequisites,
-  quick_win, gcc_notes, sources, tags
+  quick_win, gcc_notes, sources, tags,
+  site_type_applicability, tat_component_target
 ) VALUES (
   'batch_cycle_time_audit',
   'Batching cycle-time audit + recipe standardisation',
@@ -496,7 +547,9 @@ INSERT INTO public.intervention_library (
   false,
   'Riyadh summer: admixture dosing tuned for 40+ C paste temp may need adjustment per shift.',
   '["Sysdyne, Marcotte audit methodologies [recall]"]'::jsonb,
-  ARRAY['batching', 'throughput']::text[]
+  ARRAY['batching', 'throughput']::text[],
+  ARRAY['any']::text[],
+  'loading'
 ) ON CONFLICT (slug) DO UPDATE SET
   title_en = EXCLUDED.title_en,
   title_ar = EXCLUDED.title_ar,
@@ -516,13 +569,16 @@ INSERT INTO public.intervention_library (
   quick_win = EXCLUDED.quick_win,
   gcc_notes = EXCLUDED.gcc_notes,
   sources = EXCLUDED.sources,
-  tags = EXCLUDED.tags;
+  tags = EXCLUDED.tags,
+  site_type_applicability = EXCLUDED.site_type_applicability,
+  tat_component_target = EXCLUDED.tat_component_target;
 
 INSERT INTO public.intervention_library (
   slug, title_en, title_ar, category, problem_solves, applicability_rules,
   cost_usd_low, cost_usd_high, cost_notes, impact_metric, impact_pct_low,
   impact_pct_high, impact_secondary, effort_weeks, complexity, prerequisites,
-  quick_win, gcc_notes, sources, tags
+  quick_win, gcc_notes, sources, tags,
+  site_type_applicability, tat_component_target
 ) VALUES (
   'recipe_rationalisation',
   'Recipe portfolio rationalisation (SKU reduction)',
@@ -543,7 +599,9 @@ INSERT INTO public.intervention_library (
   true,
   'Megaproject specs (NEOM, Red Sea, Diriyah) each impose bespoke recipes; rationalise non-project portfolio first.',
   '["Lean ops SKU rationalisation norms"]'::jsonb,
-  ARRAY['batching', 'quality', 'quick_win']::text[]
+  ARRAY['batching', 'quality', 'quick_win']::text[],
+  ARRAY['any']::text[],
+  'loading'
 ) ON CONFLICT (slug) DO UPDATE SET
   title_en = EXCLUDED.title_en,
   title_ar = EXCLUDED.title_ar,
@@ -563,13 +621,16 @@ INSERT INTO public.intervention_library (
   quick_win = EXCLUDED.quick_win,
   gcc_notes = EXCLUDED.gcc_notes,
   sources = EXCLUDED.sources,
-  tags = EXCLUDED.tags;
+  tags = EXCLUDED.tags,
+  site_type_applicability = EXCLUDED.site_type_applicability,
+  tat_component_target = EXCLUDED.tat_component_target;
 
 INSERT INTO public.intervention_library (
   slug, title_en, title_ar, category, problem_solves, applicability_rules,
   cost_usd_low, cost_usd_high, cost_notes, impact_metric, impact_pct_low,
   impact_pct_high, impact_secondary, effort_weeks, complexity, prerequisites,
-  quick_win, gcc_notes, sources, tags
+  quick_win, gcc_notes, sources, tags,
+  site_type_applicability, tat_component_target
 ) VALUES (
   'moisture_probe_automation',
   'Aggregate moisture probes feeding batch controller',
@@ -590,7 +651,9 @@ INSERT INTO public.intervention_library (
   false,
   'Riyadh aggregate sources often dry; probes pay back faster in mixed-aggregate plants.',
   '["Hydronix customer case studies [recall]"]'::jsonb,
-  ARRAY['batching', 'quality', 'automation']::text[]
+  ARRAY['batching', 'quality', 'automation']::text[],
+  ARRAY['any']::text[],
+  'loading'
 ) ON CONFLICT (slug) DO UPDATE SET
   title_en = EXCLUDED.title_en,
   title_ar = EXCLUDED.title_ar,
@@ -610,13 +673,16 @@ INSERT INTO public.intervention_library (
   quick_win = EXCLUDED.quick_win,
   gcc_notes = EXCLUDED.gcc_notes,
   sources = EXCLUDED.sources,
-  tags = EXCLUDED.tags;
+  tags = EXCLUDED.tags,
+  site_type_applicability = EXCLUDED.site_type_applicability,
+  tat_component_target = EXCLUDED.tat_component_target;
 
 INSERT INTO public.intervention_library (
   slug, title_en, title_ar, category, problem_solves, applicability_rules,
   cost_usd_low, cost_usd_high, cost_notes, impact_metric, impact_pct_low,
   impact_pct_high, impact_secondary, effort_weeks, complexity, prerequisites,
-  quick_win, gcc_notes, sources, tags
+  quick_win, gcc_notes, sources, tags,
+  site_type_applicability, tat_component_target
 ) VALUES (
   'silo_inventory_sensors',
   'Cement + aggregate silo level sensors with auto-reorder',
@@ -637,7 +703,9 @@ INSERT INTO public.intervention_library (
   false,
   'Cement cartel discipline in KSA means alternate suppliers limited on short notice; stockout cost is high.',
   '["Endress+Hauser, Siemens, Bindicator level-sensor case studies [recall]"]'::jsonb,
-  ARRAY['batching', 'inventory']::text[]
+  ARRAY['batching', 'inventory']::text[],
+  ARRAY['any']::text[],
+  'none'
 ) ON CONFLICT (slug) DO UPDATE SET
   title_en = EXCLUDED.title_en,
   title_ar = EXCLUDED.title_ar,
@@ -657,13 +725,16 @@ INSERT INTO public.intervention_library (
   quick_win = EXCLUDED.quick_win,
   gcc_notes = EXCLUDED.gcc_notes,
   sources = EXCLUDED.sources,
-  tags = EXCLUDED.tags;
+  tags = EXCLUDED.tags,
+  site_type_applicability = EXCLUDED.site_type_applicability,
+  tat_component_target = EXCLUDED.tat_component_target;
 
 INSERT INTO public.intervention_library (
   slug, title_en, title_ar, category, problem_solves, applicability_rules,
   cost_usd_low, cost_usd_high, cost_notes, impact_metric, impact_pct_low,
   impact_pct_high, impact_secondary, effort_weeks, complexity, prerequisites,
-  quick_win, gcc_notes, sources, tags
+  quick_win, gcc_notes, sources, tags,
+  site_type_applicability, tat_component_target
 ) VALUES (
   'telematics_gps_basic',
   'Fleet telematics / GPS (tier 1, location + ignition + speed)',
@@ -684,7 +755,9 @@ INSERT INTO public.intervention_library (
   false,
   'MOT Saudi Arabia ''Wasl'' integration is mandatory for commercial fleets >3.5t — vendor must be Wasl-certified.',
   '["Geotab / Mix Telematics customer reports [recall]"]'::jsonb,
-  ARRAY['fleet', 'foundation', 'regulatory']::text[]
+  ARRAY['fleet', 'foundation', 'regulatory']::text[],
+  ARRAY['any']::text[],
+  'multi'
 ) ON CONFLICT (slug) DO UPDATE SET
   title_en = EXCLUDED.title_en,
   title_ar = EXCLUDED.title_ar,
@@ -704,13 +777,16 @@ INSERT INTO public.intervention_library (
   quick_win = EXCLUDED.quick_win,
   gcc_notes = EXCLUDED.gcc_notes,
   sources = EXCLUDED.sources,
-  tags = EXCLUDED.tags;
+  tags = EXCLUDED.tags,
+  site_type_applicability = EXCLUDED.site_type_applicability,
+  tat_component_target = EXCLUDED.tat_component_target;
 
 INSERT INTO public.intervention_library (
   slug, title_en, title_ar, category, problem_solves, applicability_rules,
   cost_usd_low, cost_usd_high, cost_notes, impact_metric, impact_pct_low,
   impact_pct_high, impact_secondary, effort_weeks, complexity, prerequisites,
-  quick_win, gcc_notes, sources, tags
+  quick_win, gcc_notes, sources, tags,
+  site_type_applicability, tat_component_target
 ) VALUES (
   'telematics_concrete_sensors',
   'In-drum concrete sensors (slump, temperature, water-add)',
@@ -731,7 +807,9 @@ INSERT INTO public.intervention_library (
   false,
   'Riyadh 40+ C summer drives major paste temperature issues; in-drum temp monitoring has outsized value here.',
   '["VERIFI public case studies [recall]","Command Alkon MIX-R marketing [recall]"]'::jsonb,
-  ARRAY['fleet', 'quality', 'high_cost']::text[]
+  ARRAY['fleet', 'quality', 'high_cost']::text[],
+  ARRAY['any']::text[],
+  'site_wait'
 ) ON CONFLICT (slug) DO UPDATE SET
   title_en = EXCLUDED.title_en,
   title_ar = EXCLUDED.title_ar,
@@ -751,13 +829,16 @@ INSERT INTO public.intervention_library (
   quick_win = EXCLUDED.quick_win,
   gcc_notes = EXCLUDED.gcc_notes,
   sources = EXCLUDED.sources,
-  tags = EXCLUDED.tags;
+  tags = EXCLUDED.tags,
+  site_type_applicability = EXCLUDED.site_type_applicability,
+  tat_component_target = EXCLUDED.tat_component_target;
 
 INSERT INTO public.intervention_library (
   slug, title_en, title_ar, category, problem_solves, applicability_rules,
   cost_usd_low, cost_usd_high, cost_notes, impact_metric, impact_pct_low,
   impact_pct_high, impact_secondary, effort_weeks, complexity, prerequisites,
-  quick_win, gcc_notes, sources, tags
+  quick_win, gcc_notes, sources, tags,
+  site_type_applicability, tat_component_target
 ) VALUES (
   'preventive_maintenance_program',
   'Structured preventive maintenance program with digital checklist',
@@ -778,7 +859,9 @@ INSERT INTO public.intervention_library (
   false,
   'Workshop often dominated by one or two expat master mechanics; winning them over is critical.',
   '["Fiix / UpKeep SME fleet case studies [recall]"]'::jsonb,
-  ARRAY['maintenance', 'fleet']::text[]
+  ARRAY['maintenance', 'fleet']::text[],
+  ARRAY['any']::text[],
+  'none'
 ) ON CONFLICT (slug) DO UPDATE SET
   title_en = EXCLUDED.title_en,
   title_ar = EXCLUDED.title_ar,
@@ -798,13 +881,16 @@ INSERT INTO public.intervention_library (
   quick_win = EXCLUDED.quick_win,
   gcc_notes = EXCLUDED.gcc_notes,
   sources = EXCLUDED.sources,
-  tags = EXCLUDED.tags;
+  tags = EXCLUDED.tags,
+  site_type_applicability = EXCLUDED.site_type_applicability,
+  tat_component_target = EXCLUDED.tat_component_target;
 
 INSERT INTO public.intervention_library (
   slug, title_en, title_ar, category, problem_solves, applicability_rules,
   cost_usd_low, cost_usd_high, cost_notes, impact_metric, impact_pct_low,
   impact_pct_high, impact_secondary, effort_weeks, complexity, prerequisites,
-  quick_win, gcc_notes, sources, tags
+  quick_win, gcc_notes, sources, tags,
+  site_type_applicability, tat_component_target
 ) VALUES (
   'predictive_maintenance_analytics',
   'Predictive maintenance on drum + drivetrain via telematics data',
@@ -825,7 +911,9 @@ INSERT INTO public.intervention_library (
   false,
   'Heat + dust shorten component lifetime vs. OEM book values by 15-40%. Local empirical calibration beats manufacturer intervals.',
   '["Geotab MyGeotab marketplace case studies [recall]"]'::jsonb,
-  ARRAY['maintenance', 'advanced']::text[]
+  ARRAY['maintenance', 'advanced']::text[],
+  ARRAY['any']::text[],
+  'none'
 ) ON CONFLICT (slug) DO UPDATE SET
   title_en = EXCLUDED.title_en,
   title_ar = EXCLUDED.title_ar,
@@ -845,13 +933,16 @@ INSERT INTO public.intervention_library (
   quick_win = EXCLUDED.quick_win,
   gcc_notes = EXCLUDED.gcc_notes,
   sources = EXCLUDED.sources,
-  tags = EXCLUDED.tags;
+  tags = EXCLUDED.tags,
+  site_type_applicability = EXCLUDED.site_type_applicability,
+  tat_component_target = EXCLUDED.tat_component_target;
 
 INSERT INTO public.intervention_library (
   slug, title_en, title_ar, category, problem_solves, applicability_rules,
   cost_usd_low, cost_usd_high, cost_notes, impact_metric, impact_pct_low,
   impact_pct_high, impact_secondary, effort_weeks, complexity, prerequisites,
-  quick_win, gcc_notes, sources, tags
+  quick_win, gcc_notes, sources, tags,
+  site_type_applicability, tat_component_target
 ) VALUES (
   'spare_parts_kanban',
   'Critical spares kanban + min-max rebuild',
@@ -872,7 +963,9 @@ INSERT INTO public.intervention_library (
   true,
   'Import lead times for OEM (German/Italian) batching plant spares are 6-12 weeks; critical items need dual-source strategy.',
   '["Lean maintenance practice"]'::jsonb,
-  ARRAY['maintenance', 'quick_win', 'inventory']::text[]
+  ARRAY['maintenance', 'quick_win', 'inventory']::text[],
+  ARRAY['any']::text[],
+  'none'
 ) ON CONFLICT (slug) DO UPDATE SET
   title_en = EXCLUDED.title_en,
   title_ar = EXCLUDED.title_ar,
@@ -892,13 +985,16 @@ INSERT INTO public.intervention_library (
   quick_win = EXCLUDED.quick_win,
   gcc_notes = EXCLUDED.gcc_notes,
   sources = EXCLUDED.sources,
-  tags = EXCLUDED.tags;
+  tags = EXCLUDED.tags,
+  site_type_applicability = EXCLUDED.site_type_applicability,
+  tat_component_target = EXCLUDED.tat_component_target;
 
 INSERT INTO public.intervention_library (
   slug, title_en, title_ar, category, problem_solves, applicability_rules,
   cost_usd_low, cost_usd_high, cost_notes, impact_metric, impact_pct_low,
   impact_pct_high, impact_secondary, effort_weeks, complexity, prerequisites,
-  quick_win, gcc_notes, sources, tags
+  quick_win, gcc_notes, sources, tags,
+  site_type_applicability, tat_component_target
 ) VALUES (
   'driver_incentive_redesign',
   'Driver incentive structure redesign (trips + quality + safety)',
@@ -919,7 +1015,9 @@ INSERT INTO public.intervention_library (
   false,
   'Driver workforce in KSA ready-mix is overwhelmingly South Asian; per-trip incentives are culturally entrenched. Any change needs Arabic + Urdu/Hindi communication and a ''nobody loses in month 1'' guarantee.',
   '["GCC labour market practice [recall]"]'::jsonb,
-  ARRAY['driver', 'incentive', 'change_mgmt']::text[]
+  ARRAY['driver', 'incentive', 'change_mgmt']::text[],
+  ARRAY['any']::text[],
+  'multi'
 ) ON CONFLICT (slug) DO UPDATE SET
   title_en = EXCLUDED.title_en,
   title_ar = EXCLUDED.title_ar,
@@ -939,13 +1037,16 @@ INSERT INTO public.intervention_library (
   quick_win = EXCLUDED.quick_win,
   gcc_notes = EXCLUDED.gcc_notes,
   sources = EXCLUDED.sources,
-  tags = EXCLUDED.tags;
+  tags = EXCLUDED.tags,
+  site_type_applicability = EXCLUDED.site_type_applicability,
+  tat_component_target = EXCLUDED.tat_component_target;
 
 INSERT INTO public.intervention_library (
   slug, title_en, title_ar, category, problem_solves, applicability_rules,
   cost_usd_low, cost_usd_high, cost_notes, impact_metric, impact_pct_low,
   impact_pct_high, impact_secondary, effort_weeks, complexity, prerequisites,
-  quick_win, gcc_notes, sources, tags
+  quick_win, gcc_notes, sources, tags,
+  site_type_applicability, tat_component_target
 ) VALUES (
   'driver_training_concrete_handling',
   'Driver training: concrete handling, slump discipline, defensive driving',
@@ -966,7 +1067,9 @@ INSERT INTO public.intervention_library (
   true,
   'Delivered in Urdu or Hindi; Arabic materials for the subset of Saudi drivers.',
   '["Industry training vendors [recall]"]'::jsonb,
-  ARRAY['driver', 'quality', 'quick_win']::text[]
+  ARRAY['driver', 'quality', 'quick_win']::text[],
+  ARRAY['any']::text[],
+  'multi'
 ) ON CONFLICT (slug) DO UPDATE SET
   title_en = EXCLUDED.title_en,
   title_ar = EXCLUDED.title_ar,
@@ -986,13 +1089,16 @@ INSERT INTO public.intervention_library (
   quick_win = EXCLUDED.quick_win,
   gcc_notes = EXCLUDED.gcc_notes,
   sources = EXCLUDED.sources,
-  tags = EXCLUDED.tags;
+  tags = EXCLUDED.tags,
+  site_type_applicability = EXCLUDED.site_type_applicability,
+  tat_component_target = EXCLUDED.tat_component_target;
 
 INSERT INTO public.intervention_library (
   slug, title_en, title_ar, category, problem_solves, applicability_rules,
   cost_usd_low, cost_usd_high, cost_notes, impact_metric, impact_pct_low,
   impact_pct_high, impact_secondary, effort_weeks, complexity, prerequisites,
-  quick_win, gcc_notes, sources, tags
+  quick_win, gcc_notes, sources, tags,
+  site_type_applicability, tat_component_target
 ) VALUES (
   'driver_app_etas_forms',
   'Driver smartphone app (ETAs, site forms, ticket signature)',
@@ -1013,7 +1119,9 @@ INSERT INTO public.intervention_library (
   false,
   'Provide company phones for non-smartphone drivers; SAR 80-150/mo line cost (~$22-40).',
   '["Sysdyne, TrackIt driver app case studies [recall]"]'::jsonb,
-  ARRAY['driver', 'digital']::text[]
+  ARRAY['driver', 'digital']::text[],
+  ARRAY['any']::text[],
+  'multi'
 ) ON CONFLICT (slug) DO UPDATE SET
   title_en = EXCLUDED.title_en,
   title_ar = EXCLUDED.title_ar,
@@ -1033,13 +1141,16 @@ INSERT INTO public.intervention_library (
   quick_win = EXCLUDED.quick_win,
   gcc_notes = EXCLUDED.gcc_notes,
   sources = EXCLUDED.sources,
-  tags = EXCLUDED.tags;
+  tags = EXCLUDED.tags,
+  site_type_applicability = EXCLUDED.site_type_applicability,
+  tat_component_target = EXCLUDED.tat_component_target;
 
 INSERT INTO public.intervention_library (
   slug, title_en, title_ar, category, problem_solves, applicability_rules,
   cost_usd_low, cost_usd_high, cost_notes, impact_metric, impact_pct_low,
   impact_pct_high, impact_secondary, effort_weeks, complexity, prerequisites,
-  quick_win, gcc_notes, sources, tags
+  quick_win, gcc_notes, sources, tags,
+  site_type_applicability, tat_component_target
 ) VALUES (
   'slump_automation_qc',
   'Automated slump measurement at loading (ICAR / camera-based)',
@@ -1060,7 +1171,9 @@ INSERT INTO public.intervention_library (
   false,
   'Dust + high temp challenge for vision systems; specify IP66 and active cooling.',
   '["ICAR rheometer papers [recall]","Sensocrete marketing [recall]"]'::jsonb,
-  ARRAY['qc', 'automation']::text[]
+  ARRAY['qc', 'automation']::text[],
+  ARRAY['any']::text[],
+  'loading'
 ) ON CONFLICT (slug) DO UPDATE SET
   title_en = EXCLUDED.title_en,
   title_ar = EXCLUDED.title_ar,
@@ -1080,13 +1193,16 @@ INSERT INTO public.intervention_library (
   quick_win = EXCLUDED.quick_win,
   gcc_notes = EXCLUDED.gcc_notes,
   sources = EXCLUDED.sources,
-  tags = EXCLUDED.tags;
+  tags = EXCLUDED.tags,
+  site_type_applicability = EXCLUDED.site_type_applicability,
+  tat_component_target = EXCLUDED.tat_component_target;
 
 INSERT INTO public.intervention_library (
   slug, title_en, title_ar, category, problem_solves, applicability_rules,
   cost_usd_low, cost_usd_high, cost_notes, impact_metric, impact_pct_low,
   impact_pct_high, impact_secondary, effort_weeks, complexity, prerequisites,
-  quick_win, gcc_notes, sources, tags
+  quick_win, gcc_notes, sources, tags,
+  site_type_applicability, tat_component_target
 ) VALUES (
   'concrete_temperature_hot_weather',
   'Hot-weather concreting protocol (ice + chilled water + recipe temp cap)',
@@ -1107,7 +1223,9 @@ INSERT INTO public.intervention_library (
   false,
   'ACI 305 ''Hot Weather Concreting'' is the reference standard. Saudi Building Code references ACI. Many GCC plants already have ice plants; the gap is usually protocol discipline.',
   '["ACI 305R-20 [recall]","Saudi Readymix IPO 2010 [recall]"]'::jsonb,
-  ARRAY['qc', 'gcc_critical', 'seasonal']::text[]
+  ARRAY['qc', 'gcc_critical', 'seasonal']::text[],
+  ARRAY['any']::text[],
+  'none'
 ) ON CONFLICT (slug) DO UPDATE SET
   title_en = EXCLUDED.title_en,
   title_ar = EXCLUDED.title_ar,
@@ -1127,13 +1245,16 @@ INSERT INTO public.intervention_library (
   quick_win = EXCLUDED.quick_win,
   gcc_notes = EXCLUDED.gcc_notes,
   sources = EXCLUDED.sources,
-  tags = EXCLUDED.tags;
+  tags = EXCLUDED.tags,
+  site_type_applicability = EXCLUDED.site_type_applicability,
+  tat_component_target = EXCLUDED.tat_component_target;
 
 INSERT INTO public.intervention_library (
   slug, title_en, title_ar, category, problem_solves, applicability_rules,
   cost_usd_low, cost_usd_high, cost_notes, impact_metric, impact_pct_low,
   impact_pct_high, impact_secondary, effort_weeks, complexity, prerequisites,
-  quick_win, gcc_notes, sources, tags
+  quick_win, gcc_notes, sources, tags,
+  site_type_applicability, tat_component_target
 ) VALUES (
   'admixture_optimisation',
   'Admixture portfolio review + dosing optimisation',
@@ -1154,7 +1275,9 @@ INSERT INTO public.intervention_library (
   true,
   'Riyadh admixture market dominated by Fosroc, Sika, BASF/MBCC, Chryso, CICO. Competitive tender annually is typical leverage.',
   '["ACI 212.3R on admixtures [recall]","Supplier customer cases [recall]"]'::jsonb,
-  ARRAY['qc', 'quick_win', 'cost']::text[]
+  ARRAY['qc', 'quick_win', 'cost']::text[],
+  ARRAY['any']::text[],
+  'none'
 ) ON CONFLICT (slug) DO UPDATE SET
   title_en = EXCLUDED.title_en,
   title_ar = EXCLUDED.title_ar,
@@ -1174,13 +1297,16 @@ INSERT INTO public.intervention_library (
   quick_win = EXCLUDED.quick_win,
   gcc_notes = EXCLUDED.gcc_notes,
   sources = EXCLUDED.sources,
-  tags = EXCLUDED.tags;
+  tags = EXCLUDED.tags,
+  site_type_applicability = EXCLUDED.site_type_applicability,
+  tat_component_target = EXCLUDED.tat_component_target;
 
 INSERT INTO public.intervention_library (
   slug, title_en, title_ar, category, problem_solves, applicability_rules,
   cost_usd_low, cost_usd_high, cost_notes, impact_metric, impact_pct_low,
   impact_pct_high, impact_secondary, effort_weeks, complexity, prerequisites,
-  quick_win, gcc_notes, sources, tags
+  quick_win, gcc_notes, sources, tags,
+  site_type_applicability, tat_component_target
 ) VALUES (
   'reject_root_cause_system',
   'Reject root-cause capture + weekly review',
@@ -1201,7 +1327,9 @@ INSERT INTO public.intervention_library (
   true,
   'Cultural resistance to recording rejects accurately (face, blame on driver). Framing must be ''diagnostic data'', not accountability weapon, for month 1.',
   '["Lean QC practice"]'::jsonb,
-  ARRAY['qc', 'quick_win', 'diagnostic']::text[]
+  ARRAY['qc', 'quick_win', 'diagnostic']::text[],
+  ARRAY['any']::text[],
+  'none'
 ) ON CONFLICT (slug) DO UPDATE SET
   title_en = EXCLUDED.title_en,
   title_ar = EXCLUDED.title_ar,
@@ -1221,13 +1349,16 @@ INSERT INTO public.intervention_library (
   quick_win = EXCLUDED.quick_win,
   gcc_notes = EXCLUDED.gcc_notes,
   sources = EXCLUDED.sources,
-  tags = EXCLUDED.tags;
+  tags = EXCLUDED.tags,
+  site_type_applicability = EXCLUDED.site_type_applicability,
+  tat_component_target = EXCLUDED.tat_component_target;
 
 INSERT INTO public.intervention_library (
   slug, title_en, title_ar, category, problem_solves, applicability_rules,
   cost_usd_low, cost_usd_high, cost_notes, impact_metric, impact_pct_low,
   impact_pct_high, impact_secondary, effort_weeks, complexity, prerequisites,
-  quick_win, gcc_notes, sources, tags
+  quick_win, gcc_notes, sources, tags,
+  site_type_applicability, tat_component_target
 ) VALUES (
   'partial_load_elimination_protocol',
   'Partial-load elimination protocol (min load rule + consolidation)',
@@ -1248,7 +1379,9 @@ INSERT INTO public.intervention_library (
   true,
   'Partial loads in GCC often justified as ''keeping customer happy with a quick topper truck''. Needs owner endorsement to push back. Also: customer-mix may genuinely require <8 m3 loads (residential small pours) — do not assume it is waste.',
   '["Internal derivation"]'::jsonb,
-  ARRAY['dispatch', 'quick_win', 'conditional_opportunity']::text[]
+  ARRAY['dispatch', 'quick_win', 'conditional_opportunity']::text[],
+  ARRAY['any']::text[],
+  'none'
 ) ON CONFLICT (slug) DO UPDATE SET
   title_en = EXCLUDED.title_en,
   title_ar = EXCLUDED.title_ar,
@@ -1268,13 +1401,16 @@ INSERT INTO public.intervention_library (
   quick_win = EXCLUDED.quick_win,
   gcc_notes = EXCLUDED.gcc_notes,
   sources = EXCLUDED.sources,
-  tags = EXCLUDED.tags;
+  tags = EXCLUDED.tags,
+  site_type_applicability = EXCLUDED.site_type_applicability,
+  tat_component_target = EXCLUDED.tat_component_target;
 
 INSERT INTO public.intervention_library (
   slug, title_en, title_ar, category, problem_solves, applicability_rules,
   cost_usd_low, cost_usd_high, cost_notes, impact_metric, impact_pct_low,
   impact_pct_high, impact_secondary, effort_weeks, complexity, prerequisites,
-  quick_win, gcc_notes, sources, tags
+  quick_win, gcc_notes, sources, tags,
+  site_type_applicability, tat_component_target
 ) VALUES (
   'night_shift_expansion',
   'Night-shift expansion enabled by megaproject night-pour demand',
@@ -1295,7 +1431,9 @@ INSERT INTO public.intervention_library (
   false,
   'Directly incentivised by RCRC truck-movement restrictions: night windows are when mixers can legally traverse restricted zones. Megaprojects pour at night to avoid heat.',
   '["Saudi Vision 2030 giga-project delivery schedules [recall]"]'::jsonb,
-  ARRAY['batching', 'capacity', 'gcc_critical']::text[]
+  ARRAY['batching', 'capacity', 'gcc_critical']::text[],
+  ARRAY['any']::text[],
+  'none'
 ) ON CONFLICT (slug) DO UPDATE SET
   title_en = EXCLUDED.title_en,
   title_ar = EXCLUDED.title_ar,
@@ -1315,13 +1453,16 @@ INSERT INTO public.intervention_library (
   quick_win = EXCLUDED.quick_win,
   gcc_notes = EXCLUDED.gcc_notes,
   sources = EXCLUDED.sources,
-  tags = EXCLUDED.tags;
+  tags = EXCLUDED.tags,
+  site_type_applicability = EXCLUDED.site_type_applicability,
+  tat_component_target = EXCLUDED.tat_component_target;
 
 INSERT INTO public.intervention_library (
   slug, title_en, title_ar, category, problem_solves, applicability_rules,
   cost_usd_low, cost_usd_high, cost_notes, impact_metric, impact_pct_low,
   impact_pct_high, impact_secondary, effort_weeks, complexity, prerequisites,
-  quick_win, gcc_notes, sources, tags
+  quick_win, gcc_notes, sources, tags,
+  site_type_applicability, tat_component_target
 ) VALUES (
   'subcontractor_haulier_integration',
   'Formal hire-fleet SLA + integrated telematics',
@@ -1342,7 +1483,9 @@ INSERT INTO public.intervention_library (
   false,
   'Saudization Nitaqat may push some hire-fleet arrangements off-books; formalise to avoid labour-ministry risk.',
   '["Industry practice"]'::jsonb,
-  ARRAY['fleet', 'procurement']::text[]
+  ARRAY['fleet', 'procurement']::text[],
+  ARRAY['any']::text[],
+  'multi'
 ) ON CONFLICT (slug) DO UPDATE SET
   title_en = EXCLUDED.title_en,
   title_ar = EXCLUDED.title_ar,
@@ -1362,13 +1505,16 @@ INSERT INTO public.intervention_library (
   quick_win = EXCLUDED.quick_win,
   gcc_notes = EXCLUDED.gcc_notes,
   sources = EXCLUDED.sources,
-  tags = EXCLUDED.tags;
+  tags = EXCLUDED.tags,
+  site_type_applicability = EXCLUDED.site_type_applicability,
+  tat_component_target = EXCLUDED.tat_component_target;
 
 INSERT INTO public.intervention_library (
   slug, title_en, title_ar, category, problem_solves, applicability_rules,
   cost_usd_low, cost_usd_high, cost_notes, impact_metric, impact_pct_low,
   impact_pct_high, impact_secondary, effort_weeks, complexity, prerequisites,
-  quick_win, gcc_notes, sources, tags
+  quick_win, gcc_notes, sources, tags,
+  site_type_applicability, tat_component_target
 ) VALUES (
   'data_kpi_dashboard_exec',
   'Executive KPI dashboard (daily TAT / utilisation / reject / m3)',
@@ -1389,7 +1535,9 @@ INSERT INTO public.intervention_library (
   true,
   'Patriarch-owner should see it on WhatsApp daily at 7am; design for the phone first.',
   '["General BI practice"]'::jsonb,
-  ARRAY['dispatch', 'quick_win', 'leadership']::text[]
+  ARRAY['dispatch', 'quick_win', 'leadership']::text[],
+  ARRAY['any']::text[],
+  'none'
 ) ON CONFLICT (slug) DO UPDATE SET
   title_en = EXCLUDED.title_en,
   title_ar = EXCLUDED.title_ar,
@@ -1409,13 +1557,16 @@ INSERT INTO public.intervention_library (
   quick_win = EXCLUDED.quick_win,
   gcc_notes = EXCLUDED.gcc_notes,
   sources = EXCLUDED.sources,
-  tags = EXCLUDED.tags;
+  tags = EXCLUDED.tags,
+  site_type_applicability = EXCLUDED.site_type_applicability,
+  tat_component_target = EXCLUDED.tat_component_target;
 
 INSERT INTO public.intervention_library (
   slug, title_en, title_ar, category, problem_solves, applicability_rules,
   cost_usd_low, cost_usd_high, cost_notes, impact_metric, impact_pct_low,
   impact_pct_high, impact_secondary, effort_weeks, complexity, prerequisites,
-  quick_win, gcc_notes, sources, tags
+  quick_win, gcc_notes, sources, tags,
+  site_type_applicability, tat_component_target
 ) VALUES (
   'value_stream_mapping',
   'Value Stream Mapping: current state + future state',
@@ -1436,7 +1587,9 @@ INSERT INTO public.intervention_library (
   true,
   'Run in Arabic + English. Include the patriarch-owner in a 2-hour walkthrough of the future-state map so he endorses the direction before any spend decisions.',
   '["Lean operations practice (Rother + Shook, Learning to See)"]'::jsonb,
-  ARRAY['diagnostic', 'lean', 'quick_win', 'foundational']::text[]
+  ARRAY['diagnostic', 'lean', 'quick_win', 'foundational']::text[],
+  ARRAY['any']::text[],
+  'multi'
 ) ON CONFLICT (slug) DO UPDATE SET
   title_en = EXCLUDED.title_en,
   title_ar = EXCLUDED.title_ar,
@@ -1456,13 +1609,16 @@ INSERT INTO public.intervention_library (
   quick_win = EXCLUDED.quick_win,
   gcc_notes = EXCLUDED.gcc_notes,
   sources = EXCLUDED.sources,
-  tags = EXCLUDED.tags;
+  tags = EXCLUDED.tags,
+  site_type_applicability = EXCLUDED.site_type_applicability,
+  tat_component_target = EXCLUDED.tat_component_target;
 
 INSERT INTO public.intervention_library (
   slug, title_en, title_ar, category, problem_solves, applicability_rules,
   cost_usd_low, cost_usd_high, cost_notes, impact_metric, impact_pct_low,
   impact_pct_high, impact_secondary, effort_weeks, complexity, prerequisites,
-  quick_win, gcc_notes, sources, tags
+  quick_win, gcc_notes, sources, tags,
+  site_type_applicability, tat_component_target
 ) VALUES (
   'gemba_walk_protocol',
   'Structured daily Gemba walks (plant + dispatch)',
@@ -1483,7 +1639,9 @@ INSERT INTO public.intervention_library (
   true,
   'In patriarch-owner cultures the owner''s physical presence on the plant floor has outsized signalling effect. A 30-min Gemba walk with owner + plant manager 2x/week shifts behaviour faster than any dashboard.',
   '["Toyota Production System practice"]'::jsonb,
-  ARRAY['lean', 'quick_win', 'management']::text[]
+  ARRAY['lean', 'quick_win', 'management']::text[],
+  ARRAY['any']::text[],
+  'multi'
 ) ON CONFLICT (slug) DO UPDATE SET
   title_en = EXCLUDED.title_en,
   title_ar = EXCLUDED.title_ar,
@@ -1503,13 +1661,16 @@ INSERT INTO public.intervention_library (
   quick_win = EXCLUDED.quick_win,
   gcc_notes = EXCLUDED.gcc_notes,
   sources = EXCLUDED.sources,
-  tags = EXCLUDED.tags;
+  tags = EXCLUDED.tags,
+  site_type_applicability = EXCLUDED.site_type_applicability,
+  tat_component_target = EXCLUDED.tat_component_target;
 
 INSERT INTO public.intervention_library (
   slug, title_en, title_ar, category, problem_solves, applicability_rules,
   cost_usd_low, cost_usd_high, cost_notes, impact_metric, impact_pct_low,
   impact_pct_high, impact_secondary, effort_weeks, complexity, prerequisites,
-  quick_win, gcc_notes, sources, tags
+  quick_win, gcc_notes, sources, tags,
+  site_type_applicability, tat_component_target
 ) VALUES (
   'oee_tracking_mixers',
   'Overall Equipment Effectiveness (OEE) tracking on mixers',
@@ -1530,7 +1691,9 @@ INSERT INTO public.intervention_library (
   false,
   'Summer heat causes de-rating that stock OEE tools may miss. Include paste-temperature in the availability breakdown.',
   '["Lean manufacturing standard (Nakajima, TPM)"]'::jsonb,
-  ARRAY['lean', 'batching', 'measurement']::text[]
+  ARRAY['lean', 'batching', 'measurement']::text[],
+  ARRAY['any']::text[],
+  'loading'
 ) ON CONFLICT (slug) DO UPDATE SET
   title_en = EXCLUDED.title_en,
   title_ar = EXCLUDED.title_ar,
@@ -1550,13 +1713,16 @@ INSERT INTO public.intervention_library (
   quick_win = EXCLUDED.quick_win,
   gcc_notes = EXCLUDED.gcc_notes,
   sources = EXCLUDED.sources,
-  tags = EXCLUDED.tags;
+  tags = EXCLUDED.tags,
+  site_type_applicability = EXCLUDED.site_type_applicability,
+  tat_component_target = EXCLUDED.tat_component_target;
 
 INSERT INTO public.intervention_library (
   slug, title_en, title_ar, category, problem_solves, applicability_rules,
   cost_usd_low, cost_usd_high, cost_notes, impact_metric, impact_pct_low,
   impact_pct_high, impact_secondary, effort_weeks, complexity, prerequisites,
-  quick_win, gcc_notes, sources, tags
+  quick_win, gcc_notes, sources, tags,
+  site_type_applicability, tat_component_target
 ) VALUES (
   'takt_time_sync_mixer_truck',
   'Takt-time sync between mixer cycle and truck rotation',
@@ -1577,7 +1743,9 @@ INSERT INTO public.intervention_library (
   true,
   'Riyadh peak-hour dispatch windows compress takt mismatch; recalibrate separately for morning and afternoon.',
   '["Lean flow practice"]'::jsonb,
-  ARRAY['lean', 'dispatch', 'batching', 'quick_win']::text[]
+  ARRAY['lean', 'dispatch', 'batching', 'quick_win']::text[],
+  ARRAY['any']::text[],
+  'loading'
 ) ON CONFLICT (slug) DO UPDATE SET
   title_en = EXCLUDED.title_en,
   title_ar = EXCLUDED.title_ar,
@@ -1597,13 +1765,16 @@ INSERT INTO public.intervention_library (
   quick_win = EXCLUDED.quick_win,
   gcc_notes = EXCLUDED.gcc_notes,
   sources = EXCLUDED.sources,
-  tags = EXCLUDED.tags;
+  tags = EXCLUDED.tags,
+  site_type_applicability = EXCLUDED.site_type_applicability,
+  tat_component_target = EXCLUDED.tat_component_target;
 
 INSERT INTO public.intervention_library (
   slug, title_en, title_ar, category, problem_solves, applicability_rules,
   cost_usd_low, cost_usd_high, cost_notes, impact_metric, impact_pct_low,
   impact_pct_high, impact_secondary, effort_weeks, complexity, prerequisites,
-  quick_win, gcc_notes, sources, tags
+  quick_win, gcc_notes, sources, tags,
+  site_type_applicability, tat_component_target
 ) VALUES (
   'a3_problem_solving',
   'A3 problem-solving discipline for top 3 recurring issues',
@@ -1624,7 +1795,9 @@ INSERT INTO public.intervention_library (
   false,
   'A3 format in Arabic on A3 paper; one A3 per wall in the dispatch room. Visible commitment counters patriarch-owner tendency to override structured analysis with gut calls.',
   '["Toyota A3 problem solving (Shook)"]'::jsonb,
-  ARRAY['lean', 'culture', 'problem_solving']::text[]
+  ARRAY['lean', 'culture', 'problem_solving']::text[],
+  ARRAY['any']::text[],
+  'multi'
 ) ON CONFLICT (slug) DO UPDATE SET
   title_en = EXCLUDED.title_en,
   title_ar = EXCLUDED.title_ar,
@@ -1644,13 +1817,16 @@ INSERT INTO public.intervention_library (
   quick_win = EXCLUDED.quick_win,
   gcc_notes = EXCLUDED.gcc_notes,
   sources = EXCLUDED.sources,
-  tags = EXCLUDED.tags;
+  tags = EXCLUDED.tags,
+  site_type_applicability = EXCLUDED.site_type_applicability,
+  tat_component_target = EXCLUDED.tat_component_target;
 
 INSERT INTO public.intervention_library (
   slug, title_en, title_ar, category, problem_solves, applicability_rules,
   cost_usd_low, cost_usd_high, cost_notes, impact_metric, impact_pct_low,
   impact_pct_high, impact_secondary, effort_weeks, complexity, prerequisites,
-  quick_win, gcc_notes, sources, tags
+  quick_win, gcc_notes, sources, tags,
+  site_type_applicability, tat_component_target
 ) VALUES (
   'kaizen_event_focused',
   '5-day Kaizen event on the top bottleneck',
@@ -1671,7 +1847,9 @@ INSERT INTO public.intervention_library (
   false,
   'Time-box strictly at 5 days even if imperfect; culture rewards visible follow-through more than polished analysis.',
   '["Kaizen event methodology"]'::jsonb,
-  ARRAY['lean', 'focus']::text[]
+  ARRAY['lean', 'focus']::text[],
+  ARRAY['any']::text[],
+  'multi'
 ) ON CONFLICT (slug) DO UPDATE SET
   title_en = EXCLUDED.title_en,
   title_ar = EXCLUDED.title_ar,
@@ -1691,13 +1869,16 @@ INSERT INTO public.intervention_library (
   quick_win = EXCLUDED.quick_win,
   gcc_notes = EXCLUDED.gcc_notes,
   sources = EXCLUDED.sources,
-  tags = EXCLUDED.tags;
+  tags = EXCLUDED.tags,
+  site_type_applicability = EXCLUDED.site_type_applicability,
+  tat_component_target = EXCLUDED.tat_component_target;
 
 INSERT INTO public.intervention_library (
   slug, title_en, title_ar, category, problem_solves, applicability_rules,
   cost_usd_low, cost_usd_high, cost_notes, impact_metric, impact_pct_low,
   impact_pct_high, impact_secondary, effort_weeks, complexity, prerequisites,
-  quick_win, gcc_notes, sources, tags
+  quick_win, gcc_notes, sources, tags,
+  site_type_applicability, tat_component_target
 ) VALUES (
   'andon_signal_system',
   'Andon signals for site-wait and in-transit issues',
@@ -1718,7 +1899,9 @@ INSERT INTO public.intervention_library (
   true,
   'Arabic + Urdu + Hindi template messages. Include Iqama number field so driver + customer contact are identifiable without typing.',
   '["Toyota Andon practice"]'::jsonb,
-  ARRAY['lean', 'site_ops', 'quick_win']::text[]
+  ARRAY['lean', 'site_ops', 'quick_win']::text[],
+  ARRAY['any']::text[],
+  'site_wait'
 ) ON CONFLICT (slug) DO UPDATE SET
   title_en = EXCLUDED.title_en,
   title_ar = EXCLUDED.title_ar,
@@ -1738,13 +1921,16 @@ INSERT INTO public.intervention_library (
   quick_win = EXCLUDED.quick_win,
   gcc_notes = EXCLUDED.gcc_notes,
   sources = EXCLUDED.sources,
-  tags = EXCLUDED.tags;
+  tags = EXCLUDED.tags,
+  site_type_applicability = EXCLUDED.site_type_applicability,
+  tat_component_target = EXCLUDED.tat_component_target;
 
 INSERT INTO public.intervention_library (
   slug, title_en, title_ar, category, problem_solves, applicability_rules,
   cost_usd_low, cost_usd_high, cost_notes, impact_metric, impact_pct_low,
   impact_pct_high, impact_secondary, effort_weeks, complexity, prerequisites,
-  quick_win, gcc_notes, sources, tags
+  quick_win, gcc_notes, sources, tags,
+  site_type_applicability, tat_component_target
 ) VALUES (
   'standard_work_dispatcher',
   'Standard work documentation for dispatcher + gatekeeper roles',
@@ -1765,7 +1951,9 @@ INSERT INTO public.intervention_library (
   false,
   'Must be signed off by the owner to have weight; informal dispatch authority otherwise overrides documented standard work.',
   '["Lean standard work practice"]'::jsonb,
-  ARRAY['lean', 'dispatch', 'process']::text[]
+  ARRAY['lean', 'dispatch', 'process']::text[],
+  ARRAY['any']::text[],
+  'plant_dwell'
 ) ON CONFLICT (slug) DO UPDATE SET
   title_en = EXCLUDED.title_en,
   title_ar = EXCLUDED.title_ar,
@@ -1785,13 +1973,16 @@ INSERT INTO public.intervention_library (
   quick_win = EXCLUDED.quick_win,
   gcc_notes = EXCLUDED.gcc_notes,
   sources = EXCLUDED.sources,
-  tags = EXCLUDED.tags;
+  tags = EXCLUDED.tags,
+  site_type_applicability = EXCLUDED.site_type_applicability,
+  tat_component_target = EXCLUDED.tat_component_target;
 
 INSERT INTO public.intervention_library (
   slug, title_en, title_ar, category, problem_solves, applicability_rules,
   cost_usd_low, cost_usd_high, cost_notes, impact_metric, impact_pct_low,
   impact_pct_high, impact_secondary, effort_weeks, complexity, prerequisites,
-  quick_win, gcc_notes, sources, tags
+  quick_win, gcc_notes, sources, tags,
+  site_type_applicability, tat_component_target
 ) VALUES (
   'smed_mixer_changeover',
   'SMED (single-minute exchange) for mixer recipe changeover',
@@ -1812,7 +2003,9 @@ INSERT INTO public.intervention_library (
   false,
   'Summer admix adjustment adds a separate changeover class; include it in the SMED analysis.',
   '["Shingo SMED methodology"]'::jsonb,
-  ARRAY['lean', 'batching']::text[]
+  ARRAY['lean', 'batching']::text[],
+  ARRAY['any']::text[],
+  'loading'
 ) ON CONFLICT (slug) DO UPDATE SET
   title_en = EXCLUDED.title_en,
   title_ar = EXCLUDED.title_ar,
@@ -1832,13 +2025,16 @@ INSERT INTO public.intervention_library (
   quick_win = EXCLUDED.quick_win,
   gcc_notes = EXCLUDED.gcc_notes,
   sources = EXCLUDED.sources,
-  tags = EXCLUDED.tags;
+  tags = EXCLUDED.tags,
+  site_type_applicability = EXCLUDED.site_type_applicability,
+  tat_component_target = EXCLUDED.tat_component_target;
 
 INSERT INTO public.intervention_library (
   slug, title_en, title_ar, category, problem_solves, applicability_rules,
   cost_usd_low, cost_usd_high, cost_notes, impact_metric, impact_pct_low,
   impact_pct_high, impact_secondary, effort_weeks, complexity, prerequisites,
-  quick_win, gcc_notes, sources, tags
+  quick_win, gcc_notes, sources, tags,
+  site_type_applicability, tat_component_target
 ) VALUES (
   'five_s_yard_weighbridge',
   '5S organisation of yard, weighbridge, and batching deck',
@@ -1859,7 +2055,9 @@ INSERT INTO public.intervention_library (
   true,
   'Heat shelters and shade over waiting-driver areas pay back via less driver fatigue; build into 5S scope.',
   '["Lean 5S practice"]'::jsonb,
-  ARRAY['lean', 'quick_win', 'workplace']::text[]
+  ARRAY['lean', 'quick_win', 'workplace']::text[],
+  ARRAY['any']::text[],
+  'plant_dwell'
 ) ON CONFLICT (slug) DO UPDATE SET
   title_en = EXCLUDED.title_en,
   title_ar = EXCLUDED.title_ar,
@@ -1879,13 +2077,16 @@ INSERT INTO public.intervention_library (
   quick_win = EXCLUDED.quick_win,
   gcc_notes = EXCLUDED.gcc_notes,
   sources = EXCLUDED.sources,
-  tags = EXCLUDED.tags;
+  tags = EXCLUDED.tags,
+  site_type_applicability = EXCLUDED.site_type_applicability,
+  tat_component_target = EXCLUDED.tat_component_target;
 
 INSERT INTO public.intervention_library (
   slug, title_en, title_ar, category, problem_solves, applicability_rules,
   cost_usd_low, cost_usd_high, cost_notes, impact_metric, impact_pct_low,
   impact_pct_high, impact_secondary, effort_weeks, complexity, prerequisites,
-  quick_win, gcc_notes, sources, tags
+  quick_win, gcc_notes, sources, tags,
+  site_type_applicability, tat_component_target
 ) VALUES (
   'poka_yoke_batching',
   'Poka-yoke error-proofing on recipe loading + batch validation',
@@ -1906,7 +2107,9 @@ INSERT INTO public.intervention_library (
   false,
   'Arabic UI on the batch operator console; many batcher operators prefer Arabic-first even when comfortable in English.',
   '["Shingo Zero Quality Control / poka-yoke"]'::jsonb,
-  ARRAY['lean', 'qc', 'automation']::text[]
+  ARRAY['lean', 'qc', 'automation']::text[],
+  ARRAY['any']::text[],
+  'loading'
 ) ON CONFLICT (slug) DO UPDATE SET
   title_en = EXCLUDED.title_en,
   title_ar = EXCLUDED.title_ar,
@@ -1926,13 +2129,16 @@ INSERT INTO public.intervention_library (
   quick_win = EXCLUDED.quick_win,
   gcc_notes = EXCLUDED.gcc_notes,
   sources = EXCLUDED.sources,
-  tags = EXCLUDED.tags;
+  tags = EXCLUDED.tags,
+  site_type_applicability = EXCLUDED.site_type_applicability,
+  tat_component_target = EXCLUDED.tat_component_target;
 
 INSERT INTO public.intervention_library (
   slug, title_en, title_ar, category, problem_solves, applicability_rules,
   cost_usd_low, cost_usd_high, cost_notes, impact_metric, impact_pct_low,
   impact_pct_high, impact_secondary, effort_weeks, complexity, prerequisites,
-  quick_win, gcc_notes, sources, tags
+  quick_win, gcc_notes, sources, tags,
+  site_type_applicability, tat_component_target
 ) VALUES (
   'heijunka_demand_leveling',
   'Heijunka: level daily dispatch load across morning / afternoon',
@@ -1953,7 +2159,9 @@ INSERT INTO public.intervention_library (
   false,
   'Riyadh afternoon restriction window limits 12:30-16:00 routes. Levelling targets the pre-restriction hours (10:00-12:00) specifically.',
   '["Toyota Production System (heijunka)"]'::jsonb,
-  ARRAY['lean', 'dispatch']::text[]
+  ARRAY['lean', 'dispatch']::text[],
+  ARRAY['any']::text[],
+  'plant_dwell'
 ) ON CONFLICT (slug) DO UPDATE SET
   title_en = EXCLUDED.title_en,
   title_ar = EXCLUDED.title_ar,
@@ -1973,13 +2181,16 @@ INSERT INTO public.intervention_library (
   quick_win = EXCLUDED.quick_win,
   gcc_notes = EXCLUDED.gcc_notes,
   sources = EXCLUDED.sources,
-  tags = EXCLUDED.tags;
+  tags = EXCLUDED.tags,
+  site_type_applicability = EXCLUDED.site_type_applicability,
+  tat_component_target = EXCLUDED.tat_component_target;
 
 INSERT INTO public.intervention_library (
   slug, title_en, title_ar, category, problem_solves, applicability_rules,
   cost_usd_low, cost_usd_high, cost_notes, impact_metric, impact_pct_low,
   impact_pct_high, impact_secondary, effort_weeks, complexity, prerequisites,
-  quick_win, gcc_notes, sources, tags
+  quick_win, gcc_notes, sources, tags,
+  site_type_applicability, tat_component_target
 ) VALUES (
   'jidoka_quality_stops',
   'Jidoka: auto-stop batching when slump or temperature drifts',
@@ -2000,7 +2211,9 @@ INSERT INTO public.intervention_library (
   false,
   'Summer paste temperature drift is the primary jidoka trigger in Riyadh; calibrate seasonal thresholds.',
   '["Toyota jidoka principle"]'::jsonb,
-  ARRAY['lean', 'qc', 'automation']::text[]
+  ARRAY['lean', 'qc', 'automation']::text[],
+  ARRAY['any']::text[],
+  'loading'
 ) ON CONFLICT (slug) DO UPDATE SET
   title_en = EXCLUDED.title_en,
   title_ar = EXCLUDED.title_ar,
@@ -2020,13 +2233,16 @@ INSERT INTO public.intervention_library (
   quick_win = EXCLUDED.quick_win,
   gcc_notes = EXCLUDED.gcc_notes,
   sources = EXCLUDED.sources,
-  tags = EXCLUDED.tags;
+  tags = EXCLUDED.tags,
+  site_type_applicability = EXCLUDED.site_type_applicability,
+  tat_component_target = EXCLUDED.tat_component_target;
 
 INSERT INTO public.intervention_library (
   slug, title_en, title_ar, category, problem_solves, applicability_rules,
   cost_usd_low, cost_usd_high, cost_notes, impact_metric, impact_pct_low,
   impact_pct_high, impact_secondary, effort_weeks, complexity, prerequisites,
-  quick_win, gcc_notes, sources, tags
+  quick_win, gcc_notes, sources, tags,
+  site_type_applicability, tat_component_target
 ) VALUES (
   'kanban_materials_pull',
   'Kanban pull-system for cement, aggregates, and admixtures',
@@ -2047,7 +2263,9 @@ INSERT INTO public.intervention_library (
   true,
   'Cement supplier relationships in KSA are semi-monopolistic; factor in 2-3 day minimum re-order lead time even for established customers.',
   '["Lean pull-system practice"]'::jsonb,
-  ARRAY['lean', 'inventory', 'quick_win']::text[]
+  ARRAY['lean', 'inventory', 'quick_win']::text[],
+  ARRAY['any']::text[],
+  'none'
 ) ON CONFLICT (slug) DO UPDATE SET
   title_en = EXCLUDED.title_en,
   title_ar = EXCLUDED.title_ar,
@@ -2067,13 +2285,16 @@ INSERT INTO public.intervention_library (
   quick_win = EXCLUDED.quick_win,
   gcc_notes = EXCLUDED.gcc_notes,
   sources = EXCLUDED.sources,
-  tags = EXCLUDED.tags;
+  tags = EXCLUDED.tags,
+  site_type_applicability = EXCLUDED.site_type_applicability,
+  tat_component_target = EXCLUDED.tat_component_target;
 
 INSERT INTO public.intervention_library (
   slug, title_en, title_ar, category, problem_solves, applicability_rules,
   cost_usd_low, cost_usd_high, cost_notes, impact_metric, impact_pct_low,
   impact_pct_high, impact_secondary, effort_weeks, complexity, prerequisites,
-  quick_win, gcc_notes, sources, tags
+  quick_win, gcc_notes, sources, tags,
+  site_type_applicability, tat_component_target
 ) VALUES (
   'strategic_supplier_partnerships',
   'Strategic supplier partnerships (cement, admix, aggregates)',
@@ -2094,7 +2315,9 @@ INSERT INTO public.intervention_library (
   false,
   'Saudi admix market: Fosroc, Sika, BASF/MBCC, Chryso, CICO. Run competitive tender annually. Cement has fewer alternatives (cartel-like pricing discipline).',
   '["Strategic sourcing practice"]'::jsonb,
-  ARRAY['procurement', 'cost']::text[]
+  ARRAY['procurement', 'cost']::text[],
+  ARRAY['any']::text[],
+  'none'
 ) ON CONFLICT (slug) DO UPDATE SET
   title_en = EXCLUDED.title_en,
   title_ar = EXCLUDED.title_ar,
@@ -2114,4 +2337,6 @@ INSERT INTO public.intervention_library (
   quick_win = EXCLUDED.quick_win,
   gcc_notes = EXCLUDED.gcc_notes,
   sources = EXCLUDED.sources,
-  tags = EXCLUDED.tags;
+  tags = EXCLUDED.tags,
+  site_type_applicability = EXCLUDED.site_type_applicability,
+  tat_component_target = EXCLUDED.tat_component_target;
