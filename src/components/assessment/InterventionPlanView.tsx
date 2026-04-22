@@ -166,6 +166,11 @@ export default function InterventionPlanView({ assessmentId, plantId }: Props) {
     || (openPlanId ? savedPlans.find(p => p.id === openPlanId)?.plan_content?.markdown ?? '' : '')
     || ''
 
+  // Plan-id tied to whatever we are currently rendering: either an
+  // explicitly opened history item, or the just-generated plan (most
+  // recent saved plan after stream ends).
+  const activePlanId = openPlanId ?? (streamText && !streaming ? savedPlans[0]?.id ?? null : null)
+
   const handleCopy = useCallback(async () => {
     if (!activeMarkdown) return
     try {
@@ -224,10 +229,10 @@ export default function InterventionPlanView({ assessmentId, plantId }: Props) {
                 onClick={handlePrint}
                 style={secondaryBtn}
               >Print / PDF</button>
-              {openPlanId && (
+              {activePlanId && (
                 <button
                   type="button"
-                  onClick={() => runEval(openPlanId)}
+                  onClick={() => runEval(activePlanId)}
                   disabled={evalLoading}
                   style={evalLoading ? secondaryBtnDisabled : secondaryBtn}
                 >{evalLoading ? 'Evaluating…' : 'Evaluate quality'}</button>
@@ -313,9 +318,9 @@ export default function InterventionPlanView({ assessmentId, plantId }: Props) {
       )}
 
       {/* Eval scorecard (when just-run or loaded from a saved plan) */}
-      {(evalResult || (openPlanId && savedPlans.find(p => p.id === openPlanId)?.input_snapshot?.eval_result)) && (
+      {(evalResult || (activePlanId && savedPlans.find(p => p.id === activePlanId)?.input_snapshot?.eval_result)) && (
         <EvalScorecard
-          result={evalResult ?? (savedPlans.find(p => p.id === openPlanId)?.input_snapshot?.eval_result as EvalResult)}
+          result={evalResult ?? (savedPlans.find(p => p.id === activePlanId)?.input_snapshot?.eval_result as EvalResult)}
           onRegenerateWithFeedback={(fb) => {
             setFeedback(fb)
             setShowFeedback(true)
