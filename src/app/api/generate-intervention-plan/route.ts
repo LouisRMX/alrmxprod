@@ -9,6 +9,7 @@
  *   ## Phase 1 — Candidate quick wins (indicative weeks 1-4)
  *   ## Phase 2 — Candidate structural moves (indicative weeks 5-12)
  *   ## Phase 3 — Strategic directions (indicative quarters 2+)
+ *   ## Data collection targets (conditional on field-log state)
  *   ## Pitch summary
  *
  * The system prompt is the full intervention_library catalog + domain
@@ -91,6 +92,11 @@ interface ParsedInputs {
    *  percentage (as decimal) by the matching multiplier. See impact_formulas. */
   impact_multipliers: ImpactMultipliers
   impact_formulas: Record<string, string>
+  /** Populated from plant_site_type_percentiles view + daily_logs trip counts.
+   *  Status=ready when at least one site_type has sample_size>=5. Status=
+   *  insufficient_data when Field Log is empty/thin (pre-visit or early
+   *  engagement). */
+  site_type_analysis: SiteTypeAnalysis | null
 }
 
 /** Deterministic multipliers. Each represents the USD/month impact of a
@@ -112,6 +118,89 @@ interface ImpactMultipliers {
   /** Per 1 percentage point reduction in dispatch-to-order lag — approximated
    *  as linear fraction of dispatch_loss_usd. */
   per_dispatch_pp_improvement_usd: number
+}
+
+/** Pull site-type percentile data from Supabase + compute trip-mix + flags.
+ *  Returns null if no data at all (pre-Field-Log); always non-null otherwise
+ *  even if status ends up 'insufficient_data'. */
+async function loadSiteTypeAnalysis(
+  supabase: Awaited<ReturnType<typeof import('@/lib/supabase/server').createClient>>,
+  plantId: string,
+  assessmentId: string,
+  windowDays = 30,
+): Promise<SiteTypeAnalysis | null> {
+  const windowStart = new Date(Date.now() - windowDays * 86_400_000).toISOString().slice(0, 10)
+
+  // Percentiles: only site_types with sample_size >= 5 come back (view gates it).
+  const { data: percRows, error: percErr } = await supabase
+    .from('plant_site_type_percentiles')
+    .select('site_type, sample_size, tat_p25, tat_p50, tat_p75, site_wait_p25, site_wait_p50, site_wait_p75, unload_p50, unload_p75, first_trip_date, last_trip_date')
+    .eq('plant_id', plantId)
+  if (percErr) {
+    console.warn('plant_site_type_percentiles query failed:', percErr.message)
+    return null
+  }
+  const percentiles = (percRows ?? []) as SiteTypePercentileRow[]
+
+  // Trip count + mix over the analysis window. This shows what the plant
+  // is actually delivering, not just what has enough samples.
+  const { data: mixRows } = await supabase
+    .from('daily_logs')
+    .select('site_type')
+    .eq('assessment_id', assessmentId)
+    .gte('log_date', windowStart)
+  const mixCounts = new Map<string, number>()
+  let totalTrips = 0
+  for (const row of mixRows ?? []) {
+    const t = (row as { site_type: string | null }).site_type ?? 'unknown'
+    mixCounts.set(t, (mixCounts.get(t) ?? 0) + 1)
+    totalTrips += 1
+  }
+  const site_mix = Array.from(mixCounts.entries())
+    .map(([site_type, trip_count]) => ({
+      site_type,
+      trip_count,
+      pct_of_trips: totalTrips > 0 ? Math.round((trip_count / totalTrips) * 1000) / 1000 : 0,
+    }))
+    .sort((a, b) => b.trip_count - a.trip_count)
+
+  // Derived flags: where does the plan-generator's attention belong?
+  const derived_flags = percentiles
+    .filter(r => r.tat_p50 != null && r.tat_p50 > 0)
+    .map(r => {
+      const p25 = Number(r.tat_p25 ?? 0)
+      const p50 = Number(r.tat_p50 ?? 0)
+      const p75 = Number(r.tat_p75 ?? 0)
+      const sw50 = Number(r.site_wait_p50 ?? 0)
+      const variance_ratio = p50 > 0 ? Math.round(((p75 - p25) / p50) * 100) / 100 : 0
+      const variance_flag = variance_ratio > 0.4
+      const site_wait_flag = sw50 >= 20
+      const notes: string[] = []
+      if (variance_flag) notes.push(`TAT P75-P25 spread is ${Math.round(variance_ratio * 100)}% of P50 — variance suggests inconsistent process, worth root-causing`)
+      if (site_wait_flag) notes.push(`median site_wait ${sw50} min — coordination is the dominant loss`)
+      if (notes.length === 0) notes.push('no clear anomaly surfaced from internal distribution')
+      return {
+        site_type: r.site_type,
+        variance_flag,
+        variance_ratio,
+        site_wait_flag,
+        note: notes.join('; '),
+      }
+    })
+
+  const status: SiteTypeAnalysis['status'] =
+    percentiles.length === 0
+      ? 'insufficient_data'
+      : percentiles.length < site_mix.length ? 'partial' : 'ready'
+
+  return {
+    status,
+    total_trips_in_window: totalTrips,
+    sample_window_days: windowDays,
+    percentiles,
+    site_mix,
+    derived_flags,
+  }
 }
 
 function computeImpactMultipliers(ri: ReportInput, rc: ReportCalculations): ImpactMultipliers {
@@ -176,7 +265,11 @@ function computeImpactFormulas(ri: ReportInput, rc: ReportCalculations): Record<
   }
 }
 
-function deriveParsedInputs(ri: ReportInput, rc: ReportCalculations): ParsedInputs {
+function deriveParsedInputs(
+  ri: ReportInput,
+  rc: ReportCalculations,
+  siteTypeAnalysis: SiteTypeAnalysis | null = null,
+): ParsedInputs {
   return {
     selling_price_usd_per_m3: ri.selling_price_per_m3,
     material_cost_usd_per_m3: ri.material_cost_per_m3,
@@ -218,6 +311,7 @@ function deriveParsedInputs(ri: ReportInput, rc: ReportCalculations): ParsedInpu
     avg_delivery_radius_raw: String(ri.avg_delivery_radius),
     impact_multipliers: computeImpactMultipliers(ri, rc),
     impact_formulas: computeImpactFormulas(ri, rc),
+    site_type_analysis: siteTypeAnalysis,
   }
 }
 
@@ -241,6 +335,47 @@ interface LibraryItem {
   gcc_notes: string | null
   sources: unknown
   tags: string[]
+  site_type_applicability?: string[]
+  tat_component_target?: string
+}
+
+/** Per-site-type percentile row from plant_site_type_percentiles view.
+ *  Only surfaces when sample_size >= 5 for that (plant, site_type). */
+interface SiteTypePercentileRow {
+  site_type: string
+  sample_size: number
+  tat_p25: number | null
+  tat_p50: number | null
+  tat_p75: number | null
+  site_wait_p25: number | null
+  site_wait_p50: number | null
+  site_wait_p75: number | null
+  unload_p50: number | null
+  unload_p75: number | null
+  first_trip_date: string | null
+  last_trip_date: string | null
+}
+
+/** Site-type analysis block injected into parsed_inputs when Field Log has
+ *  enough data for at least one site_type. LLM uses this to ground anomaly
+ *  detection in the plant's own distribution, never external benchmarks. */
+interface SiteTypeAnalysis {
+  status: 'insufficient_data' | 'partial' | 'ready'
+  total_trips_in_window: number
+  sample_window_days: number
+  percentiles: SiteTypePercentileRow[]
+  site_mix: Array<{ site_type: string; trip_count: number; pct_of_trips: number }>
+  // Quick-read flags derived from percentiles so the LLM doesn't have to
+  // recompute. Each site_type with sample_size >= 5 gets:
+  //   variance_flag: tat_p75 - tat_p25 > 40% of tat_p50 → investigate variance
+  //   site_wait_flag: site_wait_p50 >= 20 min → investigate coordination
+  derived_flags: Array<{
+    site_type: string
+    variance_flag: boolean
+    variance_ratio: number // (p75 - p25) / p50
+    site_wait_flag: boolean
+    note: string
+  }>
 }
 
 export async function POST(req: NextRequest) {
@@ -357,7 +492,11 @@ export async function POST(req: NextRequest) {
     }
     const reportInput = mapToReportInput(dxStub, answersRec)
     const rc = calculateReport(reportInput)
-    parsedInputs = deriveParsedInputs(reportInput, rc)
+    // Load site-type percentile analysis (requires plant_site_type_percentiles
+    // view from migration 20260422_site_type_percentiles.sql). Null if view
+    // query fails; the prompt still builds but without site-type section.
+    const siteTypeAnalysis = await loadSiteTypeAnalysis(supabase, plantId, assessmentId)
+    parsedInputs = deriveParsedInputs(reportInput, rc, siteTypeAnalysis)
   } catch (err) {
     console.warn('Intervention plan: parsed-inputs derivation failed, prompt will omit numeric block', err)
   }
@@ -759,6 +898,15 @@ Louis may choose to run fewer, more, or different items based on what he finds o
 ## Phase 3 — Strategic directions (indicative quarters 2+)
 2-4 directional conversation-starters for follow-on engagements: market positioning, succession tooling, multi-plant scaling, capex for additional batching towers. Written as "if the operation pursues X..." not "we will do X".
 
+## Data collection targets
+Based on the current state of the field log and the site mix implied by pre-assessment answers, suggest how many trips per site_type Louis may want to capture to unlock site-type-normalised analysis. Use parsed_inputs.site_type_analysis.status:
+
+- **insufficient_data**: suggest a target of 10-15 trips per primary site_type the plant serves (based on pre-assessment customer/site mix). Frame as "suggested collection targets for Week 1-2, to unlock percentile-based anomaly detection from Week 3 onwards."
+- **partial**: list the site_types that still need samples (those absent from percentiles array), suggest completing them.
+- **ready**: acknowledge data is sufficient; note that continued capture will sharpen percentiles over time.
+
+Skip this section entirely if parsed_inputs is null.
+
 ## Pitch summary
 2-3 sentences Louis can paraphrase for the owner. Must include: the modelled recovery band framed as hypothesis ("pre-assessment modelling suggests \$X-\$Y/month opportunity, subject to on-site validation"), a pointer to 1-2 Phase 1 candidates the data most clearly supports, and an explicit acknowledgement that targets and scope are set by the consultant after on-site validation. Never promise a specific outcome number — only the modelled opportunity framed as a hypothesis.
 
@@ -772,6 +920,18 @@ Louis may choose to run fewer, more, or different items based on what he finds o
 - **Honor \`applicability_rules\`.** Before recommending a library item, check that the plant's KPIs satisfy the rule (e.g., trucks_min, dispatch_tool_current). If the rule isn't satisfied, exclude it or flag it as conditional.
 - **GCC context**: factor in Riyadh truck movement restrictions (7-hour daytime heavy-vehicle ban in core zones), Saudization quotas for drivers (affects labor rotation plans), summer heat (affects concrete retarder use + driver productivity), patriarch-owner decision style (political viability > technical optimality for Phase 3 items).
 - **All currency in USD.** Never SAR, never EUR.
+
+## Site-type anomaly detection doctrine
+
+If parsed_inputs.site_type_analysis is present, it contains per-site-type percentile distributions computed from this plant's OWN field-log trips. This is the authoritative source for site-type-level claims. Rules:
+
+- **Use the plant's own percentiles, never external benchmarks.** External industry numbers (in the GCC context block below) are for sanity checking extreme outliers only, never for anomaly thresholds.
+- **status = 'insufficient_data'**: fewer than 5 trips exist in any site_type, OR no field-log data at all. In this case, do NOT draw site-type-specific conclusions. Explicitly say "field log has not yet collected enough trips for site-type analysis" and use Data-collection section (below) to suggest capture targets. Do NOT invent site_type benchmarks to fill the gap.
+- **status = 'partial'**: some site_types have percentiles, others do not. Analyse only the site_types that have data. For the others, explicitly flag "insufficient data, continue collecting".
+- **status = 'ready'**: all relevant site_types have >= 5 trips. Site-type claims can be made freely from the data.
+- **Variance signal**: derived_flags[].variance_flag is true when TAT P75-P25 spread exceeds 40% of P50. This signals process inconsistency (same site_type, wildly different TAT trip-to-trip), which is often more actionable than absolute slowness. Flag it separately from absolute-slow hypotheses.
+- **Site-wait signal**: derived_flags[].site_wait_flag is true when median site_wait >= 20 min. This points to customer coordination issues, separable from plant-side TAT.
+- **Intervention matching**: when filtering library items, prefer those where tat_component_target matches the diagnosed excess AND site_type_applicability includes the problematic site_type (or is ['any']). Example: high_rise with site_wait_flag → prefer customer_slot_booking (site_wait, high_rise), pre_pour_site_readiness_call (site_wait, any), andon_signal_system (site_wait, any). Do NOT recommend loading-focused interventions for a site_wait-diagnosed problem.
 
 ## Intervention library (catalog of interventions you MAY recommend)
 
