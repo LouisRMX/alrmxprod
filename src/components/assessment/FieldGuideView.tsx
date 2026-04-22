@@ -27,6 +27,7 @@ import {
   type FieldGuidePreArrival,
   type MeasurementType,
 } from '@/data/omix-field-guide'
+import { useIsMobile } from '@/hooks/useIsMobile'
 
 interface Props {
   assessmentId: string
@@ -59,6 +60,7 @@ const progressKey = (type: string, id: string) => `${type}:${id}`
 
 export default function FieldGuideView({ assessmentId }: Props) {
   const guide: FieldGuide = OMIX_FIELD_GUIDE
+  const isMobile = useIsMobile()
   const [progress, setProgress] = useState<ProgressMap>(new Map())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -151,7 +153,10 @@ export default function FieldGuideView({ assessmentId }: Props) {
   }, [progress])
 
   return (
-    <div style={{ padding: 'clamp(12px, 3vw, 20px)', maxWidth: '900px', margin: '0 auto', paddingBottom: '80px' }}>
+    <div style={{
+      padding: 'clamp(12px, 3vw, 20px)', maxWidth: '900px', margin: '0 auto',
+      paddingBottom: '80px', minWidth: 0, overflowX: 'hidden',
+    }}>
       {/* Header */}
       <div style={{ marginBottom: '16px' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap' }}>
@@ -170,10 +175,10 @@ export default function FieldGuideView({ assessmentId }: Props) {
         }}>{error}</div>
       )}
 
-      {/* Section tabs */}
+      {/* Section tabs. On mobile we wrap, on desktop we align the counter to the far right. */}
       <div style={{
-        display: 'flex', gap: '4px', marginBottom: '16px', flexWrap: 'wrap',
-        overflowX: 'auto', WebkitOverflowScrolling: 'touch' as React.CSSProperties['WebkitOverflowScrolling'],
+        display: 'flex', gap: '4px', marginBottom: isMobile ? '8px' : '16px',
+        flexWrap: 'wrap', alignItems: 'center',
       }}>
         {[
           { id: 'hypotheses' as const, label: 'Hypotheses' },
@@ -189,10 +194,17 @@ export default function FieldGuideView({ assessmentId }: Props) {
             style={sectionTabBtn(section === s.id)}
           >{s.label}</button>
         ))}
-        <div style={{ marginInlineStart: 'auto', fontSize: '11px', color: '#888', alignSelf: 'center' }}>
+        {!isMobile && (
+          <div style={{ marginInlineStart: 'auto', fontSize: '11px', color: '#888', alignSelf: 'center' }}>
+            {summary.done} / {summary.total} items marked
+          </div>
+        )}
+      </div>
+      {isMobile && (
+        <div style={{ fontSize: '11px', color: '#888', marginBottom: '12px' }}>
           {summary.done} / {summary.total} items marked
         </div>
-      </div>
+      )}
 
       {loading ? (
         <div style={{ color: '#888', fontSize: '13px', textAlign: 'center', padding: '40px 0' }}>Loading progress…</div>
@@ -249,6 +261,7 @@ function HypothesesList({
   progress: ProgressMap
   onUpdate: (id: string, patch: { status?: ProgressStatus; note?: string | null; usd_adjusted?: number | null }) => void
 }) {
+  const isMobile = useIsMobile()
   // Sort by field_priority
   const sorted = [...hypotheses].sort((a, b) => a.field_priority - b.field_priority)
 
@@ -259,7 +272,7 @@ function HypothesesList({
       </div>
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+        gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(320px, 1fr))',
         gap: '10px',
       }}>
         {sorted.map(h => (
@@ -394,46 +407,57 @@ function DayPicker({
   onChange: (id: string) => void
   progress: ProgressMap
 }) {
+  const isMobile = useIsMobile()
   return (
-    <div style={{
-      display: 'flex', gap: '4px', marginBottom: '12px', overflowX: 'auto',
-      WebkitOverflowScrolling: 'touch' as React.CSSProperties['WebkitOverflowScrolling'],
-    }}>
-      {days.map(d => {
-        const active = d.id === activeId
-        // Count completed gates in this day
-        const gateIds = [
-          ...d.slots.map(s => s.gate?.id).filter(Boolean) as string[],
-          ...d.end_of_day_gates.map(g => g.id),
-        ]
-        const done = gateIds.filter(id => {
-          const r = progress.get(progressKey('slot_gate', id)) ?? progress.get(progressKey('eod_gate', id))
-          return r && ['confirmed', 'partial', 'skipped'].includes(r.status)
-        }).length
-        return (
-          <button
-            key={d.id}
-            type="button"
-            onClick={() => onChange(d.id)}
-            style={{
-              padding: '8px 14px', minHeight: '44px',
-              background: active ? '#0F6E56' : '#fff',
-              color: active ? '#fff' : '#333',
-              border: `1.5px solid ${active ? '#0F6E56' : '#e5e5e5'}`,
-              borderRadius: '10px', fontSize: '12px', fontWeight: 600,
-              cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
-            }}
-          >
-            {d.label}
-            {gateIds.length > 0 && (
-              <span style={{ marginInlineStart: '6px', fontSize: '10px', opacity: 0.8 }}>
-                {done}/{gateIds.length}
-              </span>
-            )}
-          </button>
-        )
-      })}
-    </div>
+    <>
+      <div style={{
+        display: 'flex', gap: '4px', marginBottom: isMobile ? '4px' : '12px', overflowX: 'auto',
+        WebkitOverflowScrolling: 'touch' as React.CSSProperties['WebkitOverflowScrolling'],
+      }}>
+        {days.map(d => {
+          const active = d.id === activeId
+          // Count completed gates in this day
+          const gateIds = [
+            ...d.slots.map(s => s.gate?.id).filter(Boolean) as string[],
+            ...d.end_of_day_gates.map(g => g.id),
+          ]
+          const done = gateIds.filter(id => {
+            const r = progress.get(progressKey('slot_gate', id)) ?? progress.get(progressKey('eod_gate', id))
+            return r && ['confirmed', 'partial', 'skipped'].includes(r.status)
+          }).length
+          return (
+            <button
+              key={d.id}
+              type="button"
+              onClick={() => onChange(d.id)}
+              style={{
+                padding: '8px 14px', minHeight: '44px',
+                background: active ? '#0F6E56' : '#fff',
+                color: active ? '#fff' : '#333',
+                border: `1.5px solid ${active ? '#0F6E56' : '#e5e5e5'}`,
+                borderRadius: '10px', fontSize: '12px', fontWeight: 600,
+                cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
+              }}
+            >
+              {d.label}
+              {gateIds.length > 0 && (
+                <span style={{ marginInlineStart: '6px', fontSize: '10px', opacity: 0.8 }}>
+                  {done}/{gateIds.length}
+                </span>
+              )}
+            </button>
+          )
+        })}
+      </div>
+      {isMobile && days.length > 1 && (
+        <div style={{
+          fontSize: '10px', color: '#aaa', textAlign: 'center',
+          marginBottom: '10px', letterSpacing: '.3px',
+        }}>
+          ← Scroll sideways →
+        </div>
+      )}
+    </>
   )
 }
 
@@ -824,7 +848,7 @@ function statusFgColor(status: ProgressStatus): string {
 
 function sectionTabBtn(active: boolean): React.CSSProperties {
   return {
-    padding: '8px 14px', minHeight: '40px',
+    padding: '10px 14px', minHeight: '44px',
     background: active ? '#0F6E56' : '#fff',
     color: active ? '#fff' : '#333',
     border: `1.5px solid ${active ? '#0F6E56' : '#e5e5e5'}`,
