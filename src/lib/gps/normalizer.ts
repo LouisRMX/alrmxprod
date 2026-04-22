@@ -44,7 +44,14 @@ const TIMEZONE_OFFSET_HOURS: Record<string, number> = {
 
 // ── Location name patterns ───────────────────────────────────
 const PLANT_KEYWORDS = ['plant', 'batching', 'rmc', 'factory', 'depot', 'yard', 'batch', 'concrete plant']
-const SITE_KEYWORDS = ['site', 'project', 'pour', 'delivery', 'client', 'construction', 'customer', 'job']
+// Site keywords include common GCC delivery-destination types so real
+// customer location names ("Al-Faisaliya Tower", "King Khalid Hospital")
+// classify correctly without requiring an explicit "Site" prefix.
+const SITE_KEYWORDS = [
+  'site', 'project', 'pour', 'delivery', 'client', 'construction', 'customer', 'job',
+  'tower', 'villa', 'hospital', 'mall', 'university', 'school', 'bridge', 'metro',
+  'hotel', 'office', 'building', 'residential', 'compound',
+]
 
 function inferLocationType(
   locationName: string | null,

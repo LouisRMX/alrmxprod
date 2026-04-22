@@ -43,12 +43,26 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Assessment not found or access denied' }, { status: 404 })
   }
 
-  // Archive previous uploads for this assessment
-  await supabase
+  // Archive previous uploads for this assessment and delete their normalized
+  // events. The events table doesn't have an archived flag, so leaving them
+  // behind accumulates garbage per re-upload and can poison debug queries.
+  const { data: previousUploads } = await supabase
     .from('uploaded_gps_files')
-    .update({ archived: true })
+    .select('id')
     .eq('assessment_id', assessmentId)
     .eq('archived', false)
+
+  if (previousUploads && previousUploads.length > 0) {
+    const previousIds = previousUploads.map(u => u.id)
+    await supabase
+      .from('normalized_gps_events')
+      .delete()
+      .in('upload_id', previousIds)
+    await supabase
+      .from('uploaded_gps_files')
+      .update({ archived: true })
+      .in('id', previousIds)
+  }
 
   // Upload to Supabase Storage
   const storagePath = `assessments/${assessmentId}/gps/${Date.now()}_${file.name}`

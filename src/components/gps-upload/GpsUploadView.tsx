@@ -124,7 +124,7 @@ export default function GpsUploadView({ assessmentId, isAdmin, onUploadComplete 
   }, [assessmentId, supabase])
 
   // ── Handle file selection ────────────────────────────────
-  const handleFileSelected = useCallback(async (file: File, timezone: string) => {
+  const handleFileSelected = useCallback(async (file: File, timezone: string, forceMapping: boolean) => {
     setStatus('uploaded')
     setErrorMessage(null)
     setMappingState(null)
@@ -160,7 +160,7 @@ export default function GpsUploadView({ assessmentId, isAdmin, onUploadComplete 
       const resp = await fetch('/api/gps/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ uploadId, assessmentId }),
+        body: JSON.stringify({ uploadId, assessmentId, forceMapping }),
       })
       const data = await resp.json()
 

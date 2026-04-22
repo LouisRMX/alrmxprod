@@ -17,10 +17,11 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json()
-  const { uploadId, assessmentId, manualMapping } = body as {
+  const { uploadId, assessmentId, manualMapping, forceMapping } = body as {
     uploadId: string
     assessmentId: string
     manualMapping?: Record<CanonicalField, string | null>
+    forceMapping?: boolean
   }
 
   if (!uploadId || !assessmentId) {
@@ -131,8 +132,14 @@ export async function POST(req: NextRequest) {
     let usedManualMapping = false
     let usedTemplateId: string | null = null
 
+    // forceMapping: user explicitly asked to skip auto-detect, always show the
+    // column mapper. Overrides template lookup too.
+    if (forceMapping && !manualMapping) {
+      mappingResult = { ...mappingResult, requiresManualMapping: true }
+    }
+
     // Check for a saved mapping template (same customer + format, column overlap >80%)
-    if (customerId && !manualMapping) {
+    if (customerId && !manualMapping && !forceMapping) {
       const { data: templates } = await supabase
         .from('mapping_templates')
         .select('id, column_mappings, format_type')
@@ -268,9 +275,22 @@ export async function POST(req: NextRequest) {
       derived_delivery_id: e.derivedDeliveryId,
     }))
 
+    // Partial inserts would silently corrupt metrics (fewer events => wrong TAT).
+    // Any chunk error: roll back all inserts for this upload and fail loudly.
     for (let i = 0; i < eventRows.length; i += CHUNK) {
       const chunk = eventRows.slice(i, i + CHUNK)
-      await supabase.from('normalized_gps_events').insert(chunk)
+      const { error: insertErr } = await supabase
+        .from('normalized_gps_events')
+        .insert(chunk)
+      if (insertErr) {
+        await supabase
+          .from('normalized_gps_events')
+          .delete()
+          .eq('upload_id', uploadId)
+        throw new Error(
+          `Event insert failed at chunk ${Math.floor(i / CHUNK) + 1}/${Math.ceil(eventRows.length / CHUNK)}: ${insertErr.message}`
+        )
+      }
     }
 
     // ── Compute metrics ───────────────────────────────────────
@@ -349,11 +369,20 @@ export async function POST(req: NextRequest) {
     })
   } catch (err) {
     console.error('GPS analyze error:', err)
+    const msg = err instanceof Error ? err.message : String(err)
+    // Clean up any events already inserted for this upload so a retry starts fresh.
+    await supabase
+      .from('normalized_gps_events')
+      .delete()
+      .eq('upload_id', uploadId)
     await supabase.from('uploaded_gps_files').update({
       processing_status: 'failed',
-      parse_error_log: [{ error: String(err) }],
+      parse_error_log: { error: msg },
     }).eq('id', uploadId)
 
-    return NextResponse.json({ error: 'Analysis failed. Please try again.' }, { status: 500 })
+    return NextResponse.json(
+      { error: `Analysis failed: ${msg}` },
+      { status: 500 }
+    )
   }
 }

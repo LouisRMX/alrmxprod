@@ -9,7 +9,7 @@ const TIMEZONE_OPTIONS = [
 ]
 
 interface UploadDropzoneProps {
-  onFileSelected: (file: File, timezone: string) => void
+  onFileSelected: (file: File, timezone: string, forceMapping: boolean) => void
   onSkip: () => void
   uploading?: boolean
   hasExistingUpload?: boolean
@@ -26,6 +26,7 @@ export default function UploadDropzone({
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
   const [timezone, setTimezone] = useState('AST')
+  const [forceMapping, setForceMapping] = useState(false)
   const [localError, setLocalError] = useState<string | null>(null)
 
   const handleFile = useCallback((file: File) => {
@@ -38,8 +39,8 @@ export default function UploadDropzone({
       setLocalError('The selected file is empty. Please export a non-empty GPS file.')
       return
     }
-    onFileSelected(file, timezone)
-  }, [timezone, onFileSelected])
+    onFileSelected(file, timezone, forceMapping)
+  }, [timezone, forceMapping, onFileSelected])
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -125,6 +126,29 @@ export default function UploadDropzone({
           </div>
         )}
       </div>
+
+      {/* Force-mapping escape hatch: if auto-detect has been wrong before,
+          user can opt out before uploading. Column mapper appears directly
+          after the file is parsed, no silent wrong-format analysis. */}
+      <label style={{
+        display: 'flex', alignItems: 'flex-start', gap: '8px',
+        fontSize: '12px', color: 'var(--gray-600)', cursor: 'pointer',
+        lineHeight: 1.45,
+      }}>
+        <input
+          type="checkbox"
+          checked={forceMapping}
+          onChange={e => setForceMapping(e.target.checked)}
+          disabled={uploading}
+          style={{ marginTop: '2px', cursor: 'pointer' }}
+        />
+        <span>
+          Skip auto-detect, map columns manually.
+          <span style={{ color: 'var(--gray-400)', marginInlineStart: '4px' }}>
+            Use this if a previous upload picked the wrong format.
+          </span>
+        </span>
+      </label>
 
       {/* Error */}
       {localError && (

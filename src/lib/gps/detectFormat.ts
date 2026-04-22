@@ -17,9 +17,14 @@ interface DetectionResult {
   reasoning: string
 }
 
-/** Normalise a column name for comparison */
+/** Normalise a column name for comparison. Strips whitespace, underscores,
+ *  dashes, slashes, and parenthesised segments (e.g. "Duration (min)" →
+ *  "duration") so real-world headers with unit suffixes match cleanly. */
 function norm(s: string): string {
-  return s.toLowerCase().replace(/[\s_\-/]+/g, '')
+  return s
+    .toLowerCase()
+    .replace(/\([^)]*\)/g, '')
+    .replace(/[\s_\-/()]+/g, '')
 }
 
 const EVENT_TYPE_VALUES = new Set([
