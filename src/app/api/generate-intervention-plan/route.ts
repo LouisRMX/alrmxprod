@@ -37,6 +37,11 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
 const MODEL = 'claude-sonnet-4-20250514'
 const MAX_TOKENS = 8000
 const RATE_LIMIT = { maxRequests: 5, windowSeconds: 60 }
+
+/** Maximum streaming duration in seconds. Set to 5 min to cover two Claude
+ *  calls (initial + up to 2 revisions) plus validation overhead. Vercel
+ *  default without this export is 60s which truncates mid-revision. */
+export const maxDuration = 300
 /** Max plans any single assessment can generate in 24h. Prevents per-plant
  *  spam even when the user's daily spend cap isn't yet hit. */
 const PER_ASSESSMENT_DAILY_CAP = 10
@@ -491,7 +496,13 @@ export async function POST(req: NextRequest) {
         controller.close()
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
-        console.error('intervention-plan generation error:', msg)
+        const stack = err instanceof Error ? err.stack : undefined
+        console.error('intervention-plan generation error:', msg, stack)
+        // Emit a visible error payload to the client before closing the
+        // stream — easier to debug than a raw "HTTP 500" with no body.
+        try {
+          controller.enqueue(encoder.encode(`\n\n---\n\n**GENERATION ERROR:** ${msg}\n\n`))
+        } catch { /* controller may already be closed */ }
         controller.error(err)
       }
     },
