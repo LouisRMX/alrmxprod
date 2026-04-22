@@ -316,6 +316,13 @@ export default function InterventionPlanView({ assessmentId, plantId }: Props) {
       {(evalResult || (openPlanId && savedPlans.find(p => p.id === openPlanId)?.input_snapshot?.eval_result)) && (
         <EvalScorecard
           result={evalResult ?? (savedPlans.find(p => p.id === openPlanId)?.input_snapshot?.eval_result as EvalResult)}
+          onRegenerateWithFeedback={(fb) => {
+            setFeedback(fb)
+            setShowFeedback(true)
+            setEvalResult(null)
+            // Scroll up so the user sees the feedback box + Regenerate button
+            window.scrollTo({ top: 0, behavior: 'smooth' })
+          }}
         />
       )}
 
@@ -395,21 +402,39 @@ export default function InterventionPlanView({ assessmentId, plantId }: Props) {
 
 // ── Eval scorecard ──────────────────────────────────────────────────────
 
-function EvalScorecard({ result }: { result: EvalResult }) {
+function EvalScorecard({ result, onRegenerateWithFeedback }: {
+  result: EvalResult
+  onRegenerateWithFeedback?: (feedback: string) => void
+}) {
   const overall = result.overall_score
   const band = overall >= 4 ? '#0F6E56' : overall >= 3 ? '#D68910' : '#C0392B'
   const bandBg = overall >= 4 ? '#E1F5EE' : overall >= 3 ? '#FFF4D6' : '#FDEDEC'
+  const feedbackStr = result.top_fixes.length > 0
+    ? `Apply these fixes from the last quality evaluation:\n${result.top_fixes.map(f => `- ${f}`).join('\n')}`
+    : ''
   return (
     <div style={{
       background: bandBg, border: `1px solid ${band}`, color: band,
       borderRadius: '12px', padding: '16px', marginBottom: '16px',
       fontSize: '13px', lineHeight: 1.5,
     }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: '16px', marginBottom: '10px' }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: '16px', marginBottom: '10px', flexWrap: 'wrap' }}>
         <span style={{ fontSize: '22px', fontWeight: 700 }}>{overall.toFixed(1)}/5</span>
         <span style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '.5px', fontWeight: 700 }}>
           {result.publishable ? 'Publishable' : 'Needs fixes before sharing'}
         </span>
+        {!result.publishable && onRegenerateWithFeedback && feedbackStr && (
+          <button
+            type="button"
+            onClick={() => onRegenerateWithFeedback(feedbackStr)}
+            style={{
+              marginInlineStart: 'auto',
+              padding: '6px 12px', minHeight: '32px',
+              background: band, color: '#fff', border: 'none',
+              borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer',
+            }}
+          >Regenerate using these fixes →</button>
+        )}
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '6px 14px' }}>
         {result.dimension_scores.map(d => (
