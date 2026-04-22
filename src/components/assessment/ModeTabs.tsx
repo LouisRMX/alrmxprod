@@ -2,7 +2,7 @@
 
 import { useIsMobile } from '@/hooks/useIsMobile'
 
-export type AssessmentMode = 'questions' | 'report' | 'decision' | 'simulator' | 'track' | 'gps' | 'fieldlog' | 'plan' | 'submit'
+export type AssessmentMode = 'questions' | 'report' | 'decision' | 'simulator' | 'track' | 'gps' | 'fieldlog' | 'plan' | 'fieldguide' | 'submit'
 
 interface ExtraTab { label: string; shortLabel: string; onClick: () => void; active?: boolean }
 
@@ -22,6 +22,7 @@ const TABS: { mode: AssessmentMode; label: string; shortLabel: string }[] = [
   { mode: 'track',     label: 'Track',        shortLabel: 'Track' },
   { mode: 'fieldlog',  label: 'Field Log',    shortLabel: 'Log' },
   { mode: 'plan',      label: 'Plan',         shortLabel: 'Plan' },
+  { mode: 'fieldguide',label: 'Field Guide',  shortLabel: 'Guide' },
 ]
 
 export default function ModeTabs({ activeMode, onSwitch, allowedModes, extraTab, extraTabs }: ModeTabsProps) {

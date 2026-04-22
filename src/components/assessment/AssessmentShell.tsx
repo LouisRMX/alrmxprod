@@ -18,6 +18,7 @@ import GpsUploadView from '@/components/gps-upload/GpsUploadView'
 import { createClient } from '@/lib/supabase/client'
 import FieldLogView from '@/components/fieldlog/FieldLogView'
 import InterventionPlanView from './InterventionPlanView'
+import FieldGuideView from './FieldGuideView'
 import UploadAssessmentData from './UploadAssessmentData'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { useSetChatContext } from '@/context/ChatContext'
@@ -153,7 +154,7 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
   const allowedModes = useMemo((): AssessmentMode[] => {
     if (userRole === 'owner')    return ['report', 'decision', 'simulator', 'track']
     if (userRole === 'operator') return ['questions', 'track']
-    return ['questions', 'report', 'decision', 'simulator', 'track', 'gps', 'fieldlog', 'plan']
+    return ['questions', 'report', 'decision', 'simulator', 'track', 'gps', 'fieldlog', 'plan', 'fieldguide']
   }, [userRole])
 
   const canEdit = !userRole || userRole === 'manager' || userRole === 'operator'
@@ -597,6 +598,16 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
         <div style={{ padding: '40px 20px', textAlign: 'center', color: '#888' }}>
           <div style={{ fontSize: '16px', fontWeight: 600, marginBottom: '8px' }}>Intervention plan</div>
           <div style={{ fontSize: '13px' }}>Plan generation is available on real assessments with a plant linked. Demo mode is a preview only.</div>
+        </div>
+      )}
+
+      {mode === 'fieldguide' && assessmentId !== 'demo' && (
+        <FieldGuideView assessmentId={assessmentId} />
+      )}
+      {mode === 'fieldguide' && assessmentId === 'demo' && (
+        <div style={{ padding: '40px 20px', textAlign: 'center', color: '#888' }}>
+          <div style={{ fontSize: '16px', fontWeight: 600, marginBottom: '8px' }}>Field guide</div>
+          <div style={{ fontSize: '13px' }}>The field guide is scoped to a real engagement. Demo mode is a preview only.</div>
         </div>
       )}
 
