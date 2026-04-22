@@ -25,6 +25,22 @@ interface SavedPlan {
   plan_content: { markdown?: string } | null
   status: string
   notes: string | null
+  input_snapshot?: {
+    eval_result?: {
+      overall_score: number
+      publishable: boolean
+      dimension_scores: Array<{ dimension: string; score: number; rationale: string; violations?: string[] }>
+      top_fixes: string[]
+      evaluated_at: string
+    }
+  } | null
+}
+
+interface EvalResult {
+  overall_score: number
+  publishable: boolean
+  dimension_scores: Array<{ dimension: string; score: number; rationale: string; violations?: string[] }>
+  top_fixes: string[]
 }
 
 export default function InterventionPlanView({ assessmentId, plantId }: Props) {
@@ -46,12 +62,38 @@ export default function InterventionPlanView({ assessmentId, plantId }: Props) {
   const loadSaved = useCallback(async () => {
     const { data } = await supabase
       .from('intervention_plans')
-      .select('id, generated_at, model_version, plan_content, status, notes')
+      .select('id, generated_at, model_version, plan_content, status, notes, input_snapshot')
       .eq('assessment_id', assessmentId)
       .order('generated_at', { ascending: false })
       .limit(20)
     setSavedPlans((data ?? []) as SavedPlan[])
   }, [assessmentId, supabase])
+
+  const [evalLoading, setEvalLoading] = useState(false)
+  const [evalResult, setEvalResult] = useState<EvalResult | null>(null)
+
+  const runEval = useCallback(async (planId: string) => {
+    setEvalLoading(true)
+    setEvalResult(null)
+    try {
+      const res = await fetch('/api/evaluate-intervention-plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ planId }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error ?? `HTTP ${res.status}`)
+      }
+      const data = (await res.json()) as EvalResult
+      setEvalResult(data)
+      await loadSaved()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Evaluation failed')
+    } finally {
+      setEvalLoading(false)
+    }
+  }, [loadSaved])
 
   useEffect(() => { loadSaved() }, [loadSaved])
 
@@ -182,6 +224,14 @@ export default function InterventionPlanView({ assessmentId, plantId }: Props) {
                 onClick={handlePrint}
                 style={secondaryBtn}
               >Print / PDF</button>
+              {openPlanId && (
+                <button
+                  type="button"
+                  onClick={() => runEval(openPlanId)}
+                  disabled={evalLoading}
+                  style={evalLoading ? secondaryBtnDisabled : secondaryBtn}
+                >{evalLoading ? 'Evaluating…' : 'Evaluate quality'}</button>
+              )}
             </>
           )}
           <button
@@ -262,6 +312,13 @@ export default function InterventionPlanView({ assessmentId, plantId }: Props) {
         </div>
       )}
 
+      {/* Eval scorecard (when just-run or loaded from a saved plan) */}
+      {(evalResult || (openPlanId && savedPlans.find(p => p.id === openPlanId)?.input_snapshot?.eval_result)) && (
+        <EvalScorecard
+          result={evalResult ?? (savedPlans.find(p => p.id === openPlanId)?.input_snapshot?.eval_result as EvalResult)}
+        />
+      )}
+
       {/* Plan rendering area */}
       {activeMarkdown && (
         <div style={{
@@ -332,6 +389,46 @@ export default function InterventionPlanView({ assessmentId, plantId }: Props) {
       <style>{`
         @keyframes blink { 50% { opacity: 0; } }
       `}</style>
+    </div>
+  )
+}
+
+// ── Eval scorecard ──────────────────────────────────────────────────────
+
+function EvalScorecard({ result }: { result: EvalResult }) {
+  const overall = result.overall_score
+  const band = overall >= 4 ? '#0F6E56' : overall >= 3 ? '#D68910' : '#C0392B'
+  const bandBg = overall >= 4 ? '#E1F5EE' : overall >= 3 ? '#FFF4D6' : '#FDEDEC'
+  return (
+    <div style={{
+      background: bandBg, border: `1px solid ${band}`, color: band,
+      borderRadius: '12px', padding: '16px', marginBottom: '16px',
+      fontSize: '13px', lineHeight: 1.5,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: '16px', marginBottom: '10px' }}>
+        <span style={{ fontSize: '22px', fontWeight: 700 }}>{overall.toFixed(1)}/5</span>
+        <span style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '.5px', fontWeight: 700 }}>
+          {result.publishable ? 'Publishable' : 'Needs fixes before sharing'}
+        </span>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '6px 14px' }}>
+        {result.dimension_scores.map(d => (
+          <div key={d.dimension} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+            <span style={{ textTransform: 'capitalize' }}>{d.dimension.replace(/_/g, ' ')}</span>
+            <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{d.score}/5</strong>
+          </div>
+        ))}
+      </div>
+      {result.top_fixes.length > 0 && (
+        <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: `1px solid ${band}33` }}>
+          <div style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '4px' }}>
+            Top fixes
+          </div>
+          <ul style={{ margin: 0, paddingInlineStart: '18px' }}>
+            {result.top_fixes.map((f, i) => <li key={i} style={{ margin: '2px 0' }}>{f}</li>)}
+          </ul>
+        </div>
+      )}
     </div>
   )
 }
@@ -429,6 +526,7 @@ const secondaryBtn: React.CSSProperties = {
   border: '1px solid #A8D9C5', borderRadius: '10px',
   fontSize: '13px', fontWeight: 600, cursor: 'pointer',
 }
+const secondaryBtnDisabled: React.CSSProperties = { ...secondaryBtn, color: '#999', borderColor: '#ddd', cursor: 'not-allowed' }
 const linkBtn: React.CSSProperties = {
   background: 'transparent', border: 'none', color: '#0F6E56',
   fontSize: '13px', fontWeight: 600, cursor: 'pointer', padding: '4px 0',
