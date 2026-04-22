@@ -57,7 +57,7 @@ const DIMENSIONS = [
   {
     key: 'banned_language',
     name: 'Banned language',
-    description: 'No banned causal verbs (drives/creates/causes/leads to/stems from/arises from/flows from/results from/produces/generates). No banned jargon (optimize/optimise/leverage/streamline/robust/synergy/utilize/actionable/deep dive). No em-dashes. No vague quantifiers before numbers.',
+    description: 'No banned causal verbs. Explicit: drives, creates, causes, leads to, stems from, arises from, flows from, results from, produces, generates. Directional attribution also banned: points to, signals, unlocks, transforms, indicates, demonstrates, reveals, contributes to, impacts, influences, triggers, enables. Approved replacements are genuinely correlative or hypothesis-framing: "is consistent with", "appears associated with", "correlates with", "the data suggests", "one hypothesis is". No banned jargon (optimize/optimise/leverage/streamline/robust/synergy/utilize/actionable/deep dive). No em-dashes. No vague quantifiers before numbers.',
   },
   {
     key: 'reconciliation',

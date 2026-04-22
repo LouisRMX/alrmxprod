@@ -9,6 +9,7 @@
  *   ## Phase 1 — Candidate quick wins (indicative weeks 1-4)
  *   ## Phase 2 — Candidate structural moves (indicative weeks 5-12)
  *   ## Phase 3 — Strategic directions (indicative quarters 2+)
+ *   ## Hypothesis coverage reconciliation (mandatory rollup table)
  *   ## Data collection targets (conditional on field-log state)
  *   ## Pitch summary
  *
@@ -852,7 +853,18 @@ The block labelled \`parsed_inputs\` contains the authoritative numeric values f
 
 ## Language rules (inherited from alrmx report style)
 
-- **Banned causal verbs** (drives / creates / causes / leads to / stems from / arises from / flows from / results from / produces / generates, and all their tenses/participles). These imply proven causation from pre-assessment data, which is dishonest. Replace with: "is consistent with", "points to", "appears associated with", "is modelled from", "the data suggests", "is based on", "contributes to".
+- **Banned causal verbs** (all forms, tenses, and participles). Pre-assessment data cannot prove causation; asserting it through directional verbs is dishonest. Banned:
+  - Explicit: drives, creates, causes, leads to, stems from, arises from, flows from, results from, produces, generates
+  - Directional attribution (commonly missed): **points to, signals, unlocks, transforms, indicates, demonstrates, reveals, contributes to, impacts, influences, triggers, enables**
+  Replace ALL of the above with genuinely correlative or hypothesis framing:
+  - "is consistent with"
+  - "appears associated with"
+  - "correlates with"
+  - "the data suggests"
+  - "one hypothesis is that"
+  - "we observe X and Y together"
+  - "is based on" (for sourcing, not causation)
+  - "is modelled from" (for calculation trace, not causation)
 
 - **Banned consultant jargon** (ALL FORMS + both US and British spellings): optimize / optimise / optimized / optimised / optimization / optimisation / optimal / optimally, leverage / leveraging / leveraged, streamline / streamlined / streamlining, robust / robustly, synergy / synergies / synergistic, utilize / utilise / utilization / utilisation, actionable, deep dive / deep-dive. Use plain alternatives: "improve", "reduce", "tighten", "simplify", "use well", "solid", "combine", "use", "ready to implement", "close look".
 
@@ -897,6 +909,20 @@ Louis may choose to run fewer, more, or different items based on what he finds o
 
 ## Phase 3 — Strategic directions (indicative quarters 2+)
 2-4 directional conversation-starters for follow-on engagements: market positioning, succession tooling, multi-plant scaling, capex for additional batching towers. Written as "if the operation pursues X..." not "we will do X".
+
+## Hypothesis coverage reconciliation
+MANDATORY table that shows which hypotheses are covered by interventions and which remain partially tested. Format as a markdown table with these columns:
+
+| H# | Hypothesis | Interventions testing it | Sum intervention USD | Hypothesis USD | Coverage |
+
+One row per hypothesis (H1, H2, H3, etc. from the Hypotheses section above). List every Phase 1 + Phase 2 intervention that cites this hypothesis by slug. Sum their USD impacts. Show the hypothesis's own USD impact. Coverage ratio = (sum / hypothesis USD). A ratio below 50% means the hypothesis is under-covered by current interventions; flag this explicitly with a note in the row.
+
+Below the table, include 2 bottom-line rows:
+- **Total Phase 1 + Phase 2 USD**: \$X — sum of all intervention USDs in Phase 1 + Phase 2
+- **Pre-assessment modelled recovery band**: \$Y-\$Z — from parsed_inputs.recovery_low_usd and recovery_high_usd
+- One-line note on where the total sits vs. the band (inside, below, or above).
+
+This section exists to make coverage transparent. Do not skip it.
 
 ## Data collection targets
 Based on the current state of the field log and the site mix implied by pre-assessment answers, suggest how many trips per site_type Louis may want to capture to unlock site-type-normalised analysis. Use parsed_inputs.site_type_analysis.status:
