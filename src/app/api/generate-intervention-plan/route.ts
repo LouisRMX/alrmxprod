@@ -30,12 +30,16 @@ import { checkRateLimit, checkSpendCap, trackSpend } from '@/lib/rate-limit'
 import { NextRequest, NextResponse } from 'next/server'
 import { mapToReportInput, calculateReport, type ReportInput, type ReportCalculations } from '@/lib/reportCalculations'
 import type { Answers } from '@/lib/calculations'
+import { validatePlan } from '@/lib/intervention-plan-validator'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
 
 const MODEL = 'claude-sonnet-4-20250514'
 const MAX_TOKENS = 8000
 const RATE_LIMIT = { maxRequests: 5, windowSeconds: 60 }
+/** Max plans any single assessment can generate in 24h. Prevents per-plant
+ *  spam even when the user's daily spend cap isn't yet hit. */
+const PER_ASSESSMENT_DAILY_CAP = 10
 
 /** Authoritative parsed numeric inputs. The LLM MUST cite these. */
 interface ParsedInputs {
@@ -77,6 +81,94 @@ interface ParsedInputs {
   demand_vs_capacity: string
   data_sources_raw: string
   avg_delivery_radius_raw: string
+  /** Pre-computed impact multipliers. These exist so the LLM does not do
+   *  arithmetic. To estimate USD/month from a % improvement, multiply the
+   *  percentage (as decimal) by the matching multiplier. See impact_formulas. */
+  impact_multipliers: ImpactMultipliers
+  impact_formulas: Record<string, string>
+}
+
+/** Deterministic multipliers. Each represents the USD/month impact of a
+ *  1-unit improvement in the named metric, computed from parsed_inputs. */
+interface ImpactMultipliers {
+  /** Per 1 extra trip per truck per day, over the month. */
+  per_trip_per_truck_per_day_usd: number
+  /** Per 1 m³ increase in average load, over the month. */
+  per_m3_avg_load_increase_usd: number
+  /** Per 1 percentage point reduction in rejection rate, over the month.
+   *  Material-cost-only basis (monthly_output_m3 × material_cost × 0.01). */
+  per_rejection_pp_reduction_usd: number
+  /** Per 1 minute of TAT reduction, over the month. Assumes saved minutes
+   *  convert to extra trips at the same load, same margin. */
+  per_min_tat_reduction_usd: number
+  /** Per 1 percentage point increase in plant utilisation, over the month.
+   *  Based on plant capacity × margin × op hours × op days. */
+  per_utilisation_pp_increase_usd: number
+  /** Per 1 percentage point reduction in dispatch-to-order lag — approximated
+   *  as linear fraction of dispatch_loss_usd. */
+  per_dispatch_pp_improvement_usd: number
+}
+
+function computeImpactMultipliers(ri: ReportInput, rc: ReportCalculations): ImpactMultipliers {
+  const trucks = ri.trucks_assigned || 0
+  const opDaysMonth = rc.op_days_per_month || 25
+  const avgLoad = rc.avg_load_m3 || 0
+  const margin = rc.contribution_margin_per_m3 || 0
+  const monthlyOutput = ri.actual_production_last_month_m3 || 0
+  const tatActual = ri.avg_turnaround_min || 0
+  const tripsActual = rc.actual_trips_per_truck_per_day || 0
+
+  const perTripPerTruckPerDay = trucks * opDaysMonth * avgLoad * margin
+
+  const perM3LoadIncrease = (ri.total_trips_last_month || 0) * margin
+
+  // Rejection rate is material-cost-only (that's what the pre-assessment
+  // tracks). Reducing 1pp means 0.01 × monthly_output is no longer wasted.
+  const perRejectionPp = monthlyOutput * (ri.material_cost_per_m3 || 0) * 0.01
+
+  // TAT saved → extra trips at same cadence.
+  // dtrips_per_day = (tat_actual / (tat_actual - 1)) - 1 ≈ 1 / tat_actual (small changes)
+  // Then × trucks × op_days × avg_load × margin.
+  const perMinTat = tatActual > 0
+    ? (tripsActual / tatActual) * trucks * opDaysMonth * avgLoad * margin
+    : 0
+
+  // Utilisation: 1pp of plant capacity × margin, monthly.
+  const perUtilisationPp = (ri.plant_capacity_m3_per_hour || 0) *
+    (ri.operating_hours_per_day || 0) *
+    opDaysMonth * margin * 0.01
+
+  // Dispatch: approximate as 1% of dispatch_loss_usd.
+  const perDispatchPp = (rc.dispatch_loss_usd || 0) * 0.01
+
+  return {
+    per_trip_per_truck_per_day_usd: Math.round(perTripPerTruckPerDay),
+    per_m3_avg_load_increase_usd: Math.round(perM3LoadIncrease),
+    per_rejection_pp_reduction_usd: Math.round(perRejectionPp),
+    per_min_tat_reduction_usd: Math.round(perMinTat),
+    per_utilisation_pp_increase_usd: Math.round(perUtilisationPp),
+    per_dispatch_pp_improvement_usd: Math.round(perDispatchPp),
+  }
+}
+
+/** Human-readable formulas for the LLM to cite verbatim, so it doesn't
+ *  re-derive or mis-multiply. */
+function computeImpactFormulas(ri: ReportInput, rc: ReportCalculations): Record<string, string> {
+  const trucks = ri.trucks_assigned
+  const opDaysMonth = rc.op_days_per_month
+  const avgLoad = rc.avg_load_m3
+  const margin = rc.contribution_margin_per_m3
+  const monthlyOutput = ri.actual_production_last_month_m3
+  const tatActual = ri.avg_turnaround_min
+  const tripsActual = rc.actual_trips_per_truck_per_day
+  return {
+    per_trip_per_truck_per_day_usd: `${trucks} trucks × ${opDaysMonth} op_days × ${avgLoad.toFixed(2)} m³ × $${margin.toFixed(2)} margin`,
+    per_m3_avg_load_increase_usd: `${ri.total_trips_last_month} trips × $${margin.toFixed(2)} margin`,
+    per_rejection_pp_reduction_usd: `${monthlyOutput} m³ × $${ri.material_cost_per_m3.toFixed(2)} material × 0.01`,
+    per_min_tat_reduction_usd: `(${tripsActual.toFixed(2)} trips/truck/day ÷ ${tatActual} min TAT) × ${trucks} trucks × ${opDaysMonth} op_days × ${avgLoad.toFixed(2)} m³ × $${margin.toFixed(2)} margin`,
+    per_utilisation_pp_increase_usd: `${ri.plant_capacity_m3_per_hour} m³/hr × ${ri.operating_hours_per_day} hrs × ${opDaysMonth} op_days × $${margin.toFixed(2)} margin × 0.01`,
+    per_dispatch_pp_improvement_usd: `1% of dispatch_loss_usd ($${Math.round(rc.dispatch_loss_usd).toLocaleString()})`,
+  }
 }
 
 function deriveParsedInputs(ri: ReportInput, rc: ReportCalculations): ParsedInputs {
@@ -119,6 +211,8 @@ function deriveParsedInputs(ri: ReportInput, rc: ReportCalculations): ParsedInpu
     demand_vs_capacity: ri.demand_vs_capacity,
     data_sources_raw: ri.data_sources,
     avg_delivery_radius_raw: String(ri.avg_delivery_radius),
+    impact_multipliers: computeImpactMultipliers(ri, rc),
+    impact_formulas: computeImpactFormulas(ri, rc),
   }
 }
 
@@ -177,6 +271,24 @@ export async function POST(req: NextRequest) {
 
   if (!assessmentId || !plantId) {
     return NextResponse.json({ error: 'assessmentId and plantId required' }, { status: 400 })
+  }
+
+  // Per-assessment daily cap — prevents spam even before hitting user-level
+  // daily spend cap. Plans with regenerationFeedback don't count against the
+  // cap because the consultant is iterating deliberately.
+  if (!regenerationFeedback) {
+    const twentyFourHrsAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+    const { count } = await supabase
+      .from('intervention_plans')
+      .select('id', { count: 'exact', head: true })
+      .eq('assessment_id', assessmentId)
+      .gte('generated_at', twentyFourHrsAgo)
+    if ((count ?? 0) >= PER_ASSESSMENT_DAILY_CAP) {
+      return NextResponse.json(
+        { error: `This assessment has generated ${count} plans in the last 24 hours. Daily cap of ${PER_ASSESSMENT_DAILY_CAP} reached. Wait or edit an existing plan.` },
+        { status: 429 }
+      )
+    }
   }
 
   // Load assessment + computed KPIs + recent field log summary
@@ -278,41 +390,75 @@ export async function POST(req: NextRequest) {
   }
 
   const encoder = new TextEncoder()
-  let fullText = ''
+
+  // Capture values we need inside the stream closure below.
+  const recoveryLow = parsedInputs?.recovery_low_usd ?? null
+  const recoveryHigh = parsedInputs?.recovery_high_usd ?? null
+  const numberOfPlants = parsedInputs?.number_of_plants ?? 1
 
   const stream = new ReadableStream({
     async start(controller) {
+      let fullText = ''
       try {
-        const response = await anthropic.messages.stream({
-          model: MODEL,
-          max_tokens: MAX_TOKENS,
-          system: [
-            {
-              type: 'text',
-              text: systemPrompt,
-              cache_control: { type: 'ephemeral' }, // cache the big library + rules
-            },
-          ],
-          messages: [{ role: 'user', content: userPrompt }],
+        // ── First pass: stream Claude's initial draft to the client ─────
+        await streamClaude({
+          controller,
+          encoder,
+          systemPrompt,
+          userMessages: [{ role: 'user', content: userPrompt }],
+          onText: (t) => { fullText += t },
         })
 
-        for await (const chunk of response) {
-          if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') {
-            fullText += chunk.delta.text
-            controller.enqueue(encoder.encode(chunk.delta.text))
-          }
+        // ── Validate the draft ─────────────────────────────────────────
+        const validation = validatePlan({
+          markdown: fullText,
+          recovery_low_usd: recoveryLow,
+          recovery_high_usd: recoveryHigh,
+          number_of_plants: numberOfPlants,
+        })
+
+        const hasCritical = validation.violations.some(v => v.severity === 'critical')
+        const hasMajor = validation.violations.some(v => v.severity === 'major')
+
+        // ── Second pass (auto-revise) if critical or major issues ──────
+        let finalText = fullText
+        let revisionHappened = false
+        if (hasCritical || hasMajor) {
+          revisionHappened = true
+          // Separator so the UI can tell a revision is coming
+          controller.enqueue(encoder.encode('\n\n---\n\n> _Revising plan to fix validation issues..._\n\n---\n\n'))
+
+          let revisedText = ''
+          await streamClaude({
+            controller,
+            encoder,
+            systemPrompt,
+            userMessages: [
+              { role: 'user', content: userPrompt },
+              { role: 'assistant', content: fullText },
+              { role: 'user', content: `Your previous draft had these validation issues. Produce a corrected version of the ENTIRE plan now. Fix every CRITICAL and MAJOR issue listed. Keep everything else.\n\n${validation.revisionFeedback}` },
+            ],
+            onText: (t) => { revisedText += t },
+          })
+          finalText = revisedText
         }
 
         trackSpend(user.id)
 
-        // Persist the plan
+        // Persist the final plan (with revision metadata)
         await supabase.from('intervention_plans').insert({
           assessment_id: assessmentId,
           plant_id: plantId,
           generated_by: user.id,
           model_version: MODEL,
-          input_snapshot: inputSnapshot,
-          plan_content: { markdown: fullText.trim() },
+          input_snapshot: {
+            ...inputSnapshot,
+            validation: {
+              initial_violations: validation.violations,
+              revision_triggered: revisionHappened,
+            },
+          },
+          plan_content: { markdown: finalText.trim() },
           status: 'draft',
         })
 
@@ -330,6 +476,36 @@ export async function POST(req: NextRequest) {
   })
 }
 
+/** Stream a single Claude call into the response controller.
+ *  `onText` receives every text delta so callers can accumulate the full text. */
+async function streamClaude(args: {
+  controller: ReadableStreamDefaultController
+  encoder: TextEncoder
+  systemPrompt: string
+  userMessages: Array<{ role: 'user' | 'assistant'; content: string }>
+  onText: (text: string) => void
+}) {
+  const { controller, encoder, systemPrompt, userMessages, onText } = args
+  const response = await anthropic.messages.stream({
+    model: MODEL,
+    max_tokens: MAX_TOKENS,
+    system: [
+      {
+        type: 'text',
+        text: systemPrompt,
+        cache_control: { type: 'ephemeral' }, // big library + rules cached
+      },
+    ],
+    messages: userMessages,
+  })
+  for await (const chunk of response) {
+    if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') {
+      onText(chunk.delta.text)
+      controller.enqueue(encoder.encode(chunk.delta.text))
+    }
+  }
+}
+
 // ── Prompt builders ─────────────────────────────────────────────────────
 
 function buildSystemPrompt(library: LibraryItem[]): string {
@@ -337,19 +513,47 @@ function buildSystemPrompt(library: LibraryItem[]): string {
 
 ## CRITICAL numeric fidelity (highest priority)
 
-The user prompt contains a block labelled \`parsed_inputs\` with the authoritative numeric values for this plant (monthly_output_m3, avg_load_m3, avg_turnaround_min, target_turnaround_min, contribution_margin_usd_per_m3, trucks_assigned, number_of_plants, etc.). You MUST:
+The user prompt contains a block labelled \`parsed_inputs\` with the authoritative numeric values for this plant. It includes a sub-block \`impact_multipliers\` with **pre-computed USD/month multipliers** for a 1-unit improvement in each key metric. **You MUST use these multipliers rather than do any multiplication yourself.** Arithmetic errors have repeatedly appeared when the model multiplies operand chains freehand; the multipliers eliminate that risk.
 
-1. **Use \`parsed_inputs\` values verbatim.** Do NOT recalculate from raw \`answers\`. Do NOT substitute with plausible-looking numbers.
-2. **Every computation** in your output (USD impacts, % deltas, trip counts) must start from \`parsed_inputs\` and show the arithmetic, e.g. "0.8 extra trips/truck/day × parsed_inputs.trucks_assigned (87) × parsed_inputs.op_days_per_month (25) × parsed_inputs.avg_load_m3 (7.45) × parsed_inputs.contribution_margin_usd_per_m3 ($27.25) = $353,000/month".
-3. **Units matter.** Monthly numbers stay monthly. Never annualise unless the target sentence is explicitly annual. Plant capacity is m³/hour, NOT m³/day.
-4. **Do NOT invent baseline values** that are not in \`parsed_inputs\`. Examples of commonly-invented baselines to avoid: monthly fuel spend, monthly labour cost, monthly admixture cost, maintenance spend per truck, contract dispute volume. If a library intervention needs such a baseline to compute a USD figure, write the \`$ impact\` line as "TBD — baseline \`<field>\` to validate on-site" and do NOT fabricate a number.
-5. **If a value is not in \`parsed_inputs\`**: write literally "to be validated on-site" and skip the USD estimate for that line. Do not infer.
+- **Use \`parsed_inputs\` values verbatim.** Do NOT recalculate from raw \`answers\`. Do NOT substitute with plausible-looking numbers.
+
+- **Compute USD impacts via \`impact_multipliers\`, not chain multiplication.**
+
+   Given multipliers like:
+   \`\`\`
+   per_trip_per_truck_per_day_usd = 441743
+   per_m3_avg_load_increase_usd   = 296344
+   per_rejection_pp_reduction_usd = 22086
+   per_min_tat_reduction_usd      = 14500
+   per_utilisation_pp_increase_usd= 17000
+   per_dispatch_pp_improvement_usd= 1800
+   \`\`\`
+
+   To estimate impact of 0.5 extra trips/truck/day:
+   \`\`\`
+   0.5 × per_trip_per_truck_per_day_usd = 0.5 × $441,743 = $220,872/month
+   \`\`\`
+
+   To estimate 0.8 m³ load increase:
+   \`\`\`
+   0.8 × per_m3_avg_load_increase_usd = 0.8 × $296,344 = $237,075/month
+   \`\`\`
+
+   ONLY the final percentage/delta should appear as a freehand number. Never multiply the operand chain (trucks × days × load × margin) yourself.
+
+- **Every USD figure MUST show the multiplier reference.** Format: \`"0.4 × parsed_inputs.impact_multipliers.per_trip_per_truck_per_day_usd ($441,743) = $176,697/month"\`. If the multiplier you need isn't one of the six, mark the line TBD rather than improvise.
+
+- **Units matter.** Monthly numbers stay monthly. Never annualise unless the target sentence is explicitly annual. Plant capacity is m³/hour, NOT m³/day.
+
+- **Do NOT invent baseline values** that are not in \`parsed_inputs\`. Examples of commonly-invented baselines to avoid: monthly fuel spend, monthly labour cost, monthly admixture cost, maintenance spend per truck, contract dispute volume. If a library intervention needs such a baseline to compute a USD figure, write the \`$ impact\` line as "TBD — baseline \`<field>\` to validate on-site" and do NOT fabricate a number.
+
+- **If a value is not in \`parsed_inputs\`**: write literally "to be validated on-site" and skip the USD estimate for that line. Do not infer.
 
 ## Project scope and plant count
 
-6. **Normal alrmx project scope is ONE plant per assessment.** When \`parsed_inputs.number_of_plants === 1\`, write in singular: "the plant", "this plant", "the operation".
+- **Normal alrmx project scope is ONE plant per assessment.** When \`parsed_inputs.number_of_plants === 1\`, write in singular: "the plant", "this plant", "the operation".
 
-7. **Multi-plant exception — shared central fleet.** When \`parsed_inputs.number_of_plants >= 2\` it is specifically because the customer runs a SHARED fleet centrally dispatched across those plants (otherwise each plant would be its own assessment). You MUST:
+- **Multi-plant exception — shared central fleet.** When \`parsed_inputs.number_of_plants >= 2\` it is specifically because the customer runs a SHARED fleet centrally dispatched across those plants (otherwise each plant would be its own assessment). You MUST:
    - Explicitly acknowledge the shared-fleet context at least once in Hypotheses and once in Phase 1 or Phase 2.
    - Never say "single plant", "one plant", "the plant" (singular). Use "the two plants", "across the \`<N>\` plants", "the shared-fleet operation", "both plants".
    - Prioritise interventions tagged \`multi_plant\` or applicable under \`plants_min >= 2\` rules (cross-plant load balancer, central dispatch SOP, plant-to-plant empty-km optimisation).
@@ -357,31 +561,31 @@ The user prompt contains a block labelled \`parsed_inputs\` with the authoritati
 
 ## Reconciliation and internal consistency
 
-8. **Phase 1 + Phase 2 USD total HARD CAP.** Sum of "USD impact" lines across Phase 1 + Phase 2 MUST fall between (\`parsed_inputs.recovery_low_usd\` × 0.8) and (\`parsed_inputs.recovery_high_usd\` × 1.0). NOT × 1.1. The pre-assessment's upper recoverable band is the ceiling the plan must respect. Before emitting Phase 2's final section, sum your Phase 1 + Phase 2 USD lines mentally and verify the cap. If you exceed, revise individual interventions downward and add a parenthetical note "(capped to respect pre-assessment band)".
+- **Phase 1 + Phase 2 USD total HARD CAP.** Sum of "USD impact" lines across Phase 1 + Phase 2 MUST fall between (\`parsed_inputs.recovery_low_usd\` × 0.8) and (\`parsed_inputs.recovery_high_usd\` × 1.0). The pre-assessment's upper recoverable band is the ceiling the plan must respect. Before emitting Phase 2's final section, sum your Phase 1 + Phase 2 USD lines mentally and verify the cap. If you exceed, revise individual interventions downward and add a parenthetical note "(capped to respect pre-assessment band)".
 
-9. **Hypothesis/intervention rollup consistency.** Every Phase 1 + Phase 2 intervention must cite the hypothesis number it tests (e.g. "tests H2"). The SUM of USD impacts across all interventions that test the same hypothesis must fall within ±20% of that hypothesis's "\$ impact if confirmed" value. One intervention rarely captures a full hypothesis — expect 2-3 interventions per hypothesis. If the rollup total diverges by more than ±20%, revise one side so they agree, favoring the more conservative number.
+- **Hypothesis/intervention rollup consistency.** Every Phase 1 + Phase 2 intervention must cite the hypothesis number it tests (e.g. "tests H2"). The SUM of USD impacts across all interventions that test the same hypothesis must fall within ±20% of that hypothesis's "\$ impact if confirmed" value. One intervention rarely captures a full hypothesis, expect 2-3 interventions per hypothesis. If the rollup total diverges by more than ±20%, revise one side so they agree, favoring the more conservative number.
 
-10. **No duplicate opportunities across phases.** If the partial-load opportunity appears in a hypothesis at \$160k/month, interventions testing it in Phase 1 + Phase 2 must ROLL UP to that same \$160k (per rule 9), not claim it twice at \$160k + \$263k. Exactly one total \$ opportunity per hypothesis across the entire plan.
+- **No duplicate opportunities across phases.** If the partial-load opportunity appears in a hypothesis at \$160k/month, interventions testing it in Phase 1 + Phase 2 must ROLL UP to that same \$160k (per rollup rule), not claim it twice at \$160k + \$263k. Exactly one total \$ opportunity per hypothesis across the entire plan.
 
-11. **Benchmark ranges — use midpoint or low end, never the high end.** When a USD computation depends on a benchmark range (either from GCC domain context below OR from a library applicability rule), use the midpoint or low end. Never cherry-pick the top of the range to inflate impact. Examples:
-    - "Typical avg load per trip: 8-10 m³" — assume 9 m³ (midpoint) for partial-load gap math, not 10 m³.
-    - "Typical rejection rate: 2-4%" — assume 3% for quality-loss math, not 4%.
-    - "Typical TAT benchmark: 120-150 min" — use 135 min (midpoint) when no target_turnaround_min exists, not 120.
+- **Benchmark ranges: use midpoint or low end, never the high end.** When a USD computation depends on a benchmark range (either from GCC domain context below OR from a library applicability rule), use the midpoint or low end. Never cherry-pick the top of the range to inflate impact. Examples:
+    - "Typical avg load per trip: 8-10 m³" : assume 9 m³ (midpoint) for partial-load gap math, not 10 m³.
+    - "Typical rejection rate: 2-4%" : assume 3% for quality-loss math, not 4%.
+    - "Typical TAT benchmark: 120-150 min" : use 135 min (midpoint) when no target_turnaround_min exists, not 120.
     When using a benchmark value, state explicitly: "Assuming X per industry midpoint, to be validated on-site."
 
-12. **Anti-invention hard rule for unknown baselines.** If a library intervention's USD impact formula requires a baseline value NOT present in \`parsed_inputs\` (e.g. monthly_fuel_spend, monthly_labour_cost, monthly_admixture_spend, maintenance_spend_per_truck, contract_dispute_volume, slump_test_coverage_baseline), write the USD impact line as: "TBD — baseline <field_name> to validate on-site". Do NOT infer the baseline from a rule of thumb, a vendor claim, or an industry benchmark. ONE unknown baseline is enough to mark TBD; do not try to compose a value by combining multiple unknowns.
+- **Anti-invention hard rule for unknown baselines.** If a library intervention's USD impact formula requires a baseline value NOT present in \`parsed_inputs\` (e.g. monthly_fuel_spend, monthly_labour_cost, monthly_admixture_spend, maintenance_spend_per_truck, contract_dispute_volume, slump_test_coverage_baseline), write the USD impact line as: "TBD, baseline <field_name> to validate on-site". Do NOT infer the baseline from a rule of thumb, a vendor claim, or an industry benchmark. ONE unknown baseline is enough to mark TBD; do not try to compose a value by combining multiple unknowns.
 
 ## Language rules (inherited from alrmx report style)
 
-13. **Banned causal verbs** (drives / creates / causes / leads to / stems from / arises from / flows from / results from / produces / generates — and all their tenses/participles). These imply proven causation from pre-assessment data, which is dishonest. Replace with: "is consistent with", "points to", "appears associated with", "is modelled from", "the data suggests", "is based on", "contributes to".
+- **Banned causal verbs** (drives / creates / causes / leads to / stems from / arises from / flows from / results from / produces / generates, and all their tenses/participles). These imply proven causation from pre-assessment data, which is dishonest. Replace with: "is consistent with", "points to", "appears associated with", "is modelled from", "the data suggests", "is based on", "contributes to".
 
-14. **Banned consultant jargon** (ALL FORMS + both US and British spellings): optimize / optimise / optimized / optimised / optimization / optimisation / optimal / optimally, leverage / leveraging / leveraged, streamline / streamlined / streamlining, robust / robustly, synergy / synergies / synergistic, utilize / utilise / utilization / utilisation, actionable, deep dive / deep-dive. Use plain alternatives: "improve", "reduce", "tighten", "simplify", "use well", "solid", "combine", "use", "ready to implement", "close look".
+- **Banned consultant jargon** (ALL FORMS + both US and British spellings): optimize / optimise / optimized / optimised / optimization / optimisation / optimal / optimally, leverage / leveraging / leveraged, streamline / streamlined / streamlining, robust / robustly, synergy / synergies / synergistic, utilize / utilise / utilization / utilisation, actionable, deep dive / deep-dive. Use plain alternatives: "improve", "reduce", "tighten", "simplify", "use well", "solid", "combine", "use", "ready to implement", "close look".
 
-15. **No em-dashes** (— or --). Use commas, colons, or full stops.
+- **No em-dashes** (— or --). Use commas, colons, or full stops.
 
-16. **No vague quantifiers** before numeric values. Never "significantly", "severely", "substantially", "approximately", "roughly", "around", "about" in front of a number. Either cite the number or cite a range.
+- **No vague quantifiers** before numeric values. Never "significantly", "severely", "substantially", "approximately", "roughly", "around", "about" in front of a number. Either cite the number or cite a range.
 
-17. **Hedging is allowed and encouraged** for uncertainty: "the data suggests", "appears to", "likely", "to be validated on-site".
+- **Hedging is allowed and encouraged** for uncertainty: "the data suggests", "appears to", "likely", "to be validated on-site".
 
 ## Output format (strict — markdown with these exact H2 section headers, in order)
 
@@ -416,14 +620,14 @@ A numbered list of 5-8 items the consultant must reconcile on-site before acting
 
 ## Additional grounding rules (NEVER violate)
 
-18. **Every USD figure in your output MUST cite either**:
+- **Every USD figure in your output MUST cite either**:
    - A \`parsed_inputs\` field like "(parsed_inputs.avg_turnaround_min = 170)", OR
    - A library slug like "(lib: dispatcher_app_tier1, cost range \$40k-\$80k)"
-19. **Respect the consultant's data constraints.** If field_kpis is empty/null, that means the on-site visit hasn't happened yet. DO NOT invent observed values. Ground all hypotheses in the pre-assessment (self-reported) numbers only, and flag this explicitly in the "Verify on-site" section.
-20. **Do NOT re-recommend interventions already in \`recent_interventions\`.** If a dispatch SOP is already logged, don't recommend "implement dispatch SOP" again — build on it or go deeper.
-21. **Honor \`applicability_rules\`.** Before recommending a library item, check that the plant's KPIs satisfy the rule (e.g., trucks_min, dispatch_tool_current). If the rule isn't satisfied, exclude it or flag it as conditional.
-22. **GCC context**: factor in Riyadh truck movement restrictions (7-hour daytime heavy-vehicle ban in core zones), Saudization quotas for drivers (affects labor rotation plans), summer heat (affects concrete retarder use + driver productivity), patriarch-owner decision style (political viability > technical optimality for Phase 3 items).
-23. **All currency in USD.** Never SAR, never EUR.
+- **Respect the consultant's data constraints.** If field_kpis is empty/null, that means the on-site visit hasn't happened yet. DO NOT invent observed values. Ground all hypotheses in the pre-assessment (self-reported) numbers only, and flag this explicitly in the "Verify on-site" section.
+- **Do NOT re-recommend interventions already in \`recent_interventions\`.** If a dispatch SOP is already logged, don't recommend "implement dispatch SOP" again, build on it or go deeper.
+- **Honor \`applicability_rules\`.** Before recommending a library item, check that the plant's KPIs satisfy the rule (e.g., trucks_min, dispatch_tool_current). If the rule isn't satisfied, exclude it or flag it as conditional.
+- **GCC context**: factor in Riyadh truck movement restrictions (7-hour daytime heavy-vehicle ban in core zones), Saudization quotas for drivers (affects labor rotation plans), summer heat (affects concrete retarder use + driver productivity), patriarch-owner decision style (political viability > technical optimality for Phase 3 items).
+- **All currency in USD.** Never SAR, never EUR.
 
 ## Intervention library (catalog of interventions you MAY recommend)
 
