@@ -110,16 +110,26 @@ You will score a plan on ${DIMENSIONS.length} dimensions, each 0-5:
 Dimensions:
 ${DIMENSIONS.map(d => `- ${d.name}: ${d.description}`).join('\n')}
 
-Output format: a single JSON object matching this schema (no markdown fencing, no prose before or after):
+CRITICAL OUTPUT FORMAT RULES:
+- Your entire response must be ONE JSON object and nothing else.
+- Do NOT wrap in markdown code fences (no \`\`\`json, no \`\`\`).
+- Do NOT write any prose before the opening {.
+- Do NOT write any prose after the closing }.
+- Do NOT add trailing commas.
+- Start your response with { and end with }.
+
+Schema:
 
 {
   "dimension_scores": [
-    { "dimension": "<dimension key from above>", "score": 0-5, "rationale": "<1-2 sentences>", "violations": ["<specific quote or issue>", ...] }
+    { "dimension": "<dimension key>", "score": 0-5, "rationale": "<1-2 sentences>", "violations": ["<specific quote or issue>", ...] }
   ],
   "top_fixes": ["<prioritised fix 1>", "<fix 2>", ...]
 }
 
-Include every dimension in dimension_scores. List at most 5 top fixes. If a dimension has no issues, include it with score 5 and an empty violations array.`
+The "dimension" field must match one of these keys exactly: ${DIMENSIONS.map(d => d.key).join(', ')}.
+
+Include all ${DIMENSIONS.length} dimensions in dimension_scores. List at most 5 top fixes. If a dimension has no issues, include it with score 5 and an empty violations array.`
 
   const userPrompt = `## Parsed inputs (authoritative for numeric checks)
 ${JSON.stringify(input.parsed_inputs, null, 2)}
@@ -132,37 +142,52 @@ ${input.plan_markdown}
 
 Produce the JSON scorecard now. Be specific in violations — quote the offending text when you can.`
 
+  // Prefill the assistant turn with "{" so Haiku starts the JSON object
+  // immediately instead of being tempted to add prose prefix. Parser stitches
+  // the prefill back onto Haiku's continuation.
   const response = await anthropic.messages.create({
     model: JUDGE_MODEL,
     max_tokens: 4000,
     system: systemPrompt,
-    messages: [{ role: 'user', content: userPrompt }],
+    messages: [
+      { role: 'user', content: userPrompt },
+      { role: 'assistant', content: '{' },
+    ],
   })
 
-  const raw = response.content
+  const body = response.content
     .filter(c => c.type === 'text')
     .map(c => (c as { text: string }).text)
     .join('')
+  const raw = '{' + body // reconstruct full JSON with prefill
 
-  // Parse — be defensive, judge might wrap in fences despite instructions
-  let cleaned = raw.trim()
-  cleaned = cleaned.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '')
-  const firstBrace = cleaned.indexOf('{')
-  const lastBrace = cleaned.lastIndexOf('}')
-  if (firstBrace >= 0 && lastBrace > firstBrace) {
-    cleaned = cleaned.slice(firstBrace, lastBrace + 1)
+  let parsed = tryParseJudgeOutput(raw)
+  // Auto-retry once with a simpler prompt if initial parse fails
+  if (!parsed) {
+    console.warn('Eval judge initial parse failed; retrying with stricter nudge')
+    const retry = await anthropic.messages.create({
+      model: JUDGE_MODEL,
+      max_tokens: 4000,
+      system: systemPrompt + '\n\nREMINDER: respond with a single JSON object. Nothing before the opening brace, nothing after the closing brace.',
+      messages: [
+        { role: 'user', content: userPrompt },
+        { role: 'assistant', content: '{' },
+      ],
+    })
+    const retryBody = retry.content
+      .filter(c => c.type === 'text')
+      .map(c => (c as { text: string }).text)
+      .join('')
+    parsed = tryParseJudgeOutput('{' + retryBody)
   }
 
-  let parsed: { dimension_scores?: EvalDimensionScore[]; top_fixes?: string[] } = {}
-  try {
-    parsed = JSON.parse(cleaned)
-  } catch (err) {
-    console.error('Eval judge output failed to parse:', err, raw.slice(0, 200))
+  if (!parsed) {
+    console.error('Eval judge output failed to parse after all strategies:', raw.slice(0, 500))
     return {
       overall_score: 0,
       dimension_scores: [],
       publishable: false,
-      top_fixes: ['Judge output failed to parse as JSON; re-run evaluation.'],
+      top_fixes: ['Judge output failed to parse as JSON. First 200 chars: ' + raw.slice(0, 200)],
       raw_judge_output: raw,
     }
   }
@@ -184,3 +209,53 @@ Produce the JSON scorecard now. Be specific in violations — quote the offendin
 }
 
 export const EVAL_DIMENSIONS = DIMENSIONS
+
+/** Defensive JSON parser for judge output.
+ *  Haiku sometimes:
+ *  - wraps in ``` or ```json fences
+ *  - adds prose before ("Here is the evaluation:") or after ("Summary:")
+ *  - includes a trailing comma before a closing brace
+ *  - splits a long violations array across lines with stray whitespace
+ *  Try progressively more permissive strategies until one succeeds. */
+function tryParseJudgeOutput(raw: string): { dimension_scores?: EvalDimensionScore[]; top_fixes?: string[] } | null {
+  const strategies: Array<(s: string) => string> = [
+    // 1. Raw string, trimmed
+    s => s.trim(),
+    // 2. Strip markdown fences
+    s => s.trim().replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?\s*```\s*$/i, ''),
+    // 3. Extract between first { and last }
+    s => {
+      const first = s.indexOf('{')
+      const last = s.lastIndexOf('}')
+      if (first < 0 || last <= first) return s
+      return s.slice(first, last + 1)
+    },
+    // 4. Strip fences AND extract braces
+    s => {
+      const stripped = s.trim().replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?\s*```\s*$/i, '')
+      const first = stripped.indexOf('{')
+      const last = stripped.lastIndexOf('}')
+      if (first < 0 || last <= first) return stripped
+      return stripped.slice(first, last + 1)
+    },
+    // 5. Remove trailing commas before } or ]
+    s => {
+      const stripped = s.trim().replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?\s*```\s*$/i, '')
+      const first = stripped.indexOf('{')
+      const last = stripped.lastIndexOf('}')
+      const body = first >= 0 && last > first ? stripped.slice(first, last + 1) : stripped
+      return body.replace(/,(\s*[}\]])/g, '$1')
+    },
+  ]
+
+  for (const strategy of strategies) {
+    try {
+      const candidate = strategy(raw)
+      const parsed = JSON.parse(candidate)
+      if (parsed && typeof parsed === 'object') return parsed
+    } catch {
+      // try next strategy
+    }
+  }
+  return null
+}
