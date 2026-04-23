@@ -78,7 +78,6 @@ export default function SimulatorView({ calcResult, readOnly, reportInput, rc }:
   const r = calcResult
   const isMobile = useIsMobile()
   const [showInfo, setShowInfo] = useState(false)
-  const [showTransparency, setShowTransparency] = useState(true)
 
   // Build baseline via shared helper (keeps simulator in sync with report pipeline)
   const baseline = useMemo(() => buildSimBaseline(r, reportInput, rc), [r, reportInput, rc])
@@ -498,23 +497,6 @@ export default function SimulatorView({ calcResult, readOnly, reportInput, rc }:
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <button
             type="button"
-            onClick={() => setShowTransparency(v => !v)}
-            title="Toggle data basis panel"
-            style={{
-              padding: '4px 10px',
-              border: '1px solid var(--gray-300)',
-              borderRadius: '6px',
-              fontSize: '11px',
-              color: 'var(--gray-600)',
-              background: showTransparency ? 'var(--gray-100)' : 'var(--white)',
-              cursor: 'pointer',
-              fontFamily: 'var(--font)',
-            }}
-          >
-            {showTransparency ? 'Hide data basis' : 'Show data basis'}
-          </button>
-          <button
-            type="button"
             onClick={() => setShowInfo(true)}
             title="Show calculation breakdown"
             style={{
@@ -902,11 +884,10 @@ export default function SimulatorView({ calcResult, readOnly, reportInput, rc }:
           })()}
 
           {/* ── TRANSPARENCY PANEL ── */}
-          {showTransparency && (
-            <div style={{
-              background: 'var(--white)', border: '1px solid var(--border)',
-              borderRadius: '8px', padding: '12px', marginTop: '12px',
-            }}>
+          <div style={{
+            background: 'var(--white)', border: '1px solid var(--border)',
+            borderRadius: '8px', padding: '12px', marginTop: '12px',
+          }}>
               <div style={{
                 fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.5px',
                 color: 'var(--gray-500)', marginBottom: '10px',
@@ -971,8 +952,7 @@ export default function SimulatorView({ calcResult, readOnly, reportInput, rc }:
                 }
                 provenance={{ type: 'reported' }}
                 qualitative />
-            </div>
-          )}
+          </div>
         </div>
       </div>
 
