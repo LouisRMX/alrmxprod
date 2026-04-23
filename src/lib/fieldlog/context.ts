@@ -390,3 +390,105 @@ export function buildFieldLogContext(
     measured_supplements,
   }
 }
+
+// ── Measured overrides for CalcResult ────────────────────────────────────
+//
+// Replaces the old get_field_log_stats RPC (which was called but never
+// committed to supabase/migrations/, so it could silently drift from the
+// client's expectations). Consuming the same raw trips as buildFieldLogContext
+// means one source of truth per render.
+//
+// Thresholds:
+//   - minTripsOverride (default 15): avg TAT + component breakdown require at
+//     least this many complete trips within the window. Below this the
+//     reported/estimated baseline stays in effect.
+//   - minTripsReject (default 20): reject rate requires a bigger sample
+//     because "0 rejections in 5 trips" is not evidence of a 0% reject rate.
+//   - windowDays (default 30): only trips within the last N days count. Older
+//     trips from earlier visits or stale test data do not forensically drag
+//     down today's measured baseline.
+
+export interface MeasuredTripStats {
+  measuredTA: number
+  measuredTABreakdown: {
+    transit?: number
+    siteWait?: number
+    unload?: number
+  }
+  measuredTripCount: number
+  measuredRejectPct?: number
+  // Metadata for the UI data-basis banner
+  windowDays: number
+  tripsInWindow: number
+  tripsTotal: number
+  earliestInWindow: string | null
+  latestInWindow: string | null
+}
+
+export function computeMeasuredTripStats(
+  trips: RawTrip[],
+  opts: {
+    windowDays?: number
+    minTripsOverride?: number
+    minTripsReject?: number
+  } = {},
+): MeasuredTripStats | null {
+  const windowDays = opts.windowDays ?? 30
+  const minTripsOverride = opts.minTripsOverride ?? 15
+  const minTripsReject = opts.minTripsReject ?? 20
+
+  if (!trips || trips.length === 0) return null
+
+  const cutoff = new Date(Date.now() - windowDays * 86_400_000)
+    .toISOString()
+    .slice(0, 10)
+  const inWindow = trips.filter(t => t.log_date >= cutoff)
+
+  if (inWindow.length < minTripsOverride) return null
+
+  const timed = inWindow.map(t => ({
+    ...t,
+    tat: diffMinutes(t.departure_loaded, t.arrival_plant),
+    outbound: diffMinutes(t.departure_loaded, t.arrival_site),
+    siteWait: diffMinutes(t.arrival_site, t.discharge_start),
+    unload: diffMinutes(t.discharge_start, t.discharge_end),
+    returnTransit: diffMinutes(t.departure_site, t.arrival_plant),
+  }))
+
+  const validTATs = timed.map(t => t.tat).filter((v): v is number => v != null)
+  if (validTATs.length < minTripsOverride) return null
+
+  const outbound = timed.map(t => t.outbound).filter((v): v is number => v != null)
+  const rtn = timed.map(t => t.returnTransit).filter((v): v is number => v != null)
+  const siteWaits = timed.map(t => t.siteWait).filter((v): v is number => v != null)
+  const unloads = timed.map(t => t.unload).filter((v): v is number => v != null)
+
+  // Transit = outbound + return (round-trip driving time)
+  const transitPairs = outbound.length + rtn.length
+  const transitAvg = transitPairs > 0
+    ? (outbound.reduce((s, v) => s + v, 0) + rtn.reduce((s, v) => s + v, 0)) / transitPairs
+    : null
+
+  const rejectCount = inWindow.filter(t => t.rejected).length
+  const rejectPct = inWindow.length >= minTripsReject
+    ? Math.round((rejectCount / inWindow.length) * 1000) / 10
+    : undefined
+
+  const dates = inWindow.map(t => t.log_date).sort()
+
+  return {
+    measuredTA: Math.round(avg(validTATs) * 10) / 10,
+    measuredTABreakdown: {
+      transit: transitAvg != null ? Math.round(transitAvg * 10) / 10 : undefined,
+      siteWait: siteWaits.length > 0 ? Math.round(avg(siteWaits) * 10) / 10 : undefined,
+      unload: unloads.length > 0 ? Math.round(avg(unloads) * 10) / 10 : undefined,
+    },
+    measuredTripCount: validTATs.length,
+    measuredRejectPct: rejectPct,
+    windowDays,
+    tripsInWindow: inWindow.length,
+    tripsTotal: trips.length,
+    earliestInWindow: dates[0] ?? null,
+    latestInWindow: dates[dates.length - 1] ?? null,
+  }
+}

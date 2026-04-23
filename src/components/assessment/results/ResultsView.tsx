@@ -18,7 +18,7 @@ import { useMemo, useState } from 'react'
 import type { CalcResult, Answers, CalcOverrides } from '@/lib/calculations'
 import type { Phase } from '@/lib/questions'
 import type { ValidatedDiagnosis } from '@/lib/diagnosis-pipeline'
-import type { FieldLogContext } from '@/lib/fieldlog/context'
+import type { FieldLogContext, MeasuredTripStats } from '@/lib/fieldlog/context'
 import type { DemoBannerProps } from '@/components/assessment/AssessmentShell'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { mapToReportInput, calculateReport } from '@/lib/reportCalculations'
@@ -65,6 +65,13 @@ interface ResultsViewProps {
   // Plan (InterventionPlanView) — requires plantId and non-demo assessment
   plantId?: string
 
+  // Field log data-basis banner
+  measuredStats: MeasuredTripStats | null
+  fieldLogFetchedAt: Date | null
+  fieldLogRefreshing: boolean
+  fieldLogError: string | null
+  onRefreshFieldLog: () => void
+
   // Initial sub-tab (from parent — e.g. when switching from Questions)
   initialSubTab?: ResultsSubTab
 }
@@ -95,6 +102,15 @@ export default function ResultsView(props: ResultsViewProps) {
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+      <DataBasisBanner
+        measuredStats={props.measuredStats}
+        fieldLogFetchedAt={props.fieldLogFetchedAt}
+        fieldLogRefreshing={props.fieldLogRefreshing}
+        fieldLogError={props.fieldLogError}
+        onRefresh={props.onRefreshFieldLog}
+        isDemoMode={props.assessmentId === 'demo'}
+      />
+
       {/* Sub-tab bar */}
       <div style={{
         display: 'flex',
@@ -226,4 +242,98 @@ export default function ResultsView(props: ResultsViewProps) {
       })()}
     </div>
   )
+}
+
+// ── Data basis banner ─────────────────────────────────────────────────────
+//
+// Makes explicit whether the numbers on this page reflect the consultant's
+// reported pre-assessment answers or measurements from the Field Log. Also
+// surfaces staleness — the initial fetch happens on mount, so trips logged
+// during the session won't be reflected until the user clicks Refresh.
+
+function DataBasisBanner({
+  measuredStats,
+  fieldLogFetchedAt,
+  fieldLogRefreshing,
+  fieldLogError,
+  onRefresh,
+  isDemoMode,
+}: {
+  measuredStats: MeasuredTripStats | null
+  fieldLogFetchedAt: Date | null
+  fieldLogRefreshing: boolean
+  fieldLogError: string | null
+  onRefresh: () => void
+  isDemoMode: boolean
+}) {
+  if (isDemoMode) return null
+
+  const agoText = fieldLogFetchedAt ? formatRelative(fieldLogFetchedAt) : null
+
+  const palette = measuredStats
+    ? { bg: '#E1F5EE', border: '#A8D9C5', fg: '#0F6E56' }
+    : { bg: '#FFF4D6', border: '#F1D79A', fg: '#7a5a00' }
+
+  const mainText = measuredStats
+    ? `Measured from Field Log · ${measuredStats.measuredTripCount} trips in last ${measuredStats.windowDays} days`
+    : 'Reported values from assessment questions'
+
+  const subText = measuredStats
+    ? `Avg TAT ${Math.round(measuredStats.measuredTA)} min${measuredStats.measuredRejectPct != null ? ` · reject ${measuredStats.measuredRejectPct}%` : ' · reject rate needs 20+ trips'}`
+    : 'Log at least 15 trips in the last 30 days to use measured baseline.'
+
+  return (
+    <div style={{
+      background: palette.bg, border: `1px solid ${palette.border}`,
+      borderRadius: 0, padding: '8px 16px',
+      display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap',
+      fontSize: '12px', color: palette.fg, minHeight: '40px',
+      flexShrink: 0,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', flex: '1 1 auto', minWidth: 0 }}>
+        <strong style={{ whiteSpace: 'nowrap' }}>Data basis:</strong>
+        <span>{mainText}</span>
+      </div>
+      <span style={{ color: palette.fg, opacity: 0.75, fontSize: '11px' }}>{subText}</span>
+      {agoText && (
+        <span style={{ color: palette.fg, opacity: 0.6, fontSize: '11px', whiteSpace: 'nowrap' }}>
+          · updated {agoText}
+        </span>
+      )}
+      {fieldLogError && (
+        <span style={{ color: '#8B3A2E', fontSize: '11px' }}>
+          · {fieldLogError}
+        </span>
+      )}
+      <button
+        type="button"
+        onClick={onRefresh}
+        disabled={fieldLogRefreshing}
+        style={{
+          padding: '4px 10px',
+          background: 'var(--white)',
+          border: `1px solid ${palette.border}`,
+          borderRadius: '6px',
+          fontSize: '11px',
+          fontWeight: 600,
+          color: palette.fg,
+          cursor: fieldLogRefreshing ? 'not-allowed' : 'pointer',
+          opacity: fieldLogRefreshing ? 0.6 : 1,
+          minHeight: '30px',
+        }}
+      >
+        {fieldLogRefreshing ? 'Refreshing…' : 'Refresh'}
+      </button>
+    </div>
+  )
+}
+
+function formatRelative(when: Date): string {
+  const ms = Date.now() - when.getTime()
+  if (ms < 10_000) return 'just now'
+  if (ms < 60_000) return `${Math.floor(ms / 1000)}s ago`
+  const min = Math.floor(ms / 60_000)
+  if (min < 60) return `${min} min ago`
+  const h = Math.floor(min / 60)
+  return `${h}h ${min % 60}m ago`
 }

@@ -101,45 +101,61 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const supabaseClient = createClient()
 
-  // Fetch field log measured data via SECURITY DEFINER function (bypasses RLS on views)
-  useEffect(() => {
-    if (assessmentId === 'demo') return
-    supabaseClient
-      .rpc('get_field_log_stats', { p_assessment_id: assessmentId })
-      .then(({ data }) => {
-        if (!data || data.trip_count < 3) return  // minimum 3 trips for statistical relevance
-        setOverrides(prev => ({
-          ...prev,
-          // When measured data exists, disable estimatedInputs so calc uses derived mixCap
-          estimatedInputs: false,
-          measuredTA: data.avg_tat,
-          measuredTABreakdown: {
-            transit: data.avg_transit ?? undefined,
-            siteWait: data.avg_site_wait ?? undefined,
-            unload: data.avg_unload ?? undefined,
-          },
-          measuredTripCount: data.trip_count,
-          // Only override reject rate when we have enough trips (20+) for statistical relevance
-          // 3 trips with 0 rejections doesn't mean reject rate is 0%
-          measuredRejectPct: data.trip_count >= 20 ? (data.reject_pct ?? undefined) : undefined,
-        }))
-      })
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [assessmentId, isPreDiagnosis])
-
-  // Fetch full field log context for report generation (variation, VSM, site/truck matrix)
+  // Field log metadata for the Results data-basis banner + refresh button.
+  // measuredStats drives CalcResult overrides; when null the baseline stays
+  // on reported/estimated values. Kept separate from `overrides` state so the
+  // user-controlled toggle (estimatedInputs for pre-diagnosis) isn't fought
+  // by the auto-sync on every fetch.
   const [fieldLogContext, setFieldLogContext] = useState<import('@/lib/fieldlog/context').FieldLogContext | null>(null)
-  useEffect(() => {
+  const [measuredStats, setMeasuredStats] = useState<import('@/lib/fieldlog/context').MeasuredTripStats | null>(null)
+  const [fieldLogFetchedAt, setFieldLogFetchedAt] = useState<Date | null>(null)
+  const [fieldLogError, setFieldLogError] = useState<string | null>(null)
+  const [fieldLogRefreshing, setFieldLogRefreshing] = useState(false)
+
+  const refreshFieldLog = useCallback(async () => {
     if (assessmentId === 'demo') return
-    supabaseClient
-      .rpc('get_field_log_context', { p_assessment_id: assessmentId })
-      .then(({ data, error }) => {
-        if (error || !data?.trips || data.trips.length < 3) return
-        const { buildFieldLogContext } = require('@/lib/fieldlog/context')
-        setFieldLogContext(buildFieldLogContext(data.trips, data.interventions || [], null, answers))
-      })
+    setFieldLogRefreshing(true)
+    setFieldLogError(null)
+    try {
+      const { data, error } = await supabaseClient
+        .rpc('get_field_log_context', { p_assessment_id: assessmentId })
+      if (error) {
+        setFieldLogError(error.message)
+        return
+      }
+      const trips = (data?.trips ?? []) as import('@/lib/fieldlog/context').RawTrip[]
+      const interventions = (data?.interventions ?? []) as import('@/lib/fieldlog/context').RawIntervention[]
+      const { buildFieldLogContext, computeMeasuredTripStats } = await import('@/lib/fieldlog/context')
+      setFieldLogContext(buildFieldLogContext(trips, interventions, null, answers))
+      setMeasuredStats(computeMeasuredTripStats(trips, { windowDays: 30, minTripsOverride: 15, minTripsReject: 20 }))
+      setFieldLogFetchedAt(new Date())
+    } catch (e) {
+      setFieldLogError(e instanceof Error ? e.message : 'Field log fetch failed')
+    } finally {
+      setFieldLogRefreshing(false)
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [assessmentId])
+  }, [assessmentId, supabaseClient])
+
+  // Initial load on mount
+  useEffect(() => {
+    refreshFieldLog()
+  }, [refreshFieldLog])
+
+  // Sync measured stats into the overrides state used by calc(). Kept in a
+  // separate effect so user-controlled override changes (e.g. toggling
+  // estimatedInputs) don't force a re-fetch.
+  useEffect(() => {
+    if (!measuredStats) return
+    setOverrides(prev => ({
+      ...prev,
+      estimatedInputs: false,
+      measuredTA: measuredStats.measuredTA,
+      measuredTABreakdown: measuredStats.measuredTABreakdown,
+      measuredTripCount: measuredStats.measuredTripCount,
+      measuredRejectPct: measuredStats.measuredRejectPct,
+    }))
+  }, [measuredStats])
 
   // Role-based access control
   // owner    = view report + simulator + track (read-only)
@@ -441,6 +457,11 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
           fieldLogContext={fieldLogContext}
           savedDiagnosis={savedDiagnosis as import('@/lib/diagnosis-pipeline').ValidatedDiagnosis | undefined}
           plantId={plantId}
+          measuredStats={measuredStats}
+          fieldLogFetchedAt={fieldLogFetchedAt}
+          fieldLogRefreshing={fieldLogRefreshing}
+          fieldLogError={fieldLogError}
+          onRefreshFieldLog={refreshFieldLog}
         />
       )}
 
