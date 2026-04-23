@@ -321,19 +321,18 @@ export default function DemoView({ userRole = null, isOverridden = false }: Demo
   //   swaps it for the seeded assessment via NEXT_PUBLIC_DEMO_ASSESSMENT_ID
   //   so the Log experience shows the populated 9-stage dataset.
   const allowedModes: AssessmentMode[] = demoPhase === 'workshop'
-    ? (userRole === 'operator' ? ['track'] : ['questions', 'report', 'decision', 'simulator'])
+    ? (userRole === 'operator' ? ['tracking'] : ['questions', 'results'])
     : userRole === 'owner'
-    ? ['report', 'decision', 'simulator', 'track']
+    ? ['results', 'tracking']
     : userRole === 'operator'
-    ? ['track']
-    : ['questions', 'report', 'decision', 'simulator', 'track', 'fieldlog', 'plan', 'fieldguide', 'gps']
+    ? ['tracking']
+    : ['questions', 'results', 'tracking', 'fieldlog', 'plan', 'fieldguide', 'gps']
 
   // Everyone starts on All plants by default
   const defaultView: 'plants' | AssessmentMode =
-    userRole === 'operator' ? 'track'
-    : searchParams.get('view') === 'report' ? 'report'
-    : searchParams.get('view') === 'simulator' ? 'simulator'
-    : searchParams.get('view') === 'track' ? 'track'
+    userRole === 'operator' ? 'tracking'
+    : searchParams.get('view') === 'results' ? 'results'
+    : searchParams.get('view') === 'tracking' ? 'tracking'
     : 'plants'
 
   // 'plants' = overview, 'compare' = comparison table, AssessmentMode = single plant

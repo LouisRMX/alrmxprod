@@ -8,10 +8,7 @@ import ModeTabs, { type AssessmentMode } from './ModeTabs'
 import Sidebar from './Sidebar'
 import SectionView from './SectionView'
 import GuidedMode from './guided/GuidedMode'
-import ReportView from './report/ReportView'
-import OwnerReportView from './report/OwnerReportView'
-import SimulatorView from './simulator/SimulatorView'
-import DecisionView from './decision/DecisionView'
+import ResultsView from './results/ResultsView'
 import { buildValidatedDiagnosis } from '@/lib/diagnosis-pipeline'
 import TrackingTab from './tracking/TrackingTab'
 import GpsUploadView from '@/components/gps-upload/GpsUploadView'
@@ -97,7 +94,7 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
   // Operator starts on questions
   // Everyone else starts on questions
   const [mode, setMode] = useState<AssessmentMode>(
-    userRole === 'owner' ? 'report' : 'questions'
+    userRole === 'owner' ? 'results' : 'questions'
   )
   const [guidedMode, setGuidedMode] = useState(phase === 'onsite' && Object.keys(initialAnswers).length < 20)
   const isPreDiagnosis = phase === 'workshop'
@@ -152,9 +149,9 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
   // operator = questions + track (data input only)
   // null/admin = full access
   const allowedModes = useMemo((): AssessmentMode[] => {
-    if (userRole === 'owner')    return ['report', 'decision', 'simulator', 'track']
-    if (userRole === 'operator') return ['questions', 'track']
-    return ['questions', 'report', 'decision', 'simulator', 'track', 'gps', 'fieldlog', 'plan', 'fieldguide']
+    if (userRole === 'owner')    return ['results', 'tracking']
+    if (userRole === 'operator') return ['questions', 'tracking']
+    return ['questions', 'results', 'tracking', 'gps', 'fieldlog', 'plan', 'fieldguide']
   }, [userRole])
 
   const canEdit = !userRole || userRole === 'manager' || userRole === 'operator'
@@ -287,7 +284,7 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
           calcResult={calcResult}
           meta={{ country }}
           onSwitchToFullMode={() => setGuidedMode(false)}
-          onGenerateReport={() => setMode('report')}
+          onGenerateReport={() => setMode('results')}
         />
       )}
 
@@ -406,7 +403,7 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
                   onAnswer={handleAnswer}
                   onNext={handleNextSection}
                   onBack={handleBackSection}
-                  onViewResults={() => setMode('report')}
+                  onViewResults={() => setMode('results')}
                   calcResult={calcResult}
                   baseline={baseline}
                   sections={customSections}
@@ -425,25 +422,12 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
         </div>
       )}
 
-      {mode === 'report' && userRole === 'owner' && (
-        <OwnerReportView
+      {mode === 'results' && (
+        <ResultsView
           calcResult={calcResult}
           answers={answers}
           meta={{ country, plant, date }}
-          report={report ?? null}
-          reportReleased={reportReleased}
-          isAdmin={isAdmin}
           phase={phase}
-          focusActions={focusActions}
-          baselineData={baselineData && baselineCalcResult ? { ...baselineData, calcResult: baselineCalcResult } : undefined}
-        />
-      )}
-
-      {mode === 'report' && userRole !== 'owner' && (
-        <ReportView
-          calcResult={calcResult}
-          answers={answers}
-          meta={{ country, plant, date }}
           report={report ?? null}
           assessmentId={assessmentId}
           customerId={customerId ?? ''}
@@ -451,56 +435,17 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
           isAdmin={isAdmin}
           overrides={overrides}
           onOverrideChange={setOverrides}
-          phase={phase}
-          onSwitchToTracking={() => setMode('track')}
+          onSwitchToTracking={() => setMode('tracking')}
           demoBanner={demoBanner}
           userRole={userRole}
           focusActions={focusActions}
           baselineData={baselineData && baselineCalcResult ? { ...baselineData, calcResult: baselineCalcResult } : undefined}
           fieldLogContext={fieldLogContext}
-        />
-      )}
-
-      {mode === 'decision' && (
-        <DecisionView
-          calcResult={calcResult}
-          answers={answers}
-          meta={{ country, plant, date }}
-          phase={phase}
           savedDiagnosis={savedDiagnosis as import('@/lib/diagnosis-pipeline').ValidatedDiagnosis | undefined}
         />
       )}
 
-      {mode === 'simulator' && (
-        (() => {
-          // Build reportInput + rc on the fly so the simulator can render
-          // provenance-tagged data basis and use the same avg_load / margin
-          // numbers as the generated report. Falls back gracefully if
-          // buildValidatedDiagnosis output is missing.
-          let simReportInput: React.ComponentProps<typeof SimulatorView>['reportInput']
-          let simRc: React.ComponentProps<typeof SimulatorView>['rc']
-          try {
-            const dxLite = {
-              tat_actual: calcResult.ta,
-              reject_pct: calcResult.rejectPct ?? 0,
-              management_context: String(answers.biggest_pain ?? ''),
-            }
-            const input = mapToReportInput(dxLite, answers as Record<string, unknown>)
-            simReportInput = input
-            const rcFull = calculateReport(input)
-            simRc = {
-              avg_load_m3: rcFull.avg_load_m3,
-              target_tat_min: rcFull.target_tat_min,
-              contribution_margin_per_m3: rcFull.contribution_margin_per_m3,
-            }
-          } catch (err) {
-            console.warn('SimulatorView reportInput build failed, continuing without provenance:', err)
-          }
-          return <SimulatorView calcResult={calcResult} readOnly={userRole === 'owner'} reportInput={simReportInput} rc={simRc} />
-        })()
-      )}
-
-      {mode === 'track' && (() => {
+      {mode === 'tracking' && (() => {
         // Compute dispatch baseline from dropdown answer
         const DISPATCH_MAP: Record<string, number> = {
           'Under 15 minutes, fast response': 12,

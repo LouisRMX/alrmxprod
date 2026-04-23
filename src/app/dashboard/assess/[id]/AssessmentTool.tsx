@@ -57,7 +57,7 @@ export default function AssessmentTool({
   useEffect(() => {
     if (typeof window === 'undefined') return
     const param = new URLSearchParams(window.location.search).get('mode')
-    const valid: AssessmentMode[] = ['questions', 'report', 'decision', 'simulator', 'track', 'gps', 'fieldlog', 'submit']
+    const valid: AssessmentMode[] = ['questions', 'results', 'tracking', 'gps', 'fieldlog', 'submit']
     if (param && (valid as string[]).includes(param)) {
       setRequestedMode(param as AssessmentMode)
     }
@@ -353,7 +353,7 @@ export default function AssessmentTool({
             width: isMobile ? '100%' : 'auto',
           }}>
             <button
-              onClick={() => setRequestedMode('track')}
+              onClick={() => setRequestedMode('tracking')}
               style={{
                 padding: '10px 16px', background: 'var(--white)', color: 'var(--phase-workshop)',
                 border: '1px solid var(--info-border)', borderRadius: '8px',
