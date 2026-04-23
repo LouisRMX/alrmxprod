@@ -580,6 +580,36 @@ export const SECTIONS: Section[] = [
     label: '3. Production capacity',
     qs: [
       {
+        id: 'n_plants',
+        label: 'How many batching plants are in scope for this assessment?',
+        hint: 'Count only the plants you are analysing. Exclude out-of-scope plants operated by the same company elsewhere.',
+        field: 'Ask the operations manager or plant manager directly. Confirm each plant is physically separate (not multiple batching units at the same site).',
+        howto: 'Walk through the plant list with the operations manager. For a shared-fleet operation, each physical address counts as one plant. OMIX has 3 total (Malham, Derab, Makkah) — but only 2 may be in scope.',
+        type: 'num',
+        unit: 'plants',
+        req: true,
+        info: {
+          what: 'Count of physically separate batching plants analysed in this assessment.',
+          why: 'Scopes the fleet utilisation analysis. Trucks primarily serving out-of-scope plants are filtered from the analysis.',
+          calc: 'Used with batching_mixers_total to derive average mixers per plant. Per-plant splits stored in plant_operational_profile.',
+        },
+      },
+      {
+        id: 'batching_mixers_total',
+        label: 'Total batching mixer units across all in-scope plants',
+        hint: 'Count the batching/mixing units at each plant, not mixer trucks. Example: Malham has 2 batching mixers, Derab has 3 → total 5. Shared-fleet operations: sum across all plants.',
+        field: 'Walk each batching plant and count the physical batching/mixing units on the control platform. One plant may have 1, 2, or 3 units.',
+        howto: 'Ask the batch plant operator at each plant: "How many mixing units do you have?" Cross-check visually against the control panel — each unit has its own cabinet.',
+        type: 'num',
+        unit: 'batching mixers',
+        req: true,
+        info: {
+          what: 'Total count of stationary batching/mixing units across all in-scope plants. NOT mixer trucks.',
+          why: 'Caps the theoretical production rate. Each batching unit has an independent cycle time, so total capacity scales with unit count.',
+          calc: 'Theoretical capacity (m³/hr) = batching_mixers_total × capacity_per_mixer (default 90 m³/hr, overrideable per plant in plant_operational_profile).',
+        },
+      },
+      {
         id: 'plant_cap',
         label: 'What is the maximum output rate this plant was built to produce?',
         hint: "The manufacturer's rated maximum in m³/hour, not what it produces today. Written on the specification plate.",
