@@ -154,11 +154,12 @@ export default function UtilizationView({ assessmentId }: Props) {
   // Vercel serverless request body limit is ~4.5MB. Each TrackUS export
   // is ~0.5-1.5MB, so a drag-drop of 10+ files easily exceeds the limit
   // and returns 413 from the platform (before our handler even runs).
+  // Upload files ONE AT A TIME; cross-request MD5 dedup on the server
+  // prevents accidental double-ingestion.
   //
-  // Fix: upload files ONE AT A TIME from the browser. First call uses
-  // ?reset=true to clear any prior analysis; subsequent calls append.
-  // Cross-request MD5 dedup on the server prevents accidental double-
-  // ingestion.
+  // Uploads always APPEND. Uploading a new month (e.g. February) will
+  // not wipe an earlier month's data. Clearing an existing analysis is
+  // an explicit action (separate button) to avoid silent data loss.
   const handleFiles = useCallback(async (files: FileList | File[]) => {
     const fileArray = Array.from(files)
     if (fileArray.length === 0) return
@@ -183,8 +184,7 @@ export default function UtilizationView({ assessmentId }: Props) {
         fd.append('assessmentId', assessmentId)
         fd.append(`file0`, f)
 
-        const reset = i === 0 ? '?reset=true' : ''
-        const res = await fetch(`/api/gps/stop-details/parse${reset}`, {
+        const res = await fetch(`/api/gps/stop-details/parse`, {
           method: 'POST',
           body: fd,
         })
