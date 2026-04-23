@@ -92,6 +92,14 @@ interface PlantProfileRow {
   batching_mixer_count: number
 }
 
+interface IngestedSummary {
+  totalEvents: number
+  dateRange: { start: string; end: string } | null
+  distinctTrucks: number
+  fileCount: number
+  files: Array<{ filename: string; created_at: string; eventsCount: number }>
+}
+
 type PlantDraft = {
   clusterKey: string
   centroidLat: number
@@ -107,6 +115,7 @@ export default function UtilizationView({ assessmentId }: Props) {
 
   const [result, setResult] = useState<UtilizationResult | null>(null)
   const [profiles, setProfiles] = useState<PlantProfileRow[]>([])
+  const [ingested, setIngested] = useState<IngestedSummary | null>(null)
   const [loading, setLoading] = useState(true)
 
   // Upload + parse state
@@ -126,21 +135,46 @@ export default function UtilizationView({ assessmentId }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
 
-  // ── Initial load: existing result + profiles ──
+  // ── Ingested-state refresh ──
+  //
+  // Pulls the cumulative server-side view (total events, date range, truck
+  // count, file list). Called on mount, after every upload batch, and
+  // after compute so the "Currently ingested" card always reflects DB
+  // truth regardless of how many partial upload batches have landed.
+  const refreshIngested = useCallback(async () => {
+    try {
+      const res = await fetch(
+        `/api/gps/stop-details/ingested-summary?assessmentId=${encodeURIComponent(assessmentId)}`,
+      )
+      if (res.ok) {
+        const data: IngestedSummary = await res.json()
+        setIngested(data)
+      }
+    } catch {
+      // Non-fatal; card just stays stale.
+    }
+  }, [assessmentId])
+
+  // ── Initial load: existing result + profiles + ingested state ──
   useEffect(() => {
     let cancelled = false
     async function load() {
       setLoading(true)
       try {
-        const [resultRes, profileRes] = await Promise.all([
+        const [resultRes, profileRes, ingestedRes] = await Promise.all([
           fetch(`/api/gps/utilization/latest?assessmentId=${encodeURIComponent(assessmentId)}`),
           fetch(`/api/gps/utilization/profile?assessmentId=${encodeURIComponent(assessmentId)}`),
+          fetch(`/api/gps/stop-details/ingested-summary?assessmentId=${encodeURIComponent(assessmentId)}`),
         ])
         if (cancelled) return
         const resultData = resultRes.ok ? await resultRes.json() : { result: null }
         const profileData = profileRes.ok ? await profileRes.json() : { profiles: [] }
+        const ingestedData: IngestedSummary = ingestedRes.ok
+          ? await ingestedRes.json()
+          : { totalEvents: 0, dateRange: null, distinctTrucks: 0, fileCount: 0, files: [] }
         setResult(resultData.result)
         setProfiles(profileData.profiles ?? [])
+        setIngested(ingestedData)
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -221,24 +255,58 @@ export default function UtilizationView({ assessmentId }: Props) {
       setParseSummary(finalSummary)
 
       // Auto-populate plant drafts from the LAST call's candidates (which
-      // were computed against the full accumulated event set).
-      const topPlants = accumulated.plantCandidates
-        .filter(c => c.confidence === 'high')
-        .slice(0, 2)
-      setPlantDrafts(topPlants.map((c, i) => ({
-        clusterKey: c.clusterKey,
-        centroidLat: c.centroid.lat,
-        centroidLon: c.centroid.lon,
-        plantName: i === 0 ? 'Plant A' : 'Plant B',
-        batchingMixers: 0,
-      })))
+      // were computed against the full accumulated event set). Skip when
+      // profiles already exist — the user has already confirmed clusters
+      // in a prior session, and we don't want to overwrite their naming.
+      if (profiles.length === 0) {
+        const topPlants = accumulated.plantCandidates
+          .filter(c => c.confidence === 'high')
+          .slice(0, 2)
+        setPlantDrafts(topPlants.map((c, i) => ({
+          clusterKey: c.clusterKey,
+          centroidLat: c.centroid.lat,
+          centroidLon: c.centroid.lon,
+          plantName: i === 0 ? 'Plant A' : 'Plant B',
+          batchingMixers: 0,
+        })))
+      }
+
+      // Refresh the cumulative-state card so the UI reflects new data
+      // in the DB regardless of whether compute was re-run.
+      await refreshIngested()
+
+      // If profiles already exist, auto-run compute so the hero-card
+      // updates to include the newly-ingested events. Without this the
+      // user has to manually click "Compute utilization" again after
+      // every new upload, which is easy to forget.
+      if (profiles.length > 0) {
+        try {
+          setComputing(true)
+          const computeRes = await fetch('/api/gps/utilization/compute', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ assessmentId }),
+          })
+          if (computeRes.ok) {
+            const latestRes = await fetch(
+              `/api/gps/utilization/latest?assessmentId=${encodeURIComponent(assessmentId)}`,
+            )
+            if (latestRes.ok) {
+              const latestData = await latestRes.json()
+              setResult(latestData.result)
+            }
+          }
+        } finally {
+          setComputing(false)
+        }
+      }
     } catch (e) {
       setParseError(e instanceof Error ? e.message : 'Parse failed')
     } finally {
       setParsing(false)
       setParseProgress(null)
     }
-  }, [assessmentId])
+  }, [assessmentId, profiles, refreshIngested])
 
   // ── Save profile + compute ──
   const canCompute = plantDrafts.length >= 2
@@ -286,8 +354,11 @@ export default function UtilizationView({ assessmentId }: Props) {
         return
       }
 
-      // 3. Reload latest result
-      const latestRes = await fetch(`/api/gps/utilization/latest?assessmentId=${encodeURIComponent(assessmentId)}`)
+      // 3. Reload latest result + refresh ingested state
+      const [latestRes] = await Promise.all([
+        fetch(`/api/gps/utilization/latest?assessmentId=${encodeURIComponent(assessmentId)}`),
+        refreshIngested(),
+      ])
       if (latestRes.ok) {
         const latestData = await latestRes.json()
         setResult(latestData.result)
@@ -298,7 +369,7 @@ export default function UtilizationView({ assessmentId }: Props) {
       setComputing(false)
       setSavingProfile(false)
     }
-  }, [assessmentId, canCompute, plantDrafts])
+  }, [assessmentId, canCompute, plantDrafts, refreshIngested])
 
   // ── Render ──
   const padding = isMobile ? 'clamp(12px, 3vw, 16px)' : 'clamp(16px, 3vw, 24px)'
@@ -313,6 +384,10 @@ export default function UtilizationView({ assessmentId }: Props) {
       display: 'flex', flexDirection: 'column', gap: '20px',
     }}>
       {result && <HeroCard result={result} />}
+
+      {ingested && ingested.totalEvents > 0 && (
+        <IngestedSummaryCard ingested={ingested} result={result} />
+      )}
 
       <UploadZone
         dragging={dragging}
@@ -476,6 +551,71 @@ function UploadZone({
   )
 }
 
+// ── Ingested summary card (cumulative server state) ─────────────────────
+
+function IngestedSummaryCard({
+  ingested, result,
+}: {
+  ingested: IngestedSummary
+  result: UtilizationResult | null
+}) {
+  // Stale hint: if a result exists and the ingested date range extends
+  // beyond the result's computed window, the hero is out of date.
+  const stale = result && ingested.dateRange
+    ? ingested.dateRange.end > result.window_end
+      || ingested.dateRange.start < result.window_start
+    : false
+
+  return (
+    <div style={{
+      border: '1px solid #CDE4DA',
+      borderRadius: '10px',
+      padding: '14px 16px',
+      background: '#F4FAF7',
+      display: 'flex', flexDirection: 'column', gap: '8px',
+    }}>
+      <div style={{ fontSize: '12px', fontWeight: 700, color: '#0F6E56', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+        Currently ingested
+      </div>
+      <div style={{ fontSize: '13px', color: '#1a1a1a', lineHeight: 1.5 }}>
+        <strong>{ingested.fileCount}</strong> batches
+        {' · '}
+        <strong>{ingested.totalEvents.toLocaleString()}</strong> events
+        {' · '}
+        <strong>{ingested.distinctTrucks}</strong> distinct trucks
+        {ingested.dateRange && (
+          <>
+            {' · '}
+            <strong>{ingested.dateRange.start} → {ingested.dateRange.end}</strong>
+          </>
+        )}
+      </div>
+      {stale && (
+        <div style={{
+          fontSize: '12px', color: '#7a5a00', background: '#FFF4D6',
+          border: '1px solid #F1D79A', borderRadius: '6px',
+          padding: '6px 10px',
+        }}>
+          Hero-card window is older than the ingested data. Click
+          {' '}<em>Save profile + compute utilization</em> below to refresh.
+        </div>
+      )}
+      {ingested.files.length > 0 && ingested.files.length <= 12 && (
+        <details style={{ fontSize: '11px', color: '#64748b' }}>
+          <summary style={{ cursor: 'pointer' }}>Show batches</summary>
+          <ul style={{ margin: '6px 0 0 0', padding: '0 0 0 18px' }}>
+            {ingested.files.map((f, i) => (
+              <li key={i} style={{ lineHeight: 1.5 }}>
+                {f.filename} — {f.eventsCount.toLocaleString()} events
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </div>
+  )
+}
+
 // ── Parse summary card ──────────────────────────────────────────────────
 
 function ParseSummaryCard({ summary }: { summary: ParseSummary }) {
@@ -488,7 +628,7 @@ function ParseSummaryCard({ summary }: { summary: ParseSummary }) {
       display: 'flex', flexDirection: 'column', gap: '10px',
     }}>
       <div style={{ fontSize: '12px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-        Parse result
+        Latest batch
       </div>
       <div style={{ fontSize: '13px', color: '#1a1a1a', lineHeight: 1.5 }}>
         <strong>{summary.filesAccepted}</strong> files accepted
@@ -498,6 +638,9 @@ function ParseSummaryCard({ summary }: { summary: ParseSummary }) {
         {' · '}
         <strong>{summary.trucksInScope}</strong> in-scope mixer-trucks
         {summary.trucksOutOfScope > 0 && <> · {summary.trucksOutOfScope} out-of-scope (filtered)</>}
+      </div>
+      <div style={{ fontSize: '11px', color: '#64748b' }}>
+        This is only what just landed. See the cumulative total above.
       </div>
       {summary.rejections.length > 0 && (
         <div style={{ fontSize: '12px', color: '#8B3A2E' }}>
