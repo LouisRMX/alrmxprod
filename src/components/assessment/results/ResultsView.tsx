@@ -28,8 +28,9 @@ import OwnerReportView from './../report/OwnerReportView'
 import DecisionView from './../decision/DecisionView'
 import SimulatorView from './../simulator/SimulatorView'
 import InterventionPlanView from './../InterventionPlanView'
+import UtilizationView from './utilization/UtilizationView'
 
-export type ResultsSubTab = 'summary' | 'report' | 'plan' | 'whatif'
+export type ResultsSubTab = 'summary' | 'report' | 'plan' | 'whatif' | 'utilization'
 
 interface BaselineData {
   answers: Answers
@@ -94,6 +95,7 @@ export default function ResultsView(props: ResultsViewProps) {
       { id: 'report', label: 'Report' },
     ]
     if (!isOwner) {
+      tabs.push({ id: 'utilization', label: 'Utilization' })
       tabs.push({ id: 'plan', label: 'Plan' })
       tabs.push({ id: 'whatif', label: 'What-if' })
     }
@@ -206,6 +208,10 @@ export default function ResultsView(props: ResultsViewProps) {
           <div style={{ fontSize: '16px', fontWeight: 600, marginBottom: '8px' }}>Intervention plan</div>
           <div style={{ fontSize: '13px' }}>Plan generation is available on real assessments with a plant linked. Demo mode is a preview only.</div>
         </div>
+      )}
+
+      {subTab === 'utilization' && !isOwner && (
+        <UtilizationView assessmentId={props.assessmentId} />
       )}
 
       {subTab === 'whatif' && !isOwner && (() => {
