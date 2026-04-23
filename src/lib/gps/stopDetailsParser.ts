@@ -311,6 +311,164 @@ export interface RegionFilterResult {
   droppedEventCount: number
 }
 
+// ── Positive region filter (Riyadh-only) + outlier detection ─────────────
+
+export interface BoundingBox {
+  minLat: number
+  maxLat: number
+  minLon: number
+  maxLon: number
+}
+
+export interface TruckRegionProfile {
+  truckId: string
+  totalStops: number
+  stopsInRegion: number
+  regionShare: number
+  /** In-scope: regionShare ≥ primaryThreshold. */
+  classification: 'in_scope' | 'out_of_scope' | 'outlier'
+  /** Short human label for UI display. */
+  note: string
+}
+
+export interface RegionClassificationResult {
+  /** Events from in-scope trucks. Drop-in replacement for the analysis
+   *  pipeline. */
+  kept: NormalizedStopEvent[]
+  /** Per-truck classification, including every truck (in-scope, out-of-scope,
+   *  outlier). Used by the UI's data-quality surface. */
+  truckProfiles: TruckRegionProfile[]
+  /** Stats summary. */
+  summary: {
+    trucksInScope: number
+    trucksOutOfScope: number
+    trucksOutliers: number
+    eventsKept: number
+    eventsDropped: number
+  }
+}
+
+/**
+ * Classify every truck by its dominant operating region.
+ *
+ * - in_scope: ≥ primaryThreshold of stops inside the bounding box.
+ *   These trucks' events are kept for analysis.
+ * - out_of_scope: ≥ outOfScopeThreshold of stops OUTSIDE the box (clearly
+ *   operating elsewhere). Their events are dropped. Example: Makkah-
+ *   dedicated trucks when region is Riyadh.
+ * - outlier: neither in nor out. Mixed pattern. Events dropped from
+ *   analysis but truck is surfaced in UI for manager attention — this
+ *   is often a long-haul driver or a truck reassigned mid-period.
+ *
+ * The reason to split out outliers is credibility: reporting
+ * "1 truck has atypical pattern — 40% of its activity outside Riyadh"
+ * is stronger than silently including or excluding it.
+ */
+export function classifyTrucksByRegion(
+  events: NormalizedStopEvent[],
+  region: BoundingBox,
+  options: {
+    primaryThreshold?: number
+    outOfScopeThreshold?: number
+    minStopsForClassification?: number
+  } = {},
+): RegionClassificationResult {
+  const primary = options.primaryThreshold ?? 0.8
+  const outOfScope = options.outOfScopeThreshold ?? 0.5
+  const minStops = options.minStopsForClassification ?? 5
+
+  const perTruck = new Map<string, { total: number; inRegion: number }>()
+  for (const e of events) {
+    if (!perTruck.has(e.truckId)) perTruck.set(e.truckId, { total: 0, inRegion: 0 })
+    const rec = perTruck.get(e.truckId)!
+    rec.total += 1
+    const inside =
+      e.latitude >= region.minLat &&
+      e.latitude <= region.maxLat &&
+      e.longitude >= region.minLon &&
+      e.longitude <= region.maxLon
+    if (inside) rec.inRegion += 1
+  }
+
+  const profiles: TruckRegionProfile[] = []
+  const inScopeSet = new Set<string>()
+
+  perTruck.forEach((rec, truckId) => {
+    const share = rec.total > 0 ? rec.inRegion / rec.total : 0
+    // Tiny samples (< minStops) are treated as in-scope if there's any
+    // in-region activity; otherwise out-of-scope. Too few data points to
+    // mark as outlier.
+    if (rec.total < minStops) {
+      if (rec.inRegion > 0) {
+        profiles.push({
+          truckId, totalStops: rec.total, stopsInRegion: rec.inRegion, regionShare: share,
+          classification: 'in_scope',
+          note: `only ${rec.total} stops observed`,
+        })
+        inScopeSet.add(truckId)
+      } else {
+        profiles.push({
+          truckId, totalStops: rec.total, stopsInRegion: 0, regionShare: 0,
+          classification: 'out_of_scope',
+          note: `only ${rec.total} stops, none in scope region`,
+        })
+      }
+      return
+    }
+
+    if (share >= primary) {
+      profiles.push({
+        truckId, totalStops: rec.total, stopsInRegion: rec.inRegion, regionShare: share,
+        classification: 'in_scope',
+        note: `${Math.round(share * 100)}% of stops in scope region`,
+      })
+      inScopeSet.add(truckId)
+    } else if ((1 - share) >= outOfScope) {
+      profiles.push({
+        truckId, totalStops: rec.total, stopsInRegion: rec.inRegion, regionShare: share,
+        classification: 'out_of_scope',
+        note: `${Math.round((1 - share) * 100)}% of stops outside scope region`,
+      })
+    } else {
+      // Mixed — neither clearly in nor clearly out.
+      profiles.push({
+        truckId, totalStops: rec.total, stopsInRegion: rec.inRegion, regionShare: share,
+        classification: 'outlier',
+        note: `mixed pattern: ${Math.round(share * 100)}% in scope, ${Math.round((1 - share) * 100)}% outside`,
+      })
+    }
+  })
+
+  const kept = events.filter(e => inScopeSet.has(e.truckId))
+  const summary = {
+    trucksInScope: profiles.filter(p => p.classification === 'in_scope').length,
+    trucksOutOfScope: profiles.filter(p => p.classification === 'out_of_scope').length,
+    trucksOutliers: profiles.filter(p => p.classification === 'outlier').length,
+    eventsKept: kept.length,
+    eventsDropped: events.length - kept.length,
+  }
+
+  // Sort profiles: in-scope first (by total stops desc), then outliers, then out-of-scope
+  profiles.sort((a, b) => {
+    const order = { in_scope: 0, outlier: 1, out_of_scope: 2 }
+    if (order[a.classification] !== order[b.classification]) {
+      return order[a.classification] - order[b.classification]
+    }
+    return b.totalStops - a.totalStops
+  })
+
+  return { kept, truckProfiles: profiles, summary }
+}
+
+/** Pre-built bounding box for OMIX Riyadh scope (Malham north to Derab south
+ *  with margin). Used as the default positive filter. */
+export const RIYADH_BBOX: BoundingBox = {
+  minLat: 24.2,
+  maxLat: 25.3,
+  minLon: 45.8,
+  maxLon: 47.3,
+}
+
 export function filterOutRegion(
   events: NormalizedStopEvent[],
   region: RegionFilter,

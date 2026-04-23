@@ -4,6 +4,8 @@ import { join } from 'node:path'
 import {
   parseStopDetailsFiles,
   filterOutRegion,
+  classifyTrucksByRegion,
+  RIYADH_BBOX,
   type ParseInput,
 } from './stopDetailsParser'
 
@@ -123,5 +125,36 @@ describe('Stop Details parser — OMIX export (Jan 1 – Feb 12 2026)', () => {
     // Kept events are the Riyadh-scope fleet. Makkah-trucks are a minority
     // so the overwhelming majority of events should survive.
     expect(filtered.kept.length).toBeGreaterThan(result.events.length * 0.85)
+  })
+
+  it('positive Riyadh-bbox filter classifies trucks as in_scope / out_of_scope / outlier', () => {
+    if (skip) return
+    const result = parseStopDetailsFiles(inputs)
+    const classified = classifyTrucksByRegion(result.events, RIYADH_BBOX)
+
+    // Expect roughly: 93 in-scope Riyadh trucks, 6 Makkah-dominated,
+    // 1 long-haul outlier (matches prior manual audit).
+    expect(classified.summary.trucksInScope).toBeGreaterThanOrEqual(90)
+    expect(classified.summary.trucksInScope).toBeLessThanOrEqual(96)
+    expect(classified.summary.trucksOutOfScope).toBeGreaterThanOrEqual(4)
+    expect(classified.summary.trucksOutOfScope).toBeLessThanOrEqual(8)
+    expect(classified.summary.trucksOutliers).toBeGreaterThanOrEqual(1)
+    expect(classified.summary.trucksOutliers).toBeLessThanOrEqual(3)
+
+    // Kept events must all be from in-scope trucks.
+    const inScopeIds = new Set(
+      classified.truckProfiles
+        .filter(p => p.classification === 'in_scope')
+        .map(p => p.truckId),
+    )
+    for (const e of classified.kept) {
+      expect(inScopeIds.has(e.truckId)).toBe(true)
+    }
+
+    // Outlier profiles carry a descriptive note for UI display.
+    const outliers = classified.truckProfiles.filter(p => p.classification === 'outlier')
+    for (const o of outliers) {
+      expect(o.note).toMatch(/mixed|% in scope/)
+    }
   })
 })
