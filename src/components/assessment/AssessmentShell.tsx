@@ -14,7 +14,6 @@ import TrackingTab from './tracking/TrackingTab'
 import GpsUploadView from '@/components/gps-upload/GpsUploadView'
 import { createClient } from '@/lib/supabase/client'
 import FieldLogView from '@/components/fieldlog/FieldLogView'
-import FieldGuideView from './FieldGuideView'
 import UploadAssessmentData from './UploadAssessmentData'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { useSetChatContext } from '@/context/ChatContext'
@@ -150,7 +149,7 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
   const allowedModes = useMemo((): AssessmentMode[] => {
     if (userRole === 'owner')    return ['results', 'tracking']
     if (userRole === 'operator') return ['questions', 'tracking']
-    return ['questions', 'results', 'tracking', 'gps', 'fieldlog', 'fieldguide']
+    return ['questions', 'results', 'tracking', 'gps', 'fieldlog']
   }, [userRole])
 
   const canEdit = !userRole || userRole === 'manager' || userRole === 'operator'
@@ -536,15 +535,6 @@ export default function AssessmentShell({ initialAnswers, phase, season, country
         )
       })()}
 
-      {mode === 'fieldguide' && assessmentId !== 'demo' && (
-        <FieldGuideView assessmentId={assessmentId} />
-      )}
-      {mode === 'fieldguide' && assessmentId === 'demo' && (
-        <div style={{ padding: '40px 20px', textAlign: 'center', color: '#888' }}>
-          <div style={{ fontSize: '16px', fontWeight: 600, marginBottom: '8px' }}>Field guide</div>
-          <div style={{ fontSize: '13px' }}>The field guide is scoped to a real engagement. Demo mode is a preview only.</div>
-        </div>
-      )}
 
     </div>
   )
