@@ -113,6 +113,7 @@ export default function UtilizationView({ assessmentId }: Props) {
   const [parsing, setParsing] = useState(false)
   const [parseSummary, setParseSummary] = useState<ParseSummary | null>(null)
   const [parseError, setParseError] = useState<string | null>(null)
+  const [parseProgress, setParseProgress] = useState<{ done: number; total: number } | null>(null)
 
   // Plant-confirm drafts
   const [plantDrafts, setPlantDrafts] = useState<PlantDraft[]>([])
@@ -149,6 +150,15 @@ export default function UtilizationView({ assessmentId }: Props) {
   }, [assessmentId])
 
   // ── File upload ──
+  //
+  // Vercel serverless request body limit is ~4.5MB. Each TrackUS export
+  // is ~0.5-1.5MB, so a drag-drop of 10+ files easily exceeds the limit
+  // and returns 413 from the platform (before our handler even runs).
+  //
+  // Fix: upload files ONE AT A TIME from the browser. First call uses
+  // ?reset=true to clear any prior analysis; subsequent calls append.
+  // Cross-request MD5 dedup on the server prevents accidental double-
+  // ingestion.
   const handleFiles = useCallback(async (files: FileList | File[]) => {
     const fileArray = Array.from(files)
     if (fileArray.length === 0) return
@@ -156,23 +166,63 @@ export default function UtilizationView({ assessmentId }: Props) {
     setParsing(true)
     setParseError(null)
     setParseSummary(null)
-    try {
-      const fd = new FormData()
-      fd.append('assessmentId', assessmentId)
-      fileArray.forEach((f, i) => fd.append(`file${i}`, f))
+    setParseProgress({ done: 0, total: fileArray.length })
 
-      const res = await fetch('/api/gps/stop-details/parse', { method: 'POST', body: fd })
-      const isJson = (res.headers.get('content-type') ?? '').includes('application/json')
-      if (!res.ok) {
-        const msg = isJson ? (await res.json()).error : `Parse failed (${res.status})`
-        setParseError(msg ?? 'Parse failed')
+    // Accumulate summaries across per-file calls; return the latest +
+    // aggregated file counts/events so the UI reflects the full batch.
+    let accumulated: ParseSummary | null = null
+    let totalFilesAccepted = 0
+    let totalFilesRejected = 0
+    let totalEventsIngested = 0
+    const aggregatedRejections: ParseSummary['rejections'] = []
+
+    try {
+      for (let i = 0; i < fileArray.length; i++) {
+        const f = fileArray[i]
+        const fd = new FormData()
+        fd.append('assessmentId', assessmentId)
+        fd.append(`file0`, f)
+
+        const reset = i === 0 ? '?reset=true' : ''
+        const res = await fetch(`/api/gps/stop-details/parse${reset}`, {
+          method: 'POST',
+          body: fd,
+        })
+        const isJson = (res.headers.get('content-type') ?? '').includes('application/json')
+        if (!res.ok) {
+          const msg = isJson ? (await res.json()).error : `Parse failed at ${f.name} (${res.status})`
+          setParseError(msg ?? `Parse failed at ${f.name}`)
+          return
+        }
+        const data: ParseSummary = await res.json()
+        accumulated = data
+        totalFilesAccepted += data.filesAccepted
+        totalFilesRejected += data.filesRejected
+        totalEventsIngested += data.eventsIngested
+        aggregatedRejections.push(...data.rejections)
+        setParseProgress({ done: i + 1, total: fileArray.length })
+      }
+
+      if (!accumulated) {
+        setParseError('No files processed')
         return
       }
-      const data: ParseSummary = await res.json()
-      setParseSummary(data)
 
-      // Auto-populate plant drafts from top-2 high-confidence clusters.
-      const topPlants = data.plantCandidates
+      // The final accumulated summary reflects the server's view after
+      // ALL batches have landed. Override the per-call aggregate counts
+      // with our client-side totals so the UI shows the full picture.
+      const finalSummary: ParseSummary = {
+        ...accumulated,
+        filesAccepted: totalFilesAccepted,
+        filesRejected: totalFilesRejected,
+        eventsIngested: totalEventsIngested,
+        rejections: aggregatedRejections,
+      }
+      setParseSummary(finalSummary)
+
+      // Auto-populate plant drafts from the LAST call's candidates (which
+      // were computed against the full accumulated event set).
+      const topPlants = accumulated.plantCandidates
         .filter(c => c.confidence === 'high')
         .slice(0, 2)
       setPlantDrafts(topPlants.map((c, i) => ({
@@ -186,6 +236,7 @@ export default function UtilizationView({ assessmentId }: Props) {
       setParseError(e instanceof Error ? e.message : 'Parse failed')
     } finally {
       setParsing(false)
+      setParseProgress(null)
     }
   }, [assessmentId])
 
@@ -267,6 +318,7 @@ export default function UtilizationView({ assessmentId }: Props) {
         dragging={dragging}
         setDragging={setDragging}
         parsing={parsing}
+        parseProgress={parseProgress}
         fileInputRef={fileInputRef}
         onFiles={handleFiles}
         isMobile={isMobile}
@@ -367,11 +419,12 @@ function HeroMetric({ label, value }: { label: string; value: string }) {
 // ── Upload zone ──────────────────────────────────────────────────────────
 
 function UploadZone({
-  dragging, setDragging, parsing, fileInputRef, onFiles, isMobile,
+  dragging, setDragging, parsing, parseProgress, fileInputRef, onFiles, isMobile,
 }: {
   dragging: boolean
   setDragging: (b: boolean) => void
   parsing: boolean
+  parseProgress: { done: number; total: number } | null
   fileInputRef: React.RefObject<HTMLInputElement | null>
   onFiles: (files: FileList | File[]) => void
   isMobile: boolean
@@ -410,7 +463,9 @@ function UploadZone({
         style={{ display: 'none' }}
       />
       <div style={{ fontSize: '14px', fontWeight: 600, color: '#1a1a1a', marginBottom: '6px' }}>
-        {parsing
+        {parsing && parseProgress
+          ? `Parsing file ${parseProgress.done + 1} of ${parseProgress.total}…`
+          : parsing
           ? 'Parsing files…'
           : 'Drop TrackUS Stop Details files here'}
       </div>

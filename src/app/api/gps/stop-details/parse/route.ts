@@ -64,6 +64,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  // `?reset=true` tells the route this is the first batch in a new
+  // analysis — archive previous batches first. Without it, the route
+  // APPENDS to whatever's already there. Used by the client when
+  // uploading many files one-at-a-time to stay under Vercel's 4.5MB
+  // body limit.
+  const resetMode = req.nextUrl.searchParams.get('reset') === 'true'
+
   const formData = await req.formData()
   const assessmentId = formData.get('assessmentId') as string | null
   if (!assessmentId) {
@@ -93,8 +100,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Assessment not found' }, { status: 404 })
   }
 
-  // Read all file bytes into memory. Safe up to ~50 files × 500KB = 25MB.
-  // For heavier volumes, revisit with streaming.
+  // Read all file bytes into memory. Per-request size is bounded by
+  // Vercel's body limit (~4.5MB) — the client breaks large uploads into
+  // single-file batches.
   const inputs: ParseInput[] = []
   for (const f of files) {
     inputs.push({
@@ -103,44 +111,89 @@ export async function POST(req: NextRequest) {
     })
   }
 
+  // Cross-request duplicate detection: pull MD5s from prior uploaded_gps_files
+  // rows for this assessment, pass them into the parser as known-seen. This
+  // prevents the same file being ingested twice across separate API calls.
+  const { data: priorUploads } = await supabase
+    .from('uploaded_gps_files')
+    .select('id, original_filename, parse_error_log')
+    .eq('assessment_id', assessmentId)
+    .eq('archived', false)
+  const priorMd5s = new Map<string, string>()
+  for (const u of priorUploads ?? []) {
+    const log = (u.parse_error_log ?? {}) as Record<string, unknown>
+    const md5 = typeof log.batch_md5 === 'string' ? log.batch_md5 : null
+    const acceptedMd5s = Array.isArray(log.accepted_md5s) ? log.accepted_md5s as string[] : []
+    // Collect every MD5 we've seen in any prior batch for this assessment.
+    for (const m of acceptedMd5s) {
+      priorMd5s.set(m, String(u.original_filename ?? 'unknown'))
+    }
+    if (md5) priorMd5s.set(md5, String(u.original_filename ?? 'unknown'))
+  }
+
   // Parse with strict validation (MD5 dedup, filename/header match,
   // out-of-bounds events flagged).
   const parseResult = parseStopDetailsFiles(inputs)
 
+  // Enforce cross-request MD5 dedup on top of the parser's in-request dedup.
+  // Move any newly-accepted file that's a duplicate of an earlier batch
+  // into rejections.
+  const acceptedMd5s: string[] = []
+  const crossRejections: typeof parseResult.filesRejected = []
+  const keepFiles: typeof parseResult.filesAccepted = []
+  const keepFilenames = new Set<string>()
+  for (const accepted of parseResult.filesAccepted) {
+    const priorFile = priorMd5s.get(accepted.md5)
+    if (priorFile) {
+      crossRejections.push({
+        filename: accepted.filename,
+        reason: 'md5_duplicate',
+        detail: `byte-identical to previously ingested file ${priorFile}`,
+        duplicateOf: priorFile,
+      })
+    } else {
+      keepFiles.push(accepted)
+      keepFilenames.add(accepted.filename)
+      acceptedMd5s.push(accepted.md5)
+    }
+  }
+  const eventsFromKeptFiles = parseResult.events.filter(e => keepFilenames.has(e.sourceFile))
+
   // Apply positive Riyadh-region filter (drops Makkah-dedicated trucks,
   // surfaces outliers for UI attention).
-  const classified = classifyTrucksByRegion(parseResult.events, RIYADH_BBOX)
+  const classified = classifyTrucksByRegion(eventsFromKeptFiles, RIYADH_BBOX)
 
   // Generate plant candidates for UI confirmation.
   const clusters = clusterByCoordinate(classified.kept)
   const candidates = identifyPlantCandidates(clusters, 10)
 
-  // Clear previous uploaded_gps_files (and cascade-delete their events)
-  // for this assessment. Matches the CSV pipeline's archive-on-upload
-  // pattern.
-  const { data: previousUploads } = await supabase
-    .from('uploaded_gps_files')
-    .select('id')
-    .eq('assessment_id', assessmentId)
-    .eq('archived', false)
-
-  if (previousUploads && previousUploads.length > 0) {
-    const previousIds = previousUploads.map(u => u.id)
-    await supabase
-      .from('normalized_gps_events')
-      .delete()
-      .in('upload_id', previousIds)
-    await supabase
+  // Reset mode: clear previous batches so the caller starts from a clean
+  // slate. Append mode (default for chunked multi-batch uploads): leave
+  // existing batches intact and just add this one alongside.
+  if (resetMode) {
+    const { data: previousUploads } = await supabase
       .from('uploaded_gps_files')
-      .update({ archived: true })
-      .in('id', previousIds)
+      .select('id')
+      .eq('assessment_id', assessmentId)
+      .eq('archived', false)
+
+    if (previousUploads && previousUploads.length > 0) {
+      const previousIds = previousUploads.map(u => u.id)
+      await supabase
+        .from('normalized_gps_events')
+        .delete()
+        .in('upload_id', previousIds)
+      await supabase
+        .from('uploaded_gps_files')
+        .update({ archived: true })
+        .in('id', previousIds)
+    }
   }
 
-  // Create a single uploaded_gps_files row representing this multi-file
-  // batch. normalized_gps_events requires a non-null upload_id FK, so
-  // every event row needs to point at this batch record. storage_path is
-  // synthetic — stop-details pipeline doesn't currently store raw XLS
-  // bytes in Supabase Storage (revisit if audit trail is needed).
+  // Create an uploaded_gps_files row representing this batch. Each API
+  // call yields one row, so a multi-call accumulating upload produces N
+  // rows for the same assessment. All rows carry accepted_md5s so the
+  // next call can dedup against them.
   const batchFilename = files.length === 1
     ? files[0].name
     : `stop-details-batch-${files.length}-files`
@@ -154,8 +207,9 @@ export async function POST(req: NextRequest) {
       processing_status: 'complete',
       parse_error_log: {
         source: 'stop-details',
-        files_accepted: parseResult.filesAccepted.map(f => f.filename),
-        files_rejected: parseResult.filesRejected,
+        files_accepted: keepFiles.map(f => f.filename),
+        files_rejected: [...parseResult.filesRejected, ...crossRejections],
+        accepted_md5s: acceptedMd5s,
       },
     })
     .select('id')
@@ -208,9 +262,9 @@ export async function POST(req: NextRequest) {
   const summary: ParseSummary = {
     assessmentId,
     filesAccepted: parseResult.filesAccepted.length,
-    filesRejected: parseResult.filesRejected.length,
+    filesRejected: parseResult.filesRejected.length + crossRejections.length,
     eventsIngested: rows.length,
-    eventsTotal: parseResult.events.length,
+    eventsTotal: eventsFromKeptFiles.length,
     eventsInScope: classified.summary.eventsKept,
     trucksInScope: classified.summary.trucksInScope,
     trucksOutOfScope: classified.summary.trucksOutOfScope,
@@ -224,11 +278,18 @@ export async function POST(req: NextRequest) {
         note: p.note,
       })),
     plantCandidates: candidates.slice(0, 5),
-    rejections: parseResult.filesRejected.map(r => ({
-      filename: r.filename,
-      reason: r.reason,
-      detail: r.detail,
-    })),
+    rejections: [
+      ...parseResult.filesRejected.map(r => ({
+        filename: r.filename,
+        reason: r.reason as string,
+        detail: r.detail,
+      })),
+      ...crossRejections.map(r => ({
+        filename: r.filename,
+        reason: r.reason as string,
+        detail: r.detail,
+      })),
+    ],
   }
 
   return NextResponse.json(summary)
