@@ -401,6 +401,31 @@ export default function GpsUploadView({ assessmentId, isAdmin, onUploadComplete 
                 <div>Format detected: {existingUpload.detected_format_type ?? 'N/A'}</div>
                 <div>Template applied: {existingUpload.mapping_template_id ?? 'none (auto-mapped)'}</div>
                 <div>Analysis confidence: {existingUpload.analysis_confidence_score ?? 'N/A'}</div>
+                {existingUpload.processing_status === 'complete' && (
+                  <div style={{ marginTop: '8px' }}>
+                    <a
+                      href={`/api/gps/export?upload_id=${encodeURIComponent(existingUpload.id)}`}
+                      download
+                      style={{
+                        display: 'inline-block',
+                        padding: '6px 10px',
+                        background: 'var(--white)',
+                        border: '1px solid var(--border)',
+                        borderRadius: '6px',
+                        fontSize: '11px',
+                        fontFamily: 'var(--mono)',
+                        color: 'var(--gray-700)',
+                        textDecoration: 'none',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Download normalized events CSV
+                    </a>
+                    <span style={{ fontSize: '10px', color: 'var(--gray-400)', marginInlineStart: '8px' }}>
+                      Capped at 500k rows
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Column mapping */}
