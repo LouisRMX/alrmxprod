@@ -463,10 +463,26 @@ function HeroCard({ result }: { result: UtilizationResult }) {
         gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)',
         gap: '12px', marginTop: '8px',
       }}>
-        <HeroMetric label="Current" value={`${current.toFixed(0)} /day`} />
-        <HeroMetric label="Demonstrated" value={`${demonstrated.toFixed(0)} /day`} />
-        <HeroMetric label="Peak week" value={result.peak_loads_per_op_day != null ? `${result.peak_loads_per_op_day.toFixed(0)} /day` : '—'} />
-        <HeroMetric label="Operating days" value={`${result.operating_days}`} />
+        <HeroMetric
+          label="Current"
+          value={`${current.toFixed(0)} /day`}
+          description="Rolling average across the whole window. What the fleet is actually delivering today."
+        />
+        <HeroMetric
+          label="Demonstrated"
+          value={`${demonstrated.toFixed(0)} /day`}
+          description="Average of the two best operating weeks in the window. A self-benchmark the plant has already proven."
+        />
+        <HeroMetric
+          label="Peak week"
+          value={result.peak_loads_per_op_day != null ? `${result.peak_loads_per_op_day.toFixed(0)} /day` : '—'}
+          description="Single highest operating week. Aspirational upper bound, not the working target."
+        />
+        <HeroMetric
+          label="Operating days"
+          value={`${result.operating_days}`}
+          description="Calendar days in the window minus Fridays and days with unusually low activity."
+        />
       </div>
 
       <div style={{ fontSize: '10px', opacity: 0.7, marginTop: '4px' }}>
@@ -477,16 +493,28 @@ function HeroCard({ result }: { result: UtilizationResult }) {
   )
 }
 
-function HeroMetric({ label, value }: { label: string; value: string }) {
+function HeroMetric({
+  label, value, description,
+}: {
+  label: string
+  value: string
+  description?: string
+}) {
   return (
     <div style={{
       background: 'rgba(255,255,255,0.08)',
       borderRadius: '8px',
       padding: '10px 12px',
       minWidth: 0,
+      display: 'flex', flexDirection: 'column', gap: '2px',
     }}>
-      <div style={{ fontSize: '10px', opacity: 0.7, marginBottom: '2px' }}>{label}</div>
+      <div style={{ fontSize: '10px', opacity: 0.7 }}>{label}</div>
       <div style={{ fontSize: '15px', fontWeight: 700, overflowWrap: 'anywhere' }}>{value}</div>
+      {description && (
+        <div style={{ fontSize: '10px', opacity: 0.75, lineHeight: 1.4, marginTop: '4px' }}>
+          {description}
+        </div>
+      )}
     </div>
   )
 }
