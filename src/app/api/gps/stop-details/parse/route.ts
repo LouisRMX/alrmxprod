@@ -115,28 +115,64 @@ export async function POST(req: NextRequest) {
   const clusters = clusterByCoordinate(classified.kept)
   const candidates = identifyPlantCandidates(clusters, 10)
 
-  // Clear previous stop-details events for this assessment (similar to the
-  // CSV pipeline's archive-on-upload pattern). Events from CSV uploads are
-  // tagged via upload_id so they are NOT touched here.
-  //
-  // We identify stop-details events by the absence of upload_id OR by a
-  // dedicated data_source marker. For v1 we rely on the fact that Louis's
-  // assessments haven't used the CSV pipeline — safe to clear all events
-  // for this assessment.
-  //
-  // Future hardening: add a `source` column ('csv' | 'stop_details') to
-  // differentiate. For now we assume exclusive use of one pipeline per
-  // assessment.
-  await supabase
-    .from('normalized_gps_events')
-    .delete()
+  // Clear previous uploaded_gps_files (and cascade-delete their events)
+  // for this assessment. Matches the CSV pipeline's archive-on-upload
+  // pattern.
+  const { data: previousUploads } = await supabase
+    .from('uploaded_gps_files')
+    .select('id')
     .eq('assessment_id', assessmentId)
+    .eq('archived', false)
+
+  if (previousUploads && previousUploads.length > 0) {
+    const previousIds = previousUploads.map(u => u.id)
+    await supabase
+      .from('normalized_gps_events')
+      .delete()
+      .in('upload_id', previousIds)
+    await supabase
+      .from('uploaded_gps_files')
+      .update({ archived: true })
+      .in('id', previousIds)
+  }
+
+  // Create a single uploaded_gps_files row representing this multi-file
+  // batch. normalized_gps_events requires a non-null upload_id FK, so
+  // every event row needs to point at this batch record. storage_path is
+  // synthetic — stop-details pipeline doesn't currently store raw XLS
+  // bytes in Supabase Storage (revisit if audit trail is needed).
+  const batchFilename = files.length === 1
+    ? files[0].name
+    : `stop-details-batch-${files.length}-files`
+  const { data: uploadRecord, error: uploadErr } = await supabase
+    .from('uploaded_gps_files')
+    .insert({
+      assessment_id: assessmentId,
+      original_filename: batchFilename,
+      timezone_selected: 'AST',
+      storage_path: `stop-details-batch/${assessmentId}/${Date.now()}`,
+      processing_status: 'complete',
+      parse_error_log: {
+        source: 'stop-details',
+        files_accepted: parseResult.filesAccepted.map(f => f.filename),
+        files_rejected: parseResult.filesRejected,
+      },
+    })
+    .select('id')
+    .single()
+
+  if (uploadErr || !uploadRecord) {
+    return NextResponse.json(
+      { error: `Failed to create batch record: ${uploadErr?.message ?? 'unknown'}` },
+      { status: 500 },
+    )
+  }
 
   // Batch-insert in chunks of 500 (matches existing analyze route pattern).
   const CHUNK = 500
   const rows = classified.kept.map(e => ({
     assessment_id: assessmentId,
-    upload_id: null,  // stop-details pipeline doesn't use uploaded_gps_files
+    upload_id: uploadRecord.id,
     truck_id: e.truckId,
     event_timestamp: e.startedAt + 'Z',  // naive → UTC; timezone normalization is TODO
     stop_start_time: e.startedAt + 'Z',
@@ -153,11 +189,15 @@ export async function POST(req: NextRequest) {
       .from('normalized_gps_events')
       .insert(chunk)
     if (error) {
-      // Rollback: delete any events inserted so far.
+      // Rollback: delete any events inserted under this batch + the batch row itself.
       await supabase
         .from('normalized_gps_events')
         .delete()
-        .eq('assessment_id', assessmentId)
+        .eq('upload_id', uploadRecord.id)
+      await supabase
+        .from('uploaded_gps_files')
+        .delete()
+        .eq('id', uploadRecord.id)
       return NextResponse.json(
         { error: `Event insert failed at chunk ${Math.floor(i / CHUNK) + 1}: ${error.message}` },
         { status: 500 },
