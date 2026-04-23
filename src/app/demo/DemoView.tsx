@@ -326,7 +326,7 @@ export default function DemoView({ userRole = null, isOverridden = false }: Demo
     ? ['results', 'tracking']
     : userRole === 'operator'
     ? ['tracking']
-    : ['questions', 'results', 'tracking', 'fieldlog', 'plan', 'fieldguide', 'gps']
+    : ['questions', 'results', 'tracking', 'fieldlog', 'fieldguide', 'gps']
 
   // Everyone starts on All plants by default
   const defaultView: 'plants' | AssessmentMode =

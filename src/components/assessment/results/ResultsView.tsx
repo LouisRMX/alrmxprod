@@ -27,8 +27,9 @@ import ReportView from './../report/ReportView'
 import OwnerReportView from './../report/OwnerReportView'
 import DecisionView from './../decision/DecisionView'
 import SimulatorView from './../simulator/SimulatorView'
+import InterventionPlanView from './../InterventionPlanView'
 
-export type ResultsSubTab = 'summary' | 'report' | 'whatif'
+export type ResultsSubTab = 'summary' | 'report' | 'plan' | 'whatif'
 
 interface BaselineData {
   answers: Answers
@@ -61,6 +62,9 @@ interface ResultsViewProps {
   // Summary (DecisionView)
   savedDiagnosis?: ValidatedDiagnosis
 
+  // Plan (InterventionPlanView) — requires plantId and non-demo assessment
+  plantId?: string
+
   // Initial sub-tab (from parent — e.g. when switching from Questions)
   initialSubTab?: ResultsSubTab
 }
@@ -74,15 +78,18 @@ export default function ResultsView(props: ResultsViewProps) {
   const defaultTab: ResultsSubTab = props.initialSubTab ?? (isOwner ? 'summary' : 'report')
   const [subTab, setSubTab] = useState<ResultsSubTab>(defaultTab)
 
-  // Sub-tabs visible to this role. Owners don't get the interactive
-  // what-if tool (read-only anyway, but the tab is just extra clutter
-  // for their lean flow).
+  // Sub-tabs visible to this role. Owners don't get Plan (in-progress
+  // planning tool) or What-if (interactive simulator). Their view is
+  // the finished deliverable: Summary + Report.
   const visibleTabs = useMemo((): Array<{ id: ResultsSubTab; label: string }> => {
     const tabs: Array<{ id: ResultsSubTab; label: string }> = [
       { id: 'summary', label: 'Summary' },
       { id: 'report', label: 'Report' },
     ]
-    if (!isOwner) tabs.push({ id: 'whatif', label: 'What-if' })
+    if (!isOwner) {
+      tabs.push({ id: 'plan', label: 'Plan' })
+      tabs.push({ id: 'whatif', label: 'What-if' })
+    }
     return tabs
   }, [isOwner])
 
@@ -172,6 +179,17 @@ export default function ResultsView(props: ResultsViewProps) {
           baselineData={props.baselineData}
           fieldLogContext={props.fieldLogContext}
         />
+      )}
+
+      {subTab === 'plan' && !isOwner && props.plantId && props.assessmentId !== 'demo' && (
+        <InterventionPlanView assessmentId={props.assessmentId} plantId={props.plantId} />
+      )}
+
+      {subTab === 'plan' && !isOwner && (!props.plantId || props.assessmentId === 'demo') && (
+        <div style={{ padding: '40px 20px', textAlign: 'center', color: '#888' }}>
+          <div style={{ fontSize: '16px', fontWeight: 600, marginBottom: '8px' }}>Intervention plan</div>
+          <div style={{ fontSize: '13px' }}>Plan generation is available on real assessments with a plant linked. Demo mode is a preview only.</div>
+        </div>
       )}
 
       {subTab === 'whatif' && !isOwner && (() => {
