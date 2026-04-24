@@ -100,6 +100,21 @@ interface IngestedSummary {
   files: Array<{ filename: string; created_at: string; eventsCount: number }>
 }
 
+interface ExclusionRow {
+  id: string
+  start_date: string
+  end_date: string
+  reason: 'ramadan' | 'eid' | 'holiday' | 'maintenance' | 'other'
+  label: string
+  active: boolean
+}
+
+interface PeriodResult extends UtilizationResult {
+  analysis_mode: 'within_period'
+  period_label: string | null
+  exclusion_id: string | null
+}
+
 type PlantDraft = {
   clusterKey: string
   centroidLat: number
@@ -114,8 +129,10 @@ export default function UtilizationView({ assessmentId }: Props) {
   const isMobile = useIsMobile()
 
   const [result, setResult] = useState<UtilizationResult | null>(null)
+  const [periodResults, setPeriodResults] = useState<PeriodResult[]>([])
   const [profiles, setProfiles] = useState<PlantProfileRow[]>([])
   const [ingested, setIngested] = useState<IngestedSummary | null>(null)
+  const [exclusions, setExclusions] = useState<ExclusionRow[]>([])
   const [loading, setLoading] = useState(true)
 
   // Upload + parse state
@@ -155,26 +172,105 @@ export default function UtilizationView({ assessmentId }: Props) {
     }
   }, [assessmentId])
 
-  // ── Initial load: existing result + profiles + ingested state ──
+  const refreshExclusions = useCallback(async () => {
+    try {
+      const res = await fetch(
+        `/api/gps/utilization/exclusions?assessmentId=${encodeURIComponent(assessmentId)}`,
+      )
+      if (res.ok) {
+        const data = await res.json() as { exclusions: ExclusionRow[] }
+        setExclusions(data.exclusions ?? [])
+      }
+    } catch {
+      // Non-fatal.
+    }
+  }, [assessmentId])
+
+  const refreshResults = useCallback(async () => {
+    try {
+      const res = await fetch(
+        `/api/gps/utilization/latest?assessmentId=${encodeURIComponent(assessmentId)}`,
+      )
+      if (res.ok) {
+        const data = await res.json() as { result: UtilizationResult | null; periods: PeriodResult[] }
+        setResult(data.result)
+        setPeriodResults(data.periods ?? [])
+      }
+    } catch {
+      // Non-fatal.
+    }
+  }, [assessmentId])
+
+  // ── Run baseline + one compute per active exclusion ──
+  //
+  // Always runs baseline first; then fires one within_period compute per
+  // active exclusion, in parallel. Failures in the period runs are
+  // surfaced but don't fail the whole operation — a broken Ramadan
+  // compute shouldn't wipe out a valid baseline.
+  const runComputeAll = useCallback(async (): Promise<string | null> => {
+    const baselineRes = await fetch('/api/gps/utilization/compute', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ assessmentId, mode: 'baseline' }),
+    })
+    if (!baselineRes.ok) {
+      const b = await baselineRes.json().catch(() => ({}))
+      return b.error ?? 'Baseline compute failed'
+    }
+
+    // Fetch fresh exclusions — if the user just added Ramadan, the state
+    // variable is stale. Re-read from server.
+    const exRes = await fetch(
+      `/api/gps/utilization/exclusions?assessmentId=${encodeURIComponent(assessmentId)}`,
+    )
+    const exData = exRes.ok ? await exRes.json() as { exclusions: ExclusionRow[] } : { exclusions: [] }
+    const active = exData.exclusions.filter(e => e.active)
+
+    await Promise.all(active.map(async (ex) => {
+      try {
+        await fetch('/api/gps/utilization/compute', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ assessmentId, mode: 'within_period', exclusionId: ex.id }),
+        })
+      } catch {
+        // Tolerate individual period failures; user sees no result for
+        // that period rather than losing baseline.
+      }
+    }))
+
+    await Promise.all([refreshResults(), refreshIngested(), refreshExclusions()])
+    return null
+  }, [assessmentId, refreshResults, refreshIngested, refreshExclusions])
+
+  // ── Initial load: existing result + profiles + ingested state + exclusions ──
   useEffect(() => {
     let cancelled = false
     async function load() {
       setLoading(true)
       try {
-        const [resultRes, profileRes, ingestedRes] = await Promise.all([
+        const [resultRes, profileRes, ingestedRes, exclusionsRes] = await Promise.all([
           fetch(`/api/gps/utilization/latest?assessmentId=${encodeURIComponent(assessmentId)}`),
           fetch(`/api/gps/utilization/profile?assessmentId=${encodeURIComponent(assessmentId)}`),
           fetch(`/api/gps/stop-details/ingested-summary?assessmentId=${encodeURIComponent(assessmentId)}`),
+          fetch(`/api/gps/utilization/exclusions?assessmentId=${encodeURIComponent(assessmentId)}`),
         ])
         if (cancelled) return
-        const resultData = resultRes.ok ? await resultRes.json() : { result: null }
+        const resultData = resultRes.ok
+          ? await resultRes.json() as { result: UtilizationResult | null; periods: PeriodResult[] }
+          : { result: null, periods: [] }
         const profileData = profileRes.ok ? await profileRes.json() : { profiles: [] }
         const ingestedData: IngestedSummary = ingestedRes.ok
           ? await ingestedRes.json()
           : { totalEvents: 0, dateRange: null, distinctTrucks: 0, fileCount: 0, files: [] }
+        const exclusionsData = exclusionsRes.ok
+          ? await exclusionsRes.json() as { exclusions: ExclusionRow[] }
+          : { exclusions: [] }
         setResult(resultData.result)
+        setPeriodResults(resultData.periods ?? [])
         setProfiles(profileData.profiles ?? [])
         setIngested(ingestedData)
+        setExclusions(exclusionsData.exclusions ?? [])
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -275,27 +371,13 @@ export default function UtilizationView({ assessmentId }: Props) {
       // in the DB regardless of whether compute was re-run.
       await refreshIngested()
 
-      // If profiles already exist, auto-run compute so the hero-card
-      // updates to include the newly-ingested events. Without this the
-      // user has to manually click "Compute utilization" again after
-      // every new upload, which is easy to forget.
+      // If profiles already exist, auto-run baseline + per-period compute
+      // so hero-card + Ramadan-style comparison cards update without
+      // another click.
       if (profiles.length > 0) {
+        setComputing(true)
         try {
-          setComputing(true)
-          const computeRes = await fetch('/api/gps/utilization/compute', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ assessmentId }),
-          })
-          if (computeRes.ok) {
-            const latestRes = await fetch(
-              `/api/gps/utilization/latest?assessmentId=${encodeURIComponent(assessmentId)}`,
-            )
-            if (latestRes.ok) {
-              const latestData = await latestRes.json()
-              setResult(latestData.result)
-            }
-          }
+          await runComputeAll()
         } finally {
           setComputing(false)
         }
@@ -306,7 +388,7 @@ export default function UtilizationView({ assessmentId }: Props) {
       setParsing(false)
       setParseProgress(null)
     }
-  }, [assessmentId, profiles, refreshIngested])
+  }, [assessmentId, profiles, refreshIngested, runComputeAll])
 
   // ── Save profile + compute ──
   const canCompute = plantDrafts.length >= 2
@@ -342,26 +424,11 @@ export default function UtilizationView({ assessmentId }: Props) {
       }
       setSavingProfile(false)
 
-      // 2. Run compute
-      const computeRes = await fetch('/api/gps/utilization/compute', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ assessmentId }),
-      })
-      if (!computeRes.ok) {
-        const body = await computeRes.json().catch(() => ({}))
-        setComputeError(body.error ?? 'Compute failed')
+      // 2. Run baseline + per-period compute
+      const err = await runComputeAll()
+      if (err) {
+        setComputeError(err)
         return
-      }
-
-      // 3. Reload latest result + refresh ingested state
-      const [latestRes] = await Promise.all([
-        fetch(`/api/gps/utilization/latest?assessmentId=${encodeURIComponent(assessmentId)}`),
-        refreshIngested(),
-      ])
-      if (latestRes.ok) {
-        const latestData = await latestRes.json()
-        setResult(latestData.result)
       }
     } catch (e) {
       setComputeError(e instanceof Error ? e.message : 'Compute failed')
@@ -369,7 +436,65 @@ export default function UtilizationView({ assessmentId }: Props) {
       setComputing(false)
       setSavingProfile(false)
     }
-  }, [assessmentId, canCompute, plantDrafts, refreshIngested])
+  }, [assessmentId, canCompute, plantDrafts, runComputeAll])
+
+  // ── Exclusion CRUD ──
+  const [exclusionBusy, setExclusionBusy] = useState(false)
+  const [exclusionError, setExclusionError] = useState<string | null>(null)
+
+  const addExclusion = useCallback(async (input: {
+    start_date: string
+    end_date: string
+    reason: ExclusionRow['reason']
+    label: string
+  }) => {
+    setExclusionBusy(true)
+    setExclusionError(null)
+    try {
+      const res = await fetch('/api/gps/utilization/exclusions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assessmentId, ...input }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        setExclusionError(body.error ?? 'Failed to add exclusion')
+        return
+      }
+      await refreshExclusions()
+      // Auto-run compute so baseline immediately reflects the new
+      // exclusion and the new period-specific analysis appears.
+      if (profiles.length > 0 && ingested && ingested.totalEvents > 0) {
+        setComputing(true)
+        try { await runComputeAll() } finally { setComputing(false) }
+      }
+    } finally {
+      setExclusionBusy(false)
+    }
+  }, [assessmentId, refreshExclusions, profiles, ingested, runComputeAll])
+
+  const deleteExclusion = useCallback(async (id: string) => {
+    setExclusionBusy(true)
+    setExclusionError(null)
+    try {
+      const res = await fetch(
+        `/api/gps/utilization/exclusions?id=${encodeURIComponent(id)}`,
+        { method: 'DELETE' },
+      )
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        setExclusionError(body.error ?? 'Failed to delete exclusion')
+        return
+      }
+      await refreshExclusions()
+      if (profiles.length > 0 && ingested && ingested.totalEvents > 0) {
+        setComputing(true)
+        try { await runComputeAll() } finally { setComputing(false) }
+      }
+    } finally {
+      setExclusionBusy(false)
+    }
+  }, [refreshExclusions, profiles, ingested, runComputeAll])
 
   // ── Render ──
   const padding = isMobile ? 'clamp(12px, 3vw, 16px)' : 'clamp(16px, 3vw, 24px)'
@@ -385,8 +510,22 @@ export default function UtilizationView({ assessmentId }: Props) {
     }}>
       {result && <HeroCard result={result} />}
 
+      {periodResults.length > 0 && result && (
+        <PeriodComparisonCard baseline={result} periods={periodResults} />
+      )}
+
       {ingested && ingested.totalEvents > 0 && (
         <IngestedSummaryCard ingested={ingested} result={result} />
+      )}
+
+      {ingested && ingested.totalEvents > 0 && (
+        <ExclusionsCard
+          exclusions={exclusions}
+          onAdd={addExclusion}
+          onDelete={deleteExclusion}
+          busy={exclusionBusy || computing}
+          error={exclusionError}
+        />
       )}
 
       <UploadZone
@@ -575,6 +714,273 @@ function UploadZone({
       <div style={{ fontSize: '12px', color: '#64748b' }}>
         Multi-file upload · .xls only · per-file validation + Riyadh filter
       </div>
+    </div>
+  )
+}
+
+// ── Period comparison card (baseline vs Ramadan/other) ─────────────────
+
+function PeriodComparisonCard({
+  baseline, periods,
+}: {
+  baseline: UtilizationResult
+  periods: PeriodResult[]
+}) {
+  const isMobile = useIsMobile()
+  return (
+    <div style={{
+      border: '1px solid #e5e7eb',
+      borderRadius: '10px',
+      padding: '16px',
+      background: '#fff',
+      display: 'flex', flexDirection: 'column', gap: '10px',
+    }}>
+      <div style={{ fontSize: '12px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+        Period comparison
+      </div>
+      <div style={{ fontSize: '12px', color: '#64748b', lineHeight: 1.5 }}>
+        Baseline excludes the periods below. Each row shows what performance
+        looked like inside that period on its own.
+      </div>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: isMobile ? '1fr' : 'auto 1fr 1fr 1fr',
+        gap: '8px 14px',
+        alignItems: 'baseline',
+        fontSize: '12px',
+      }}>
+        {!isMobile && (
+          <>
+            <div style={{ fontWeight: 600, color: '#64748b' }}>Period</div>
+            <div style={{ fontWeight: 600, color: '#64748b' }}>Current loads/day</div>
+            <div style={{ fontWeight: 600, color: '#64748b' }}>Delta vs baseline</div>
+            <div style={{ fontWeight: 600, color: '#64748b' }}>Operating days</div>
+          </>
+        )}
+        <>
+          <div style={{ fontWeight: 700 }}>Baseline</div>
+          <div>{baseline.current_loads_per_op_day?.toFixed(0) ?? '—'} /day</div>
+          <div style={{ color: '#64748b' }}>—</div>
+          <div>{baseline.operating_days}</div>
+        </>
+        {periods.map(p => {
+          const pCurrent = p.current_loads_per_op_day ?? 0
+          const bCurrent = baseline.current_loads_per_op_day ?? 0
+          const delta = bCurrent > 0 ? ((pCurrent - bCurrent) / bCurrent) * 100 : 0
+          const color = delta < 0 ? '#8B3A2E' : delta > 0 ? '#0F6E56' : '#64748b'
+          return (
+            <div key={p.id} style={{ display: 'contents' }}>
+              <div style={{ fontWeight: 600 }}>{p.period_label ?? 'Period'}</div>
+              <div>{pCurrent.toFixed(0)} /day</div>
+              <div style={{ color, fontWeight: 600 }}>
+                {delta >= 0 ? '+' : ''}{delta.toFixed(0)}%
+              </div>
+              <div>{p.operating_days}</div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ── Exclusions card (Ramadan presets + custom ranges) ──────────────────
+
+function ExclusionsCard({
+  exclusions, onAdd, onDelete, busy, error,
+}: {
+  exclusions: ExclusionRow[]
+  onAdd: (input: { start_date: string; end_date: string; reason: ExclusionRow['reason']; label: string }) => void
+  onDelete: (id: string) => void
+  busy: boolean
+  error: string | null
+}) {
+  const [showCustom, setShowCustom] = useState(false)
+  const [draft, setDraft] = useState({
+    label: '', start_date: '', end_date: '',
+    reason: 'other' as ExclusionRow['reason'],
+  })
+
+  const hasRamadan = exclusions.some(e => e.reason === 'ramadan')
+
+  return (
+    <div style={{
+      border: '1px solid #e5e7eb',
+      borderRadius: '10px',
+      padding: '16px',
+      background: '#fff',
+      display: 'flex', flexDirection: 'column', gap: '10px',
+    }}>
+      <div style={{ fontSize: '12px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+        Excluded periods
+      </div>
+      <div style={{ fontSize: '12px', color: '#64748b', lineHeight: 1.5 }}>
+        Events inside these ranges are filtered out of the baseline analysis.
+        Each range is also analysed on its own so you can show Ramadan (or
+        other disruptions) as a distinct picture. Adding or removing a range
+        triggers a re-compute.
+      </div>
+
+      {error && (
+        <div style={alertStyle('error')}>{error}</div>
+      )}
+
+      {exclusions.length === 0 && (
+        <div style={{ fontSize: '12px', color: '#64748b', fontStyle: 'italic' }}>
+          No exclusions yet. Ramadan 2026 falls in your window — add it below.
+        </div>
+      )}
+
+      {exclusions.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          {exclusions.map(ex => (
+            <div key={ex.id} style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              padding: '8px 10px', background: '#f8fafc',
+              border: '1px solid #e5e7eb', borderRadius: '6px',
+              fontSize: '12px', minHeight: '44px',
+            }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <div style={{ fontWeight: 600, color: '#1a1a1a' }}>
+                  {ex.label}
+                  {!ex.active && <span style={{ marginLeft: '6px', color: '#94a3b8', fontWeight: 400 }}>(inactive)</span>}
+                </div>
+                <div style={{ color: '#64748b', fontFamily: 'monospace' }}>
+                  {ex.start_date} → {ex.end_date} · {ex.reason}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => onDelete(ex.id)}
+                disabled={busy}
+                style={{
+                  padding: '6px 12px', minHeight: '32px',
+                  background: 'transparent', color: '#8B3A2E',
+                  border: '1px solid #E8A39B', borderRadius: '6px',
+                  fontSize: '12px', fontWeight: 600,
+                  cursor: busy ? 'not-allowed' : 'pointer',
+                }}
+              >
+                Remove
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+        {!hasRamadan && (
+          <button
+            type="button"
+            onClick={() => onAdd({
+              label: 'Ramadan 2026',
+              start_date: '2026-02-18',
+              end_date: '2026-03-19',
+              reason: 'ramadan',
+            })}
+            disabled={busy}
+            style={{
+              padding: '8px 14px', minHeight: '44px',
+              background: '#0F6E56', color: '#fff',
+              border: 'none', borderRadius: '6px',
+              fontSize: '13px', fontWeight: 600,
+              cursor: busy ? 'not-allowed' : 'pointer',
+              opacity: busy ? 0.6 : 1,
+            }}
+          >
+            + Add Ramadan 2026 (18 Feb → 19 Mar)
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() => setShowCustom(s => !s)}
+          disabled={busy}
+          style={{
+            padding: '8px 14px', minHeight: '44px',
+            background: '#fff', color: '#0F6E56',
+            border: '1px solid #0F6E56', borderRadius: '6px',
+            fontSize: '13px', fontWeight: 600,
+            cursor: busy ? 'not-allowed' : 'pointer',
+          }}
+        >
+          {showCustom ? 'Cancel' : '+ Add custom period'}
+        </button>
+      </div>
+
+      {showCustom && (
+        <div style={{
+          border: '1px solid #cbd5e1', borderRadius: '8px', padding: '12px',
+          background: '#f8fafc',
+          display: 'grid', gap: '10px',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+          alignItems: 'end',
+        }}>
+          <label style={{ fontSize: '11px', color: '#475569', fontWeight: 600 }}>
+            Label
+            <input
+              type="text" value={draft.label}
+              onChange={e => setDraft({ ...draft, label: e.target.value })}
+              placeholder="e.g. Eid al-Adha 2026"
+              style={inputStyle}
+            />
+          </label>
+          <label style={{ fontSize: '11px', color: '#475569', fontWeight: 600 }}>
+            Start date
+            <input
+              type="date" value={draft.start_date}
+              onChange={e => setDraft({ ...draft, start_date: e.target.value })}
+              style={inputStyle}
+            />
+          </label>
+          <label style={{ fontSize: '11px', color: '#475569', fontWeight: 600 }}>
+            End date
+            <input
+              type="date" value={draft.end_date}
+              onChange={e => setDraft({ ...draft, end_date: e.target.value })}
+              style={inputStyle}
+            />
+          </label>
+          <label style={{ fontSize: '11px', color: '#475569', fontWeight: 600 }}>
+            Reason
+            <select
+              value={draft.reason}
+              onChange={e => setDraft({ ...draft, reason: e.target.value as ExclusionRow['reason'] })}
+              style={inputStyle}
+            >
+              <option value="ramadan">ramadan</option>
+              <option value="eid">eid</option>
+              <option value="holiday">holiday</option>
+              <option value="maintenance">maintenance</option>
+              <option value="other">other</option>
+            </select>
+          </label>
+          <button
+            type="button"
+            onClick={() => {
+              if (!draft.label.trim() || !draft.start_date || !draft.end_date) return
+              onAdd({
+                label: draft.label.trim(),
+                start_date: draft.start_date,
+                end_date: draft.end_date,
+                reason: draft.reason,
+              })
+              setDraft({ label: '', start_date: '', end_date: '', reason: 'other' })
+              setShowCustom(false)
+            }}
+            disabled={busy || !draft.label.trim() || !draft.start_date || !draft.end_date}
+            style={{
+              padding: '8px 14px', minHeight: '44px',
+              background: '#0F6E56', color: '#fff',
+              border: 'none', borderRadius: '6px',
+              fontSize: '13px', fontWeight: 600,
+              cursor: busy ? 'not-allowed' : 'pointer',
+              opacity: (busy || !draft.label.trim() || !draft.start_date || !draft.end_date) ? 0.5 : 1,
+            }}
+          >
+            Add
+          </button>
+        </div>
+      )}
     </div>
   )
 }

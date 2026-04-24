@@ -1,9 +1,20 @@
 /**
  * GET /api/gps/utilization/latest?assessmentId=...
  *
- * Returns the latest non-archived utilization_analysis_results row for
- * the given assessment, or 404 if none exists yet. Used by the
- * UtilizationView UI to render the hero-card on page load.
+ * Returns the latest non-archived utilization_analysis_results for the
+ * assessment. A single assessment can have multiple live results:
+ *   - one baseline row (analysis_mode='baseline', exclusion_id=null)
+ *   - one row per active exclusion (analysis_mode='within_period',
+ *     exclusion_id=<exclusion row>)
+ *
+ * Response shape:
+ *   {
+ *     result: <baseline row or null>,
+ *     periods: [<within_period rows>]
+ *   }
+ *
+ * Keeping `result` at the top level preserves backwards compatibility
+ * with the existing UI call-sites that only read baseline.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -27,14 +38,14 @@ export async function GET(req: NextRequest) {
     .eq('assessment_id', assessmentId)
     .eq('archived', false)
     .order('computed_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
-  if (!data) {
-    return NextResponse.json({ result: null })
-  }
-  return NextResponse.json({ result: data })
+
+  const rows = (data ?? []) as Array<Record<string, unknown> & { analysis_mode?: string; exclusion_id?: string | null }>
+  const baseline = rows.find(r => (r.analysis_mode ?? 'baseline') === 'baseline') ?? null
+  const periods = rows.filter(r => r.analysis_mode === 'within_period')
+
+  return NextResponse.json({ result: baseline, periods })
 }

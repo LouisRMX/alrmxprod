@@ -5,13 +5,18 @@
  * utilization engine (current avg + demonstrated capacity + gap + monthly
  * USD), persists the result to utilization_analysis_results.
  *
+ * Two analysis modes:
+ *   - baseline       (default): filters OUT events from any active
+ *                    utilization_exclusions range. Produces the "steady
+ *                    state" view that is robust to Ramadan/holidays.
+ *   - within_period: restricts TO events within a specific exclusion
+ *                    range. Produces a period-specific view (primary use
+ *                    case: a Ramadan-only analysis rendered next to
+ *                    baseline as a competitive differentiator).
+ *
  * Prereqs: /api/gps/stop-details/parse must have populated
  * normalized_gps_events, and plant_operational_profile must have rows
  * for each plant in scope.
- *
- * Margin / m³-per-load / mixer-count can be read from assessment.answers
- * (price_m3, material_cost, mixer_capacity, n_plants, batching_mixers_total)
- * with per-plant overrides from plant_operational_profile.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -30,6 +35,23 @@ import {
 
 export const maxDuration = 60
 
+type AnalysisMode = 'baseline' | 'within_period'
+
+interface ComputeBody {
+  assessmentId?: string
+  mode?: AnalysisMode
+  exclusionId?: string
+}
+
+interface ExclusionRow {
+  id: string
+  start_date: string
+  end_date: string
+  label: string
+  reason: string
+  active: boolean
+}
+
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -37,10 +59,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const body = await req.json().catch(() => null) as { assessmentId?: string } | null
+  const body = await req.json().catch(() => null) as ComputeBody | null
   const assessmentId = body?.assessmentId
+  const mode: AnalysisMode = body?.mode ?? 'baseline'
+  const exclusionId = body?.exclusionId ?? null
+
   if (!assessmentId) {
     return NextResponse.json({ error: 'assessmentId required' }, { status: 400 })
+  }
+  if (mode === 'within_period' && !exclusionId) {
+    return NextResponse.json(
+      { error: 'exclusionId required for within_period mode' },
+      { status: 400 },
+    )
   }
 
   // ── Load assessment answers (global financials + operating params) ────
@@ -66,7 +97,7 @@ export async function POST(req: NextRequest) {
     }, { status: 422 })
   }
 
-  // ── Load plant profiles (per-plant centroids + mixer counts) ──────────
+  // ── Load plant profiles ──────────────────────────────────────────────
   const { data: profiles } = await supabase
     .from('plant_operational_profile')
     .select('*')
@@ -86,16 +117,43 @@ export async function POST(req: NextRequest) {
     radiusM: Number(p.plant_radius_m ?? 500),
   }))
 
-  // ── Load all normalized events for this assessment ────────────────────
-  const events = await loadAllEvents(supabase, assessmentId)
+  // ── Load exclusions ──────────────────────────────────────────────────
+  const { data: exclusionRows } = await supabase
+    .from('utilization_exclusions')
+    .select('id, start_date, end_date, label, reason, active')
+    .eq('assessment_id', assessmentId)
+  const exclusions = (exclusionRows ?? []) as ExclusionRow[]
 
-  if (events.length === 0) {
+  // Resolve the target period if in within_period mode.
+  let targetPeriod: ExclusionRow | null = null
+  if (mode === 'within_period') {
+    targetPeriod = exclusions.find(e => e.id === exclusionId) ?? null
+    if (!targetPeriod) {
+      return NextResponse.json(
+        { error: 'Exclusion not found for this assessment' },
+        { status: 404 },
+      )
+    }
+  }
+
+  // ── Load + filter events ─────────────────────────────────────────────
+  const allEvents = await loadAllEvents(supabase, assessmentId)
+  if (allEvents.length === 0) {
     return NextResponse.json({
       error: 'No normalized events found — upload Stop Details files first',
     }, { status: 422 })
   }
 
-  // ── Operating day classification (fleet-size derived from in-scope trucks) ──
+  const events = filterEventsByMode(allEvents, mode, exclusions, targetPeriod)
+  if (events.length === 0) {
+    return NextResponse.json({
+      error: mode === 'within_period'
+        ? `No events fall within ${targetPeriod?.label}`
+        : 'All events are excluded by active exclusions — disable one or upload different data',
+    }, { status: 422 })
+  }
+
+  // ── Operating day classification ─────────────────────────────────────
   const distinctMixerTrucks = new Set(
     events.filter(e => e.truckType === 'mixer_truck').map(e => e.truckId),
   ).size
@@ -103,7 +161,7 @@ export async function POST(req: NextRequest) {
   const operatingDays = classifyOperatingDays(events, distinctMixerTrucks)
   const opDaySummary = summariseOperatingDays(operatingDays)
 
-  // ── Run the engine ────────────────────────────────────────────────────
+  // ── Run the engine ───────────────────────────────────────────────────
   const perDayLoads = countLoadsPerOperatingDay(events, plants, operatingDays)
   const metrics = computeUtilizationMetrics(perDayLoads, operatingDays)
   const gap = computeGap(metrics, {
@@ -112,7 +170,7 @@ export async function POST(req: NextRequest) {
     monthlyOperatingDays: 25,
   })
 
-  // ── Per-plant breakdown (sum loads by plant across current window) ────
+  // ── Per-plant breakdown ──────────────────────────────────────────────
   const plantLoads = new Map<string, number>()
   perDayLoads.forEach(rec => {
     rec.perPlant.forEach((count, slug) => {
@@ -128,16 +186,40 @@ export async function POST(req: NextRequest) {
       : 0,
   }))
 
-  // ── Archive previous live row, insert new ─────────────────────────────
-  await supabase
+  // ── Archive previous live row for THIS (mode, exclusion) combination ─
+  // Important: baseline archive only touches baseline rows, and each
+  // within_period run only touches its own period's row. Running one
+  // doesn't wipe the other.
+  let archiveQuery = supabase
     .from('utilization_analysis_results')
     .update({ archived: true })
     .eq('assessment_id', assessmentId)
     .eq('archived', false)
+    .eq('analysis_mode', mode)
+  if (mode === 'within_period') {
+    archiveQuery = archiveQuery.eq('exclusion_id', exclusionId as string)
+  } else {
+    archiveQuery = archiveQuery.is('exclusion_id', null)
+  }
+  await archiveQuery
 
   const windowDates = events.map(e => e.startedAt.slice(0, 10)).sort()
   const windowStart = windowDates[0]
   const windowEnd = windowDates[windowDates.length - 1]
+
+  const contextNotes: string[] = [...metrics.computationNotes]
+  if (mode === 'baseline') {
+    const active = exclusions.filter(e => e.active)
+    if (active.length > 0) {
+      contextNotes.push(
+        `Baseline excludes ${active.length} period(s): ${active.map(e => `${e.label} (${e.start_date}→${e.end_date})`).join(', ')}`,
+      )
+    }
+  } else if (targetPeriod) {
+    contextNotes.push(
+      `Within-period analysis: ${targetPeriod.label} (${targetPeriod.start_date}→${targetPeriod.end_date})`,
+    )
+  }
 
   const insertRow = {
     assessment_id: assessmentId,
@@ -168,7 +250,10 @@ export async function POST(req: NextRequest) {
     gap_loads_per_op_day: gap?.gapLoadsPerOpDay ?? null,
     monthly_value_usd: gap?.monthlyValueUsd ?? null,
     plant_breakdown: plantBreakdown,
-    computation_notes: metrics.computationNotes.map(n => ({ note: n })),
+    computation_notes: contextNotes.map(n => ({ note: n })),
+    analysis_mode: mode,
+    period_label: targetPeriod?.label ?? null,
+    exclusion_id: mode === 'within_period' ? exclusionId : null,
   }
 
   const { data: inserted, error: insertErr } = await supabase
@@ -186,6 +271,8 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({
     id: inserted.id,
+    mode,
+    periodLabel: targetPeriod?.label ?? null,
     summary: {
       operatingDays: opDaySummary.operatingDays,
       currentLoadsPerOpDay: metrics.current.loadsPerOpDay,
@@ -202,6 +289,40 @@ function numOr(v: unknown, fallback: number): number {
   if (v === null || v === undefined || v === '') return fallback
   const n = Number(v)
   return Number.isFinite(n) ? n : fallback
+}
+
+/**
+ * Apply mode-specific filtering.
+ *   baseline       — drop events that fall in ANY active exclusion.
+ *   within_period  — keep ONLY events that fall in the target exclusion.
+ *
+ * Date comparison uses the event's local-date prefix (YYYY-MM-DD) against
+ * the exclusion range (inclusive on both ends). Timezone offsets below
+ * day granularity don't matter here because the utilization engine
+ * aggregates per operating-day anyway.
+ */
+function filterEventsByMode(
+  events: NormalizedStopEvent[],
+  mode: AnalysisMode,
+  exclusions: ExclusionRow[],
+  targetPeriod: ExclusionRow | null,
+): NormalizedStopEvent[] {
+  if (mode === 'within_period' && targetPeriod) {
+    return events.filter(e => {
+      const d = e.startedAt.slice(0, 10)
+      return d >= targetPeriod.start_date && d <= targetPeriod.end_date
+    })
+  }
+  // baseline
+  const active = exclusions.filter(e => e.active)
+  if (active.length === 0) return events
+  return events.filter(e => {
+    const d = e.startedAt.slice(0, 10)
+    for (const ex of active) {
+      if (d >= ex.start_date && d <= ex.end_date) return false
+    }
+    return true
+  })
 }
 
 /**
