@@ -269,6 +269,117 @@ export function computeUtilizationMetrics(
   }
 }
 
+// ── Turnaround time (TAT) ───────────────────────────────────────────────
+
+export interface TatMetrics {
+  /** Median TAT in minutes across all valid turnaround cycles. */
+  medianTatMin: number | null
+  /** Number of cycles that contributed to the median. */
+  tripsCount: number
+  /** Cycles discarded because TAT was outside [MIN_TAT_MIN, MAX_TAT_MIN]
+   *  or no non-plant stop sat between two consecutive plant visits. */
+  cyclesDiscarded: number
+}
+
+/**
+ * Lower bound: two consecutive plant events closer than 15 min apart are
+ * almost always the same load split across GPS records (or a misread),
+ * not a real round-trip.
+ */
+const MIN_TAT_MIN = 15
+/**
+ * Upper bound: more than 4 hours between plant visits is almost always a
+ * shift change, overnight park, or breakdown — not a single cycle.
+ * Including it would skew the median upward with non-cycle time.
+ */
+const MAX_TAT_MIN = 240
+
+/**
+ * Compute the median turnaround time (TAT) from mixer-truck GPS stops.
+ *
+ * Definition (matches Louis' pre-assessment framework):
+ *   TAT = time from the start of one plant visit to the start of the
+ *         next plant visit by the same mixer-truck, provided at least
+ *         one non-plant stop sits between them (i.e. a real delivery
+ *         happened rather than the truck idling at / near the plant).
+ *
+ * Algorithm, per mixer-truck:
+ *   1. Sort that truck's stop events by start time.
+ *   2. Classify each stop as 'at plant' (inside any confirmed plant
+ *      geofence, default 500 m radius) or 'not at plant'.
+ *   3. Walk the list. Whenever we reach a plant stop AND a previous
+ *      plant stop exists AND at least one non-plant stop sits between
+ *      them, compute TAT = t(plant[n].start) − t(plant[n-1].start).
+ *   4. Discard cycles with TAT < 15 min (split load) or TAT > 240 min
+ *      (shift boundary).
+ *
+ * Across all trucks, return the median of surviving cycle TATs. Median
+ * is used because one long site delay drags the mean up without
+ * representing typical operations; median is what the dispatcher can
+ * actually plan around.
+ */
+export function computeMedianTat(
+  events: NormalizedStopEvent[],
+  plants: PlantGeofence[],
+): TatMetrics {
+  const perTruck = new Map<string, NormalizedStopEvent[]>()
+  for (const e of events) {
+    if (e.truckType !== 'mixer_truck') continue
+    const list = perTruck.get(e.truckId) ?? []
+    list.push(e)
+    perTruck.set(e.truckId, list)
+  }
+
+  const tats: number[] = []
+  let discarded = 0
+
+  perTruck.forEach(truckEvents => {
+    truckEvents.sort((a, b) => a.startedAt.localeCompare(b.startedAt))
+
+    let lastPlantIdx = -1
+    let hasSiteSinceLastPlant = false
+
+    for (let i = 0; i < truckEvents.length; i++) {
+      const e = truckEvents[i]
+      const atPlant = classifyStopByPlant(e, plants) !== null
+      if (atPlant) {
+        if (lastPlantIdx >= 0 && hasSiteSinceLastPlant) {
+          const t1 = Date.parse(truckEvents[lastPlantIdx].startedAt)
+          const t2 = Date.parse(e.startedAt)
+          if (Number.isFinite(t1) && Number.isFinite(t2)) {
+            const tatMin = (t2 - t1) / 60000
+            if (tatMin >= MIN_TAT_MIN && tatMin <= MAX_TAT_MIN) {
+              tats.push(tatMin)
+            } else {
+              discarded += 1
+            }
+          }
+        }
+        lastPlantIdx = i
+        hasSiteSinceLastPlant = false
+      } else {
+        hasSiteSinceLastPlant = true
+      }
+    }
+  })
+
+  if (tats.length === 0) {
+    return { medianTatMin: null, tripsCount: 0, cyclesDiscarded: discarded }
+  }
+
+  tats.sort((a, b) => a - b)
+  const mid = Math.floor(tats.length / 2)
+  const median = tats.length % 2 === 0
+    ? (tats[mid - 1] + tats[mid]) / 2
+    : tats[mid]
+
+  return {
+    medianTatMin: Math.round(median * 10) / 10,
+    tripsCount: tats.length,
+    cyclesDiscarded: discarded,
+  }
+}
+
 // ── Gap + monthly USD value ──────────────────────────────────────────────
 
 export interface FinancialInputs {

@@ -30,6 +30,7 @@ import {
   countLoadsPerOperatingDay,
   computeUtilizationMetrics,
   computeGap,
+  computeMedianTat,
   type PlantGeofence,
 } from '@/lib/gps/utilizationEngine'
 
@@ -169,6 +170,7 @@ export async function POST(req: NextRequest) {
     marginPerM3,
     monthlyOperatingDays: 25,
   })
+  const tat = computeMedianTat(events, plants)
 
   // ── Per-plant breakdown ──────────────────────────────────────────────
   const plantLoads = new Map<string, number>()
@@ -208,6 +210,16 @@ export async function POST(req: NextRequest) {
   const windowEnd = windowDates[windowDates.length - 1]
 
   const contextNotes: string[] = [...metrics.computationNotes]
+  if (tat.medianTatMin !== null) {
+    contextNotes.push(
+      `Median TAT = ${tat.medianTatMin.toFixed(1)} min across ${tat.tripsCount} plant-to-plant cycles` +
+      (tat.cyclesDiscarded > 0 ? ` (${tat.cyclesDiscarded} discarded as <15 min or >4 h)` : ''),
+    )
+  } else {
+    contextNotes.push(
+      'Median TAT not computable — no plant-to-plant cycles with a non-plant stop between them were found',
+    )
+  }
   if (mode === 'baseline') {
     const active = exclusions.filter(e => e.active)
     if (active.length > 0) {
@@ -239,7 +251,7 @@ export async function POST(req: NextRequest) {
     current_loads_per_op_day: metrics.current.loadsPerOpDay,
     current_trips_per_truck_per_op_day: metrics.current.tripsPerTruckPerOpDay,
     current_utilization_pct: null,
-    current_median_tat_min: null,
+    current_median_tat_min: tat.medianTatMin,
     demonstrated_loads_per_op_day: metrics.demonstrated?.loadsPerOpDay ?? null,
     demonstrated_trips_per_truck_per_op_day: metrics.demonstrated?.tripsPerTruckPerOpDay ?? null,
     demonstrated_median_tat_min: null,

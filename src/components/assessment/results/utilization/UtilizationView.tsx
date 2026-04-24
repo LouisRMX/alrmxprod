@@ -68,6 +68,7 @@ interface UtilizationResult {
   outlier_profiles: OutlierProfile[]
   current_loads_per_op_day: number | null
   current_trips_per_truck_per_op_day: number | null
+  current_median_tat_min: number | null
   demonstrated_loads_per_op_day: number | null
   demonstrated_trips_per_truck_per_op_day: number | null
   demonstrated_weeks: Array<{ weekStart: string; loadsPerOpDay: number }>
@@ -599,7 +600,9 @@ function HeroCard({ result }: { result: UtilizationResult }) {
 
       <div style={{
         display: 'grid',
-        gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)',
+        gridTemplateColumns: isMobile
+          ? '1fr 1fr'
+          : 'repeat(auto-fit, minmax(150px, 1fr))',
         gap: '12px', marginTop: '8px',
       }}>
         <HeroMetric
@@ -622,7 +625,17 @@ function HeroCard({ result }: { result: UtilizationResult }) {
           value={`${result.operating_days}`}
           description="Calendar days in the window minus Fridays and days with unusually low activity."
         />
+        <HeroMetric
+          label="TAT median"
+          value={result.current_median_tat_min != null
+            ? `${result.current_median_tat_min.toFixed(0)} min`
+            : '—'}
+          description="Typical round-trip time from leaving a plant to returning. See methodology below."
+        />
       </div>
+
+      <TatMethodology />
+
 
       <div style={{ fontSize: '10px', opacity: 0.7, marginTop: '4px' }}>
         Window: {result.window_start} → {result.window_end} · {result.trucks_in_scope} mixer-trucks in-scope
@@ -655,6 +668,100 @@ function HeroMetric({
         </div>
       )}
     </div>
+  )
+}
+
+// ── TAT methodology (info chip on the hero) ────────────────────────────
+//
+// Why: TAT is a headline metric in the pre-assessment (170 min current,
+// 135 min target drives the margin gap). Customer-facing numbers need
+// traceable methodology — otherwise they lose credibility the moment
+// Faisal or his operations team asks "how did you get that?".
+//
+// The chip renders as an inline disclosure right below the metric grid,
+// inside the dark hero. Click to expand the full definition + algorithm
+// + caveats. Kept in the hero (not as a separate card) so context stays
+// visually attached to the number.
+
+function TatMethodology() {
+  return (
+    <details style={{
+      marginTop: '10px',
+      background: 'rgba(255,255,255,0.08)',
+      borderRadius: '8px',
+      padding: '10px 14px',
+      fontSize: '11px',
+      lineHeight: 1.6,
+      color: 'rgba(255,255,255,0.92)',
+    }}>
+      <summary style={{
+        cursor: 'pointer',
+        fontWeight: 600,
+        fontSize: '11px',
+        letterSpacing: '0.3px',
+        textTransform: 'uppercase',
+        opacity: 0.9,
+      }}>
+        How we calculate TAT from GPS data
+      </summary>
+
+      <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div>
+          <strong>Definition.</strong> TAT (turnaround time) = minutes
+          from the start of one plant visit to the start of the next
+          plant visit by the same mixer-truck, with at least one non-plant
+          stop in between (confirming a delivery actually happened).
+        </div>
+        <div>
+          <strong>Per mixer-truck, we:</strong>
+          <ol style={{ margin: '4px 0 0 0', paddingInlineStart: '18px' }}>
+            <li>Sort all stop-events chronologically.</li>
+            <li>
+              Flag each stop as <em>at plant</em> if its lat/lon falls inside
+              any confirmed plant geofence (default 500 m).
+            </li>
+            <li>
+              Walk through the list and whenever we land on a plant stop
+              that follows a previous plant stop — with at least one
+              non-plant stop between them — record the gap as one TAT cycle.
+            </li>
+            <li>
+              Drop cycles shorter than 15 min (same load split across
+              two records / GPS noise) or longer than 4 h (shift change,
+              overnight, breakdown).
+            </li>
+          </ol>
+        </div>
+        <div>
+          <strong>Aggregation.</strong> Across all surviving cycles in the
+          window, we report the <em>median</em>. Median beats mean here
+          because one stuck-at-site delay skews the average upward
+          without changing typical dispatcher-planable cycle time.
+        </div>
+        <div>
+          <strong>What can distort it:</strong>
+          <ul style={{ margin: '4px 0 0 0', paddingInlineStart: '18px' }}>
+            <li>
+              Plant centroid off by &gt; 500 m → plant stops miss the geofence
+              → loads look like site stops → cycle count drops.
+            </li>
+            <li>
+              Long lunch/break away from plant between two plant visits
+              gets counted as site time → individual TAT inflated. The
+              4 h cut-off removes the worst cases.
+            </li>
+            <li>
+              Multi-drop trips (one load poured across two sites) still
+              count as one TAT — correct, because it is one cycle.
+            </li>
+          </ul>
+        </div>
+        <div style={{ opacity: 0.75 }}>
+          The per-run <em>computation_notes</em> field records how many
+          cycles contributed to the median and how many were discarded.
+        </div>
+      </div>
+    </details>
   )
 }
 
