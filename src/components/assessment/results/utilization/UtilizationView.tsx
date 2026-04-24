@@ -683,6 +683,66 @@ function HeroMetric({
 // + caveats. Kept in the hero (not as a separate card) so context stays
 // visually attached to the number.
 
+function TatDiagram() {
+  // Single-cycle diagram: PLANT → SITE → PLANT with a TAT bracket above.
+  // Colors are chosen to read cleanly against the dark green hero:
+  //   - plant = slightly lighter green (reads as "home base")
+  //   - site  = amber (reads as "work site / delivery")
+  //   - drive = dashed white with 0.6 opacity
+  // Scales to container width; viewBox preserves proportions.
+  return (
+    <svg
+      viewBox="0 0 600 200"
+      role="img"
+      aria-label="TAT cycle diagram: plant to site to plant"
+      style={{ width: '100%', maxWidth: '600px', height: 'auto', display: 'block' }}
+    >
+      {/* TAT bracket (above) */}
+      <line x1="65" y1="50" x2="425" y2="50" stroke="#fff" strokeWidth="2" />
+      <line x1="65" y1="44" x2="65" y2="56" stroke="#fff" strokeWidth="2" />
+      <line x1="425" y1="44" x2="425" y2="56" stroke="#fff" strokeWidth="2" />
+      <text x="245" y="32" textAnchor="middle" fill="#fff" fontSize="13" fontWeight="700">
+        1 TAT cycle
+      </text>
+
+      {/* Plant 1 */}
+      <rect x="20" y="80" width="90" height="60" rx="8" fill="#1F8568" stroke="rgba(255,255,255,0.4)" />
+      <text x="65" y="105" textAnchor="middle" fill="#fff" fontSize="11" fontWeight="700">PLANT</text>
+      <text x="65" y="123" textAnchor="middle" fill="#fff" fontSize="10" opacity="0.85">load</text>
+
+      {/* Drive 1 */}
+      <line x1="115" y1="110" x2="200" y2="110" stroke="rgba(255,255,255,0.6)" strokeDasharray="4 3" strokeWidth="1.5" />
+      <polygon points="200,110 194,106 194,114" fill="rgba(255,255,255,0.6)" />
+      <text x="157" y="103" textAnchor="middle" fill="#fff" fontSize="10" opacity="0.75">drive</text>
+
+      {/* Site */}
+      <rect x="200" y="80" width="90" height="60" rx="8" fill="#B7950B" stroke="rgba(255,255,255,0.4)" />
+      <text x="245" y="105" textAnchor="middle" fill="#fff" fontSize="11" fontWeight="700">SITE</text>
+      <text x="245" y="123" textAnchor="middle" fill="#fff" fontSize="10" opacity="0.85">pour</text>
+
+      {/* Drive 2 */}
+      <line x1="295" y1="110" x2="380" y2="110" stroke="rgba(255,255,255,0.6)" strokeDasharray="4 3" strokeWidth="1.5" />
+      <polygon points="380,110 374,106 374,114" fill="rgba(255,255,255,0.6)" />
+      <text x="337" y="103" textAnchor="middle" fill="#fff" fontSize="10" opacity="0.75">drive</text>
+
+      {/* Plant 2 */}
+      <rect x="380" y="80" width="90" height="60" rx="8" fill="#1F8568" stroke="rgba(255,255,255,0.4)" />
+      <text x="425" y="105" textAnchor="middle" fill="#fff" fontSize="11" fontWeight="700">PLANT</text>
+      <text x="425" y="123" textAnchor="middle" fill="#fff" fontSize="10" opacity="0.85">load</text>
+
+      {/* Timestamps */}
+      <text x="65" y="160" textAnchor="middle" fill="#fff" fontSize="10" opacity="0.75">t₀</text>
+      <text x="425" y="160" textAnchor="middle" fill="#fff" fontSize="10" opacity="0.75">t₁</text>
+      <text x="245" y="175" textAnchor="middle" fill="#fff" fontSize="11" opacity="0.9" fontWeight="600">
+        TAT = t₁ − t₀
+      </text>
+      <text x="245" y="193" textAnchor="middle" fill="#fff" fontSize="10" opacity="0.7">
+        median across all valid cycles in the window
+      </text>
+    </svg>
+  )
+}
+
 function TatMethodology() {
   return (
     <details style={{
@@ -706,6 +766,7 @@ function TatMethodology() {
       </summary>
 
       <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <TatDiagram />
         <div>
           <strong>Definition.</strong> TAT (turnaround time) = minutes
           from the start of one plant visit to the start of the next
