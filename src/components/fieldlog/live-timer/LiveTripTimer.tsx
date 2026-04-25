@@ -652,8 +652,19 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
             onChange={e => {
               const checked = e.target.checked
               setShowSingleStagePicker(checked)
-              // Reset to full cycle when collapsing the picker
-              if (!checked) setStartStage('plant_queue')
+              if (checked) {
+                // Opening the picker: pre-select 'loading' so the select's
+                // visual default matches state. Without this, startStage
+                // stays 'plant_queue' (which is filtered out of the
+                // options) and a Start tap creates a full-cycle trip even
+                // though the observer believed they were in single-stage.
+                setStartStage('loading')
+              } else {
+                // Closing the picker: reset to full cycle, and turn off
+                // repeat-mode since it only applies to single-stage.
+                setStartStage('plant_queue')
+                setRepeatMode(false)
+              }
             }}
             style={{ width: '18px', height: '18px', cursor: 'pointer' }}
           />
