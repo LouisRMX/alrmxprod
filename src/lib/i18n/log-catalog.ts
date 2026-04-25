@@ -69,6 +69,9 @@ export const LOG_STRINGS = {
   'live.single_stage_explainer': 'Single-stage mode: tap Start when the stage begins, Finish when it ends. Saved as a partial trip with just {stage} timing.',
   'live.start_new_trip': 'Start new trip',
   'live.start_measurement_of': 'Start {stage} measurement',
+  'live.repeat_mode_toggle': 'Auto-start next after Finish',
+  'live.repeat_mode_help': 'Each Finish saves the measurement and immediately starts a new one of the same stage. Tap Cancel on the card to exit.',
+  'live.repeat_active_pill': 'Repeat',
   'live.active_trips': 'Active trips',
   'live.no_active_trips': 'No active trips. Tap "Start new trip" when a truck enters the plant queue.',
   'live.pending_sync': 'Pending sync',
@@ -203,6 +206,7 @@ export const LOG_STRINGS = {
   // ── Save toast ────────────────────────────────────────────────────
   'toast.trip_saved': 'Trip saved',
   'toast.partial_saved': 'Partial saved',
+  'toast.repeat_next': 'Saved {min} min. Next {stage} starting...',
 
   // ── Undo bar ──────────────────────────────────────────────────────
   'undo.undo': 'UNDO',
@@ -435,6 +439,9 @@ export const LOG_STRINGS_AR: Record<LogStringKey, string> = {
   'live.single_stage_explainer': 'وضع المرحلة الواحدة: اضغط بدء عند بداية المرحلة، إنهاء عند انتهائها. تُحفظ كرحلة جزئية بقياس {stage} فقط.',
   'live.start_new_trip': 'بدء رحلة جديدة',
   'live.start_measurement_of': 'بدء قياس {stage}',
+  'live.repeat_mode_toggle': 'بدء التالي تلقائيًا بعد الإنهاء',
+  'live.repeat_mode_help': 'كل ضغطة إنهاء تحفظ القياس وتبدأ قياسًا جديدًا للمرحلة نفسها فورًا. اضغط إلغاء على البطاقة للخروج.',
+  'live.repeat_active_pill': 'تكرار',
   'live.active_trips': 'الرحلات النشطة',
   'live.no_active_trips': 'لا توجد رحلات نشطة. اضغط "بدء رحلة جديدة" عند دخول الشاحنة إلى طابور المصنع.',
   'live.pending_sync': 'مزامنة معلقة',
@@ -567,6 +574,7 @@ export const LOG_STRINGS_AR: Record<LogStringKey, string> = {
   // Toast
   'toast.trip_saved': 'تم حفظ الرحلة',
   'toast.partial_saved': 'تم حفظ الرحلة الجزئية',
+  'toast.repeat_next': 'حُفظ {min} دقيقة. التالي {stage}...',
 
   // Undo
   'undo.undo': 'تراجع',

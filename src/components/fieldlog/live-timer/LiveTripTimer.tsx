@@ -88,6 +88,11 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
   // ticks "Measure single stage". Keeps the start screen uncluttered for
   // the common case.
   const [showSingleStagePicker, setShowSingleStagePicker] = useState(false)
+  // Rapid-repeat mode: when set together with single-stage, finishing one
+  // measurement immediately starts a new one of the same stage. Designed
+  // for field observation where the same process is timed back-to-back
+  // (e.g. 30 weighbridge dwell times). Cancel on the card exits the loop.
+  const [repeatMode, setRepeatMode] = useState(false)
   // Collapsed by default: hides origin plant + single-stage toggle so first-time
   // users see only their name + site type + big Start button. Expand when needed.
   const [showMoreOptions, setShowMoreOptions] = useState(false)
@@ -268,20 +273,72 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
     setShowAddOriginPlant(false)
   }
 
+  const showSavedToast = useCallback((label: string) => {
+    setSaveToast(label)
+    setTimeout(() => setSaveToast(null), 2500)
+  }, [])
+
   const handleSplit = async (tripId: string) => {
-    // splitStage now keeps trip in activeTrips (awaitingReview) on last stage.
-    // The card surfaces the review UI; finalisation happens via handleConfirmSave.
+    // splitStage keeps the trip in activeTrips (awaitingReview) on the last
+    // stage of a full-cycle trip; for single-stage mode it finalises the
+    // trip directly. We capture the trip BEFORE the call so we can show
+    // a toast and (if repeat mode is on) auto-start a new measurement of
+    // the same stage with the same observer/plant context.
+    const tripBefore = await db.activeTrips.get(tripId)
     await splitStage(tripId)
+
+    // Only single-stage trips finalise inside splitStage — full-cycle
+    // trips either advance to the next stage or enter awaitingReview, both
+    // of which keep the card open as before.
+    if (!tripBefore || tripBefore.measurementMode !== 'single_stage') return
+
+    const stage = tripBefore.singleStage ?? tripBefore.currentStage
+    const stageStartIso = tripBefore.timestamps[stage]
+    const elapsedMin = stageStartIso
+      ? Math.max(0, Math.round((Date.now() - new Date(stageStartIso).getTime()) / 60000))
+      : null
+    const stageLbl = stageLabel(stage)
+
+    if (online) runSync()
+
+    if (repeatMode) {
+      // Auto-start the next measurement with the same parameters. The card
+      // stays open (focusedTripId switches to the new trip), so the observer
+      // sees an uninterrupted timer that just reset to zero.
+      const nextTrip = await startTrip({
+        assessmentId,
+        plantId,
+        measurerName: currentMeasurer,
+        originPlant: currentOriginPlant || undefined,
+        siteType: tripBefore.siteType,
+        startStage: stage,
+        viaToken: syncMode === 'token',
+        token,
+      })
+      setFocusedTripId(nextTrip.id)
+      showSavedToast(
+        `\u2713 ${t('toast.repeat_next', {
+          min: elapsedMin != null ? String(elapsedMin) : '?',
+          stage: stageLbl,
+        })}`,
+      )
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        try { navigator.vibrate(75) } catch { /* ignore */ }
+      }
+    } else {
+      // Single-stage finalised without repeat: the card closes by virtue of
+      // the trip leaving activeTrips. Surface a save toast so the observer
+      // gets the same feedback as a full-cycle save.
+      setFocusedTripId(null)
+      showSavedToast(
+        `\u2713 ${t('toast.partial_saved')}${elapsedMin != null ? `: ${elapsedMin} ${t('reviewq.min')}` : ''}${tripBefore.truckId ? ` \u00b7 ${t('reviewq.truck')} ${tripBefore.truckId}` : ''}`,
+      )
+    }
   }
 
   const handleUndoSplit = async (tripId: string) => {
     await undoLastSplit(tripId)
   }
-
-  const showSavedToast = useCallback((label: string) => {
-    setSaveToast(label)
-    setTimeout(() => setSaveToast(null), 2500)
-  }, [])
 
   const handleConfirmSave = async (
     tripId: string,
@@ -355,6 +412,7 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
         onLogSlumpTest={(id, loc, pass) => setTripSlumpTest(id, loc, pass)}
         onClearSlumpTest={(id) => clearTripSlumpTest(id)}
         onUpdateSiteType={(id, type) => setTripSiteType(id, type)}
+        repeatMode={repeatMode}
       />
     )
   }
@@ -619,6 +677,31 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
             {startStage !== 'plant_queue' && (
               <div style={{ fontSize: '11px', color: '#888', marginTop: '6px', lineHeight: 1.4 }}>
                 {t('live.single_stage_explainer', { stage: stageLabel(startStage) })}
+              </div>
+            )}
+            {/* Repeat-mode toggle. Only meaningful inside single-stage mode,
+                so it lives under the stage picker. Default off because it
+                changes Finish behaviour (auto-restarts the timer); the
+                observer should opt in deliberately. */}
+            <label style={{
+              display: 'flex', alignItems: 'center', gap: '8px',
+              marginTop: '12px', paddingTop: '10px',
+              borderTop: '1px solid #f0f0f0',
+              cursor: 'pointer', fontSize: '13px', color: '#333',
+            }}>
+              <input
+                type="checkbox"
+                checked={repeatMode}
+                onChange={e => setRepeatMode(e.target.checked)}
+                style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+              />
+              <span style={{ fontWeight: 600 }}>
+                <Bilingual k="live.repeat_mode_toggle" />
+              </span>
+            </label>
+            {repeatMode && (
+              <div style={{ fontSize: '11px', color: '#888', marginTop: '6px', lineHeight: 1.4 }}>
+                {t('live.repeat_mode_help')}
               </div>
             )}
           </div>
