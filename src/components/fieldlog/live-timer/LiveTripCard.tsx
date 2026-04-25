@@ -47,10 +47,6 @@ interface LiveTripCardProps {
   onLogSlumpTest: (tripId: string, location: 'plant' | 'site', pass: boolean) => void
   onClearSlumpTest: (tripId: string) => void
   onUpdateSiteType: (tripId: string, siteType: SiteType) => void
-  /** When true and trip is single-stage, the parent will auto-start a new
-   *  measurement of the same stage after Finish. Surfaced as a small pill
-   *  so the observer knows their next Finish-tap won't return to the list. */
-  repeatMode?: boolean
 }
 
 export default function LiveTripCard({
@@ -73,7 +69,6 @@ export default function LiveTripCard({
   onLogSlumpTest,
   onClearSlumpTest,
   onUpdateSiteType,
-  repeatMode,
 }: LiveTripCardProps) {
   const { totalElapsed, stageElapsed, stageSeconds } = useStopwatch(trip)
   const { t } = useLogT()
@@ -157,11 +152,6 @@ export default function LiveTripCard({
             {isSingleStage && (
               <span style={{ padding: '1px 6px', background: '#FFF4D6', border: '1px solid #F1D79A', color: '#B7950B', borderRadius: '3px', fontSize: '9px' }}>
                 <Bilingual k={`stage.${trip.currentStage}` as LogStringKey} inline /> · <Bilingual k="live.single_stage_only_suffix" inline />
-              </span>
-            )}
-            {isSingleStage && repeatMode && (
-              <span style={{ padding: '1px 6px', background: '#E1F5EE', border: '1px solid #A8D9C5', color: '#0F6E56', borderRadius: '3px', fontSize: '9px', fontWeight: 700 }}>
-                ↻ <Bilingual k="live.repeat_active_pill" inline />
               </span>
             )}
           </div>
