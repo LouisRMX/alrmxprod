@@ -117,8 +117,13 @@ export default function FieldLogDiagnostics({ assessmentId, reportedTAT, targetT
 
   const stageSummaries = useMemo(() => summariseStages(trips), [trips])
   const outliers = useMemo(() => findOutliers(trips, 5), [trips])
+  // Median TAT only makes sense over full-cycle trips. Single-stage and
+  // partial trips have a `totalMinutes` synthesised from the sum of whatever
+  // stages were measured (e.g. a 4-min loading sample becomes "total = 4 min"),
+  // which would crater the median if we included them. Filter to complete
+  // full-cycle trips only.
   const measuredMedianTAT = useMemo(
-    () => median(trips.map(t => t.totalMinutes)),
+    () => median(trips.filter(t => !t.isPartial).map(t => t.totalMinutes)),
     [trips],
   )
   const totalStageMedian = stageSummaries.reduce((acc, s) => acc + (s.median ?? 0), 0)
