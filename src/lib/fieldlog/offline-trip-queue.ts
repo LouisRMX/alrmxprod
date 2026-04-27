@@ -119,6 +119,13 @@ export interface ActiveTrip {
    * plants with shared fleet (Model A). Free-text label picked by observer.
    */
   originPlant?: string
+  /**
+   * Optional batching unit inside the chosen plant (e.g. "Unit 1", "BU-A").
+   * Most plants have 2-3 stationary batching units; capturing which one
+   * loaded a given truck lets per-unit loading time and reject rate be
+   * surfaced. NULL = rolls up to plant level only.
+   */
+  batchingUnit?: string
   /** Optional identifiers the observer filled in at start. */
   truckId?: string
   driverName?: string
@@ -228,6 +235,13 @@ class FieldLogDB extends Dexie {
    * as the key is pragmatic: consistent naming = consistent cache.
    */
   siteTypes!: Table<{ name: string; siteType: SiteType; lastUsed: string }, string>
+  /**
+   * Persisted batching-unit labels, scoped to the parent plant. Primary key
+   * is "<plant>::<unit>" so the same unit name on two different plants does
+   * not collide. The 'plant' index lets us query all units for a chosen
+   * plant in O(log n).
+   */
+  batchingUnits!: Table<{ key: string; plant: string; unit: string; lastUsed: string }, string>
 
   constructor() {
     super('alrmx_fieldlog')
@@ -257,6 +271,17 @@ class FieldLogDB extends Dexie {
       originPlants: 'name, lastUsed',
       siteTypes: 'name, lastUsed',
     })
+    // v4: batchingUnits cache so each plant remembers its own unit list.
+    this.version(4).stores({
+      activeTrips: 'id, assessmentId, createdAt',
+      pendingTrips: 'id, assessmentId, finalisedAt, syncAttempts',
+      syncLog: '++id, tripId, at',
+      measurers: 'name, lastUsed',
+      tokenCache: 'token',
+      originPlants: 'name, lastUsed',
+      siteTypes: 'name, lastUsed',
+      batchingUnits: 'key, plant, lastUsed',
+    })
   }
 }
 
@@ -282,6 +307,8 @@ export async function startTrip(input: {
   plantId: string
   measurerName: string
   originPlant?: string
+  /** Optional batching-unit label inside the chosen origin plant. */
+  batchingUnit?: string
   truckId?: string
   driverName?: string
   siteName?: string
@@ -291,23 +318,20 @@ export async function startTrip(input: {
   /** Defaults to 'plant_queue' (full cycle). Any other stage starts
    *  a single-stage measurement. */
   startStage?: StageName
+  /** Override the trip creation timestamp. Used when a UI gate (e.g.
+   *  the site-type modal for single-stage measurements on site-side
+   *  stages) defers the actual creation but the recorded start moment
+   *  should be the observer's original Start tap. */
+  createdAtIso?: string
 }): Promise<ActiveTrip> {
-  const now = new Date().toISOString()
+  const now = input.createdAtIso ?? new Date().toISOString()
   const startStage = input.startStage ?? 'plant_queue'
   const mode: 'full' | 'single_stage' = startStage === 'plant_queue' ? 'full' : 'single_stage'
 
-  // If a siteName was provided and we have a cached site_type for it,
-  // auto-apply unless the caller already set siteType explicitly.
-  let siteType = input.siteType
-  let siteTypeFromCache = false
-  if (!siteType && input.siteName) {
-    const cached = await db.siteTypes.get(input.siteName)
-    if (cached) {
-      siteType = cached.siteType
-      siteTypeFromCache = true
-    }
-  }
-
+  // site_type is no longer auto-filled from the siteName cache at trip
+  // start. With the deferred-prompt flow, the modal at the first site-side
+  // stage handles cache lookup and asks the observer to confirm with a
+  // single tap, so silent fill here would skip that confirmation.
   const trip: ActiveTrip = {
     id: newTripId(),
     label: input.truckId ? `Truck ${input.truckId}` : 'Unlabeled trip',
@@ -315,11 +339,12 @@ export async function startTrip(input: {
     plantId: input.plantId,
     measurerName: input.measurerName,
     originPlant: input.originPlant,
+    batchingUnit: input.batchingUnit,
     truckId: input.truckId,
     driverName: input.driverName,
     siteName: input.siteName,
-    siteType,
-    siteTypeFromCache: siteTypeFromCache ? true : undefined,
+    siteType: input.siteType,
+    siteTypeFromCache: undefined,
     timestamps: { [startStage]: now } as Partial<Record<StageName | 'complete', string>>,
     currentStage: startStage,
     stageNotes: {},
@@ -337,9 +362,20 @@ export async function startTrip(input: {
   if (input.originPlant) {
     await db.originPlants.put({ name: input.originPlant, lastUsed: now })
   }
-  // Cache the site_name -> site_type mapping if both are set.
-  if (input.siteName && siteType) {
-    await db.siteTypes.put({ name: input.siteName, siteType, lastUsed: now })
+  if (input.originPlant && input.batchingUnit) {
+    await db.batchingUnits.put({
+      key: `${input.originPlant}::${input.batchingUnit}`,
+      plant: input.originPlant,
+      unit: input.batchingUnit,
+      lastUsed: now,
+    })
+  }
+  // Cache the site_name -> site_type mapping if both are set. With the
+  // deferred-prompt flow this only fires when a caller explicitly passes
+  // siteType (e.g. token-mode pre-fill); the normal LiveTripTimer path
+  // does not, and the modal handler caches the mapping itself.
+  if (input.siteName && input.siteType) {
+    await db.siteTypes.put({ name: input.siteName, siteType: input.siteType, lastUsed: now })
   }
   return trip
 }
@@ -389,11 +425,15 @@ export async function clearTripSlumpTest(tripId: string): Promise<void> {
  * In single_stage mode, Split is the "finish measurement" action: saves
  * the end-of-stage timestamp and finalises as partial (remaining stages
  * null by design).
+ *
+ * `tapTime` lets the caller record the moment the observer actually tapped
+ * Split, even if a UI gate (e.g. site-type modal) defers the call. Defaults
+ * to `Date.now()` when the caller doesn't pass one.
  */
-export async function splitStage(tripId: string): Promise<ActiveTrip | null> {
+export async function splitStage(tripId: string, tapTime?: string): Promise<ActiveTrip | null> {
   const trip = await db.activeTrips.get(tripId)
   if (!trip || trip.awaitingReview) return null
-  const now = new Date().toISOString()
+  const now = tapTime ?? new Date().toISOString()
   const currentIndex = STAGES.indexOf(trip.currentStage)
   const nextIndex = currentIndex + 1
 
@@ -571,14 +611,41 @@ export async function setTripIdentity(
   await db.activeTrips.put(updated)
 }
 
-/** Update origin plant on an active trip (observer can correct mid-trip). */
+/** Update origin plant on an active trip (observer can correct mid-trip).
+ *  Changing the plant clears any previously-selected batching unit because
+ *  unit labels are scoped to plant: "Unit 1" on Plant A is not "Unit 1" on
+ *  Plant B. The observer reselects the unit if needed. */
 export async function setTripOriginPlant(tripId: string, originPlant: string): Promise<void> {
   const trip = await db.activeTrips.get(tripId)
   if (!trip) return
   const trimmed = originPlant.trim()
-  await db.activeTrips.put({ ...trip, originPlant: trimmed || undefined })
+  const plantChanged = (trip.originPlant ?? '') !== trimmed
+  await db.activeTrips.put({
+    ...trip,
+    originPlant: trimmed || undefined,
+    batchingUnit: plantChanged ? undefined : trip.batchingUnit,
+  })
   if (trimmed) {
     await db.originPlants.put({ name: trimmed, lastUsed: new Date().toISOString() })
+  }
+}
+
+/** Update the batching unit on an active trip. Empty string clears it
+ *  (rolls back up to plant level only). The unit is cached against the
+ *  trip's current originPlant so future trips at that plant see it in
+ *  the dropdown. */
+export async function setTripBatchingUnit(tripId: string, batchingUnit: string): Promise<void> {
+  const trip = await db.activeTrips.get(tripId)
+  if (!trip) return
+  const trimmed = batchingUnit.trim()
+  await db.activeTrips.put({ ...trip, batchingUnit: trimmed || undefined })
+  if (trimmed && trip.originPlant) {
+    await db.batchingUnits.put({
+      key: `${trip.originPlant}::${trimmed}`,
+      plant: trip.originPlant,
+      unit: trimmed,
+      lastUsed: new Date().toISOString(),
+    })
   }
 }
 
@@ -661,6 +728,30 @@ export async function addOriginPlant(name: string): Promise<void> {
   await db.originPlants.put({ name: name.trim(), lastUsed: new Date().toISOString() })
 }
 
+// ── Batching unit helpers ────────────────────────────────────────────────
+/** All batching-unit labels recorded for the given plant, most-recent first.
+ *  Empty plant string returns []. */
+export async function getBatchingUnitsForPlant(plant: string): Promise<string[]> {
+  if (!plant) return []
+  const rows = await db.batchingUnits.where('plant').equals(plant).toArray()
+  rows.sort((a, b) => (a.lastUsed < b.lastUsed ? 1 : -1))
+  return rows.map((r) => r.unit)
+}
+
+/** Persist a (plant, unit) pair without touching an active trip. Used by
+ *  the start-screen "+" picker before the first trip exists. */
+export async function addBatchingUnit(plant: string, unit: string): Promise<void> {
+  const p = plant.trim()
+  const u = unit.trim()
+  if (!p || !u) return
+  await db.batchingUnits.put({
+    key: `${p}::${u}`,
+    plant: p,
+    unit: u,
+    lastUsed: new Date().toISOString(),
+  })
+}
+
 // ── Token cache helpers ───────────────────────────────────────────────────
 export async function cacheTokenContext(
   token: string,
@@ -700,6 +791,7 @@ export function buildDailyLogPayload(trip: PendingTrip): Record<string, unknown>
     site_name: trip.siteName ?? null,
     site_type: trip.siteType ?? null,
     origin_plant: trip.originPlant ?? null,
+    batching_unit: trip.batchingUnit ?? null,
     // 9-stage timing. Each line: the column on daily_logs = the Dexie key
     // whose tap value represents the START of that stage (or the END of
     // the previous stage — they are the same moment).

@@ -37,6 +37,7 @@ interface TripPayload {
     | 'industrial' | 'tunnel' | 'precast' | 'marine' | 'piling' | 'unknown'
     | null
   origin_plant?: string | null
+  batching_unit?: string | null
   plant_queue_start?: string | null
   loading_start?: string | null
   loading_end?: string | null
@@ -147,6 +148,15 @@ export async function POST(req: NextRequest) {
       ? payload.site_type
       : null,
     origin_plant: typeof payload.origin_plant === 'string' ? payload.origin_plant : null,
+    // Optional per-unit slicing inside the chosen origin plant. Only kept
+    // when a plant was actually picked, otherwise the unit name is
+    // ambiguous and we drop it.
+    batching_unit: (typeof payload.batching_unit === 'string'
+      && payload.batching_unit.trim().length > 0
+      && typeof payload.origin_plant === 'string'
+      && payload.origin_plant.trim().length > 0)
+      ? payload.batching_unit.trim()
+      : null,
     // 9-stage timestamps
     plant_queue_start: payload.plant_queue_start ?? null,
     loading_start: payload.loading_start ?? null,

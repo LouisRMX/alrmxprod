@@ -17,6 +17,8 @@ import { createClient } from '@/lib/supabase/client'
 import { useLogT } from '@/lib/i18n/LogLocaleContext'
 import Bilingual from '@/lib/i18n/Bilingual'
 import type { LogStringKey } from '@/lib/i18n/log-catalog'
+import type { SiteType } from '@/lib/fieldlog/offline-trip-queue'
+import SiteTypeGrid from './SiteTypeGrid'
 
 interface OutlierRow {
   id: string
@@ -24,7 +26,7 @@ interface OutlierRow {
   truck_id: string | null
   driver_name: string | null
   site_name: string | null
-  site_type: 'ground_pour' | 'high_rise' | 'infrastructure' | 'unknown' | null
+  site_type: SiteType | null
   measurer_name: string | null
   origin_plant: string | null
   total_tat_min: number | null
@@ -86,6 +88,21 @@ export default function ReviewQueue({ assessmentId }: Props) {
     await load()
   }
 
+  /**
+   * Retroactive site_type classification. Triggered from the inline picker
+   * shown on rows where site_type is null, e.g. trips that were saved
+   * partial before reaching the first site-side stage. The deferred-prompt
+   * flow on the live timer means null is now an expected state for some
+   * trips, so the analyst needs a way to fill it in afterwards.
+   */
+  const setSiteTypeFor = async (id: string, siteType: SiteType) => {
+    await supabase
+      .from('daily_logs')
+      .update({ site_type: siteType })
+      .eq('id', id)
+    await load()
+  }
+
   const pending = rows.filter(r => r.review_status === 'flagged' || r.review_status === 'normal')
   const reviewed = rows.filter(r => r.review_status === 'reviewed_include' || r.review_status === 'reviewed_exclude')
   const visible = filter === 'pending' ? pending : rows
@@ -133,20 +150,22 @@ export default function ReviewQueue({ assessmentId }: Props) {
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        {visible.map(row => <OutlierCard key={row.id} row={row} onAct={act} reviewedCount={reviewed.length} />)}
+        {visible.map(row => <OutlierCard key={row.id} row={row} onAct={act} onSetSiteType={setSiteTypeFor} reviewedCount={reviewed.length} />)}
       </div>
     </div>
   )
 }
 
-function OutlierCard({ row, onAct }: {
+function OutlierCard({ row, onAct, onSetSiteType }: {
   row: OutlierRow
   onAct: (id: string, status: 'reviewed_include' | 'reviewed_exclude', note?: string) => Promise<void>
+  onSetSiteType: (id: string, siteType: SiteType) => Promise<void>
   reviewedCount: number
 }) {
   const { t } = useLogT()
   const [note, setNote] = useState('')
   const [acting, setActing] = useState<'include' | 'exclude' | null>(null)
+  const [settingSiteType, setSettingSiteType] = useState(false)
 
   const isReviewed = row.review_status === 'reviewed_include' || row.review_status === 'reviewed_exclude'
   const statusLabel = row.review_status === 'reviewed_include'
@@ -255,6 +274,35 @@ function OutlierCard({ row, onAct }: {
         {stageBreakdown(t('stage.transit_back'), row.transit_back_min)}
         {stageBreakdown(t('stage.plant_prep'), row.plant_prep_min)}
       </div>
+
+      {/* Retroactive site_type picker. Shown only when site_type is null —
+          a partial trip ended before site-side stages, or a row predating
+          the deferred-prompt flow. Auto-saves on first tap; once set, the
+          card re-renders with the badge in the header instead. */}
+      {row.site_type == null && (
+        <div style={{
+          background: '#FFF8E1', border: '1px solid #F1D79A',
+          borderRadius: '8px', padding: '10px 12px', marginTop: '10px',
+        }}>
+          <div style={{
+            fontSize: '11px', fontWeight: 700, color: '#7a5a00',
+            textTransform: 'uppercase', letterSpacing: '.3px',
+            marginBottom: '8px',
+          }}>
+            {t('reviewq.site_type_missing')}
+          </div>
+          <SiteTypeGrid
+            value={undefined}
+            onChange={async (v) => {
+              if (settingSiteType) return
+              setSettingSiteType(true)
+              try { await onSetSiteType(row.id, v) }
+              finally { setSettingSiteType(false) }
+            }}
+            compact
+          />
+        </div>
+      )}
 
       {row.notes && (
         <div style={{ fontSize: '12px', color: '#555', marginTop: '10px', lineHeight: 1.5 }}>

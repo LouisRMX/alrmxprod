@@ -31,15 +31,19 @@ import {
   setStageNote,
   setTripIdentity,
   setTripOriginPlant,
+  setTripBatchingUnit,
   setTripNotes,
   setTripRejected,
   setTripSlumpTest,
   clearTripSlumpTest,
   setTripSiteType,
+  getCachedSiteType,
   getAllMeasurers,
   addMeasurer,
   getAllOriginPlants,
   addOriginPlant,
+  getBatchingUnitsForPlant,
+  addBatchingUnit,
   drainPending,
   STAGES,
   type ActiveTrip,
@@ -54,6 +58,13 @@ import SiteTypeGrid from '../SiteTypeGrid'
 import { useLogT } from '@/lib/i18n/LogLocaleContext'
 import Bilingual from '@/lib/i18n/Bilingual'
 import type { LogStringKey } from '@/lib/i18n/log-catalog'
+
+/**
+ * The three stages where site_type matters for analysis. Used by the
+ * deferred-prompt gate: only when the truck is about to enter one of
+ * these is the observer asked to classify the site.
+ */
+const SITE_SIDE_STAGES: StageName[] = ['site_wait', 'pouring', 'site_washout']
 
 interface LiveTripTimerProps {
   assessmentId: string
@@ -79,6 +90,12 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
   const [currentOriginPlant, setCurrentOriginPlant] = useState<string>('')
   const [showAddOriginPlant, setShowAddOriginPlant] = useState(false)
   const [newOriginPlantName, setNewOriginPlantName] = useState('')
+  // Batching unit list for the currently-selected origin plant. Refreshes
+  // whenever currentOriginPlant changes. Empty when no plant is picked.
+  const [batchingUnits, setBatchingUnits] = useState<string[]>([])
+  const [currentBatchingUnit, setCurrentBatchingUnit] = useState<string>('')
+  const [showAddBatchingUnit, setShowAddBatchingUnit] = useState(false)
+  const [newBatchingUnitName, setNewBatchingUnitName] = useState('')
   const [focusedTripId, setFocusedTripId] = useState<string | null>(null)
   const [syncingNow, setSyncingNow] = useState(false)
   // Selected starting stage for the next trip. plant_queue = full cycle.
@@ -92,14 +109,31 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
   // re-selecting the stage each time.
   const [showSingleStagePicker, setShowSingleStagePicker] = useState(false)
   // Collapsed by default: hides origin plant + single-stage toggle so first-time
-  // users see only their name + site type + big Start button. Expand when needed.
+  // users see only their name + big Start button. Expand when needed. Site type
+  // is no longer asked here; it is deferred until the truck reaches its first
+  // site-side stage (site_wait, pouring, site_washout) where the value is
+  // actually relevant for analysis.
   const [showMoreOptions, setShowMoreOptions] = useState(false)
-  // Site type pre-selected on the start screen. Observer can override on the
-  // trip card later. Undefined means "don't set" — startTrip will still do
-  // a cache lookup by site_name if one is provided.
-  const [startSiteType, setStartSiteType] = useState<SiteType | undefined>(undefined)
   // Transient "Trip saved" toast shown after a trip finalises.
   const [saveToast, setSaveToast] = useState<string | null>(null)
+  // Site-type gate state. Two scenarios trigger the same modal:
+  //   1. pendingSplit: full-cycle trip about to enter the first site-side
+  //      stage. Tap moment is frozen so site_wait start is the truck's
+  //      arrival, not the moment after modal-tap.
+  //   2. pendingStart: single-stage measurement that begins on a site-side
+  //      stage. createdAtIso is frozen so the recorded stage start is the
+  //      observer's Start tap, not post-modal.
+  // Only one of the two is set at any time. The modal component is shared.
+  const [pendingSplit, setPendingSplit] = useState<{
+    tripId: string
+    tapTime: string
+  } | null>(null)
+  const [pendingStart, setPendingStart] = useState<{
+    startStage: StageName
+    createdAtIso: string
+  } | null>(null)
+  const [pendingSiteTypeChoice, setPendingSiteTypeChoice] = useState<SiteType | undefined>(undefined)
+  const [pendingSiteTypeFromCache, setPendingSiteTypeFromCache] = useState(false)
 
   // Autocomplete sources (from server + from local pending trips)
   const [recentTrucks, setRecentTrucks] = useState<string[]>([])
@@ -190,6 +224,26 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
     load()
   }, [assessmentId, syncMode, supabase])
 
+  // Refresh batching-unit list whenever the chosen plant changes. Unit
+  // names are scoped to plant: "Unit 1" at Plant A is not "Unit 1" at
+  // Plant B, so changing plants must clear the previous selection.
+  useEffect(() => {
+    let cancelled = false
+    async function loadUnits() {
+      if (!currentOriginPlant) {
+        setBatchingUnits([])
+        setCurrentBatchingUnit('')
+        return
+      }
+      const units = await getBatchingUnitsForPlant(currentOriginPlant)
+      if (cancelled) return
+      setBatchingUnits(units)
+      setCurrentBatchingUnit('')
+    }
+    loadUnits()
+    return () => { cancelled = true }
+  }, [currentOriginPlant])
+
   // Auto-sync pending trips when online. Throttled by syncingNow flag.
   useEffect(() => {
     if (!online || syncingNow || pendingCount === 0) return
@@ -229,20 +283,37 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
       alert('Please add a measurer name first.')
       return
     }
+
+    // Single-stage gate: when the observer is about to start a single
+    // stage measurement that already lives in the site-side region
+    // (site_wait, pouring, site_washout), we cannot defer site_type to
+    // the next split — there will not be one. Freeze the tap moment now
+    // and ask via the modal before creating the trip.
+    if (startStage !== 'plant_queue' && SITE_SIDE_STAGES.includes(startStage)) {
+      const createdAtIso = new Date().toISOString()
+      setPendingSiteTypeChoice(undefined)
+      setPendingSiteTypeFromCache(false)
+      setPendingStart({ startStage, createdAtIso })
+      return
+    }
+
     const trip = await startTrip({
       assessmentId,
       plantId,
       measurerName: currentMeasurer,
       originPlant: currentOriginPlant || undefined,
-      siteType: startSiteType,
+      batchingUnit: currentOriginPlant && currentBatchingUnit
+        ? currentBatchingUnit
+        : undefined,
+      // site_type is deliberately not set here for plant-side single-stage
+      // and full-cycle trips. Full-cycle trips get prompted at the
+      // transit_out -> site_wait boundary. Plant-side single-stage trips
+      // never need it.
       startStage,
       viaToken: syncMode === 'token',
       token,
     })
     setFocusedTripId(trip.id)
-    // Reset the pre-selection so the next trip starts blank; cache still
-    // auto-applies via site_name so consistent sites don't need re-picking.
-    setStartSiteType(undefined)
     // Haptic confirmation on Start (works in PWA-installed iOS and most Android)
     if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
       try { navigator.vibrate(75) } catch { /* ignore */ }
@@ -271,6 +342,17 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
     setShowAddOriginPlant(false)
   }
 
+  const handleAddBatchingUnit = async () => {
+    const name = newBatchingUnitName.trim()
+    if (!name || !currentOriginPlant) return
+    await addBatchingUnit(currentOriginPlant, name)
+    const list = await getBatchingUnitsForPlant(currentOriginPlant)
+    setBatchingUnits(list)
+    setCurrentBatchingUnit(name)
+    setNewBatchingUnitName('')
+    setShowAddBatchingUnit(false)
+  }
+
   const showSavedToast = useCallback((label: string) => {
     setSaveToast(label)
     setTimeout(() => setSaveToast(null), 2500)
@@ -283,12 +365,35 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
     // save toast with elapsed minutes once the trip has been moved to the
     // pendingTrips queue.
     const tripBefore = await db.activeTrips.get(tripId)
+    if (!tripBefore) return
+
+    // Site-type gate. Full-cycle trips that are about to advance INTO the
+    // first site-side stage (site_wait) and have no site_type yet must
+    // classify the site before continuing. We capture the tap moment now,
+    // open the modal, and replay the split with that timestamp on confirm
+    // so the recorded site_wait start is the moment the truck actually
+    // arrived, not the moment the observer finished tapping the modal.
+    if (tripBefore.measurementMode !== 'single_stage' && !tripBefore.siteType) {
+      const currentIndex = STAGES.indexOf(tripBefore.currentStage)
+      const nextStage: StageName | undefined = STAGES[currentIndex + 1]
+      if (nextStage && SITE_SIDE_STAGES.includes(nextStage)) {
+        const tapTime = new Date().toISOString()
+        const cached = tripBefore.siteName
+          ? await getCachedSiteType(tripBefore.siteName)
+          : undefined
+        setPendingSiteTypeChoice(cached)
+        setPendingSiteTypeFromCache(Boolean(cached))
+        setPendingSplit({ tripId, tapTime })
+        return
+      }
+    }
+
     await splitStage(tripId)
 
     // Only single-stage trips finalise inside splitStage — full-cycle
     // trips either advance to the next stage or enter awaitingReview, both
     // of which keep the card open as before.
-    if (!tripBefore || tripBefore.measurementMode !== 'single_stage') return
+    if (tripBefore.measurementMode !== 'single_stage') return
 
     const stage = tripBefore.singleStage ?? tripBefore.currentStage
     const stageStartIso = tripBefore.timestamps[stage]
@@ -313,6 +418,51 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
 
   const handleUndoSplit = async (tripId: string) => {
     await undoLastSplit(tripId)
+  }
+
+  /**
+   * Confirm the site_type chosen in the deferred-prompt modal. Dispatches
+   * on which gate triggered the modal:
+   *   - pendingSplit: full-cycle trip approaching site-side. Replays the
+   *     split with the captured tap moment.
+   *   - pendingStart: single-stage on a site-side stage. Creates the trip
+   *     with the captured Start moment as createdAt + first stage timestamp.
+   * Site_type stays on the trip for the rest of its life. Undoing a stage
+   * does NOT clear it: classification is independent of timing taps.
+   */
+  const handleSiteTypeConfirm = async () => {
+    if (!pendingSiteTypeChoice) return
+
+    if (pendingSplit) {
+      const { tripId, tapTime } = pendingSplit
+      await setTripSiteType(tripId, pendingSiteTypeChoice)
+      await splitStage(tripId, tapTime)
+      setPendingSplit(null)
+    } else if (pendingStart) {
+      const { startStage: stage, createdAtIso } = pendingStart
+      const trip = await startTrip({
+        assessmentId,
+        plantId,
+        measurerName: currentMeasurer,
+        originPlant: currentOriginPlant || undefined,
+        batchingUnit: currentOriginPlant && currentBatchingUnit
+          ? currentBatchingUnit
+          : undefined,
+        siteType: pendingSiteTypeChoice,
+        startStage: stage,
+        createdAtIso,
+        viaToken: syncMode === 'token',
+        token,
+      })
+      setFocusedTripId(trip.id)
+      setPendingStart(null)
+    }
+
+    setPendingSiteTypeChoice(undefined)
+    setPendingSiteTypeFromCache(false)
+    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+      try { navigator.vibrate(50) } catch { /* ignore */ }
+    }
   }
 
   const handleConfirmSave = async (
@@ -366,28 +516,40 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
   // If a trip is focused, show its card (full-screen on mobile)
   if (focusedTrip) {
     return (
-      <LiveTripCard
-        trip={focusedTrip}
-        measurers={measurers}
-        recentTrucks={recentTrucks}
-        recentDrivers={recentDrivers}
-        recentSites={recentSites}
-        originPlantSuggestions={originPlants}
-        onSplit={handleSplit}
-        onUndoSplit={handleUndoSplit}
-        onConfirmSave={handleConfirmSave}
-        onSavePartial={handleSavePartial}
-        onCancel={handleCancel}
-        onClose={() => setFocusedTripId(null)}
-        onUpdateIdentity={(id, ids) => setTripIdentity(id, ids)}
-        onUpdateOriginPlant={(id, v) => setTripOriginPlant(id, v)}
-        onUpdateNotes={(id, n) => setTripNotes(id, n)}
-        onUpdateStageNote={(id, s, txt) => setStageNote(id, s, txt)}
-        onUpdateRejected={handleUpdateRejected}
-        onLogSlumpTest={(id, loc, pass) => setTripSlumpTest(id, loc, pass)}
-        onClearSlumpTest={(id) => clearTripSlumpTest(id)}
-        onUpdateSiteType={(id, type) => setTripSiteType(id, type)}
-      />
+      <>
+        <LiveTripCard
+          trip={focusedTrip}
+          measurers={measurers}
+          recentTrucks={recentTrucks}
+          recentDrivers={recentDrivers}
+          recentSites={recentSites}
+          originPlantSuggestions={originPlants}
+          onSplit={handleSplit}
+          onUndoSplit={handleUndoSplit}
+          onConfirmSave={handleConfirmSave}
+          onSavePartial={handleSavePartial}
+          onCancel={handleCancel}
+          onClose={() => setFocusedTripId(null)}
+          onUpdateIdentity={(id, ids) => setTripIdentity(id, ids)}
+          onUpdateOriginPlant={(id, v) => setTripOriginPlant(id, v)}
+          onUpdateBatchingUnit={(id, v) => setTripBatchingUnit(id, v)}
+          getBatchingUnitsForPlant={getBatchingUnitsForPlant}
+          onUpdateNotes={(id, n) => setTripNotes(id, n)}
+          onUpdateStageNote={(id, s, txt) => setStageNote(id, s, txt)}
+          onUpdateRejected={handleUpdateRejected}
+          onLogSlumpTest={(id, loc, pass) => setTripSlumpTest(id, loc, pass)}
+          onClearSlumpTest={(id) => clearTripSlumpTest(id)}
+          onUpdateSiteType={(id, type) => setTripSiteType(id, type)}
+        />
+        {(pendingSplit || pendingStart) && (
+          <SiteTypeGateModal
+            value={pendingSiteTypeChoice}
+            fromCache={pendingSiteTypeFromCache}
+            onChange={(v) => { setPendingSiteTypeChoice(v); setPendingSiteTypeFromCache(false) }}
+            onConfirm={handleSiteTypeConfirm}
+          />
+        )}
+      </>
     )
   }
 
@@ -399,6 +561,7 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
 
   // Otherwise show the list + start button
   return (
+    <>
     <div style={{
       display: 'flex', flexDirection: 'column', height: '100%',
       background: '#fafafa', padding: '16px', gap: '14px',
@@ -508,21 +671,11 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
         )}
       </div>
 
-      {/* Site type icon grid. Tap a tile to pick; observer can change it on
-          the trip card once a trip is active. Replaces the dropdown so
-          low-literacy dispatchers identify the site by pictogram, not by
-          reading 10 long text options. */}
-      <div style={{
-        background: '#fff', border: '1px solid #e5e5e5', borderRadius: '12px', padding: '12px',
-      }}>
-        <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#333', marginBottom: '10px' }}>
-          <Bilingual k="site_type.question" />
-        </label>
-        <SiteTypeGrid
-          value={startSiteType}
-          onChange={(v) => setStartSiteType(v)}
-        />
-      </div>
+      {/* Site type is intentionally NOT asked on the Start screen. The
+          observer often does not know where the truck is going at the
+          moment of dispatch, and it only matters for analysing site-side
+          stages (site_wait, pouring, site_washout). It is prompted as a
+          modal at the boundary into the first site-side stage. */}
 
       {/* More options toggle: collapses rarely-used controls (origin plant for
           multi-plant shared-fleet assessments, single-stage measurement). */}
@@ -602,6 +755,85 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
             <button
               type="button"
               onClick={() => { setShowAddOriginPlant(false); setNewOriginPlantName('') }}
+              style={{
+                minWidth: '44px', minHeight: '44px',
+                background: '#fff', color: '#666',
+                border: '1px solid #ddd', borderRadius: '8px',
+                fontSize: '14px', cursor: 'pointer',
+              }}
+            >×</button>
+          </div>
+        )}
+      </div>
+
+      {/* Batching-unit selector (optional, scoped to current origin plant).
+          Most plants run 2-3 batching units; capturing which one loaded a
+          given truck unlocks per-unit loading time and reject rate. Skipping
+          this picker is fine: the trip rolls up to plant level automatically. */}
+      <div style={{
+        background: '#fff', border: '1px solid #e5e5e5', borderRadius: '12px', padding: '12px',
+      }}>
+        <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '8px' }}>
+          <Bilingual k="live.current_batching_unit" />
+        </label>
+        {!currentOriginPlant && (
+          <div style={{ fontSize: '12px', color: '#888', fontStyle: 'italic' }}>
+            {t('live.batching_unit_needs_plant')}
+          </div>
+        )}
+        {currentOriginPlant && !showAddBatchingUnit && (
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <select
+              value={currentBatchingUnit}
+              onChange={(e) => setCurrentBatchingUnit(e.target.value)}
+              style={{
+                flex: 1, minHeight: '44px', padding: '0 12px',
+                border: '1px solid #ddd', borderRadius: '8px',
+                fontSize: '15px', background: '#fff',
+              }}
+            >
+              <option value="">{t('live.plant_total_only')}</option>
+              {batchingUnits.map(u => <option key={u} value={u}>{u}</option>)}
+            </select>
+            <button
+              type="button"
+              onClick={() => setShowAddBatchingUnit(true)}
+              style={{
+                minWidth: '44px', minHeight: '44px',
+                background: '#fff', color: '#0F6E56',
+                border: '1px solid #0F6E56', borderRadius: '8px',
+                fontSize: '20px', fontWeight: 700, cursor: 'pointer',
+              }}
+              aria-label="Add batching unit"
+            >+</button>
+          </div>
+        )}
+        {currentOriginPlant && showAddBatchingUnit && (
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <input
+              type="text"
+              value={newBatchingUnitName}
+              onChange={(e) => setNewBatchingUnitName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleAddBatchingUnit() }}
+              placeholder={t('live.add_batching_unit_placeholder')}
+              autoFocus
+              style={{
+                flex: 1, minHeight: '44px', padding: '0 12px',
+                border: '1px solid #ddd', borderRadius: '8px', fontSize: '15px',
+              }}
+            />
+            <button
+              type="button"
+              onClick={handleAddBatchingUnit}
+              style={{
+                minWidth: '70px', minHeight: '44px',
+                background: '#0F6E56', color: '#fff', border: 'none',
+                borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer',
+              }}
+            >{t('live.add')}</button>
+            <button
+              type="button"
+              onClick={() => { setShowAddBatchingUnit(false); setNewBatchingUnitName('') }}
               style={{
                 minWidth: '44px', minHeight: '44px',
                 background: '#fff', color: '#666',
@@ -756,6 +988,15 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
         }
       `}</style>
     </div>
+    {(pendingSplit || pendingStart) && (
+      <SiteTypeGateModal
+        value={pendingSiteTypeChoice}
+        fromCache={pendingSiteTypeFromCache}
+        onChange={(v) => { setPendingSiteTypeChoice(v); setPendingSiteTypeFromCache(false) }}
+        onConfirm={handleSiteTypeConfirm}
+      />
+    )}
+    </>
   )
 }
 
@@ -859,5 +1100,62 @@ function ActiveTripListItem({ trip, onFocus }: { trip: ActiveTrip; onFocus: () =
         <Bilingual k="list.open" inline /> →
       </div>
     </button>
+  )
+}
+
+// ── Site type gate modal ─────────────────────────────────────────────────
+// Forced classification at the boundary into the first site-side stage.
+// No cancel/skip: requirement is that every site-side stage has a
+// site_type. "Unknown" is a valid value when the observer truly cannot
+// tell. The modal is full-screen on mobile and dimmed-overlay on desktop.
+function SiteTypeGateModal({
+  value, fromCache, onChange, onConfirm,
+}: {
+  value: SiteType | undefined
+  fromCache: boolean
+  onChange: (v: SiteType) => void
+  onConfirm: () => void
+}) {
+  const { t } = useLogT()
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 1200,
+      background: 'rgba(0, 0, 0, 0.45)',
+      display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+      padding: '0',
+    }}>
+      <div style={{
+        width: '100%', maxWidth: '560px',
+        background: '#fff',
+        borderTopLeftRadius: '18px', borderTopRightRadius: '18px',
+        padding: '20px 16px',
+        paddingBottom: 'max(20px, env(safe-area-inset-bottom))',
+        maxHeight: '92vh', overflowY: 'auto',
+        boxShadow: '0 -10px 30px rgba(0,0,0,0.2)',
+      }}>
+        <div style={{ fontSize: '17px', fontWeight: 700, color: '#1a1a1a', marginBottom: '4px' }}>
+          {t('live.site_type_gate_title')}
+        </div>
+        <div style={{ fontSize: '12px', color: '#666', marginBottom: '14px', lineHeight: 1.4 }}>
+          {t('live.site_type_gate_subtitle')}
+        </div>
+        <SiteTypeGrid value={value} fromCache={fromCache} onChange={onChange} />
+        <button
+          type="button"
+          onClick={onConfirm}
+          disabled={!value}
+          style={{
+            width: '100%', minHeight: '52px', marginTop: '16px',
+            background: value ? '#0F6E56' : '#ccc', color: '#fff',
+            border: 'none', borderRadius: '12px',
+            fontSize: '15px', fontWeight: 700,
+            cursor: value ? 'pointer' : 'not-allowed',
+            boxShadow: value ? '0 4px 12px rgba(15, 110, 86, 0.25)' : 'none',
+          }}
+        >
+          {t('live.confirm_and_continue')}
+        </button>
+      </div>
+    </div>
   )
 }

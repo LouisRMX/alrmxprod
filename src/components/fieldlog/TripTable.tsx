@@ -143,6 +143,14 @@ export default function TripTable({ trips, isAdmin, onDelete }: TripTableProps) 
                       borderRadius: '3px', fontSize: '10px', fontWeight: 600,
                     }}>{siteTypeShort(t.site_type)}</span>
                   )}
+                  {t.batching_unit && (
+                    <span style={{
+                      padding: '1px 6px', background: '#EEF1F5', color: '#3a4a66',
+                      borderRadius: '3px', fontSize: '10px', fontWeight: 600,
+                    }} title={t.origin_plant ? `${t.origin_plant} · ${t.batching_unit}` : t.batching_unit}>
+                      ⚙ {t.batching_unit}
+                    </span>
+                  )}
                 </div>
                 <div style={{ fontSize: '11px', color: '#888', fontFamily: 'var(--mono)' }}>
                   {fmtTime(t.departure_loaded)} → {fmtTime(t.arrival_plant)}
@@ -201,6 +209,7 @@ export default function TripTable({ trips, isAdmin, onDelete }: TripTableProps) 
             <th style={th}>Truck</th>
             <th style={th}>Measurer</th>
             <th style={th}>Mode</th>
+            <th style={th}>Plant / Unit</th>
             <th style={th}>Site type</th>
             <th style={th}>Depart</th>
             <th style={th}>Arrive</th>
@@ -233,6 +242,16 @@ export default function TripTable({ trips, isAdmin, onDelete }: TripTableProps) 
                     }}>{m.label}</span>
                   )
                 })()}
+              </td>
+              <td style={td}>
+                {t.origin_plant || t.batching_unit ? (
+                  <span style={{ color: '#333' }}>
+                    {t.origin_plant ?? '-'}
+                    {t.batching_unit && (
+                      <span style={{ color: '#888' }}> / {t.batching_unit}</span>
+                    )}
+                  </span>
+                ) : <span style={{ color: '#ccc' }}>-</span>}
               </td>
               <td style={td}>
                 {t.site_type && t.site_type !== 'unknown' ? (

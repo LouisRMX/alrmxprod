@@ -41,6 +41,10 @@ interface LiveTripCardProps {
   onClose: () => void
   onUpdateIdentity: (tripId: string, ids: { truckId?: string; driverName?: string; siteName?: string }) => void
   onUpdateOriginPlant: (tripId: string, plant: string) => void
+  onUpdateBatchingUnit: (tripId: string, batchingUnit: string) => void
+  /** Resolves the cached batching units for a plant. Returned async so the
+   *  card can refresh suggestions when the trip's origin plant changes. */
+  getBatchingUnitsForPlant: (plant: string) => Promise<string[]>
   onUpdateNotes: (tripId: string, notes: string) => void
   onUpdateStageNote: (tripId: string, stage: StageName, text: string) => void
   onUpdateRejected: (tripId: string, rejected: boolean) => void
@@ -63,6 +67,8 @@ export default function LiveTripCard({
   onClose,
   onUpdateIdentity,
   onUpdateOriginPlant,
+  onUpdateBatchingUnit,
+  getBatchingUnitsForPlant,
   onUpdateNotes,
   onUpdateStageNote,
   onUpdateRejected,
@@ -200,12 +206,21 @@ export default function LiveTripCard({
         }
       `}</style>
 
-      {/* Origin plant chip (editable) */}
-      <OriginPlantChip
-        value={trip.originPlant ?? ''}
-        suggestions={originPlantSuggestions}
-        onChange={(v) => onUpdateOriginPlant(trip.id, v)}
-      />
+      {/* Origin plant + batching unit chips. Unit is scoped to the chosen
+          plant; with no plant it renders disabled. */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
+        <OriginPlantChip
+          value={trip.originPlant ?? ''}
+          suggestions={originPlantSuggestions}
+          onChange={(v) => onUpdateOriginPlant(trip.id, v)}
+        />
+        <BatchingUnitChip
+          plant={trip.originPlant ?? ''}
+          value={trip.batchingUnit ?? ''}
+          getSuggestions={getBatchingUnitsForPlant}
+          onChange={(v) => onUpdateBatchingUnit(trip.id, v)}
+        />
+      </div>
 
       {/* Timers */}
       <div style={{
@@ -932,6 +947,107 @@ function OriginPlantChip({ value, suggestions, onChange }: {
         }}
       >
         <option value="">{t('live.not_specified')}</option>
+        {suggestions.map(s => <option key={s} value={s}>{s}</option>)}
+      </select>
+      <button
+        type="button"
+        onClick={() => { onChange(local); setEditing(false) }}
+        style={{
+          minWidth: '60px', minHeight: '40px',
+          background: '#0F6E56', color: '#fff', border: 'none',
+          borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer',
+        }}
+      ><Bilingual k="card.save" inline /></button>
+      <button
+        type="button"
+        onClick={() => { setLocal(value); setEditing(false) }}
+        style={{
+          minWidth: '40px', minHeight: '40px',
+          background: '#fff', color: '#666',
+          border: '1px solid #ddd', borderRadius: '8px',
+          fontSize: '13px', cursor: 'pointer',
+        }}
+      >×</button>
+    </div>
+  )
+}
+
+// ── Batching-unit chip ────────────────────────────────────────────────
+// Sibling of OriginPlantChip: free-text label, optional, scoped to the
+// trip's current origin plant. Renders disabled when no plant is set
+// because unit names are only meaningful inside a plant context.
+function BatchingUnitChip({ plant, value, getSuggestions, onChange }: {
+  plant: string
+  value: string
+  getSuggestions: (plant: string) => Promise<string[]>
+  onChange: (v: string) => void
+}) {
+  const { t } = useLogT()
+  const [editing, setEditing] = useState(false)
+  const [local, setLocal] = useState(value)
+  const [suggestions, setSuggestions] = useState<string[]>([])
+
+  useEffect(() => { setLocal(value) }, [value])
+
+  // Refresh suggestions when entering edit mode (also when plant changes
+  // and the chip is already open). Cheap IndexedDB read; no need to cache.
+  useEffect(() => {
+    if (!editing) return
+    let cancelled = false
+    getSuggestions(plant).then(list => {
+      if (!cancelled) setSuggestions(list)
+    })
+    return () => { cancelled = true }
+  }, [editing, plant, getSuggestions])
+
+  // No plant chosen yet: show a disabled hint chip. Tapping opens nothing
+  // because we'd have nowhere to scope the unit list to.
+  if (!plant) {
+    return (
+      <span style={{
+        alignSelf: 'flex-start',
+        padding: '6px 12px', background: '#F5F5F5',
+        border: '1px dashed #ddd',
+        borderRadius: '999px', fontSize: '12px', fontWeight: 600,
+        color: '#aaa',
+      }}>
+        ⚙ {t('live.batching_unit_needs_plant')}
+      </span>
+    )
+  }
+
+  if (!editing) {
+    return (
+      <button
+        type="button"
+        onClick={() => setEditing(true)}
+        style={{
+          alignSelf: 'flex-start',
+          padding: '6px 12px', background: value ? '#E8F1FA' : '#F5F5F5',
+          border: `1px solid ${value ? '#A8C7E5' : '#ddd'}`,
+          borderRadius: '999px', fontSize: '12px', fontWeight: 600,
+          color: value ? '#2E5C8A' : '#888', cursor: 'pointer',
+        }}
+      >
+        ⚙ {value || <Bilingual k="card.set_batching_unit" inline />} · <Bilingual k="card.edit" inline />
+      </button>
+    )
+  }
+
+  return (
+    <div style={{
+      display: 'flex', gap: '6px', alignItems: 'center',
+      background: '#fff', border: '1px solid #e5e5e5', borderRadius: '10px', padding: '8px',
+    }}>
+      <select
+        value={local}
+        onChange={(e) => setLocal(e.target.value)}
+        style={{
+          flex: 1, minHeight: '40px', padding: '0 10px',
+          border: '1px solid #ddd', borderRadius: '8px', fontSize: '14px',
+        }}
+      >
+        <option value="">{t('live.plant_total_only')}</option>
         {suggestions.map(s => <option key={s} value={s}>{s}</option>)}
       </select>
       <button

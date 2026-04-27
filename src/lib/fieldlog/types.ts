@@ -46,6 +46,9 @@ export interface DailyLogRow {
   measured_stage?: string | null
   // Multi-plant shared-fleet support (2026-04-18 migration)
   origin_plant?: string | null
+  // Per-unit slicing inside a plant (2026-04-27 migration). NULL = rolls
+  // up to origin_plant only.
+  batching_unit?: string | null
 }
 
 export interface DailyLogTripComputed extends DailyLogRow {
