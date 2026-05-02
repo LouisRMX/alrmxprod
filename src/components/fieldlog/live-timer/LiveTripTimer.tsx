@@ -134,6 +134,14 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
   } | null>(null)
   const [pendingSiteTypeChoice, setPendingSiteTypeChoice] = useState<SiteType | undefined>(undefined)
   const [pendingSiteTypeFromCache, setPendingSiteTypeFromCache] = useState(false)
+  // In-place single-stage capture. When set, the start screen renders a live
+  // stopwatch + Stop button right where the Start button sits, instead of
+  // navigating to LiveTripCard. Keeps the action button at the exact same
+  // vertical position across Start and Stop, so back-to-back measurements
+  // become predictable thumb-tap.
+  const [inPlaceSingleStageTripId, setInPlaceSingleStageTripId] = useState<string | null>(null)
+  // Forces a re-render every second while the in-place stopwatch is running.
+  const [stopwatchTick, setStopwatchTick] = useState(0)
 
   // Autocomplete sources (from server + from local pending trips)
   const [recentTrucks, setRecentTrucks] = useState<string[]>([])
@@ -251,6 +259,15 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [online, pendingCount])
 
+  // 1-second tick to drive the in-place single-stage stopwatch display.
+  // Only runs while a measurement is in progress, so idle Start screens stay
+  // at zero render cost.
+  useEffect(() => {
+    if (!inPlaceSingleStageTripId) return
+    const id = setInterval(() => setStopwatchTick(n => (n + 1) % 1_000_000), 1000)
+    return () => clearInterval(id)
+  }, [inPlaceSingleStageTripId])
+
   const runSync = useCallback(async () => {
     if (syncingNow) return
     setSyncingNow(true)
@@ -313,7 +330,14 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
       viaToken: syncMode === 'token',
       token,
     })
-    setFocusedTripId(trip.id)
+    // Single-stage measurements run in-place on the start screen so the
+    // action button stays anchored. Full-cycle trips still navigate into
+    // LiveTripCard for the multi-split flow.
+    if (startStage !== 'plant_queue') {
+      setInPlaceSingleStageTripId(trip.id)
+    } else {
+      setFocusedTripId(trip.id)
+    }
     // Haptic confirmation on Start (works in PWA-installed iOS and most Android)
     if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
       try { navigator.vibrate(75) } catch { /* ignore */ }
@@ -411,6 +435,11 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
     // as the next Start timestamp (which would inflate every measurement
     // by the observer's reaction-and-reposition pause).
     setFocusedTripId(null)
+    // If the just-finalised trip was the in-place single-stage measurement,
+    // reset the in-place state so the Start button reappears.
+    if (inPlaceSingleStageTripId === tripId) {
+      setInPlaceSingleStageTripId(null)
+    }
     showSavedToast(
       `\u2713 ${t('toast.partial_saved')}${elapsedMin != null ? `: ${elapsedMin} ${t('reviewq.min')}` : ''}${tripBefore.truckId ? ` \u00b7 ${t('reviewq.truck')} ${tripBefore.truckId}` : ''}`,
     )
@@ -454,7 +483,10 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
         viaToken: syncMode === 'token',
         token,
       })
-      setFocusedTripId(trip.id)
+      // pendingStart is only ever set for single-stage site-side captures,
+      // so the trip runs in-place on the start screen for action-button
+      // continuity with the plant-side single-stage path.
+      setInPlaceSingleStageTripId(trip.id)
       setPendingStart(null)
     }
 
@@ -554,10 +586,11 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
   }
 
   // Sort active trips: longest-running first. Stuck trips naturally bubble
-  // to the top where they need attention.
-  const sortedActiveTrips = [...(activeTrips ?? [])].sort(
-    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-  )
+  // to the top where they need attention. Hide the in-place single-stage
+  // trip so it does not duplicate the live stopwatch above the action button.
+  const sortedActiveTrips = [...(activeTrips ?? [])]
+    .filter(tr => tr.id !== inPlaceSingleStageTripId)
+    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
 
   // Otherwise show the list + start button
   return (
@@ -899,31 +932,105 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
       </div>
       </div>)}
 
-      {/* Start new trip button */}
+      {/* In-place stopwatch (single-stage mode only). Always rendered while
+          the picker is open so the Start button position never shifts when
+          the measurement begins. Reads 00:00 when idle, ticks every second
+          while a measurement is running. */}
+      {showSingleStagePicker && (() => {
+        // stopwatchTick is a render dependency; reference it so the IIFE
+        // recomputes elapsed time every second while running.
+        void stopwatchTick
+        const inPlaceTrip = (activeTrips ?? []).find(tr => tr.id === inPlaceSingleStageTripId)
+        const elapsedSec = inPlaceTrip
+          ? Math.max(0, Math.floor((Date.now() - new Date(inPlaceTrip.createdAt).getTime()) / 1000))
+          : 0
+        const totalMin = Math.floor(elapsedSec / 60)
+        const ss = elapsedSec % 60
+        const hh = Math.floor(totalMin / 60)
+        const mm = totalMin % 60
+        const elapsedDisplay = hh > 0
+          ? `${hh}:${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`
+          : `${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`
+        const isRunning = Boolean(inPlaceTrip)
+        return (
+          <div style={{
+            background: '#fff', border: `1px solid ${isRunning ? '#A8D9C5' : '#e5e5e5'}`,
+            borderRadius: '12px', padding: '14px', textAlign: 'center',
+          }}>
+            <div style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.5px', color: isRunning ? '#C0392B' : '#888', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+              {isRunning && (
+                <span className="rec-pulse" style={{
+                  display: 'inline-block', width: '8px', height: '8px',
+                  borderRadius: '50%', background: '#C0392B',
+                }} />
+              )}
+              <span>{isRunning ? <Bilingual k="card.rec" inline /> : <Bilingual k="card.total_elapsed" inline />}</span>
+            </div>
+            <div style={{
+              fontFamily: 'ui-monospace, SF Mono, Menlo, monospace',
+              fontSize: '36px', fontWeight: 700,
+              color: isRunning ? '#0F6E56' : '#bbb',
+              marginTop: '4px', letterSpacing: '-1px',
+            }}>{elapsedDisplay}</div>
+            <div style={{ fontSize: '12px', color: '#888', marginTop: '2px' }}>
+              {stageLabel(startStage)}
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* CSS keyframe for the REC dot pulse on the in-place stopwatch.
+          Mirrors the keyframe defined in LiveTripCard. */}
+      {showSingleStagePicker && (
+        <style>{`
+          @keyframes rec-pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50%      { opacity: 0.5; transform: scale(0.85); }
+          }
+          .rec-pulse {
+            animation: rec-pulse 1.2s ease-in-out infinite;
+          }
+        `}</style>
+      )}
+
+      {/* Start / Stop toggle. Stays in the same vertical position whether a
+          single-stage measurement is running or not. Switches to red Stop
+          state while in-place. Full-cycle (plant_queue) keeps the original
+          green Start label and navigates to LiveTripCard on tap. */}
       <button
         type="button"
-        onClick={handleStartNew}
-        disabled={!currentMeasurer}
+        onClick={inPlaceSingleStageTripId
+          ? () => handleSplit(inPlaceSingleStageTripId)
+          : handleStartNew}
+        disabled={inPlaceSingleStageTripId ? false : !currentMeasurer}
         style={{
           width: '100%', minHeight: '64px',
-          background: currentMeasurer ? '#0F6E56' : '#ccc', color: '#fff',
-          border: 'none', borderRadius: '14px',
+          background: inPlaceSingleStageTripId
+            ? '#C0392B'
+            : (currentMeasurer ? '#0F6E56' : '#ccc'),
+          color: '#fff', border: 'none', borderRadius: '14px',
           fontSize: '17px', fontWeight: 700,
-          cursor: currentMeasurer ? 'pointer' : 'not-allowed',
-          boxShadow: currentMeasurer ? '0 4px 14px rgba(15, 110, 86, 0.25)' : 'none',
+          cursor: (inPlaceSingleStageTripId || currentMeasurer) ? 'pointer' : 'not-allowed',
+          boxShadow: inPlaceSingleStageTripId
+            ? '0 4px 14px rgba(192, 57, 43, 0.25)'
+            : (currentMeasurer ? '0 4px 14px rgba(15, 110, 86, 0.25)' : 'none'),
         }}
       >
-        ▶&nbsp;&nbsp;{startStage === 'plant_queue'
-          ? <Bilingual k="live.start_new_trip" inline />
-          : <Bilingual k="live.start_measurement_of" params={{ stage: stageLabel(startStage) }} inline />}
+        {inPlaceSingleStageTripId ? (
+          <>■&nbsp;&nbsp;<Bilingual k="stage.finish" inline />{' '}<Bilingual k={`stage.${startStage}` as LogStringKey} inline /></>
+        ) : startStage === 'plant_queue' ? (
+          <>▶&nbsp;&nbsp;<Bilingual k="live.start_new_trip" inline /></>
+        ) : (
+          <>▶&nbsp;&nbsp;<Bilingual k="live.start_measurement_of" params={{ stage: stageLabel(startStage) }} inline /></>
+        )}
       </button>
 
       {/* Active trip list */}
       <div style={{ flex: 1, overflowY: 'auto' }}>
         <div style={{ fontSize: '11px', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '8px' }}>
-          <Bilingual k="live.active_trips" /> ({activeTrips?.length ?? 0})
+          <Bilingual k="live.active_trips" /> ({sortedActiveTrips.length})
         </div>
-        {(!activeTrips || activeTrips.length === 0) && (
+        {sortedActiveTrips.length === 0 && (
           <div style={{
             background: '#fff', border: '1px dashed #ccc', borderRadius: '10px',
             padding: '20px', textAlign: 'center', fontSize: '13px', color: '#888',
