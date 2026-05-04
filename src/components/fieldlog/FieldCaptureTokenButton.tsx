@@ -175,32 +175,34 @@ export default function FieldCaptureTokenButton({ assessmentId, plantId }: Props
               <div style={{ fontSize: '11px', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: '8px' }}>
                 <Bilingual k="token.generate_title" />
               </div>
-              {/* Helper name (required). Replaces what was previously a
-                  free "label" field. The /fc/[token] page reads this
-                  back via validate_field_capture_token and locks the
-                  measurer to it so the helper cannot pick another name. */}
-              <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#555', marginBottom: '4px' }}>
-                {t('token.helper_name_label')}
+              {/* Helper name (required). Wrapped in <label> so tapping the
+                  caption text focuses the input. */}
+              <label style={{ display: 'block', cursor: 'pointer', marginBottom: '10px' }}>
+                <span style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#555', marginBottom: '4px' }}>
+                  {t('token.helper_name_label')}
+                </span>
+                <input
+                  type="text"
+                  value={label}
+                  onChange={e => setLabel(e.target.value)}
+                  placeholder={t('token.helper_name_placeholder')}
+                  style={{ width: '100%', padding: '8px 10px', border: '1px solid #ddd', borderRadius: '6px', fontSize: '13px' }}
+                />
               </label>
-              <input
-                type="text"
-                value={label}
-                onChange={e => setLabel(e.target.value)}
-                placeholder={t('token.helper_name_placeholder')}
-                style={{ width: '100%', padding: '8px 10px', border: '1px solid #ddd', borderRadius: '6px', fontSize: '13px', marginBottom: '10px' }}
-              />
               {/* Admin-only note. Never shown on /fc/[token] — only in
-                  this list below. */}
-              <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#555', marginBottom: '4px' }}>
-                {t('token.note_label')}
+                  this list below. Same label-wrap pattern. */}
+              <label style={{ display: 'block', cursor: 'pointer', marginBottom: '10px' }}>
+                <span style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#555', marginBottom: '4px' }}>
+                  {t('token.note_label')}
+                </span>
+                <textarea
+                  value={note}
+                  onChange={e => setNote(e.target.value)}
+                  placeholder={t('token.note_placeholder')}
+                  rows={2}
+                  style={{ width: '100%', padding: '8px 10px', border: '1px solid #ddd', borderRadius: '6px', fontSize: '13px', resize: 'vertical' }}
+                />
               </label>
-              <textarea
-                value={note}
-                onChange={e => setNote(e.target.value)}
-                placeholder={t('token.note_placeholder')}
-                rows={2}
-                style={{ width: '100%', padding: '8px 10px', border: '1px solid #ddd', borderRadius: '6px', fontSize: '13px', resize: 'vertical', marginBottom: '10px' }}
-              />
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
                 <select
                   value={expiryDays}

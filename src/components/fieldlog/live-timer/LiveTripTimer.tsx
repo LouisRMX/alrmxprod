@@ -829,12 +829,13 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token, 
           header instead so they have visible confirmation of who they
           are logged in as. */}
       {!(syncMode === 'token' && helperName) && (
-      <div style={{
+      <label style={{
+        display: 'block', cursor: 'pointer',
         background: '#fff', border: '1px solid #e5e5e5', borderRadius: '12px', padding: '12px',
       }}>
-        <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '8px' }}>
+        <span style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '8px' }}>
           <Bilingual k="live.measuring_as" />
-        </label>
+        </span>
         {!showAddMeasurer && (
           <div style={{ display: 'flex', gap: '8px' }}>
             <select
@@ -851,7 +852,7 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token, 
             </select>
             <button
               type="button"
-              onClick={() => setShowAddMeasurer(true)}
+              onClick={(e) => { e.stopPropagation(); setShowAddMeasurer(true) }}
               style={{
                 minWidth: '44px', minHeight: '44px',
                 background: '#fff', color: '#0F6E56',
@@ -880,7 +881,7 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token, 
             />
             <button
               type="button"
-              onClick={handleAddMeasurer}
+              onClick={(e) => { e.stopPropagation(); handleAddMeasurer() }}
               style={{
                 minWidth: '70px', minHeight: '44px',
                 background: '#0F6E56', color: '#fff', border: 'none',
@@ -889,7 +890,7 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token, 
             >{t('live.add')}</button>
             <button
               type="button"
-              onClick={() => { setShowAddMeasurer(false); setNewMeasurerName('') }}
+              onClick={(e) => { e.stopPropagation(); setShowAddMeasurer(false); setNewMeasurerName('') }}
               style={{
                 minWidth: '44px', minHeight: '44px',
                 background: '#fff', color: '#666',
@@ -899,18 +900,20 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token, 
             >×</button>
           </div>
         )}
-      </div>
+      </label>
       )}
 
       {/* Site (origin_plant). Step 2 of the flow: helper picks which
           batching plant they are at before anything else. The list is
-          admin-curated via assessment_options; "+" only shown to admins. */}
-      <div style={{
+          admin-curated via assessment_options; "+" only shown to admins.
+          Whole card is a <label> so any tap opens the select. */}
+      <label style={{
+        display: 'block', cursor: 'pointer',
         background: '#fff', border: '1px solid #e5e5e5', borderRadius: '12px', padding: '12px',
       }}>
-        <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '8px' }}>
+        <span style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '8px' }}>
           <Bilingual k="live.current_plant" />
-        </label>
+        </span>
         {!showAddOriginPlant && (
           <div style={{ display: 'flex', gap: '8px' }}>
             <select
@@ -928,7 +931,7 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token, 
             {allowAddOptions && (
               <button
                 type="button"
-                onClick={() => setShowAddOriginPlant(true)}
+                onClick={(e) => { e.stopPropagation(); setShowAddOriginPlant(true) }}
                 style={{
                   minWidth: '44px', minHeight: '44px',
                   background: '#fff', color: '#0F6E56',
@@ -956,7 +959,7 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token, 
             />
             <button
               type="button"
-              onClick={handleAddOriginPlant}
+              onClick={(e) => { e.stopPropagation(); handleAddOriginPlant() }}
               style={{
                 minWidth: '70px', minHeight: '44px',
                 background: '#0F6E56', color: '#fff', border: 'none',
@@ -965,7 +968,7 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token, 
             >{t('live.add')}</button>
             <button
               type="button"
-              onClick={() => { setShowAddOriginPlant(false); setNewOriginPlantName('') }}
+              onClick={(e) => { e.stopPropagation(); setShowAddOriginPlant(false); setNewOriginPlantName('') }}
               style={{
                 minWidth: '44px', minHeight: '44px',
                 background: '#fff', color: '#666',
@@ -975,18 +978,20 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token, 
             >×</button>
           </div>
         )}
-      </div>
+      </label>
 
       {/* Process picker. Step 3 of the flow: which stage of the truck cycle
           you are timing. Default 'loading' matches the most common helper
           observation. "Full cycle" maps to plant_queue + measurementMode=full
-          and runs through all 9 stages via LiveTripCard like before. */}
-      <div style={{
+          and runs through all 9 stages via LiveTripCard like before.
+          Whole card is a <label> so any tap opens the select. */}
+      <label style={{
+        display: 'block', cursor: 'pointer',
         background: '#fff', border: '1px solid #e5e5e5', borderRadius: '12px', padding: '12px',
       }}>
-        <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '8px' }}>
+        <span style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '8px' }}>
           <Bilingual k="live.process" />
-        </label>
+        </span>
         <select
           value={startStage}
           onChange={e => setStartStage(e.target.value as StageName)}
@@ -1001,16 +1006,18 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token, 
           ))}
           <option value="plant_queue">{t('live.full_cycle_option')}</option>
         </select>
-      </div>
+      </label>
 
       {/* Batching unit. Step 4: scoped to the picked Site. Stays disabled
-          with a hint until a Site is chosen so the helper knows the order. */}
-      <div style={{
+          with a hint until a Site is chosen so the helper knows the order.
+          Whole card is a <label> so any tap opens the select. */}
+      <label style={{
+        display: 'block', cursor: 'pointer',
         background: '#fff', border: '1px solid #e5e5e5', borderRadius: '12px', padding: '12px',
       }}>
-        <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '8px' }}>
+        <span style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '8px' }}>
           <Bilingual k="live.current_batching_unit" />
-        </label>
+        </span>
         {!currentOriginPlant && (
           <div style={{ fontSize: '12px', color: '#888', fontStyle: 'italic' }}>
             {t('live.batching_unit_needs_plant')}
@@ -1033,7 +1040,7 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token, 
             {allowAddOptions && (
               <button
                 type="button"
-                onClick={() => setShowAddBatchingUnit(true)}
+                onClick={(e) => { e.stopPropagation(); setShowAddBatchingUnit(true) }}
                 style={{
                   minWidth: '44px', minHeight: '44px',
                   background: '#fff', color: '#0F6E56',
@@ -1061,7 +1068,7 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token, 
             />
             <button
               type="button"
-              onClick={handleAddBatchingUnit}
+              onClick={(e) => { e.stopPropagation(); handleAddBatchingUnit() }}
               style={{
                 minWidth: '70px', minHeight: '44px',
                 background: '#0F6E56', color: '#fff', border: 'none',
@@ -1070,7 +1077,7 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token, 
             >{t('live.add')}</button>
             <button
               type="button"
-              onClick={() => { setShowAddBatchingUnit(false); setNewBatchingUnitName('') }}
+              onClick={(e) => { e.stopPropagation(); setShowAddBatchingUnit(false); setNewBatchingUnitName('') }}
               style={{
                 minWidth: '44px', minHeight: '44px',
                 background: '#fff', color: '#666',
@@ -1080,16 +1087,18 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token, 
             >×</button>
           </div>
         )}
-      </div>
+      </label>
 
-      {/* Mix / strength. Step 5. Admin-curated list; "+" admins only. */}
+      {/* Mix / strength. Step 5. Admin-curated list; "+" admins only.
+          Whole card is a <label> so any tap opens the select. */}
       {(displayedMixTypes.length > 0 || allowAddOptions) && (
-        <div style={{
+        <label style={{
+          display: 'block', cursor: 'pointer',
           background: '#fff', border: '1px solid #e5e5e5', borderRadius: '12px', padding: '12px',
         }}>
-          <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '8px' }}>
+          <span style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '8px' }}>
             <Bilingual k="live.mix_type" />
-          </label>
+          </span>
           {!showAddMixType && (
             <div style={{ display: 'flex', gap: '8px' }}>
               <select
@@ -1107,7 +1116,7 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token, 
               {allowAddOptions && (
                 <button
                   type="button"
-                  onClick={() => setShowAddMixType(true)}
+                  onClick={(e) => { e.stopPropagation(); setShowAddMixType(true) }}
                   style={{
                     minWidth: '44px', minHeight: '44px',
                     background: '#fff', color: '#0F6E56',
@@ -1135,7 +1144,7 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token, 
               />
               <button
                 type="button"
-                onClick={handleAddMixType}
+                onClick={(e) => { e.stopPropagation(); handleAddMixType() }}
                 style={{
                   minWidth: '70px', minHeight: '44px',
                   background: '#0F6E56', color: '#fff', border: 'none',
@@ -1144,7 +1153,7 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token, 
               >{t('live.add')}</button>
               <button
                 type="button"
-                onClick={() => { setShowAddMixType(false); setNewMixTypeName('') }}
+                onClick={(e) => { e.stopPropagation(); setShowAddMixType(false); setNewMixTypeName('') }}
                 style={{
                   minWidth: '44px', minHeight: '44px',
                   background: '#fff', color: '#666',
@@ -1154,16 +1163,17 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token, 
               >×</button>
             </div>
           )}
-        </div>
+        </label>
       )}
 
-      {/* Load volume m³. Step 6. */}
-      <div style={{
+      {/* Load volume m³. Step 6. Whole card is a <label>. */}
+      <label style={{
+        display: 'block', cursor: 'pointer',
         background: '#fff', border: '1px solid #e5e5e5', borderRadius: '12px', padding: '12px',
       }}>
-        <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '8px' }}>
+        <span style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '8px' }}>
           <Bilingual k="live.load_m3" />
-        </label>
+        </span>
         <select
           value={currentLoadM3}
           onChange={e => setCurrentLoadM3(e.target.value)}
@@ -1178,7 +1188,7 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token, 
             <option key={n} value={String(n)}>{n} m³</option>
           ))}
         </select>
-      </div>
+      </label>
 
       {/* Cement type. Step 7. Two-button OPC/SRC toggle. */}
       <div style={{
