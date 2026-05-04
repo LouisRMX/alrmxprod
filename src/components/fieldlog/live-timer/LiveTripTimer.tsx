@@ -133,22 +133,12 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
   } | null>(null)
   const [focusedTripId, setFocusedTripId] = useState<string | null>(null)
   const [syncingNow, setSyncingNow] = useState(false)
-  // Selected starting stage for the next trip. plant_queue = full cycle.
-  const [startStage, setStartStage] = useState<StageName>('plant_queue')
-  // Single-stage capture is an advanced use-case (~5% of trips). Default
-  // to the full-cycle flow and only reveal the stage picker when the user
-  // ticks "Measure single stage". Keeps the start screen uncluttered for
-  // the common case. State persists across consecutive single-stage saves
-  // so an observer doing back-to-back measurements (e.g. 30 weighbridge
-  // dwells in one session) can just tap Start → Finish → Start without
-  // re-selecting the stage each time.
-  const [showSingleStagePicker, setShowSingleStagePicker] = useState(false)
-  // Collapsed by default: hides origin plant + single-stage toggle so first-time
-  // users see only their name + big Start button. Expand when needed. Site type
-  // is no longer asked here; it is deferred until the truck reaches its first
-  // site-side stage (site_wait, pouring, site_washout) where the value is
-  // actually relevant for analysis.
-  const [showMoreOptions, setShowMoreOptions] = useState(false)
+  // Selected starting stage for the next trip. plant_queue = full cycle;
+  // any other value = single-stage measurement of that stage. Defaults to
+  // 'loading' because helpers using a token typically observe Loading on a
+  // batching unit, and the explicit Process picker (always visible) lets
+  // them switch to any other single stage or to "Full cycle" with one tap.
+  const [startStage, setStartStage] = useState<StageName>('loading')
   // Transient "Trip saved" toast shown after a trip finalises.
   const [saveToast, setSaveToast] = useState<string | null>(null)
   // Site-type gate state. Two scenarios trigger the same modal:
@@ -857,166 +847,9 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
         )}
       </div>
 
-      {/* Mix-type selector. Shown to admins and helpers alike: the list is
-          admin-curated server-side via assessment_options. Helpers cannot
-          add new mix-types (no "+" button), only pick from what the admin
-          set up. Sorted ascending by numeric strength when the value is
-          numeric (250, 270, 350, ...), insertion order otherwise. */}
-      {(displayedMixTypes.length > 0 || allowAddOptions) && (
-        <div style={{
-          background: '#fff', border: '1px solid #e5e5e5', borderRadius: '12px', padding: '12px',
-        }}>
-          <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '8px' }}>
-            <Bilingual k="live.mix_type" />
-          </label>
-          {!showAddMixType && (
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <select
-                value={currentMixType}
-                onChange={(e) => setCurrentMixType(e.target.value)}
-                style={{
-                  flex: 1, minHeight: '44px', padding: '0 12px',
-                  border: '1px solid #ddd', borderRadius: '8px',
-                  fontSize: '15px', background: '#fff',
-                }}
-              >
-                <option value="">{t('live.not_specified')}</option>
-                {displayedMixTypes.map(m => <option key={m} value={m}>{m}</option>)}
-              </select>
-              {allowAddOptions && (
-                <button
-                  type="button"
-                  onClick={() => setShowAddMixType(true)}
-                  style={{
-                    minWidth: '44px', minHeight: '44px',
-                    background: '#fff', color: '#0F6E56',
-                    border: '1px solid #0F6E56', borderRadius: '8px',
-                    fontSize: '20px', fontWeight: 700, cursor: 'pointer',
-                  }}
-                  aria-label="Add mix type"
-                >+</button>
-              )}
-            </div>
-          )}
-          {showAddMixType && (
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <input
-                type="text"
-                value={newMixTypeName}
-                onChange={(e) => setNewMixTypeName(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') handleAddMixType() }}
-                placeholder={t('live.add_mix_type_placeholder')}
-                autoFocus
-                style={{
-                  flex: 1, minHeight: '44px', padding: '0 12px',
-                  border: '1px solid #ddd', borderRadius: '8px', fontSize: '15px',
-                }}
-              />
-              <button
-                type="button"
-                onClick={handleAddMixType}
-                style={{
-                  minWidth: '70px', minHeight: '44px',
-                  background: '#0F6E56', color: '#fff', border: 'none',
-                  borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer',
-                }}
-              >{t('live.add')}</button>
-              <button
-                type="button"
-                onClick={() => { setShowAddMixType(false); setNewMixTypeName('') }}
-                style={{
-                  minWidth: '44px', minHeight: '44px',
-                  background: '#fff', color: '#666',
-                  border: '1px solid #ddd', borderRadius: '8px',
-                  fontSize: '14px', cursor: 'pointer',
-                }}
-              >×</button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Cement type + load volume. Two short pickers in one row to keep
-          the start screen compact. Cement is a hard binary (OPC or SRC),
-          so a two-button toggle beats a dropdown for thumb speed. Load
-          volume is 1-12 m³ rounded to whole truck-fills; observer can
-          leave both blank when not known. */}
-      <div style={{
-        background: '#fff', border: '1px solid #e5e5e5', borderRadius: '12px', padding: '12px',
-        display: 'flex', gap: '12px', flexWrap: 'wrap',
-      }}>
-        <div style={{ flex: '1 1 180px', minWidth: '160px' }}>
-          <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '8px' }}>
-            <Bilingual k="live.cement_type" />
-          </label>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            {(['OPC', 'SRC'] as const).map(opt => {
-              const active = currentCementType === opt
-              return (
-                <button
-                  key={opt}
-                  type="button"
-                  onClick={() => setCurrentCementType(active ? '' : opt)}
-                  style={{
-                    flex: 1, minHeight: '44px',
-                    background: active ? '#0F6E56' : '#fff',
-                    color: active ? '#fff' : '#0F6E56',
-                    border: `1px solid ${active ? '#0F6E56' : '#A8D9C5'}`,
-                    borderRadius: '8px',
-                    fontSize: '14px', fontWeight: 700,
-                    cursor: 'pointer',
-                  }}
-                >{opt}</button>
-              )
-            })}
-          </div>
-        </div>
-        <div style={{ flex: '1 1 140px', minWidth: '140px' }}>
-          <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '8px' }}>
-            <Bilingual k="live.load_m3" />
-          </label>
-          <select
-            value={currentLoadM3}
-            onChange={e => setCurrentLoadM3(e.target.value)}
-            style={{
-              width: '100%', minHeight: '44px', padding: '0 12px',
-              border: '1px solid #ddd', borderRadius: '8px',
-              fontSize: '15px', background: '#fff',
-            }}
-          >
-            <option value="">{t('live.not_specified')}</option>
-            {Array.from({ length: 12 }, (_, i) => i + 1).map(n => (
-              <option key={n} value={String(n)}>{n} m³</option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {/* Site type is intentionally NOT asked on the Start screen. The
-          observer often does not know where the truck is going at the
-          moment of dispatch, and it only matters for analysing site-side
-          stages (site_wait, pouring, site_washout). It is prompted as a
-          modal at the boundary into the first site-side stage. */}
-
-      {/* More options toggle: collapses rarely-used controls (origin plant for
-          multi-plant shared-fleet assessments, single-stage measurement). */}
-      <button
-        type="button"
-        onClick={() => setShowMoreOptions(v => !v)}
-        style={{
-          width: '100%', minHeight: '40px',
-          background: 'transparent', color: '#0F6E56',
-          border: '1px dashed #A8D9C5', borderRadius: '10px',
-          fontSize: '13px', fontWeight: 600, cursor: 'pointer',
-        }}
-      >
-        {showMoreOptions
-          ? <>▲ <Bilingual k="live.hide_options" inline /></>
-          : <>▼ <Bilingual k="live.more_options" inline /></>}
-      </button>
-
-      {/* Origin plant selector (optional, for multi-plant shared-fleet assessments) */}
-      {showMoreOptions && (<div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+      {/* Site (origin_plant). Step 2 of the flow: helper picks which
+          batching plant they are at before anything else. The list is
+          admin-curated via assessment_options; "+" only shown to admins. */}
       <div style={{
         background: '#fff', border: '1px solid #e5e5e5', borderRadius: '12px', padding: '12px',
       }}>
@@ -1089,10 +922,34 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
         )}
       </div>
 
-      {/* Batching-unit selector (optional, scoped to current origin plant).
-          Most plants run 2-3 batching units; capturing which one loaded a
-          given truck unlocks per-unit loading time and reject rate. Skipping
-          this picker is fine: the trip rolls up to plant level automatically. */}
+      {/* Process picker. Step 3 of the flow: which stage of the truck cycle
+          you are timing. Default 'loading' matches the most common helper
+          observation. "Full cycle" maps to plant_queue + measurementMode=full
+          and runs through all 9 stages via LiveTripCard like before. */}
+      <div style={{
+        background: '#fff', border: '1px solid #e5e5e5', borderRadius: '12px', padding: '12px',
+      }}>
+        <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '8px' }}>
+          <Bilingual k="live.process" />
+        </label>
+        <select
+          value={startStage}
+          onChange={e => setStartStage(e.target.value as StageName)}
+          style={{
+            width: '100%', minHeight: '44px', padding: '0 12px',
+            border: '1px solid #ddd', borderRadius: '8px',
+            fontSize: '15px', background: '#fff',
+          }}
+        >
+          {STAGES.filter(s => s !== 'plant_queue').map(s => (
+            <option key={s} value={s}>{stageLabel(s)}</option>
+          ))}
+          <option value="plant_queue">{t('live.full_cycle_option')}</option>
+        </select>
+      </div>
+
+      {/* Batching unit. Step 4: scoped to the picked Site. Stays disabled
+          with a hint until a Site is chosen so the helper knows the order. */}
       <div style={{
         background: '#fff', border: '1px solid #e5e5e5', borderRadius: '12px', padding: '12px',
       }}>
@@ -1170,65 +1027,145 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
         )}
       </div>
 
-      {/* Advanced: measuring single stage. Hidden behind a checkbox because
-          ~95% of captures are full-cycle trips. Showing all 9 single-stage
-          options in a dropdown by default clutters the start screen. */}
+      {/* Mix / strength. Step 5. Admin-curated list; "+" admins only. */}
+      {(displayedMixTypes.length > 0 || allowAddOptions) && (
+        <div style={{
+          background: '#fff', border: '1px solid #e5e5e5', borderRadius: '12px', padding: '12px',
+        }}>
+          <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '8px' }}>
+            <Bilingual k="live.mix_type" />
+          </label>
+          {!showAddMixType && (
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <select
+                value={currentMixType}
+                onChange={(e) => setCurrentMixType(e.target.value)}
+                style={{
+                  flex: 1, minHeight: '44px', padding: '0 12px',
+                  border: '1px solid #ddd', borderRadius: '8px',
+                  fontSize: '15px', background: '#fff',
+                }}
+              >
+                <option value="">{t('live.not_specified')}</option>
+                {displayedMixTypes.map(m => <option key={m} value={m}>{m}</option>)}
+              </select>
+              {allowAddOptions && (
+                <button
+                  type="button"
+                  onClick={() => setShowAddMixType(true)}
+                  style={{
+                    minWidth: '44px', minHeight: '44px',
+                    background: '#fff', color: '#0F6E56',
+                    border: '1px solid #0F6E56', borderRadius: '8px',
+                    fontSize: '20px', fontWeight: 700, cursor: 'pointer',
+                  }}
+                  aria-label="Add mix type"
+                >+</button>
+              )}
+            </div>
+          )}
+          {showAddMixType && (
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <input
+                type="text"
+                value={newMixTypeName}
+                onChange={(e) => setNewMixTypeName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleAddMixType() }}
+                placeholder={t('live.add_mix_type_placeholder')}
+                autoFocus
+                style={{
+                  flex: 1, minHeight: '44px', padding: '0 12px',
+                  border: '1px solid #ddd', borderRadius: '8px', fontSize: '15px',
+                }}
+              />
+              <button
+                type="button"
+                onClick={handleAddMixType}
+                style={{
+                  minWidth: '70px', minHeight: '44px',
+                  background: '#0F6E56', color: '#fff', border: 'none',
+                  borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer',
+                }}
+              >{t('live.add')}</button>
+              <button
+                type="button"
+                onClick={() => { setShowAddMixType(false); setNewMixTypeName('') }}
+                style={{
+                  minWidth: '44px', minHeight: '44px',
+                  background: '#fff', color: '#666',
+                  border: '1px solid #ddd', borderRadius: '8px',
+                  fontSize: '14px', cursor: 'pointer',
+                }}
+              >×</button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Load volume m³. Step 6. */}
       <div style={{
         background: '#fff', border: '1px solid #e5e5e5', borderRadius: '12px', padding: '12px',
       }}>
-        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', color: '#555' }}>
-          <input
-            type="checkbox"
-            checked={showSingleStagePicker}
-            onChange={e => {
-              const checked = e.target.checked
-              setShowSingleStagePicker(checked)
-              if (checked) {
-                // Opening the picker: pre-select 'loading' so the select's
-                // visual default matches state. Without this, startStage
-                // stays 'plant_queue' (which is filtered out of the
-                // options) and a Start tap creates a full-cycle trip even
-                // though the observer believed they were in single-stage.
-                setStartStage('loading')
-              } else {
-                // Closing the picker: reset to full cycle.
-                setStartStage('plant_queue')
-              }
-            }}
-            style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-          />
-          <Bilingual k="live.measure_single_stage_toggle" />
+        <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '8px' }}>
+          <Bilingual k="live.load_m3" />
         </label>
-        {showSingleStagePicker && (
-          <div style={{ marginTop: '10px' }}>
-            <select
-              value={startStage}
-              onChange={e => setStartStage(e.target.value as StageName)}
-              style={{
-                width: '100%', minHeight: '44px', padding: '0 12px',
-                border: '1px solid #ddd', borderRadius: '8px',
-                fontSize: '15px', background: '#fff',
-              }}
-            >
-              {STAGES.filter(s => s !== 'plant_queue').map(s => (
-                <option key={s} value={s}>{stageLabel(s)} · {t('live.single_stage_only_suffix')}</option>
-              ))}
-            </select>
-            {startStage !== 'plant_queue' && (
-              <div style={{ fontSize: '11px', color: '#888', marginTop: '6px', lineHeight: 1.4 }}>
-                {t('live.single_stage_explainer', { stage: stageLabel(startStage) })}
-              </div>
-            )}
-          </div>
-        )}
+        <select
+          value={currentLoadM3}
+          onChange={e => setCurrentLoadM3(e.target.value)}
+          style={{
+            width: '100%', minHeight: '44px', padding: '0 12px',
+            border: '1px solid #ddd', borderRadius: '8px',
+            fontSize: '15px', background: '#fff',
+          }}
+        >
+          <option value="">{t('live.not_specified')}</option>
+          {Array.from({ length: 12 }, (_, i) => i + 1).map(n => (
+            <option key={n} value={String(n)}>{n} m³</option>
+          ))}
+        </select>
       </div>
-      </div>)}
 
-      {/* In-place stopwatch (single-stage mode only). Always rendered while
-          the picker is open so the Start button position never shifts when
-          the measurement begins. Reads 00:00 when idle, ticks every second
-          while a measurement is running. */}
-      {showSingleStagePicker && (() => {
+      {/* Cement type. Step 7. Two-button OPC/SRC toggle. */}
+      <div style={{
+        background: '#fff', border: '1px solid #e5e5e5', borderRadius: '12px', padding: '12px',
+      }}>
+        <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '8px' }}>
+          <Bilingual k="live.cement_type" />
+        </label>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          {(['OPC', 'SRC'] as const).map(opt => {
+            const active = currentCementType === opt
+            return (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => setCurrentCementType(active ? '' : opt)}
+                style={{
+                  flex: 1, minHeight: '44px',
+                  background: active ? '#0F6E56' : '#fff',
+                  color: active ? '#fff' : '#0F6E56',
+                  border: `1px solid ${active ? '#0F6E56' : '#A8D9C5'}`,
+                  borderRadius: '8px',
+                  fontSize: '14px', fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >{opt}</button>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Site type is intentionally NOT asked on the Start screen. The
+          observer often does not know where the truck is going at the
+          moment of dispatch, and it only matters for analysing site-side
+          stages (site_wait, pouring, site_washout). It is prompted as a
+          modal at the boundary into the first site-side stage. */}
+
+      {/* In-place stopwatch (single-stage mode only). Renders whenever the
+          chosen Process is a single stage (i.e. anything except "Full
+          cycle"). 00:00 when idle, ticks every second while running.
+          Anchors the action button so its position never shifts on Start. */}
+      {startStage !== 'plant_queue' && (() => {
         // stopwatchTick is a render dependency; reference it so the IIFE
         // recomputes elapsed time every second while running.
         void stopwatchTick
@@ -1273,7 +1210,7 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
 
       {/* CSS keyframe for the REC dot pulse on the in-place stopwatch.
           Mirrors the keyframe defined in LiveTripCard. */}
-      {showSingleStagePicker && (
+      {startStage !== 'plant_queue' && (
         <style>{`
           @keyframes rec-pulse {
             0%, 100% { opacity: 1; transform: scale(1); }
@@ -1313,7 +1250,7 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
         ) : startStage === 'plant_queue' ? (
           <>▶&nbsp;&nbsp;<Bilingual k="live.start_new_trip" inline /></>
         ) : (
-          <>▶&nbsp;&nbsp;<Bilingual k="live.start_measurement_of" params={{ stage: stageLabel(startStage) }} inline /></>
+          <>▶&nbsp;&nbsp;<Bilingual k="live.start_stage_timer" params={{ stage: stageLabel(startStage) }} inline /></>
         )}
       </button>
 
