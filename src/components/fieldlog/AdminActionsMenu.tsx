@@ -71,18 +71,14 @@ export default function AdminActionsMenu({ assessmentId, plantId }: Props) {
           zIndex: 100, minWidth: '200px',
           display: 'flex', flexDirection: 'column', gap: '2px',
         }}>
-          {/* Each child component renders its own trigger button + internal modal.
-              We wrap to normalise padding / width inside the menu. Clicking an item
-              closes the menu; the component's own modal then opens. */}
-          <div onClick={() => setOpen(false)}>
-            <DailyBriefingExport assessmentId={assessmentId} />
-          </div>
-          <div onClick={() => setOpen(false)}>
-            <FieldCapturePreviewButton assessmentId={assessmentId} plantId={plantId} />
-          </div>
-          <div onClick={() => setOpen(false)}>
-            <FieldCaptureTokenButton assessmentId={assessmentId} plantId={plantId} />
-          </div>
+          {/* Each child component renders its own trigger button + internal
+              modal. Don't auto-close the menu on click: closing unmounts the
+              child, which throws away the modal state it just set. The
+              menu's outside-click handler closes things when the user
+              interacts with the modal backdrop. */}
+          <DailyBriefingExport assessmentId={assessmentId} />
+          <FieldCapturePreviewButton assessmentId={assessmentId} plantId={plantId} />
+          <FieldCaptureTokenButton assessmentId={assessmentId} plantId={plantId} />
         </div>
       )}
     </div>
