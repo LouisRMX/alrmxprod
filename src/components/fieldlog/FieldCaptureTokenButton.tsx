@@ -25,6 +25,7 @@ interface Props {
 interface Token {
   token: string
   label: string | null
+  note: string | null
   expires_at: string
   revoked_at: string | null
   last_used_at: string | null
@@ -44,7 +45,13 @@ export default function FieldCaptureTokenButton({ assessmentId, plantId }: Props
   const { t } = useLogT()
   const [open, setOpen] = useState(false)
   const [tokens, setTokens] = useState<Token[]>([])
+  // Helper name baked into the token. The /fc/[token] page reads this
+  // back via validate_field_capture_token and locks the measurer to it,
+  // so the helper does not pick a name themselves.
   const [label, setLabel] = useState('')
+  // Free-text scratchpad for the admin (shift, phone owner, etc.).
+  // Visible only in this modal — never exposed on /fc/[token].
+  const [note, setNote] = useState('')
   const [expiryDays, setExpiryDays] = useState(90)
   const [loading, setLoading] = useState(false)
   const [appUrl, setAppUrl] = useState('')
@@ -57,7 +64,7 @@ export default function FieldCaptureTokenButton({ assessmentId, plantId }: Props
     setLoading(true)
     const { data } = await supabase
       .from('field_capture_tokens')
-      .select('token, label, expires_at, revoked_at, last_used_at, use_count, created_at')
+      .select('token, label, note, expires_at, revoked_at, last_used_at, use_count, created_at')
       .eq('assessment_id', assessmentId)
       .order('created_at', { ascending: false })
     setTokens((data ?? []) as Token[])
@@ -67,13 +74,19 @@ export default function FieldCaptureTokenButton({ assessmentId, plantId }: Props
   useEffect(() => { if (open) loadTokens() }, [open, loadTokens])
 
   const createToken = async () => {
+    const trimmedLabel = label.trim()
+    if (!trimmedLabel) {
+      alert(t('token.name_required'))
+      return
+    }
     const token = generateTokenString()
     const expiresAt = new Date(Date.now() + expiryDays * 24 * 60 * 60 * 1000).toISOString()
     const { error } = await supabase.from('field_capture_tokens').insert({
       token,
       assessment_id: assessmentId,
       plant_id: plantId,
-      label: label || null,
+      label: trimmedLabel,
+      note: note.trim() || null,
       expires_at: expiresAt,
     })
     if (error) {
@@ -81,6 +94,7 @@ export default function FieldCaptureTokenButton({ assessmentId, plantId }: Props
       return
     }
     setLabel('')
+    setNote('')
     await loadTokens()
   }
 
@@ -161,14 +175,33 @@ export default function FieldCaptureTokenButton({ assessmentId, plantId }: Props
               <div style={{ fontSize: '11px', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: '8px' }}>
                 <Bilingual k="token.generate_title" />
               </div>
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                <input
-                  type="text"
-                  value={label}
-                  onChange={e => setLabel(e.target.value)}
-                  placeholder={t('token.label_placeholder')}
-                  style={{ flex: 1, minWidth: '200px', padding: '8px 10px', border: '1px solid #ddd', borderRadius: '6px', fontSize: '13px' }}
-                />
+              {/* Helper name (required). Replaces what was previously a
+                  free "label" field. The /fc/[token] page reads this
+                  back via validate_field_capture_token and locks the
+                  measurer to it so the helper cannot pick another name. */}
+              <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#555', marginBottom: '4px' }}>
+                {t('token.helper_name_label')}
+              </label>
+              <input
+                type="text"
+                value={label}
+                onChange={e => setLabel(e.target.value)}
+                placeholder={t('token.helper_name_placeholder')}
+                style={{ width: '100%', padding: '8px 10px', border: '1px solid #ddd', borderRadius: '6px', fontSize: '13px', marginBottom: '10px' }}
+              />
+              {/* Admin-only note. Never shown on /fc/[token] — only in
+                  this list below. */}
+              <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#555', marginBottom: '4px' }}>
+                {t('token.note_label')}
+              </label>
+              <textarea
+                value={note}
+                onChange={e => setNote(e.target.value)}
+                placeholder={t('token.note_placeholder')}
+                rows={2}
+                style={{ width: '100%', padding: '8px 10px', border: '1px solid #ddd', borderRadius: '6px', fontSize: '13px', resize: 'vertical', marginBottom: '10px' }}
+              />
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
                 <select
                   value={expiryDays}
                   onChange={e => setExpiryDays(+e.target.value)}
@@ -222,6 +255,11 @@ export default function FieldCaptureTokenButton({ assessmentId, plantId }: Props
                         <div style={{ fontSize: '13px', fontWeight: 600, color: '#1a1a1a' }}>
                           {tok.label || <span style={{ color: '#888', fontStyle: 'italic' }}>{t('token.unlabeled')}</span>}
                         </div>
+                        {tok.note && (
+                          <div style={{ fontSize: '11px', color: '#5a5a5a', marginTop: '2px', fontStyle: 'italic' }}>
+                            {tok.note}
+                          </div>
+                        )}
                         <div style={{ fontSize: '11px', color: '#888', marginTop: '2px', fontFamily: 'ui-monospace, SF Mono, Menlo, monospace', wordBreak: 'break-all' }}>
                           {url}
                         </div>

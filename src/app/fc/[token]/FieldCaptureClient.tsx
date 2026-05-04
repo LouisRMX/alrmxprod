@@ -17,6 +17,11 @@ interface Props {
   assessmentId: string
   plantId: string
   plantName: string
+  /** Helper name baked into the token by the admin who minted it.
+   *  Pre-fills (and locks) the measurer in the live timer so the
+   *  helper cannot pick a different name. NULL for legacy tokens
+   *  minted before the field existed. */
+  helperName: string | null
 }
 
 export default function FieldCaptureClient(props: Props) {
@@ -28,7 +33,7 @@ export default function FieldCaptureClient(props: Props) {
   )
 }
 
-function FieldCaptureInner({ token, assessmentId, plantId, plantName }: Props) {
+function FieldCaptureInner({ token, assessmentId, plantId, plantName, helperName }: Props) {
   const { isRTL } = useLogT()
 
   return (
@@ -53,6 +58,11 @@ function FieldCaptureInner({ token, assessmentId, plantId, plantName }: Props) {
           <div style={{ fontSize: '15px', fontWeight: 600, marginTop: '2px' }}>
             {plantName}
           </div>
+          {helperName && (
+            <div style={{ fontSize: '12px', fontWeight: 500, marginTop: '4px', opacity: 0.85 }}>
+              {helperName}
+            </div>
+          )}
         </div>
         <LocaleToggle />
       </header>
@@ -63,6 +73,7 @@ function FieldCaptureInner({ token, assessmentId, plantId, plantName }: Props) {
           plantId={plantId}
           syncMode="token"
           token={token}
+          helperName={helperName}
         />
       </main>
     </div>

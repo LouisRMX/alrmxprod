@@ -80,9 +80,13 @@ interface LiveTripTimerProps {
   syncMode: 'authed' | 'token'
   /** When syncMode === 'token', this token is sent with every sync request. */
   token?: string
+  /** When set in token mode, locks the measurer name to this value and
+   *  hides the measurer picker. The admin who minted the token chose
+   *  the helper's name; the helper does not get to override it. */
+  helperName?: string | null
 }
 
-export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }: LiveTripTimerProps) {
+export default function LiveTripTimer({ assessmentId, plantId, syncMode, token, helperName }: LiveTripTimerProps) {
   const online = useOnlineStatus()
   const supabase = createClient()
   const { t } = useLogT()
@@ -232,15 +236,50 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
   // directly; token helpers go through the SECURITY DEFINER RPC. Result
   // populates serverOptions; the picker render functions prefer it over
   // the IndexedDB lists when present.
+  //
+  // In authed mode we ALSO push any IndexedDB-only origin_plants and
+  // batching_units to the server so token helpers see them. This is the
+  // one-time backfill for entries the admin added via the live-timer
+  // "+" buttons before server-side wiring existed; it is idempotent
+  // (the unique constraint absorbs duplicates) so running it on every
+  // mount is safe.
   useEffect(() => {
     let cancelled = false
     async function loadServerOptions() {
       try {
-        const opts = syncMode === 'token' && token
+        let opts = syncMode === 'token' && token
           ? await fetchOptionsForToken(token)
           : await fetchOptionsForAssessment(assessmentId)
         if (cancelled) return
         setServerOptions(opts)
+
+        if (syncMode !== 'authed') return
+
+        const localPlants = await getAllOriginPlants()
+        const serverPlantNames = new Set(opts.origin_plants.map(o => o.name))
+        let pushed = false
+        for (const name of localPlants) {
+          if (!serverPlantNames.has(name)) {
+            await upsertAssessmentOption({ assessmentId, kind: 'origin_plant', name })
+            pushed = true
+          }
+          const localUnits = await getBatchingUnitsForPlant(name)
+          const serverUnitsForPlant = new Set(
+            opts.batching_units.filter(u => u.parent_name === name).map(u => u.name),
+          )
+          for (const unit of localUnits) {
+            if (!serverUnitsForPlant.has(unit)) {
+              await upsertAssessmentOption({
+                assessmentId, kind: 'batching_unit', name: unit, parentName: name,
+              })
+              pushed = true
+            }
+          }
+        }
+        if (pushed && !cancelled) {
+          opts = await fetchOptionsForAssessment(assessmentId)
+          if (!cancelled) setServerOptions(opts)
+        }
       } catch {
         if (!cancelled) setServerOptions(EMPTY_OPTIONS)
       }
@@ -248,6 +287,16 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
     loadServerOptions()
     return () => { cancelled = true }
   }, [assessmentId, syncMode, token])
+
+  // When the token carries a helper name (admin chose it at mint time),
+  // lock the measurer to that value. The measurer card is also hidden
+  // below so the helper cannot see or change the picker.
+  useEffect(() => {
+    if (syncMode === 'token' && helperName && currentMeasurer !== helperName) {
+      setCurrentMeasurer(helperName)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [helperName, syncMode])
 
   // Load autocomplete suggestions (server trucks/drivers/sites from prior trips)
   // Token mode has no authenticated supabase client, so suggestions come only
@@ -774,7 +823,12 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
         </div>
       )}
 
-      {/* Measurer selector */}
+      {/* Measurer selector. Hidden in token mode when the admin baked a
+          helper name into the token: the measurer is locked, no need to
+          show a disabled picker. The helper's name is shown in the page
+          header instead so they have visible confirmation of who they
+          are logged in as. */}
+      {!(syncMode === 'token' && helperName) && (
       <div style={{
         background: '#fff', border: '1px solid #e5e5e5', borderRadius: '12px', padding: '12px',
       }}>
@@ -846,6 +900,7 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
           </div>
         )}
       </div>
+      )}
 
       {/* Site (origin_plant). Step 2 of the flow: helper picks which
           batching plant they are at before anything else. The list is

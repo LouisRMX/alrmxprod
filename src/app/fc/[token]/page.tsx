@@ -18,6 +18,8 @@ export const dynamic = 'force-dynamic'
 interface TokenValidation {
   assessment_id: string
   plant_id: string
+  label: string | null
+  note: string | null
 }
 
 export default async function FieldCapturePage({
@@ -62,6 +64,7 @@ export default async function FieldCapturePage({
       assessmentId={row.assessment_id}
       plantId={row.plant_id}
       plantName={plantData?.name ?? 'Plant'}
+      helperName={row.label ?? null}
     />
   )
 }
