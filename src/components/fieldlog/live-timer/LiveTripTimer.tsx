@@ -1027,7 +1027,7 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token, 
                 fontSize: '15px', background: '#fff',
               }}
             >
-              <option value="">{t('live.plant_total_only')}</option>
+              <option value="">{t('live.choose_batching_unit')}</option>
               {displayedBatchingUnits.map(u => <option key={u} value={u}>{u}</option>)}
             </select>
             {allowAddOptions && (
@@ -1101,7 +1101,7 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token, 
                   fontSize: '15px', background: '#fff',
                 }}
               >
-                <option value="">{t('live.not_specified')}</option>
+                <option value="">{t('live.choose_mix')}</option>
                 {displayedMixTypes.map(m => <option key={m} value={m}>{m}</option>)}
               </select>
               {allowAddOptions && (
@@ -1173,7 +1173,7 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token, 
             fontSize: '15px', background: '#fff',
           }}
         >
-          <option value="">{t('live.not_specified')}</option>
+          <option value="">{t('live.choose_loading_size')}</option>
           {Array.from({ length: 12 }, (_, i) => i + 1).map(n => (
             <option key={n} value={String(n)}>{n} m³</option>
           ))}
