@@ -126,6 +126,13 @@ export interface ActiveTrip {
    * surfaced. NULL = rolls up to plant level only.
    */
   batchingUnit?: string
+  /**
+   * Concrete mix / strength code captured for this trip (e.g. "350").
+   * Picked from the admin-curated assessment_options list of kind=mix_type
+   * so analysts can slice TAT by recipe. NULL when the observer did not
+   * record a mix type.
+   */
+  mixType?: string
   /** Optional identifiers the observer filled in at start. */
   truckId?: string
   driverName?: string
@@ -309,6 +316,8 @@ export async function startTrip(input: {
   originPlant?: string
   /** Optional batching-unit label inside the chosen origin plant. */
   batchingUnit?: string
+  /** Optional mix-type code (e.g. "350") for the trip. */
+  mixType?: string
   truckId?: string
   driverName?: string
   siteName?: string
@@ -340,6 +349,7 @@ export async function startTrip(input: {
     measurerName: input.measurerName,
     originPlant: input.originPlant,
     batchingUnit: input.batchingUnit,
+    mixType: input.mixType,
     truckId: input.truckId,
     driverName: input.driverName,
     siteName: input.siteName,
@@ -630,6 +640,14 @@ export async function setTripOriginPlant(tripId: string, originPlant: string): P
   }
 }
 
+/** Update the mix-type code on an active trip. Empty string clears it. */
+export async function setTripMixType(tripId: string, mixType: string): Promise<void> {
+  const trip = await db.activeTrips.get(tripId)
+  if (!trip) return
+  const trimmed = mixType.trim()
+  await db.activeTrips.put({ ...trip, mixType: trimmed || undefined })
+}
+
 /** Update the batching unit on an active trip. Empty string clears it
  *  (rolls back up to plant level only). The unit is cached against the
  *  trip's current originPlant so future trips at that plant see it in
@@ -792,6 +810,7 @@ export function buildDailyLogPayload(trip: PendingTrip): Record<string, unknown>
     site_type: trip.siteType ?? null,
     origin_plant: trip.originPlant ?? null,
     batching_unit: trip.batchingUnit ?? null,
+    mix_type: trip.mixType ?? null,
     // 9-stage timing. Each line: the column on daily_logs = the Dexie key
     // whose tap value represents the START of that stage (or the END of
     // the previous stage — they are the same moment).

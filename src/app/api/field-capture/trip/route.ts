@@ -38,6 +38,7 @@ interface TripPayload {
     | null
   origin_plant?: string | null
   batching_unit?: string | null
+  mix_type?: string | null
   plant_queue_start?: string | null
   loading_start?: string | null
   loading_end?: string | null
@@ -156,6 +157,9 @@ export async function POST(req: NextRequest) {
       && typeof payload.origin_plant === 'string'
       && payload.origin_plant.trim().length > 0)
       ? payload.batching_unit.trim()
+      : null,
+    mix_type: (typeof payload.mix_type === 'string' && payload.mix_type.trim().length > 0)
+      ? payload.mix_type.trim()
       : null,
     // 9-stage timestamps
     plant_queue_start: payload.plant_queue_start ?? null,

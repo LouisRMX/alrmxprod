@@ -53,6 +53,13 @@ import {
 } from '@/lib/fieldlog/offline-trip-queue'
 import { useOnlineStatus } from '@/hooks/useOnlineStatus'
 import { createClient } from '@/lib/supabase/client'
+import {
+  fetchOptionsForAssessment,
+  fetchOptionsForToken,
+  upsertAssessmentOption,
+  EMPTY_OPTIONS,
+  type FieldCaptureOptions,
+} from '@/lib/fieldlog/assessment-options'
 import LiveTripCard from './LiveTripCard'
 import SiteTypeGrid from '../SiteTypeGrid'
 import { useLogT } from '@/lib/i18n/LogLocaleContext'
@@ -96,6 +103,27 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
   const [currentBatchingUnit, setCurrentBatchingUnit] = useState<string>('')
   const [showAddBatchingUnit, setShowAddBatchingUnit] = useState(false)
   const [newBatchingUnitName, setNewBatchingUnitName] = useState('')
+  // Admin-curated option lists (origin_plants / batching_units / mix_types)
+  // resolved server-side from assessment_options. When this assessment has
+  // no curated rows we fall back to IndexedDB. Token-mode helpers ALWAYS
+  // see this list (no fallback) so they can never pick a value the admin
+  // did not authorise.
+  const [serverOptions, setServerOptions] = useState<FieldCaptureOptions>(EMPTY_OPTIONS)
+  const [currentMixType, setCurrentMixType] = useState<string>('')
+  const [showAddMixType, setShowAddMixType] = useState(false)
+  const [newMixTypeName, setNewMixTypeName] = useState('')
+  // One-line summary of the most recent saved measurement, rendered just
+  // under the Start/Stop button. Helpers asked for visible confirmation
+  // beyond the transient toast — back-to-back single-stage measurements
+  // need a persistent receipt.
+  const [lastSavedSummary, setLastSavedSummary] = useState<{
+    label: string
+    minutes: number | null
+    truckId?: string
+    mixType?: string
+    batchingUnit?: string
+    savedAtIso: string
+  } | null>(null)
   const [focusedTripId, setFocusedTripId] = useState<string | null>(null)
   const [syncingNow, setSyncingNow] = useState(false)
   // Selected starting stage for the next trip. plant_queue = full cycle.
@@ -201,6 +229,28 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
     }
     init()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load admin-curated option lists (origin_plants, batching_units,
+  // mix_types) from assessment_options. Authed admins query the table
+  // directly; token helpers go through the SECURITY DEFINER RPC. Result
+  // populates serverOptions; the picker render functions prefer it over
+  // the IndexedDB lists when present.
+  useEffect(() => {
+    let cancelled = false
+    async function loadServerOptions() {
+      try {
+        const opts = syncMode === 'token' && token
+          ? await fetchOptionsForToken(token)
+          : await fetchOptionsForAssessment(assessmentId)
+        if (cancelled) return
+        setServerOptions(opts)
+      } catch {
+        if (!cancelled) setServerOptions(EMPTY_OPTIONS)
+      }
+    }
+    loadServerOptions()
+    return () => { cancelled = true }
+  }, [assessmentId, syncMode, token])
 
   // Load autocomplete suggestions (server trucks/drivers/sites from prior trips)
   // Token mode has no authenticated supabase client, so suggestions come only
@@ -322,6 +372,7 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
       batchingUnit: currentOriginPlant && currentBatchingUnit
         ? currentBatchingUnit
         : undefined,
+      mixType: currentMixType || undefined,
       // site_type is deliberately not set here for plant-side single-stage
       // and full-cycle trips. Full-cycle trips get prompted at the
       // transit_out -> site_wait boundary. Plant-side single-stage trips
@@ -361,6 +412,18 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
     await addOriginPlant(name)
     const list = await getAllOriginPlants()
     setOriginPlants(list)
+    // Admin path: also persist server-side so helpers see the new option
+    // on their next picker refresh. Failures are non-fatal — the admin
+    // still has the value in IndexedDB and the next sync will retry.
+    if (syncMode === 'authed') {
+      await upsertAssessmentOption({
+        assessmentId,
+        kind: 'origin_plant',
+        name,
+      })
+      const refreshed = await fetchOptionsForAssessment(assessmentId)
+      setServerOptions(refreshed)
+    }
     setCurrentOriginPlant(name)
     setNewOriginPlantName('')
     setShowAddOriginPlant(false)
@@ -372,9 +435,40 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
     await addBatchingUnit(currentOriginPlant, name)
     const list = await getBatchingUnitsForPlant(currentOriginPlant)
     setBatchingUnits(list)
+    if (syncMode === 'authed') {
+      await upsertAssessmentOption({
+        assessmentId,
+        kind: 'batching_unit',
+        name,
+        parentName: currentOriginPlant,
+      })
+      const refreshed = await fetchOptionsForAssessment(assessmentId)
+      setServerOptions(refreshed)
+    }
     setCurrentBatchingUnit(name)
     setNewBatchingUnitName('')
     setShowAddBatchingUnit(false)
+  }
+
+  const handleAddMixType = async () => {
+    const name = newMixTypeName.trim()
+    if (!name || syncMode !== 'authed') return
+    // Treat all-numeric names as their own sort_value so the new entry
+    // lands in the right ascending position next to the seeded set
+    // (250, 270, 350, ...). Non-numeric names fall back to insertion order.
+    const numeric = Number(name)
+    const sortValue = Number.isFinite(numeric) ? numeric : null
+    await upsertAssessmentOption({
+      assessmentId,
+      kind: 'mix_type',
+      name,
+      sortValue,
+    })
+    const refreshed = await fetchOptionsForAssessment(assessmentId)
+    setServerOptions(refreshed)
+    setCurrentMixType(name)
+    setNewMixTypeName('')
+    setShowAddMixType(false)
   }
 
   const showSavedToast = useCallback((label: string) => {
@@ -440,6 +534,18 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
     if (inPlaceSingleStageTripId === tripId) {
       setInPlaceSingleStageTripId(null)
     }
+    // Persistent receipt under the Start button. Stays visible across
+    // back-to-back measurements so the helper has visible confirmation
+    // beyond the transient toast \u2014 they can verify the right mix and
+    // unit was attached without scrolling to the pending-sync list.
+    setLastSavedSummary({
+      label: stageLabel(stage),
+      minutes: elapsedMin,
+      truckId: tripBefore.truckId,
+      mixType: tripBefore.mixType,
+      batchingUnit: tripBefore.batchingUnit,
+      savedAtIso: new Date().toISOString(),
+    })
     showSavedToast(
       `\u2713 ${t('toast.partial_saved')}${elapsedMin != null ? `: ${elapsedMin} ${t('reviewq.min')}` : ''}${tripBefore.truckId ? ` \u00b7 ${t('reviewq.truck')} ${tripBefore.truckId}` : ''}`,
     )
@@ -477,6 +583,7 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
         batchingUnit: currentOriginPlant && currentBatchingUnit
           ? currentBatchingUnit
           : undefined,
+        mixType: currentMixType || undefined,
         siteType: pendingSiteTypeChoice,
         startStage: stage,
         createdAtIso,
@@ -511,6 +618,14 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
     if (online) runSync()
     if (tripBefore) {
       const totalMin = computeTotalMin(tripBefore, editedTimestamps)
+      setLastSavedSummary({
+        label: t('list.full_cycle'),
+        minutes: totalMin,
+        truckId: tripBefore.truckId,
+        mixType: tripBefore.mixType,
+        batchingUnit: tripBefore.batchingUnit,
+        savedAtIso: new Date().toISOString(),
+      })
       showSavedToast(
         `✓ ${t('toast.trip_saved')}${totalMin != null ? `: ${totalMin} ${t('reviewq.min')}` : ''}${tripBefore.truckId ? ` · ${t('reviewq.truck')} ${tripBefore.truckId}` : ''}`
       )
@@ -542,6 +657,29 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
     () => (activeTrips ?? []).find(t => t.id === focusedTripId) ?? null,
     [activeTrips, focusedTripId],
   )
+
+  // Picker source resolution: when the admin has curated options server-side,
+  // they override the per-device IndexedDB lists. Token-mode helpers ALWAYS
+  // see only the server list (no fallback); admin/manager fall back to
+  // IndexedDB when the assessment has no curated rows yet.
+  const serverOriginPlants = serverOptions.origin_plants.map(o => o.name)
+  const displayedOriginPlants: string[] = serverOriginPlants.length > 0
+    ? serverOriginPlants
+    : (syncMode === 'token' ? [] : originPlants)
+  const serverUnitsForPlant = currentOriginPlant
+    ? serverOptions.batching_units
+        .filter(u => u.parent_name === currentOriginPlant)
+        .map(u => u.name)
+    : []
+  const displayedBatchingUnits: string[] = serverUnitsForPlant.length > 0
+    ? serverUnitsForPlant
+    : (syncMode === 'token' ? [] : batchingUnits)
+  const displayedMixTypes: string[] = serverOptions.mix_types.map(m => m.name)
+  // Token-mode hides "+" buttons: helpers cannot extend admin-curated
+  // lists. Authed admins can add options on-the-fly; new entries persist
+  // both locally (IndexedDB cache for offline) and server-side (so other
+  // helpers immediately pick them up on their next refresh).
+  const allowAddOptions = syncMode !== 'token'
 
   // ── Render ──
 
@@ -704,6 +842,85 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
         )}
       </div>
 
+      {/* Mix-type selector. Shown to admins and helpers alike: the list is
+          admin-curated server-side via assessment_options. Helpers cannot
+          add new mix-types (no "+" button), only pick from what the admin
+          set up. Sorted ascending by numeric strength when the value is
+          numeric (250, 270, 350, ...), insertion order otherwise. */}
+      {(displayedMixTypes.length > 0 || allowAddOptions) && (
+        <div style={{
+          background: '#fff', border: '1px solid #e5e5e5', borderRadius: '12px', padding: '12px',
+        }}>
+          <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '8px' }}>
+            <Bilingual k="live.mix_type" />
+          </label>
+          {!showAddMixType && (
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <select
+                value={currentMixType}
+                onChange={(e) => setCurrentMixType(e.target.value)}
+                style={{
+                  flex: 1, minHeight: '44px', padding: '0 12px',
+                  border: '1px solid #ddd', borderRadius: '8px',
+                  fontSize: '15px', background: '#fff',
+                }}
+              >
+                <option value="">{t('live.not_specified')}</option>
+                {displayedMixTypes.map(m => <option key={m} value={m}>{m}</option>)}
+              </select>
+              {allowAddOptions && (
+                <button
+                  type="button"
+                  onClick={() => setShowAddMixType(true)}
+                  style={{
+                    minWidth: '44px', minHeight: '44px',
+                    background: '#fff', color: '#0F6E56',
+                    border: '1px solid #0F6E56', borderRadius: '8px',
+                    fontSize: '20px', fontWeight: 700, cursor: 'pointer',
+                  }}
+                  aria-label="Add mix type"
+                >+</button>
+              )}
+            </div>
+          )}
+          {showAddMixType && (
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <input
+                type="text"
+                value={newMixTypeName}
+                onChange={(e) => setNewMixTypeName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleAddMixType() }}
+                placeholder={t('live.add_mix_type_placeholder')}
+                autoFocus
+                style={{
+                  flex: 1, minHeight: '44px', padding: '0 12px',
+                  border: '1px solid #ddd', borderRadius: '8px', fontSize: '15px',
+                }}
+              />
+              <button
+                type="button"
+                onClick={handleAddMixType}
+                style={{
+                  minWidth: '70px', minHeight: '44px',
+                  background: '#0F6E56', color: '#fff', border: 'none',
+                  borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer',
+                }}
+              >{t('live.add')}</button>
+              <button
+                type="button"
+                onClick={() => { setShowAddMixType(false); setNewMixTypeName('') }}
+                style={{
+                  minWidth: '44px', minHeight: '44px',
+                  background: '#fff', color: '#666',
+                  border: '1px solid #ddd', borderRadius: '8px',
+                  fontSize: '14px', cursor: 'pointer',
+                }}
+              >×</button>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Site type is intentionally NOT asked on the Start screen. The
           observer often does not know where the truck is going at the
           moment of dispatch, and it only matters for analysing site-side
@@ -747,19 +964,21 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
               }}
             >
               <option value="">{t('live.not_specified')}</option>
-              {originPlants.map(p => <option key={p} value={p}>{p}</option>)}
+              {displayedOriginPlants.map(p => <option key={p} value={p}>{p}</option>)}
             </select>
-            <button
-              type="button"
-              onClick={() => setShowAddOriginPlant(true)}
-              style={{
-                minWidth: '44px', minHeight: '44px',
-                background: '#fff', color: '#0F6E56',
-                border: '1px solid #0F6E56', borderRadius: '8px',
-                fontSize: '20px', fontWeight: 700, cursor: 'pointer',
-              }}
-              aria-label="Add plant"
-            >+</button>
+            {allowAddOptions && (
+              <button
+                type="button"
+                onClick={() => setShowAddOriginPlant(true)}
+                style={{
+                  minWidth: '44px', minHeight: '44px',
+                  background: '#fff', color: '#0F6E56',
+                  border: '1px solid #0F6E56', borderRadius: '8px',
+                  fontSize: '20px', fontWeight: 700, cursor: 'pointer',
+                }}
+                aria-label="Add plant"
+              >+</button>
+            )}
           </div>
         )}
         {showAddOriginPlant && (
@@ -826,19 +1045,21 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
               }}
             >
               <option value="">{t('live.plant_total_only')}</option>
-              {batchingUnits.map(u => <option key={u} value={u}>{u}</option>)}
+              {displayedBatchingUnits.map(u => <option key={u} value={u}>{u}</option>)}
             </select>
-            <button
-              type="button"
-              onClick={() => setShowAddBatchingUnit(true)}
-              style={{
-                minWidth: '44px', minHeight: '44px',
-                background: '#fff', color: '#0F6E56',
-                border: '1px solid #0F6E56', borderRadius: '8px',
-                fontSize: '20px', fontWeight: 700, cursor: 'pointer',
-              }}
-              aria-label="Add batching unit"
-            >+</button>
+            {allowAddOptions && (
+              <button
+                type="button"
+                onClick={() => setShowAddBatchingUnit(true)}
+                style={{
+                  minWidth: '44px', minHeight: '44px',
+                  background: '#fff', color: '#0F6E56',
+                  border: '1px solid #0F6E56', borderRadius: '8px',
+                  fontSize: '20px', fontWeight: 700, cursor: 'pointer',
+                }}
+                aria-label="Add batching unit"
+              >+</button>
+            )}
           </div>
         )}
         {currentOriginPlant && showAddBatchingUnit && (
@@ -1024,6 +1245,48 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
           <>▶&nbsp;&nbsp;<Bilingual k="live.start_measurement_of" params={{ stage: stageLabel(startStage) }} inline /></>
         )}
       </button>
+
+      {/* Last saved measurement: persistent receipt under the action button.
+          Stays visible across back-to-back single-stage taps, so the helper
+          can verify the right mix and unit landed without scrolling. The
+          transient toast at the bottom still fires for the moment-of-save
+          confirmation; this line is the longer-lived audit trail. */}
+      {lastSavedSummary && (
+        <div style={{
+          background: '#E1F5EE', border: '1px solid #A8D9C5',
+          borderRadius: '10px', padding: '10px 12px',
+          fontSize: '13px', color: '#0F6E56',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px',
+        }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 700 }}>
+              ✓ {lastSavedSummary.label}
+              {lastSavedSummary.minutes != null && (
+                <span style={{ marginLeft: '8px', fontWeight: 600 }}>
+                  {lastSavedSummary.minutes} {t('reviewq.min')}
+                </span>
+              )}
+            </div>
+            <div style={{ fontSize: '11px', color: '#0F6E56', opacity: 0.85, marginTop: '2px' }}>
+              {[
+                lastSavedSummary.truckId && `${t('reviewq.truck')} ${lastSavedSummary.truckId}`,
+                lastSavedSummary.mixType && `${t('live.mix_type')} ${lastSavedSummary.mixType}`,
+                lastSavedSummary.batchingUnit,
+                new Date(lastSavedSummary.savedAtIso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              ].filter(Boolean).join(' · ')}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setLastSavedSummary(null)}
+            aria-label="Dismiss last saved"
+            style={{
+              background: 'transparent', border: 'none', color: '#0F6E56',
+              fontSize: '18px', cursor: 'pointer', padding: '0 4px', lineHeight: 1,
+            }}
+          >×</button>
+        </div>
+      )}
 
       {/* Active trip list */}
       <div style={{ flex: 1, overflowY: 'auto' }}>

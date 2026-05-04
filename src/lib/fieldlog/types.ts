@@ -49,6 +49,9 @@ export interface DailyLogRow {
   // Per-unit slicing inside a plant (2026-04-27 migration). NULL = rolls
   // up to origin_plant only.
   batching_unit?: string | null
+  // Concrete mix / strength code (2026-05-04 migration). Free-text but
+  // typically picked from the admin-curated assessment_options list.
+  mix_type?: string | null
 }
 
 export interface DailyLogTripComputed extends DailyLogRow {

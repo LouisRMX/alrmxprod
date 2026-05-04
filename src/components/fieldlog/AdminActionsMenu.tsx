@@ -14,6 +14,7 @@ import { useEffect, useRef, useState } from 'react'
 import DailyBriefingExport from './DailyBriefingExport'
 import FieldCapturePreviewButton from './FieldCapturePreviewButton'
 import FieldCaptureTokenButton from './FieldCaptureTokenButton'
+import OptionsSetupButton from './OptionsSetupButton'
 
 interface Props {
   assessmentId: string
@@ -77,6 +78,7 @@ export default function AdminActionsMenu({ assessmentId, plantId }: Props) {
               menu's outside-click handler closes things when the user
               interacts with the modal backdrop. */}
           <DailyBriefingExport assessmentId={assessmentId} />
+          <OptionsSetupButton assessmentId={assessmentId} />
           <FieldCapturePreviewButton assessmentId={assessmentId} plantId={plantId} />
           <FieldCaptureTokenButton assessmentId={assessmentId} plantId={plantId} />
         </div>
