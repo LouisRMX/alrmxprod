@@ -2,13 +2,13 @@
 
 /**
  * Full-screen language chooser shown the first time a user opens the Field
- * Log on a device. Two big buttons: English / عربي. Choice persists to
- * localStorage via LogLocaleContext so the modal doesn't reappear.
+ * Log on a device. Three big buttons: English / عربي / اردو. Choice persists
+ * to localStorage via LogLocaleContext so the modal doesn't reappear.
  *
  * Why prominent: in a GCC ready-mix plant the dispatcher's first decision
- * is what language to work in. Hiding EN/AR behind a small header toggle
- * makes an Arabic-first user wade through English UI before discovering
- * they can switch. Ask once, up front, remember forever.
+ * is what language to work in. Hiding the choice behind a small header
+ * toggle makes an Arabic- or Urdu-first user wade through English UI
+ * before discovering they can switch. Ask once, up front, remember forever.
  */
 
 import { useLogT } from '@/lib/i18n/LogLocaleContext'
@@ -65,6 +65,9 @@ export default function LocaleFirstVisitModal() {
           <div style={{ fontFamily: '"DM Sans", "Segoe UI Arabic", sans-serif' }} lang="ar" dir="rtl">
             اختر اللغة
           </div>
+          <div style={{ fontFamily: '"Noto Nastaliq Urdu", "DM Sans", "Segoe UI Arabic", sans-serif', marginTop: '2px' }} lang="ur" dir="rtl">
+            زبان منتخب کریں
+          </div>
         </div>
         <div style={{ display: 'flex', gap: '10px', flexDirection: 'column' }}>
           <button
@@ -88,6 +91,19 @@ export default function LocaleFirstVisitModal() {
             <span style={{ fontSize: '28px' }}>🇸🇦</span>
             <span>عربي</span>
           </button>
+          <button
+            type="button"
+            onClick={() => setLocale('ur')}
+            style={{
+              ...btnStyle,
+              fontFamily: '"Noto Nastaliq Urdu", "DM Sans", "Segoe UI Arabic", sans-serif',
+            }}
+            lang="ur"
+            dir="rtl"
+          >
+            <span style={{ fontSize: '28px' }}>🇵🇰</span>
+            <span>اردو</span>
+          </button>
         </div>
         <div style={{
           textAlign: 'center',
@@ -97,6 +113,10 @@ export default function LocaleFirstVisitModal() {
           <br />
           <span dir="rtl" lang="ar" style={{ fontFamily: '"DM Sans", "Segoe UI Arabic", sans-serif' }}>
             يمكنك تغييره لاحقاً من شريط العنوان.
+          </span>
+          <br />
+          <span dir="rtl" lang="ur" style={{ fontFamily: '"Noto Nastaliq Urdu", "DM Sans", "Segoe UI Arabic", sans-serif' }}>
+            آپ یہ ہیڈر سے بعد میں بھی بدل سکتے ہیں۔
           </span>
         </div>
       </div>

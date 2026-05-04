@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * Small EN / عربي toggle for the Log tab header.
+ * Small EN / عربي / اردو toggle for the Log tab header.
  *
  * Appears next to the date picker and other header actions. Persists
  * selection via LogLocaleContext + localStorage so observers who
@@ -11,7 +11,8 @@
  * secondary "+EN" toggle appears that flips on bilingualMode. This is
  * only shown to admins (FieldLogView passes adminMode={isAdmin}); the
  * unauthenticated /fc/[token] route omits the prop so helpers never
- * see it.
+ * see it. Bilingual mode is intentionally Arabic-only — Urdu helpers
+ * who need an English crutch can switch to EN directly.
  */
 
 import { useLogT } from '@/lib/i18n/LogLocaleContext'
@@ -51,9 +52,17 @@ export default function LocaleToggle({ adminMode }: Props) {
           type="button"
           onClick={() => setLocale('ar')}
           aria-pressed={locale === 'ar'}
-          style={{ ...btnStyle(locale === 'ar'), border: 'none', borderRadius: 0, fontFamily: '"DM Sans", "Segoe UI Arabic", sans-serif' }}
+          style={{ ...btnStyle(locale === 'ar'), border: 'none', borderRight: '1px solid #d1d5db', borderRadius: 0, fontFamily: '"DM Sans", "Segoe UI Arabic", sans-serif' }}
         >
           عربي
+        </button>
+        <button
+          type="button"
+          onClick={() => setLocale('ur')}
+          aria-pressed={locale === 'ur'}
+          style={{ ...btnStyle(locale === 'ur'), border: 'none', borderRadius: 0, fontFamily: '"Noto Nastaliq Urdu", "DM Sans", "Segoe UI Arabic", sans-serif' }}
+        >
+          اردو
         </button>
       </div>
       {showBilingualToggle && (

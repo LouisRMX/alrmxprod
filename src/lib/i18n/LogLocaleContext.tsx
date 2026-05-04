@@ -57,7 +57,7 @@ export function LogLocaleProvider({ children }: { children: React.ReactNode }) {
     if (typeof window === 'undefined') return
     try {
       const stored = window.localStorage.getItem(STORAGE_KEY)
-      if (stored === 'en' || stored === 'ar') {
+      if (stored === 'en' || stored === 'ar' || stored === 'ur') {
         setLocaleState(stored)
         setHasChosenLocale(true)
       }
@@ -103,7 +103,8 @@ export function LogLocaleProvider({ children }: { children: React.ReactNode }) {
     locale,
     setLocale,
     t,
-    isRTL: locale === 'ar',
+    // Both Arabic and Urdu use the Perso-Arabic script and read RTL.
+    isRTL: locale === 'ar' || locale === 'ur',
     bilingualMode,
     setBilingualMode,
     hydrated,

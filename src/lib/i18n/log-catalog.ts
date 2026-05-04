@@ -18,7 +18,7 @@
  *     customer presentation.
  */
 
-export type LogLocale = 'en' | 'ar'
+export type LogLocale = 'en' | 'ar' | 'ur'
 
 export const LOG_STRINGS = {
   // ── FieldLogView header ───────────────────────────────────────────
@@ -791,7 +791,128 @@ export const LOG_STRINGS_AR: Record<LogStringKey, string> = {
   'locale.arabic': 'عربي',
 }
 
-export const CATALOG: Record<LogLocale, Record<LogStringKey, string>> = {
-  en: LOG_STRINGS as Record<LogStringKey, string>,
+// ── Urdu translations ───────────────────────────────────────────────
+// Standard Urdu (Perso-Arabic script, RTL). Industry vocabulary uses
+// the transliteration most GCC site workers actually use day-to-day
+// (loading -> لوڈنگ, site -> سائٹ, mix -> مکس) since the English term
+// is the lingua franca on Saudi/UAE ready-mix yards. Items marked
+// [review] need native speaker verification before customer release.
+//
+// Coverage: every key visible to a /fc/[token] helper plus the live
+// timer, sync bar, stage names, toasts, and language picker. Admin-
+// only screens (briefing, intervention editor, todo, audio capture,
+// upload parser, diagnostics) intentionally fall back to English via
+// the t() lookup — those are Louis-only views.
+
+export const LOG_STRINGS_UR: PartialCatalog = {
+  // Field header (helper-visible parts)
+  'field.date': 'تاریخ', // [review]
+
+  // Sub-tabs (helpers see only 'live'; rest are admin)
+  'tab.live': 'لائیو', // [review]
+
+  // Sync status
+  'sync.online_all_synced': 'سب کچھ سنک ہو گیا', // [review]
+  'sync.last_sync': 'آخری سنک', // [review]
+  'sync.offline': 'آف لائن', // [review]
+  'sync.offline_suffix': 'آن لائن ہونے پر سنک ہو جائے گا', // [review]
+  'sync.pending': 'باقی', // [review]
+  'sync.oldest': 'سب سے پرانا', // [review]
+  'sync.retry': 'دوبارہ سنک کریں', // [review]
+  'sync.syncing': 'سنک ہو رہا ہے...', // [review]
+
+  // Live timer
+  'live.measuring_as': 'آپ کا نام', // [review]
+  'live.add': 'شامل کریں', // [review]
+  'live.add_measurer_placeholder': 'نیا ناپنے والے کا نام', // [review]
+  'live.more_options': 'مزید آپشنز', // [review]
+  'live.hide_options': 'آپشنز چھپائیں', // [review]
+  'live.current_plant': 'سائٹ', // [review]
+  'live.process': 'ناپنے کا عمل', // [review]
+  'live.full_cycle_option': 'مکمل سائیکل (9 مراحل)', // [review]
+  'live.start_stage_timer': '{stage} ٹائمر شروع کریں', // [review]
+  'live.not_specified': '(منتخب نہیں کیا گیا)', // [review]
+  'live.add_plant_placeholder': 'سائٹ 1، سائٹ 2، وغیرہ', // [review]
+  'live.current_batching_unit': 'بیچنگ یونٹ (اختیاری)', // [review]
+  'live.add_batching_unit_placeholder': 'یونٹ 1، یونٹ 2، وغیرہ', // [review]
+  'live.plant_total_only': 'صرف پلانٹ کا کل', // [review]
+  'live.batching_unit_needs_plant': 'پہلے سائٹ منتخب کریں', // [review]
+  'live.choose_batching_unit': 'بیچنگ یونٹ منتخب کریں', // [review]
+  'live.mix_type': 'سیمنٹ مکس', // [review]
+  'live.choose_mix': 'مکس منتخب کریں', // [review]
+  'live.add_mix_type_placeholder': 'مثلاً 350، B40', // [review]
+  'live.cement_type': 'سیمنٹ کی قسم', // [review]
+  'live.load_m3': 'ٹرک کا لوڈ سائز', // [review]
+  'live.choose_loading_size': 'لوڈنگ سائز منتخب کریں م³', // [review]
+  'live.site_type_gate_title': 'ٹرک کہاں صب کر رہا ہے؟', // [review]
+  'live.site_type_gate_subtitle': 'یہاں سے سائٹ کی قسم اہم ہے۔ قریب ترین قسم چنیں۔ اگر معلوم نہیں تو "نامعلوم" چنیں۔', // [review]
+  'live.confirm_and_continue': 'تصدیق کریں اور جاری رکھیں', // [review]
+  'live.measuring_from': 'سے ناپ رہا ہے', // [review]
+  'live.measure_single_stage_toggle': 'صرف ایک مرحلہ ناپیں', // [review]
+  'live.plant_queue_full_cycle': 'پلانٹ کیو (مکمل سائیکل)', // [review]
+  'live.single_stage_only_suffix': 'صرف', // [review]
+  'live.single_stage_explainer': 'سنگل اسٹیج موڈ: مرحلہ شروع ہونے پر شروع دبائیں، ختم پر فنش۔ صرف {stage} ٹائمنگ کے ساتھ جزوی ٹرپ کے طور پر محفوظ۔', // [review]
+  'live.start_new_trip': 'نیا ٹرپ شروع کریں', // [review]
+  'live.start_measurement_of': '{stage} کی پیمائش شروع کریں', // [review]
+  'live.active_trips': 'فعال ٹرپس', // [review]
+  'live.no_active_trips': 'کوئی فعال ٹرپ نہیں۔ ٹرک پلانٹ کیو میں آنے پر "نیا ٹرپ شروع کریں" دبائیں۔', // [review]
+  'live.pending_sync': 'سنک باقی', // [review]
+  'live.and_more': 'اور {n} مزید', // [review]
+
+  // Stage names
+  'stage.plant_queue': 'پلانٹ کیو', // [review]
+  'stage.loading': 'لوڈنگ', // [review]
+  'stage.weighbridge': 'ویٹ برج', // [review]
+  'stage.transit_out': 'سائٹ کی طرف ٹرانزٹ', // [review]
+  'stage.site_wait': 'سائٹ پر انتظار', // [review]
+  'stage.pouring': 'صب', // [review]
+  'stage.site_washout': 'سائٹ پر واش آؤٹ', // [review]
+  'stage.transit_back': 'پلانٹ کی طرف واپسی', // [review]
+  'stage.plant_prep': 'پلانٹ پر تیاری', // [review]
+  'stage.finish': 'ختم کریں', // [review]
+  'stage.next.loading': 'اگلا: لوڈنگ', // [review]
+  'stage.next.weighbridge': 'اگلا: ویٹ برج', // [review]
+  'stage.next.transit_out': 'اگلا: ٹرانزٹ', // [review]
+  'stage.next.site_wait': 'اگلا: سائٹ پر انتظار', // [review]
+  'stage.next.pouring': 'اگلا: صب', // [review]
+  'stage.next.site_washout': 'اگلا: واش آؤٹ', // [review]
+  'stage.next.transit_back': 'اگلا: واپسی', // [review]
+  'stage.next.plant_prep': 'اگلا: پلانٹ پر تیاری', // [review]
+
+  // LiveTripCard (used in full-cycle flow)
+  'card.rec': 'ریکارڈنگ', // [review]
+  'card.total_elapsed': 'کل وقت', // [review]
+
+  // Toasts
+  'toast.trip_saved': 'ٹرپ محفوظ ہو گیا', // [review]
+  'toast.partial_saved': 'جزوی پیمائش محفوظ ہو گئی', // [review]
+
+  // Active trip list
+  'list.full_cycle': 'مکمل سائیکل', // [review]
+  'list.min_in': 'منٹ', // [review]
+  'list.open': 'کھولیں', // [review]
+
+  // Review queue minimal (used inside toasts)
+  'reviewq.min': 'منٹ', // [review]
+  'reviewq.truck': 'ٹرک', // [review]
+
+  // Token (helper-visible only)
+  'token.copied': 'لنک کلپ بورڈ پر کاپی ہو گیا', // [review]
+  'token.copy_prompt': 'یہ لنک کاپی کریں:', // [review]
+
+  // Locale toggle
+  'locale.toggle': 'زبان', // [review]
+  'locale.english': 'EN',
+  'locale.arabic': 'عربي',
+}
+
+// Non-English catalogs may be partial. Missing keys fall back to English
+// at runtime via the t() helper so a half-translated locale still works.
+type FullCatalog = Record<LogStringKey, string>
+type PartialCatalog = Partial<Record<LogStringKey, string>>
+
+export const CATALOG: { en: FullCatalog } & Record<Exclude<LogLocale, 'en'>, PartialCatalog> = {
+  en: LOG_STRINGS as FullCatalog,
   ar: LOG_STRINGS_AR,
+  ur: LOG_STRINGS_UR,
 }
