@@ -8,6 +8,7 @@ import {
 } from 'recharts'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { InterventionsList } from '@/components/fieldlog/InterventionsView'
+import MeasurementsView from './MeasurementsView'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -1283,28 +1284,47 @@ function ProgramCompleteView({ config, entries, coeffDispatch }: {
 
 // ── Daily Ops sub-components ───────────────────────────────────────────────
 
-function SubTabToggle({ active, onChange }: { active: 'weekly' | 'daily'; onChange: (v: 'weekly' | 'daily') => void }) {
+type AdminTrackTab = 'weekly' | 'daily' | 'measurements'
+
+function SubTabToggle<T extends string>({
+  active, onChange, options,
+}: {
+  active: T
+  onChange: (v: T) => void
+  options: ReadonlyArray<{ key: T; label: string }>
+}) {
   return (
-    <div style={{ display: 'flex', gap: '2px', background: 'var(--gray-100)', borderRadius: '8px', padding: '2px', width: 'fit-content', marginBottom: '16px' }}>
-      {(['weekly', 'daily'] as const).map(tab => (
+    <div style={{ display: 'flex', gap: '2px', background: 'var(--gray-100)', borderRadius: '8px', padding: '2px', width: 'fit-content', marginBottom: '16px', flexWrap: 'wrap' }}>
+      {options.map(opt => (
         <button
-          key={tab}
-          onClick={() => onChange(tab)}
+          key={opt.key}
+          onClick={() => onChange(opt.key)}
           style={{
             padding: '6px 14px', fontSize: '12px', fontWeight: 500,
             border: 'none', borderRadius: '6px', cursor: 'pointer', fontFamily: 'var(--font)',
-            background: active === tab ? 'var(--white)' : 'transparent',
-            color: active === tab ? 'var(--gray-900)' : 'var(--gray-400)',
-            boxShadow: active === tab ? '0 1px 3px rgba(0,0,0,.1)' : 'none',
+            background: active === opt.key ? 'var(--white)' : 'transparent',
+            color: active === opt.key ? 'var(--gray-900)' : 'var(--gray-400)',
+            boxShadow: active === opt.key ? '0 1px 3px rgba(0,0,0,.1)' : 'none',
             transition: 'all .15s',
           }}
         >
-          {tab === 'weekly' ? 'Weekly Progress' : 'Daily Ops'}
+          {opt.label}
         </button>
       ))}
     </div>
   )
 }
+
+const ADMIN_TRACK_TABS: ReadonlyArray<{ key: AdminTrackTab; label: string }> = [
+  { key: 'weekly',       label: 'Weekly Progress' },
+  { key: 'daily',        label: 'Daily Ops' },
+  { key: 'measurements', label: 'Measurements' },
+] as const
+
+const CUSTOMER_LOG_TABS: ReadonlyArray<{ key: 'weekly' | 'daily'; label: string }> = [
+  { key: 'weekly', label: 'Weekly Progress' },
+  { key: 'daily',  label: 'Daily Ops' },
+] as const
 
 function TrendAlertBanner({ message }: { message: string }) {
   return (
@@ -2230,7 +2250,7 @@ function ProgressView({ assessmentId, config, entries, aggregates, dailyEntries,
   isDemo?: boolean
 }) {
   const isMobile = useIsMobile()
-  const [subTab, setSubTab] = useState<'weekly' | 'daily'>('weekly')
+  const [subTab, setSubTab] = useState<AdminTrackTab>('weekly')
   const currentWeek = getWeekNumber(config.started_at)
   const sortedEntries = [...entries].sort((a, b) => b.week_number - a.week_number)
   const latest = sortedEntries[0] ?? null
@@ -2287,9 +2307,11 @@ function ProgressView({ assessmentId, config, entries, aggregates, dailyEntries,
         </div>
       )}
 
-      <SubTabToggle active={subTab} onChange={setSubTab} />
+      <SubTabToggle active={subTab} onChange={setSubTab} options={ADMIN_TRACK_TABS} />
 
-      {subTab === 'daily' ? (
+      {subTab === 'measurements' ? (
+        <MeasurementsView assessmentId={assessmentId} />
+      ) : subTab === 'daily' ? (
         <DailyOpsView
           configId={config.id}
           isDemo={isDemo ?? false}
@@ -2456,7 +2478,7 @@ function CustomerLog({ assessmentId, config, entries, dailyEntries, onLogged, co
       maxWidth: '520px', margin: '0 auto', padding: '24px 16px',
       width: '100%', boxSizing: 'border-box', overflowX: 'hidden',
     }}>
-      <SubTabToggle active={subTab} onChange={setSubTab} />
+      <SubTabToggle active={subTab} onChange={setSubTab} options={CUSTOMER_LOG_TABS} />
       {subTab === 'daily' ? (
         <DailyOpsView
           configId={config.id}
