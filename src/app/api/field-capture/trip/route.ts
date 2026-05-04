@@ -39,6 +39,8 @@ interface TripPayload {
   origin_plant?: string | null
   batching_unit?: string | null
   mix_type?: string | null
+  cement_type?: 'OPC' | 'SRC' | null
+  load_m3?: number | null
   plant_queue_start?: string | null
   loading_start?: string | null
   loading_end?: string | null
@@ -160,6 +162,19 @@ export async function POST(req: NextRequest) {
       : null,
     mix_type: (typeof payload.mix_type === 'string' && payload.mix_type.trim().length > 0)
       ? payload.mix_type.trim()
+      : null,
+    // cement_type is constrained to OPC/SRC at the DB layer; reject any
+    // other string client-side to fail fast with a 500-less path.
+    cement_type: (payload.cement_type === 'OPC' || payload.cement_type === 'SRC')
+      ? payload.cement_type
+      : null,
+    // load_m3 must be a finite positive number; we accept the dropdown's
+    // 1-12 range plus a small headroom for atypical truck sizes.
+    load_m3: (typeof payload.load_m3 === 'number'
+      && Number.isFinite(payload.load_m3)
+      && payload.load_m3 > 0
+      && payload.load_m3 <= 20)
+      ? payload.load_m3
       : null,
     // 9-stage timestamps
     plant_queue_start: payload.plant_queue_start ?? null,

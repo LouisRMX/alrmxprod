@@ -52,6 +52,9 @@ export interface DailyLogRow {
   // Concrete mix / strength code (2026-05-04 migration). Free-text but
   // typically picked from the admin-curated assessment_options list.
   mix_type?: string | null
+  // Cement variant: 'OPC' = Ordinary Portland; 'SRC' = Sulphate-Resistant
+  // (2026-05-04 migration). DB CHECK constraint enforces the two values.
+  cement_type?: 'OPC' | 'SRC' | null
 }
 
 export interface DailyLogTripComputed extends DailyLogRow {

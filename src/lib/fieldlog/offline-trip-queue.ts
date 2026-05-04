@@ -133,6 +133,16 @@ export interface ActiveTrip {
    * record a mix type.
    */
   mixType?: string
+  /**
+   * Cement variant used for the load. 'OPC' = Ordinary Portland;
+   * 'SRC' = Sulphate-Resistant Cement. NULL when not recorded.
+   */
+  cementType?: 'OPC' | 'SRC'
+  /**
+   * Load volume in cubic metres (typically 1-12 m³ per truck). NULL
+   * when not recorded.
+   */
+  loadM3?: number
   /** Optional identifiers the observer filled in at start. */
   truckId?: string
   driverName?: string
@@ -318,6 +328,10 @@ export async function startTrip(input: {
   batchingUnit?: string
   /** Optional mix-type code (e.g. "350") for the trip. */
   mixType?: string
+  /** Optional cement variant: 'OPC' or 'SRC'. */
+  cementType?: 'OPC' | 'SRC'
+  /** Optional load volume in m³ (1-12 typical range). */
+  loadM3?: number
   truckId?: string
   driverName?: string
   siteName?: string
@@ -350,6 +364,8 @@ export async function startTrip(input: {
     originPlant: input.originPlant,
     batchingUnit: input.batchingUnit,
     mixType: input.mixType,
+    cementType: input.cementType,
+    loadM3: input.loadM3,
     truckId: input.truckId,
     driverName: input.driverName,
     siteName: input.siteName,
@@ -811,6 +827,8 @@ export function buildDailyLogPayload(trip: PendingTrip): Record<string, unknown>
     origin_plant: trip.originPlant ?? null,
     batching_unit: trip.batchingUnit ?? null,
     mix_type: trip.mixType ?? null,
+    cement_type: trip.cementType ?? null,
+    load_m3: trip.loadM3 ?? null,
     // 9-stage timing. Each line: the column on daily_logs = the Dexie key
     // whose tap value represents the START of that stage (or the END of
     // the previous stage — they are the same moment).

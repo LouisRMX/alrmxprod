@@ -112,6 +112,11 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
   const [currentMixType, setCurrentMixType] = useState<string>('')
   const [showAddMixType, setShowAddMixType] = useState(false)
   const [newMixTypeName, setNewMixTypeName] = useState('')
+  // Cement variant + load volume. Both are per-trip metadata that the
+  // observer ideally captures up-front; both stay sticky across back-to-
+  // back single-stage taps so the same load setup does not need re-picking.
+  const [currentCementType, setCurrentCementType] = useState<'' | 'OPC' | 'SRC'>('')
+  const [currentLoadM3, setCurrentLoadM3] = useState<string>('')
   // One-line summary of the most recent saved measurement, rendered just
   // under the Start/Stop button. Helpers asked for visible confirmation
   // beyond the transient toast — back-to-back single-stage measurements
@@ -121,6 +126,8 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
     minutes: number | null
     truckId?: string
     mixType?: string
+    cementType?: 'OPC' | 'SRC'
+    loadM3?: number
     batchingUnit?: string
     savedAtIso: string
   } | null>(null)
@@ -373,6 +380,8 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
         ? currentBatchingUnit
         : undefined,
       mixType: currentMixType || undefined,
+      cementType: currentCementType || undefined,
+      loadM3: currentLoadM3 ? Number(currentLoadM3) : undefined,
       // site_type is deliberately not set here for plant-side single-stage
       // and full-cycle trips. Full-cycle trips get prompted at the
       // transit_out -> site_wait boundary. Plant-side single-stage trips
@@ -543,6 +552,8 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
       minutes: elapsedMin,
       truckId: tripBefore.truckId,
       mixType: tripBefore.mixType,
+      cementType: tripBefore.cementType,
+      loadM3: tripBefore.loadM3,
       batchingUnit: tripBefore.batchingUnit,
       savedAtIso: new Date().toISOString(),
     })
@@ -584,6 +595,8 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
           ? currentBatchingUnit
           : undefined,
         mixType: currentMixType || undefined,
+        cementType: currentCementType || undefined,
+        loadM3: currentLoadM3 ? Number(currentLoadM3) : undefined,
         siteType: pendingSiteTypeChoice,
         startStage: stage,
         createdAtIso,
@@ -623,6 +636,8 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
         minutes: totalMin,
         truckId: tripBefore.truckId,
         mixType: tripBefore.mixType,
+        cementType: tripBefore.cementType,
+        loadM3: tripBefore.loadM3,
         batchingUnit: tripBefore.batchingUnit,
         savedAtIso: new Date().toISOString(),
       })
@@ -920,6 +935,62 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
           )}
         </div>
       )}
+
+      {/* Cement type + load volume. Two short pickers in one row to keep
+          the start screen compact. Cement is a hard binary (OPC or SRC),
+          so a two-button toggle beats a dropdown for thumb speed. Load
+          volume is 1-12 m³ rounded to whole truck-fills; observer can
+          leave both blank when not known. */}
+      <div style={{
+        background: '#fff', border: '1px solid #e5e5e5', borderRadius: '12px', padding: '12px',
+        display: 'flex', gap: '12px', flexWrap: 'wrap',
+      }}>
+        <div style={{ flex: '1 1 180px', minWidth: '160px' }}>
+          <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '8px' }}>
+            <Bilingual k="live.cement_type" />
+          </label>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            {(['OPC', 'SRC'] as const).map(opt => {
+              const active = currentCementType === opt
+              return (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => setCurrentCementType(active ? '' : opt)}
+                  style={{
+                    flex: 1, minHeight: '44px',
+                    background: active ? '#0F6E56' : '#fff',
+                    color: active ? '#fff' : '#0F6E56',
+                    border: `1px solid ${active ? '#0F6E56' : '#A8D9C5'}`,
+                    borderRadius: '8px',
+                    fontSize: '14px', fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >{opt}</button>
+              )
+            })}
+          </div>
+        </div>
+        <div style={{ flex: '1 1 140px', minWidth: '140px' }}>
+          <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '8px' }}>
+            <Bilingual k="live.load_m3" />
+          </label>
+          <select
+            value={currentLoadM3}
+            onChange={e => setCurrentLoadM3(e.target.value)}
+            style={{
+              width: '100%', minHeight: '44px', padding: '0 12px',
+              border: '1px solid #ddd', borderRadius: '8px',
+              fontSize: '15px', background: '#fff',
+            }}
+          >
+            <option value="">{t('live.not_specified')}</option>
+            {Array.from({ length: 12 }, (_, i) => i + 1).map(n => (
+              <option key={n} value={String(n)}>{n} m³</option>
+            ))}
+          </select>
+        </div>
+      </div>
 
       {/* Site type is intentionally NOT asked on the Start screen. The
           observer often does not know where the truck is going at the
@@ -1271,6 +1342,8 @@ export default function LiveTripTimer({ assessmentId, plantId, syncMode, token }
               {[
                 lastSavedSummary.truckId && `${t('reviewq.truck')} ${lastSavedSummary.truckId}`,
                 lastSavedSummary.mixType && `${t('live.mix_type')} ${lastSavedSummary.mixType}`,
+                lastSavedSummary.cementType,
+                lastSavedSummary.loadM3 != null && `${lastSavedSummary.loadM3} m³`,
                 lastSavedSummary.batchingUnit,
                 new Date(lastSavedSummary.savedAtIso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
               ].filter(Boolean).join(' · ')}

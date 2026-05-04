@@ -159,6 +159,14 @@ export default function TripTable({ trips, isAdmin, onDelete }: TripTableProps) 
                       Mix {t.mix_type}
                     </span>
                   )}
+                  {t.cement_type && (
+                    <span style={{
+                      padding: '1px 6px', background: '#EAEEF5', color: '#2E3F66',
+                      borderRadius: '3px', fontSize: '10px', fontWeight: 600,
+                    }} title={`Cement ${t.cement_type}`}>
+                      {t.cement_type}
+                    </span>
+                  )}
                 </div>
                 <div style={{ fontSize: '11px', color: '#888', fontFamily: 'var(--mono)' }}>
                   {fmtTime(t.departure_loaded)} → {fmtTime(t.arrival_plant)}
@@ -219,6 +227,7 @@ export default function TripTable({ trips, isAdmin, onDelete }: TripTableProps) 
             <th style={th}>Mode</th>
             <th style={th}>Plant / Unit</th>
             <th style={th}>Mix</th>
+            <th style={th}>Cement</th>
             <th style={th}>Site type</th>
             <th style={th}>Depart</th>
             <th style={th}>Arrive</th>
@@ -265,6 +274,11 @@ export default function TripTable({ trips, isAdmin, onDelete }: TripTableProps) 
               <td style={td}>
                 {t.mix_type ? (
                   <span style={{ color: '#5A4632', fontWeight: 600 }}>{t.mix_type}</span>
+                ) : <span style={{ color: '#ccc' }}>-</span>}
+              </td>
+              <td style={td}>
+                {t.cement_type ? (
+                  <span style={{ color: '#2E3F66', fontWeight: 600 }}>{t.cement_type}</span>
                 ) : <span style={{ color: '#ccc' }}>-</span>}
               </td>
               <td style={td}>
