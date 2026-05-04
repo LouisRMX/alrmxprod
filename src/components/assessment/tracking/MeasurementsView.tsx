@@ -276,11 +276,11 @@ export default function MeasurementsView({ assessmentId }: { assessmentId: strin
           border: '1px solid #eee',
         }}>
           <Stat label="Count" value={String(stats.count)} />
-          <Stat label="Avg" value={`${stats.avg.toFixed(1)} min`} />
-          <Stat label="Median" value={`${stats.median.toFixed(1)} min`} />
-          <Stat label="P90" value={`${stats.p90.toFixed(1)} min`} />
-          <Stat label="Min" value={`${stats.min.toFixed(1)} min`} />
-          <Stat label="Max" value={`${stats.max.toFixed(1)} min`} />
+          <Stat label="Avg" value={fmtDuration(stats.avg)} />
+          <Stat label="Median" value={fmtDuration(stats.median)} />
+          <Stat label="P90" value={fmtDuration(stats.p90)} />
+          <Stat label="Min" value={fmtDuration(stats.min)} />
+          <Stat label="Max" value={fmtDuration(stats.max)} />
         </div>
       )}
 
@@ -344,10 +344,20 @@ function MeasurementCard({ m }: { m: Measurement }) {
       borderRadius: 10,
       padding: '10px 12px',
     }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          {/* Date + start clock time. Time is the precise moment the
+              picked stage's stopwatch started (loading_start, etc.) and
+              is shown to the second so two measurements in the same
+              minute can still be told apart. */}
           <span style={{ fontSize: 13, color: '#444', fontWeight: 500 }}>
-            {fmtDateTime(m.startTs ?? m.row.log_date)}
+            {fmtDate(m.startTs ?? m.row.log_date)}
+          </span>
+          <span style={{
+            fontSize: 13, color: '#666', fontWeight: 500,
+            fontFamily: 'ui-monospace, SF Mono, Menlo, monospace',
+          }}>
+            {fmtClockTime(m.startTs)}
           </span>
           {isSingle && (
             <span style={tagStyle('#FFF4D6', '#7a5a00')}>single-stage</span>
@@ -359,11 +369,15 @@ function MeasurementCard({ m }: { m: Measurement }) {
             <span style={tagStyle('#FDEDEC', '#8B3A2E')}>rejected</span>
           )}
         </div>
+        {/* Duration as MM:SS (or H:MM:SS over an hour). Prefer this
+            unambiguous form over fractional minutes — "0.5 min" is the
+            same as 30 seconds but only one of the two reads instantly. */}
         <span style={{
-          fontSize: 16, fontWeight: 700, color: '#0F6E56',
+          fontSize: 18, fontWeight: 700, color: '#0F6E56',
           fontFamily: 'ui-monospace, SF Mono, Menlo, monospace',
+          letterSpacing: '-0.5px',
         }}>
-          {m.minutes != null ? `${m.minutes.toFixed(1)} min` : '—'}
+          {fmtDuration(m.minutes)}
         </span>
       </div>
       {meta.length > 0 && (
@@ -389,12 +403,36 @@ const selectStyle: React.CSSProperties = {
   fontSize: 13, background: '#fff', color: '#333',
 }
 
-function fmtDateTime(iso: string | null): string {
+function fmtDate(iso: string | null): string {
   if (!iso) return '—'
   const d = new Date(iso)
   if (isNaN(d.getTime())) return '—'
-  return d.toLocaleString([], {
-    month: 'short', day: 'numeric',
-    hour: '2-digit', minute: '2-digit',
+  return d.toLocaleDateString([], { month: 'short', day: 'numeric' })
+}
+
+/** Wall clock time in HH:MM:SS so two measurements in the same minute
+ *  are still distinguishable, and the analyst can correlate with logs
+ *  that timestamp to the second. */
+function fmtClockTime(iso: string | null): string {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return '—'
+  return d.toLocaleTimeString([], {
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hour12: false,
   })
+}
+
+/** Duration as MM:SS, or H:MM:SS when an hour or more. Always renders
+ *  in monospace at the call site so the digits line up across rows. */
+function fmtDuration(minutes: number | null): string {
+  if (minutes == null) return '—'
+  const totalSec = Math.max(0, Math.round(minutes * 60))
+  const hh = Math.floor(totalSec / 3600)
+  const mm = Math.floor((totalSec % 3600) / 60)
+  const ss = totalSec % 60
+  if (hh > 0) {
+    return `${hh}:${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`
+  }
+  return `${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`
 }
