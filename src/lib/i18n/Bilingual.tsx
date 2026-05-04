@@ -3,15 +3,15 @@
 /**
  * <Bilingual k="tab.live" /> — renders a translated label.
  *
- * Normally behaves identically to `t(k)`: returns the current locale's
- * string. When `bilingualMode=true` AND `locale='ar'`, stacks the Arabic
- * value with a small English subtitle so the admin can train a helper
- * while both see the same screen. Controlled by the admin-only toggle
- * exposed in LocaleToggle.
+ * In English locale: returns just the English string.
+ * In any other locale (Arabic, Urdu, ...): stacks the localised value
+ * with the English original underneath so cross-language conversation
+ * is always possible. The admin and the helper see the same screen and
+ * can refer to either text without enabling a separate toggle.
  *
  * Use `inline` for buttons or tight spaces where stacking looks wrong:
  *   <Bilingual k="stage.next.pouring" inline />
- * which renders "AR / EN" on one line instead of two rows.
+ * which renders "Localised / English" on one line instead of two rows.
  */
 
 import { CATALOG, type LogStringKey } from './log-catalog'
@@ -33,17 +33,26 @@ function interpolate(raw: string, params?: Record<string, string | number>): str
 }
 
 export default function Bilingual({ k, params, inline }: Props) {
-  const { t, locale, bilingualMode } = useLogT()
+  const { t, locale } = useLogT()
   const primary = t(k, params)
 
-  // Only overlay English when admin has explicitly asked for it AND we
-  // are in Arabic. English-only users see nothing extra; Arabic helpers
-  // on /fc/[token] never get this toggle so they also see nothing extra.
-  if (!bilingualMode || locale !== 'ar') {
+  // English locale: just the primary, no overlay.
+  // Any other locale: always show the English original underneath so
+  // admins and helpers can talk across languages without toggling a
+  // setting. This used to be gated behind a "+EN" admin toggle; the
+  // dual display now ships by default for every non-English locale.
+  if (locale === 'en') {
     return <>{primary}</>
   }
 
   const english = interpolate(CATALOG.en[k] ?? k, params)
+  // When the localised value is identical to the English (e.g. EN/AR
+  // labels intentionally kept the same, or a missing translation that
+  // fell through the t() fallback) skip the overlay so the same text
+  // does not appear twice.
+  if (primary === english) {
+    return <>{primary}</>
+  }
 
   if (inline) {
     return (

@@ -7,12 +7,10 @@
  * selection via LogLocaleContext + localStorage so observers who
  * open the /fc/[token] URL get their last-chosen language.
  *
- * When `adminMode` is true AND the current locale is Arabic, a
- * secondary "+EN" toggle appears that flips on bilingualMode. This is
- * only shown to admins (FieldLogView passes adminMode={isAdmin}); the
- * unauthenticated /fc/[token] route omits the prop so helpers never
- * see it. Bilingual mode is intentionally Arabic-only — Urdu helpers
- * who need an English crutch can switch to EN directly.
+ * No bilingual toggle: the <Bilingual> component automatically stacks
+ * the English original under the localised text whenever locale !== 'en',
+ * so admins and helpers can refer to either label without an extra tap.
+ * The `adminMode` prop is kept for API compatibility but unused.
  */
 
 import { useLogT } from '@/lib/i18n/LogLocaleContext'
@@ -21,8 +19,8 @@ interface Props {
   adminMode?: boolean
 }
 
-export default function LocaleToggle({ adminMode }: Props) {
-  const { locale, setLocale, bilingualMode, setBilingualMode } = useLogT()
+export default function LocaleToggle({ adminMode: _adminMode }: Props) {
+  const { locale, setLocale } = useLogT()
 
   const btnStyle = (active: boolean): React.CSSProperties => ({
     padding: '6px 10px',
@@ -34,8 +32,6 @@ export default function LocaleToggle({ adminMode }: Props) {
     cursor: 'pointer',
     minHeight: '32px',
   })
-
-  const showBilingualToggle = adminMode && locale === 'ar'
 
   return (
     <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
@@ -65,28 +61,6 @@ export default function LocaleToggle({ adminMode }: Props) {
           اردو
         </button>
       </div>
-      {showBilingualToggle && (
-        <button
-          type="button"
-          onClick={() => setBilingualMode(!bilingualMode)}
-          aria-pressed={bilingualMode}
-          title="Show English labels next to Arabic (admin-only)"
-          style={{
-            padding: '5px 9px',
-            background: bilingualMode ? '#E1F5EE' : '#fff',
-            color: bilingualMode ? '#0F6E56' : '#888',
-            border: `1px solid ${bilingualMode ? '#0F6E56' : '#d1d5db'}`,
-            borderRadius: '6px',
-            fontSize: '11px',
-            fontWeight: 600,
-            cursor: 'pointer',
-            minHeight: '32px',
-            letterSpacing: '.2px',
-          }}
-        >
-          + EN
-        </button>
-      )}
     </div>
   )
 }

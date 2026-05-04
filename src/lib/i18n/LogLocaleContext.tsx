@@ -3,19 +3,17 @@
 /**
  * LogLocaleProvider + useLogT hook.
  *
- * Scoped to the Log tab: provides locale state (en | ar) plus a
+ * Scoped to the Log tab: provides locale state (en | ar | ur) plus a
  * translator function `t(key, params?)`. Persists choice to
  * localStorage so observer's language is remembered across sessions.
  *
- * Also exposes `bilingualMode` — an admin-only overlay that, when
- * enabled alongside locale='ar', tells the <Bilingual> component to
- * render Arabic with a small English subtitle so the admin can train,
- * explain, or align with the end-user while both see the same screen.
- * Token helpers never toggle this on because the toggle UI is gated
- * behind admin mode.
+ * The RTL direction is derived from locale (Arabic and Urdu are RTL).
+ * Apply via `dir={isRTL ? 'rtl' : 'ltr'}` on a root element.
  *
- * The RTL direction is derived from locale and should be applied by
- * consumers as `dir={isRTL ? 'rtl' : 'ltr'}` on a root element.
+ * For non-English locales, the <Bilingual> component automatically
+ * stacks the English original under the localised text so admins and
+ * helpers can refer to the same labels across languages without
+ * needing a toggle.
  *
  * Why not next-intl or react-i18next: the Log tab is the ONLY part of
  * the platform that gets translated, so a 5kB custom hook beats a
@@ -27,15 +25,12 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import { CATALOG, type LogLocale, type LogStringKey } from './log-catalog'
 
 const STORAGE_KEY = 'alrmx-log-locale'
-const BILINGUAL_KEY = 'alrmx-log-bilingual'
 
 interface LogLocaleCtx {
   locale: LogLocale
   setLocale: (l: LogLocale) => void
   t: (key: LogStringKey, params?: Record<string, string | number>) => string
   isRTL: boolean
-  bilingualMode: boolean
-  setBilingualMode: (v: boolean) => void
   /** True once a stored locale has been read (client-only). Consumers can
    *  gate a first-visit language modal on !hasChosenLocale && hydrated. */
   hydrated: boolean
@@ -46,12 +41,11 @@ const LogLocaleContext = createContext<LogLocaleCtx | null>(null)
 
 export function LogLocaleProvider({ children }: { children: React.ReactNode }) {
   const [locale, setLocaleState] = useState<LogLocale>('en')
-  const [bilingualMode, setBilingualModeState] = useState(false)
   const [hydrated, setHydrated] = useState(false)
   const [hasChosenLocale, setHasChosenLocale] = useState(false)
 
-  // Read persisted state on mount. SSR-safe: defaults to 'en' + off,
-  // then flips on client if stored values differ. hasChosenLocale lets
+  // Read persisted state on mount. SSR-safe: defaults to 'en', then
+  // flips on client if a stored value differs. hasChosenLocale lets
   // consumers gate a first-visit language chooser modal.
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -60,10 +54,6 @@ export function LogLocaleProvider({ children }: { children: React.ReactNode }) {
       if (stored === 'en' || stored === 'ar' || stored === 'ur') {
         setLocaleState(stored)
         setHasChosenLocale(true)
-      }
-      const storedBi = window.localStorage.getItem(BILINGUAL_KEY)
-      if (storedBi === '1') {
-        setBilingualModeState(true)
       }
     } catch {
       // Private browsing or disabled storage, ignore
@@ -77,15 +67,6 @@ export function LogLocaleProvider({ children }: { children: React.ReactNode }) {
     if (typeof window !== 'undefined') {
       try {
         window.localStorage.setItem(STORAGE_KEY, l)
-      } catch { /* ignore */ }
-    }
-  }, [])
-
-  const setBilingualMode = useCallback((v: boolean) => {
-    setBilingualModeState(v)
-    if (typeof window !== 'undefined') {
-      try {
-        window.localStorage.setItem(BILINGUAL_KEY, v ? '1' : '0')
       } catch { /* ignore */ }
     }
   }, [])
@@ -105,11 +86,9 @@ export function LogLocaleProvider({ children }: { children: React.ReactNode }) {
     t,
     // Both Arabic and Urdu use the Perso-Arabic script and read RTL.
     isRTL: locale === 'ar' || locale === 'ur',
-    bilingualMode,
-    setBilingualMode,
     hydrated,
     hasChosenLocale,
-  }), [locale, setLocale, t, bilingualMode, setBilingualMode, hydrated, hasChosenLocale])
+  }), [locale, setLocale, t, hydrated, hasChosenLocale])
 
   return (
     <LogLocaleContext.Provider value={value}>
@@ -136,8 +115,6 @@ export function useLogT(): LogLocaleCtx {
         )
       },
       isRTL: false,
-      bilingualMode: false,
-      setBilingualMode: () => {},
       hydrated: false,
       hasChosenLocale: false,
     }
